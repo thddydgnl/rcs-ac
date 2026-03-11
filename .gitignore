@@ -1,0 +1,20 @@
+# logs
+logs/
+
+# trained models
+models/
+
+# python cache
+__pycache__/
+*.pyc
+
+# training weights
+*.pt
+*.pth
+
+# log files
+*.log
+
+# OS files
+Thumbs.db
+.DS_Store
