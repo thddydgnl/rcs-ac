@@ -1,0 +1,4 @@
+# Python dependencies for the CARLA F1 strategy MVP environment.
+gymnasium>=0.29
+numpy>=1.26
+pytest>=8.0
