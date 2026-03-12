@@ -70,6 +70,22 @@ pip install -r requirements.txt
 python scripts/run_env.py --laps 3 --steps 20
 ```
 
+Codex가 반복 디버깅할 수 있게 아티팩트를 남기려면:
+
+```bash
+python scripts/run_env.py --laps 3 --steps 20 --action-mode cycle --artifacts-dir artifacts/codex_run
+```
+
+위 명령은 아래 파일을 생성합니다.
+
+- `artifacts/codex_run/scene_summary.json`
+- `artifacts/codex_run/metrics.json`
+- `artifacts/codex_run/errors.json`
+- `artifacts/codex_run/step_trace.json`
+- `artifacts/codex_run/latest_frame.png`
+
+Codex는 이 파일들을 읽고 마지막 CARLA 카메라 프레임과 단계별 로그를 확인하면서 `carla_strategy_env/`, `scripts/`, `train.py`를 수정하는 루프를 돌릴 수 있습니다.
+
 ### 추후 학습 진입점
 
 ```bash

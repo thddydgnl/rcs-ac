@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+import os
 from pathlib import Path
 
 
@@ -11,8 +12,8 @@ PROJECT_ROOT = Path(__file__).resolve().parent
 
 @dataclass(slots=True)
 class CarlaConfig:
-    host: str = "127.0.0.1"
-    port: int = 2000
+    host: str = field(default_factory=lambda: os.environ.get("CARLA_HOST", "127.0.0.1"))
+    port: int = field(default_factory=lambda: int(os.environ.get("CARLA_PORT", "2000")))
     timeout_seconds: float = 10.0
     map_name: str = "SpaCircuit"
     fixed_delta_seconds: float = 0.1
