@@ -1,0 +1,32 @@
+seed: 7
+host: "127.0.0.1"
+port: 2000
+town: "Town04"
+output_root: "outputs/ppo_single_modal_env"
+logs_dir: "logs"
+checkpoints_dir: "checkpoints"
+run_name: "single_modal_baseline"
+total_timesteps: 512
+rollout_steps: 128
+max_episode_steps: 128
+save_every_updates: 1
+deterministic_eval: false
+env:
+  route_length: 40
+  route_spacing: 3.0
+  image_every: 50
+  client_timeout: 10.0
+model:
+  obs_dim: 13
+  action_dim: 3
+  hidden_dim: 128
+ppo:
+  learning_rate: 0.0003
+  gamma: 0.99
+  gae_lambda: 0.95
+  clip_coef: 0.2
+  value_coef: 0.5
+  entropy_coef: 0.01
+  max_grad_norm: 0.5
+  update_epochs: 4
+  minibatch_size: 64
