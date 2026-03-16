@@ -3,7 +3,11 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Dict, List
 
+import numpy as np
+
 import carla
+
+from utils.common import world_to_local_2d
 
 
 @dataclass
@@ -93,6 +97,19 @@ class RouteManager:
             idx = min(self.target_index + offset, len(self.route) - 1)
             waypoints.append(self.route[idx])
         return waypoints
+
+    def vehicle_to_waypoint_relative(self, vehicle_transform: carla.Transform, waypoint: carla.Waypoint) -> tuple[float, float]:
+        local_x, local_y = world_to_local_2d(vehicle_transform, waypoint.transform.location)
+        distance = float((local_x ** 2 + local_y ** 2) ** 0.5)
+        angle = float(np.arctan2(local_y, max(local_x, 1e-6)))
+        return distance, angle
+
+    def build_route_vector(self, vehicle_transform: carla.Transform, count: int = 3) -> np.ndarray:
+        features: List[float] = []
+        for waypoint in self.get_lookahead_waypoints(count=count):
+            distance, angle = self.vehicle_to_waypoint_relative(vehicle_transform, waypoint)
+            features.extend([distance, angle])
+        return np.asarray(features, dtype=np.float32)
 
     def compute_route_progress(self) -> float:
         if len(self.route) <= 1:

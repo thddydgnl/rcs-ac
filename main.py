@@ -85,7 +85,12 @@ def main():
 
     try:
         reset_info = env.reset()
-        print(f"[reset] frame={reset_info['frame']} route_waypoints={reset_info['route_waypoints']}")
+        print(
+            f"[reset] frame={reset_info['frame']} "
+            f"route_waypoints={reset_info['route_waypoints']} "
+            f"done={reset_info['done']} "
+            f"done_reason={reset_info['info']['done_reason']}"
+        )
 
         for step_idx in range(args.steps):
             step_info = env.step()
@@ -96,12 +101,15 @@ def main():
                 f"speed_kmh={step_info['speed_kmh']:.2f} "
                 f"target_idx={step_info['target_waypoint_index']} "
                 f"route_done={step_info['route_completed']} "
+                f"reward={step_info['reward']:.3f} "
+                f"done={step_info['done']} "
+                f"done_reason={step_info['done_reason']} "
                 f"collision={step_info['collision']} "
                 f"lane_invasion={step_info['lane_invasion']}"
             )
 
-            if step_info["route_completed"]:
-                print("[done] Route completed.")
+            if step_info["done"]:
+                print(f"[done] Episode finished with reason={step_info['done_reason']}.")
                 break
 
     except KeyboardInterrupt:
