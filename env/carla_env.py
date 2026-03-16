@@ -42,7 +42,9 @@ class CarlaEnv:
         stuck_speed_threshold_mps: float = 0.3,
         stuck_min_steps: int = 40,
         offroad_min_steps: int = 5,
+        offroad_grace_steps: int = 8,
         offroad_lane_offset_threshold: float | None = None,
+        suppress_conflicting_pedals: bool = False,
     ) -> None:
         self.host = host
         self.port = port
@@ -56,7 +58,9 @@ class CarlaEnv:
         self.stuck_speed_threshold_mps = stuck_speed_threshold_mps
         self.stuck_min_steps = stuck_min_steps
         self.offroad_min_steps = offroad_min_steps
+        self.offroad_grace_steps = max(0, int(offroad_grace_steps))
         self.offroad_lane_offset_threshold = offroad_lane_offset_threshold
+        self.suppress_conflicting_pedals = bool(suppress_conflicting_pedals)
 
         self.images_dir = ensure_dir(os.path.join(self.output_dir, "rgb"))
         self.logs_path = os.path.join(self.output_dir, "logs.csv")
@@ -83,24 +87,29 @@ class CarlaEnv:
         self.prev_action: np.ndarray = np.zeros((3,), dtype=np.float32)
         self.low_speed_steps = 0
         self.offroad_steps = 0
+        self.first_offroad_candidate_step: Optional[int] = None
+        self.spawn_point_index = -1
+        self.stuck_trigger_step = -1
 
     def reset(self) -> Dict[str, Any]:
         self._ensure_world_connected()
         self._reset_episode_actors()
         self._spawn_vehicle()
         self._setup_sensors()
-        self._setup_route()
-        self._open_log()
 
         self.spectator = self.world.get_spectator() if self.world is not None else None
         initial_frame = 0
         for _ in range(2):
             initial_frame = self.world.tick()
+        self._setup_route()
+        self._open_log()
         self._update_spectator()
         sensor_snapshot = self._collect_sensor_data(initial_frame)
         self.step_count = 0
         self.low_speed_steps = 0
         self.offroad_steps = 0
+        self.first_offroad_candidate_step = None
+        self.stuck_trigger_step = -1
         self.prev_action = np.zeros((3,), dtype=np.float32)
 
         route_metrics = self.route_manager.build_metrics(self.vehicle.get_transform())
@@ -233,6 +242,8 @@ class CarlaEnv:
         self.prev_action = np.zeros((3,), dtype=np.float32)
         self.low_speed_steps = 0
         self.offroad_steps = 0
+        self.first_offroad_candidate_step = None
+        self.stuck_trigger_step = -1
         self.step_count = 0
         self.last_controls.clear()
 
@@ -272,6 +283,8 @@ class CarlaEnv:
         self.prev_action = np.zeros((3,), dtype=np.float32)
         self.low_speed_steps = 0
         self.offroad_steps = 0
+        self.first_offroad_candidate_step = None
+        self.stuck_trigger_step = -1
         self.step_count = 0
         self.last_controls.clear()
 
@@ -306,10 +319,38 @@ class CarlaEnv:
         if not spawn_points:
             raise RuntimeError("No spawn points available in map.")
 
+        scored_indices: list[tuple[float, int]] = []
+        fallback_indices: list[int] = []
+        for spawn_index, spawn_transform in enumerate(spawn_points):
+            strict_waypoint = self.map.get_waypoint(
+                spawn_transform.location,
+                project_to_road=False,
+                lane_type=carla.LaneType.Driving,
+            )
+            projected_waypoint = self.map.get_waypoint(
+                spawn_transform.location,
+                project_to_road=True,
+                lane_type=carla.LaneType.Driving,
+            )
+            if projected_waypoint is None:
+                fallback_indices.append(spawn_index)
+                continue
+
+            position_error = spawn_transform.location.distance(projected_waypoint.transform.location)
+            yaw_error = abs(angle_diff_deg(spawn_transform.rotation.yaw, projected_waypoint.transform.rotation.yaw))
+            road_penalty = 0.0 if strict_waypoint is not None else 100.0
+            score = road_penalty + position_error + 0.05 * yaw_error
+            scored_indices.append((score, spawn_index))
+
+        prioritized_indices = [spawn_index for _, spawn_index in sorted(scored_indices, key=lambda item: item[0])]
+
         self.vehicle = None
-        for spawn_transform in spawn_points:
+        self.spawn_point_index = -1
+        for spawn_index in prioritized_indices + fallback_indices:
+            spawn_transform = spawn_points[spawn_index]
             self.vehicle = self.world.try_spawn_actor(vehicle_bp, spawn_transform)
             if self.vehicle is not None:
+                self.spawn_point_index = spawn_index
                 break
 
         if self.vehicle is None:
@@ -387,10 +428,21 @@ class CarlaEnv:
         return vector
 
     def _action_to_control(self, action_vector: np.ndarray) -> carla.VehicleControl:
+        steer = float(action_vector[0])
+        throttle = float(action_vector[1])
+        brake = float(action_vector[2])
+        pedal_overlap_suppressed = False
+
+        if self.suppress_conflicting_pedals and throttle > 0.05 and brake > 0.05:
+            if throttle >= brake:
+                brake = 0.0
+            else:
+                throttle = 0.0
+
         return carla.VehicleControl(
-            steer=float(action_vector[0]),
-            throttle=float(action_vector[1]),
-            brake=float(action_vector[2]),
+            steer=steer,
+            throttle=throttle,
+            brake=brake,
             hand_brake=False,
             reverse=False,
             manual_gear_shift=False,
@@ -470,15 +522,28 @@ class CarlaEnv:
         lane_events = sensor_snapshot["lane_events"]
         latest_collision = collision_events[-1] if collision_events else None
         lane_markings = sorted({mark for event in lane_events for mark in event["markings"]})
-        is_low_speed, stuck = self._update_stuck_status(speed_mps, route_metrics.reached_goal)
-        offroad_candidate, offroad = self._update_offroad_status(vehicle_transform, route_metrics.lane_offset, route_metrics.reached_goal)
+        target_waypoint = self.route_manager.get_current_target_waypoint()
+        target_distance = vehicle_transform.location.distance(target_waypoint.transform.location)
+        recent_control_summary = self._recent_control_summary()
+        is_low_speed, stuck = self._update_stuck_status(speed_mps, route_metrics.reached_goal, current_step)
+        offroad_candidate, offroad, offroad_threshold = self._update_offroad_status(
+            vehicle_transform,
+            route_metrics.lane_offset,
+            route_metrics.reached_goal,
+            current_step,
+        )
 
         return {
             "timestamp": timestamp_string(),
             "frame": frame,
             "step": current_step,
+            "spawn_point_index": self.spawn_point_index,
             "speed_kmh": speed_kmh,
             "speed_mps": speed_mps,
+            "vehicle_x": vehicle_transform.location.x,
+            "vehicle_y": vehicle_transform.location.y,
+            "vehicle_z": vehicle_transform.location.z,
+            "vehicle_yaw": vehicle_transform.rotation.yaw,
             "collision": latest_collision is not None,
             "collision_events": collision_events,
             "collision_actor": "" if latest_collision is None else latest_collision["other_actor"],
@@ -488,6 +553,7 @@ class CarlaEnv:
             "lane_markings": lane_markings,
             "route_progress": route_metrics.route_progress,
             "target_waypoint_index": route_metrics.target_index,
+            "target_distance": target_distance,
             "lane_offset": route_metrics.lane_offset,
             "heading_error": route_metrics.heading_error,
             "reached_goal": route_metrics.reached_goal,
@@ -497,6 +563,11 @@ class CarlaEnv:
             "low_speed_steps": self.low_speed_steps,
             "offroad_candidate": offroad_candidate,
             "offroad_steps": self.offroad_steps,
+            "offroad_threshold": offroad_threshold,
+            "offroad_grace_steps": self.offroad_grace_steps,
+            "offroad_grace_active": current_step <= self.offroad_grace_steps,
+            "first_offroad_step": -1 if self.first_offroad_candidate_step is None else self.first_offroad_candidate_step,
+            "stuck_trigger_step": self.stuck_trigger_step,
             "lidar_points": sensor_snapshot["lidar_points"],
             "action": action_vector.copy(),
             "control": {
@@ -504,6 +575,14 @@ class CarlaEnv:
                 "throttle": control.throttle,
                 "brake": control.brake,
             },
+            "pedal_overlap_suppressed": bool(
+                abs(float(action_vector[1]) - float(control.throttle)) > 1e-6
+                or abs(float(action_vector[2]) - float(control.brake)) > 1e-6
+            ),
+            "recent_steer_mean": recent_control_summary["recent_steer_mean"],
+            "recent_throttle_mean": recent_control_summary["recent_throttle_mean"],
+            "recent_brake_mean": recent_control_summary["recent_brake_mean"],
+            "recent_control_window": recent_control_summary["recent_control_window"],
             "observation_keys": list(observation.keys()),
             "observation_shapes": {key: tuple(value.shape) for key, value in observation.items()},
             "reward": reward,
@@ -513,9 +592,10 @@ class CarlaEnv:
             "max_steps_reached": current_step >= self.max_steps,
         }
 
-    def _update_stuck_status(self, speed_mps: float, reached_goal: bool) -> tuple[bool, bool]:
+    def _update_stuck_status(self, speed_mps: float, reached_goal: bool, current_step: int) -> tuple[bool, bool]:
         if reached_goal:
             self.low_speed_steps = 0
+            self.stuck_trigger_step = -1
             return False, False
 
         is_low_speed = speed_mps < self.stuck_speed_threshold_mps
@@ -523,13 +603,42 @@ class CarlaEnv:
             self.low_speed_steps += 1
         else:
             self.low_speed_steps = 0
+            self.stuck_trigger_step = -1
 
-        return is_low_speed, self.low_speed_steps >= self.stuck_min_steps
+        stuck = self.low_speed_steps >= self.stuck_min_steps
+        if stuck and self.stuck_trigger_step < 0:
+            self.stuck_trigger_step = current_step
+        return is_low_speed, stuck
 
-    def _update_offroad_status(self, vehicle_transform: carla.Transform, lane_offset: float, reached_goal: bool) -> tuple[bool, bool]:
+    def _recent_control_summary(self) -> Dict[str, float | int]:
+        if not self.last_controls:
+            return {
+                "recent_steer_mean": 0.0,
+                "recent_throttle_mean": 0.0,
+                "recent_brake_mean": 0.0,
+                "recent_control_window": 0,
+            }
+
+        steer_values = np.asarray([float(control.steer) for control in self.last_controls], dtype=np.float32)
+        throttle_values = np.asarray([float(control.throttle) for control in self.last_controls], dtype=np.float32)
+        brake_values = np.asarray([float(control.brake) for control in self.last_controls], dtype=np.float32)
+        return {
+            "recent_steer_mean": float(np.mean(steer_values)),
+            "recent_throttle_mean": float(np.mean(throttle_values)),
+            "recent_brake_mean": float(np.mean(brake_values)),
+            "recent_control_window": int(len(self.last_controls)),
+        }
+
+    def _update_offroad_status(
+        self,
+        vehicle_transform: carla.Transform,
+        lane_offset: float,
+        reached_goal: bool,
+        current_step: int,
+    ) -> tuple[bool, bool, float]:
         if reached_goal or self.map is None:
             self.offroad_steps = 0
-            return False, False
+            return False, False, 0.0
 
         waypoint = self.map.get_waypoint(
             vehicle_transform.location,
@@ -539,18 +648,28 @@ class CarlaEnv:
 
         if waypoint is None:
             offroad_candidate = True
+            threshold = self.offroad_lane_offset_threshold
+            if threshold is None:
+                threshold = 0.0
         else:
             threshold = self.offroad_lane_offset_threshold
             if threshold is None:
                 threshold = max(float(waypoint.lane_width) * 0.6, 1.75)
             offroad_candidate = abs(float(lane_offset)) > threshold
 
+        if offroad_candidate and self.first_offroad_candidate_step is None:
+            self.first_offroad_candidate_step = current_step
+
+        if current_step <= self.offroad_grace_steps:
+            self.offroad_steps = 0
+            return offroad_candidate, False, float(threshold)
+
         if offroad_candidate:
             self.offroad_steps += 1
         else:
             self.offroad_steps = 0
 
-        return offroad_candidate, self.offroad_steps >= self.offroad_min_steps
+        return offroad_candidate, self.offroad_steps >= self.offroad_min_steps, float(threshold)
 
     def _resolve_done_reason(self, info: Dict[str, Any], current_step: int) -> str:
         if bool(info["reached_goal"]):
@@ -594,10 +713,24 @@ class CarlaEnv:
                 "route_progress",
                 "heading_error",
                 "lane_offset",
+                "target_distance",
                 "collision",
                 "lane_invasion",
                 "offroad",
+                "offroad_candidate",
+                "offroad_steps",
+                "offroad_threshold",
+                "offroad_grace_steps",
+                "offroad_grace_active",
+                "first_offroad_step",
+                "stuck_trigger_step",
                 "stuck",
+                "low_speed_steps",
+                "recent_steer_mean",
+                "recent_throttle_mean",
+                "recent_brake_mean",
+                "recent_control_window",
+                "pedal_overlap_suppressed",
                 "reached_goal",
                 "reward",
                 "progress_reward",
@@ -614,6 +747,7 @@ class CarlaEnv:
                 "collision_intensity",
                 "lane_markings",
                 "lidar_points",
+                "spawn_point_index",
                 "rgb_image_path",
             ],
         )
@@ -641,10 +775,24 @@ class CarlaEnv:
             "route_progress": round(info["route_progress"], 4),
             "heading_error": round(info["heading_error"], 4),
             "lane_offset": round(info["lane_offset"], 4),
+            "target_distance": round(float(info.get("target_distance", 0.0)), 4),
             "collision": info["collision"],
             "lane_invasion": info["lane_invasion"],
             "offroad": info["offroad"],
+            "offroad_candidate": bool(info.get("offroad_candidate", False)),
+            "offroad_steps": int(info.get("offroad_steps", 0)),
+            "offroad_threshold": round(float(info.get("offroad_threshold", 0.0)), 4),
+            "offroad_grace_steps": int(info.get("offroad_grace_steps", 0)),
+            "offroad_grace_active": bool(info.get("offroad_grace_active", False)),
+            "first_offroad_step": int(info.get("first_offroad_step", -1)),
+            "stuck_trigger_step": int(info.get("stuck_trigger_step", -1)),
             "stuck": info["stuck"],
+            "low_speed_steps": int(info.get("low_speed_steps", 0)),
+            "recent_steer_mean": round(float(info.get("recent_steer_mean", 0.0)), 4),
+            "recent_throttle_mean": round(float(info.get("recent_throttle_mean", 0.0)), 4),
+            "recent_brake_mean": round(float(info.get("recent_brake_mean", 0.0)), 4),
+            "recent_control_window": int(info.get("recent_control_window", 0)),
+            "pedal_overlap_suppressed": bool(info.get("pedal_overlap_suppressed", False)),
             "reached_goal": info["reached_goal"],
             "reward": round(float(info.get("reward", 0.0)), 6),
             "progress_reward": round(float(reward_breakdown["progress_reward"]), 6),
@@ -661,6 +809,7 @@ class CarlaEnv:
             "collision_intensity": round(info["collision_intensity"], 3),
             "lane_markings": "|".join(info["lane_markings"]),
             "lidar_points": info["lidar_points"],
+            "spawn_point_index": int(info.get("spawn_point_index", -1)),
             "rgb_image_path": image_path,
         }
         self.csv_writer.writerow(row)

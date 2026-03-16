@@ -1,0 +1,2 @@
+timestamp,model_type,episode_index,episode_reward,episode_length,done_reason,route_progress,reached_goal,collision,offroad,stuck
+2026-03-17T01:19:06,attention_fusion,0,-5.021115,4,offroad,0.025641,False,False,True,False

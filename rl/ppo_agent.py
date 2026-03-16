@@ -8,6 +8,7 @@ import torch
 from torch import nn
 from torch.distributions import Normal
 
+from models.attention_fusion_actor_critic import AttentionFusionActorCritic, AttentionFusionConfig
 from models.early_fusion_actor_critic import EarlyFusionActorCritic, EarlyFusionConfig
 from models.single_modal_actor_critic import ModelConfig, SingleModalActorCritic
 from utils.common import clamp
@@ -68,6 +69,28 @@ class PPOAgent:
                     lidar_feature_dim=int(model_kwargs.get("lidar_feature_dim", 32)),
                     ego_feature_dim=int(model_kwargs.get("ego_feature_dim", 32)),
                     route_feature_dim=int(model_kwargs.get("route_feature_dim", 32)),
+                )
+            )
+        if self.config.model_type == "attention_fusion":
+            rgb_shape = tuple(model_kwargs["rgb_shape"])
+            lidar_shape = tuple(model_kwargs["lidar_shape"])
+            return AttentionFusionActorCritic(
+                config=AttentionFusionConfig(
+                    obs_dim=self.config.obs_dim,
+                    action_dim=self.config.action_dim,
+                    hidden_dim=self.config.hidden_dim,
+                    min_std=float(model_kwargs.get("min_std", 0.05)),
+                    rgb_shape=(int(rgb_shape[0]), int(rgb_shape[1]), int(rgb_shape[2])),
+                    lidar_shape=(int(lidar_shape[0]), int(lidar_shape[1]), int(lidar_shape[2])),
+                    ego_dim=int(model_kwargs.get("ego_dim", 7)),
+                    route_dim=int(model_kwargs.get("route_dim", 6)),
+                    rgb_feature_dim=int(model_kwargs.get("rgb_feature_dim", 64)),
+                    lidar_feature_dim=int(model_kwargs.get("lidar_feature_dim", 32)),
+                    ego_feature_dim=int(model_kwargs.get("ego_feature_dim", 32)),
+                    route_feature_dim=int(model_kwargs.get("route_feature_dim", 32)),
+                    attention_heads=int(model_kwargs.get("attention_heads", 4)),
+                    attention_layers=int(model_kwargs.get("attention_layers", 1)),
+                    dropout=float(model_kwargs.get("dropout", 0.0)),
                 )
             )
         raise ValueError(f"Unsupported model_type: {self.config.model_type}")
@@ -170,3 +193,9 @@ class PPOAgent:
             },
             checkpoint_path,
         )
+
+    def get_diagnostics(self) -> dict[str, float]:
+        if hasattr(self.model, "get_diagnostics"):
+            diagnostics = self.model.get_diagnostics()
+            return {key: float(value) for key, value in diagnostics.items()}
+        return {}

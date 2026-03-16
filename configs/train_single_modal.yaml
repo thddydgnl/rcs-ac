@@ -6,20 +6,39 @@ output_root: "outputs/ppo_single_modal_env"
 logs_dir: "logs"
 checkpoints_dir: "checkpoints"
 run_name: "single_modal_baseline"
+model_type: "single_modal"
 total_timesteps: 512
 rollout_steps: 128
 max_episode_steps: 128
 save_every_updates: 1
 deterministic_eval: false
+eval_episodes: 1
 env:
   route_length: 40
   route_spacing: 3.0
   image_every: 50
   client_timeout: 10.0
+  stuck_speed_threshold_mps: 0.25
+  stuck_min_steps: 48
+  offroad_min_steps: 5
+  offroad_grace_steps: 8
+  suppress_conflicting_pedals: true
 model:
   obs_dim: 13
   action_dim: 3
   hidden_dim: 128
+reward:
+  progress_weight: 6.0
+  lane_weight: 0.1
+  collision_penalty: 10.0
+  offroad_penalty: 5.0
+  lane_invasion_penalty: 1.0
+  steer_change_weight: 0.05
+  throttle_change_weight: 0.02
+  brake_change_weight: 0.02
+  goal_bonus: 20.0
+  stuck_penalty: 3.0
+  progress_delta_clip: 1.0
 ppo:
   learning_rate: 0.0003
   gamma: 0.99

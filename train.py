@@ -54,7 +54,7 @@ def _bootstrap_carla() -> None:
 _bootstrap_carla()
 
 from env.carla_env import CarlaEnv
-from models.single_modal_actor_critic import ModelConfig
+from env.reward import RewardConfig
 from rl.ppo_agent import PPOAgent, PPOConfig
 from rl.rollout_buffer import RolloutBuffer
 from utils.common import ensure_dir, timestamp_string
@@ -69,7 +69,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--total-timesteps", type=int, default=None, help="Optional override for total timesteps.")
     parser.add_argument("--run-name", default=None, help="Optional override for run name.")
-    parser.add_argument("--model-type", default=None, choices=["single_modal", "early_fusion"], help="Optional override for model type.")
+    parser.add_argument("--model-type", default=None, choices=["single_modal", "early_fusion", "attention_fusion"], help="Optional override for model type.")
     return parser.parse_args()
 
 
@@ -109,7 +109,7 @@ def build_early_fusion_state(observation: dict[str, np.ndarray]) -> np.ndarray:
 def build_policy_observation(observation: dict[str, np.ndarray], model_type: str) -> np.ndarray:
     if model_type == "single_modal":
         return build_single_modal_state(observation)
-    if model_type == "early_fusion":
+    if model_type in {"early_fusion", "attention_fusion"}:
         return build_early_fusion_state(observation)
     raise ValueError(f"Unsupported model_type: {model_type}")
 
@@ -148,6 +148,9 @@ def build_model_config(observation: dict[str, np.ndarray], config: dict[str, Any
             "lidar_feature_dim": int(model_cfg_raw.get("lidar_feature_dim", 32)),
             "ego_feature_dim": int(model_cfg_raw.get("ego_feature_dim", 32)),
             "route_feature_dim": int(model_cfg_raw.get("route_feature_dim", 32)),
+            "attention_heads": int(model_cfg_raw.get("attention_heads", 4)),
+            "attention_layers": int(model_cfg_raw.get("attention_layers", 1)),
+            "dropout": float(model_cfg_raw.get("dropout", 0.0)),
         },
     }
 
@@ -159,19 +162,55 @@ def open_training_log(log_path: str) -> tuple[Any, csv.DictWriter]:
         fieldnames=[
             "timestamp",
             "model_type",
+            "seed",
             "record_type",
             "update",
             "total_steps",
+            "episode_idx",
             "episode_index",
             "episode_reward",
             "episode_length",
             "done_reason",
             "route_progress",
+            "reached_goal",
+            "collision",
+            "offroad",
+            "stuck",
             "average_reward",
             "average_route_progress",
+            "policy_loss",
+            "value_loss",
             "actor_loss",
             "critic_loss",
             "entropy",
+            "attention_mean_rgb",
+            "attention_mean_lidar",
+            "attention_mean_ego",
+            "attention_mean_route",
+            "spawn_point_index",
+            "initial_speed_kmh",
+            "initial_heading_error",
+            "initial_lane_offset",
+            "initial_target_distance",
+            "average_speed_kmh",
+            "low_speed_step_count",
+            "stuck_trigger_step",
+            "recent_control_window",
+            "recent_steer_mean",
+            "recent_throttle_mean",
+            "recent_brake_mean",
+            "pedal_overlap_suppressed",
+            "lane_offset",
+            "heading_error",
+            "target_distance",
+            "offroad_candidate",
+            "offroad_steps",
+            "offroad_threshold",
+            "offroad_grace_steps",
+            "first_offroad_step",
+            "final_action_steer",
+            "final_action_throttle",
+            "final_action_brake",
         ],
     )
     writer.writeheader()
@@ -182,6 +221,7 @@ def write_training_log(
     writer: csv.DictWriter,
     log_file: Any,
     model_type: str,
+    seed: int,
     record_type: str,
     update: int,
     total_steps: int,
@@ -190,27 +230,73 @@ def write_training_log(
     episode_length: int,
     done_reason: str,
     route_progress: float,
+    reached_goal: bool,
+    collision: bool,
+    offroad: bool,
+    stuck: bool,
     average_reward: float,
     average_route_progress: float,
+    average_speed_kmh: float,
+    initial_info: dict[str, Any] | None,
+    latest_info: dict[str, Any] | None,
     metrics: dict[str, float],
 ) -> None:
+    initial_info = initial_info or {}
+    latest_info = latest_info or {}
+    control = latest_info.get("control", {})
     writer.writerow(
         {
             "timestamp": timestamp_string(),
             "model_type": model_type,
+            "seed": seed,
             "record_type": record_type,
             "update": update,
             "total_steps": total_steps,
+            "episode_idx": episode_index,
             "episode_index": episode_index,
             "episode_reward": round(float(episode_reward), 6),
             "episode_length": episode_length,
             "done_reason": done_reason,
             "route_progress": round(float(route_progress), 6),
+            "reached_goal": bool(reached_goal),
+            "collision": bool(collision),
+            "offroad": bool(offroad),
+            "stuck": bool(stuck),
             "average_reward": round(float(average_reward), 6),
             "average_route_progress": round(float(average_route_progress), 6),
+            "policy_loss": round(float(metrics.get("actor_loss", 0.0)), 6),
+            "value_loss": round(float(metrics.get("critic_loss", 0.0)), 6),
             "actor_loss": round(float(metrics.get("actor_loss", 0.0)), 6),
             "critic_loss": round(float(metrics.get("critic_loss", 0.0)), 6),
             "entropy": round(float(metrics.get("entropy", 0.0)), 6),
+            "attention_mean_rgb": round(float(metrics.get("attention_mean_rgb", 0.0)), 6),
+            "attention_mean_lidar": round(float(metrics.get("attention_mean_lidar", 0.0)), 6),
+            "attention_mean_ego": round(float(metrics.get("attention_mean_ego", 0.0)), 6),
+            "attention_mean_route": round(float(metrics.get("attention_mean_route", 0.0)), 6),
+            "spawn_point_index": int(initial_info.get("spawn_point_index", latest_info.get("spawn_point_index", -1))),
+            "initial_speed_kmh": round(float(initial_info.get("speed_kmh", 0.0)), 6),
+            "initial_heading_error": round(float(initial_info.get("heading_error", 0.0)), 6),
+            "initial_lane_offset": round(float(initial_info.get("lane_offset", 0.0)), 6),
+            "initial_target_distance": round(float(initial_info.get("target_distance", 0.0)), 6),
+            "average_speed_kmh": round(float(average_speed_kmh), 6),
+            "low_speed_step_count": int(latest_info.get("low_speed_steps", 0)),
+            "stuck_trigger_step": int(latest_info.get("stuck_trigger_step", -1)),
+            "recent_control_window": int(latest_info.get("recent_control_window", 0)),
+            "recent_steer_mean": round(float(latest_info.get("recent_steer_mean", 0.0)), 6),
+            "recent_throttle_mean": round(float(latest_info.get("recent_throttle_mean", 0.0)), 6),
+            "recent_brake_mean": round(float(latest_info.get("recent_brake_mean", 0.0)), 6),
+            "pedal_overlap_suppressed": bool(latest_info.get("pedal_overlap_suppressed", False)),
+            "lane_offset": round(float(latest_info.get("lane_offset", 0.0)), 6),
+            "heading_error": round(float(latest_info.get("heading_error", 0.0)), 6),
+            "target_distance": round(float(latest_info.get("target_distance", 0.0)), 6),
+            "offroad_candidate": bool(latest_info.get("offroad_candidate", False)),
+            "offroad_steps": int(latest_info.get("offroad_steps", 0)),
+            "offroad_threshold": round(float(latest_info.get("offroad_threshold", 0.0)), 6),
+            "offroad_grace_steps": int(latest_info.get("offroad_grace_steps", 0)),
+            "first_offroad_step": int(latest_info.get("first_offroad_step", -1)),
+            "final_action_steer": round(float(control.get("steer", 0.0)), 6),
+            "final_action_throttle": round(float(control.get("throttle", 0.0)), 6),
+            "final_action_brake": round(float(control.get("brake", 0.0)), 6),
         }
     )
     log_file.flush()
@@ -250,6 +336,21 @@ def main() -> int:
 
     ppo_cfg_raw = config.get("ppo", {})
     env_cfg_raw = config.get("env", {})
+    reward_cfg_raw = config.get("reward", {})
+
+    reward_config = RewardConfig(
+        progress_weight=float(reward_cfg_raw.get("progress_weight", 5.0)),
+        lane_weight=float(reward_cfg_raw.get("lane_weight", 0.1)),
+        collision_penalty=float(reward_cfg_raw.get("collision_penalty", 10.0)),
+        offroad_penalty=float(reward_cfg_raw.get("offroad_penalty", 5.0)),
+        lane_invasion_penalty=float(reward_cfg_raw.get("lane_invasion_penalty", 1.0)),
+        steer_change_weight=float(reward_cfg_raw.get("steer_change_weight", 0.05)),
+        throttle_change_weight=float(reward_cfg_raw.get("throttle_change_weight", 0.02)),
+        brake_change_weight=float(reward_cfg_raw.get("brake_change_weight", 0.02)),
+        goal_bonus=float(reward_cfg_raw.get("goal_bonus", 20.0)),
+        stuck_penalty=float(reward_cfg_raw.get("stuck_penalty", 3.0)),
+        progress_delta_clip=float(reward_cfg_raw.get("progress_delta_clip", 1.0)),
+    )
 
     env = CarlaEnv(
         host=str(config.get("host", "127.0.0.1")),
@@ -261,6 +362,17 @@ def main() -> int:
         route_length=int(env_cfg_raw.get("route_length", 40)),
         route_spacing=float(env_cfg_raw.get("route_spacing", 3.0)),
         max_steps=int(config.get("max_episode_steps", 128)),
+        reward_config=reward_config,
+        stuck_speed_threshold_mps=float(env_cfg_raw.get("stuck_speed_threshold_mps", 0.3)),
+        stuck_min_steps=int(env_cfg_raw.get("stuck_min_steps", 40)),
+        offroad_min_steps=int(env_cfg_raw.get("offroad_min_steps", 5)),
+        offroad_grace_steps=int(env_cfg_raw.get("offroad_grace_steps", 8)),
+        offroad_lane_offset_threshold=(
+            None
+            if env_cfg_raw.get("offroad_lane_offset_threshold") is None
+            else float(env_cfg_raw.get("offroad_lane_offset_threshold"))
+        ),
+        suppress_conflicting_pedals=bool(env_cfg_raw.get("suppress_conflicting_pedals", False)),
     )
 
     total_timesteps = int(config.get("total_timesteps", 512))
@@ -274,12 +386,21 @@ def main() -> int:
     episode_length = 0
     last_done_reason = "running"
     last_route_progress = 0.0
+    last_reached_goal = False
+    last_collision = False
+    last_offroad = False
+    last_stuck = False
+    last_info: dict[str, Any] | None = None
+    episode_speed_sum = 0.0
+    episode_speed_count = 0
     completed_episode_rewards: list[float] = []
     completed_episode_progresses: list[float] = []
 
     try:
         reset_result = env.reset()
         initial_obs = reset_result["obs"]
+        episode_initial_info = dict(reset_result["info"])
+        last_info = dict(reset_result["info"])
         model_config = build_model_config(initial_obs, config, model_type)
         policy_observation = build_policy_observation(initial_obs, model_type)
 
@@ -342,14 +463,23 @@ def main() -> int:
                 observation = next_observation
                 last_done_reason = str(info.get("done_reason", "running"))
                 last_route_progress = float(info.get("route_progress", 0.0))
+                last_reached_goal = bool(info.get("reached_goal", False))
+                last_collision = bool(info.get("collision", False))
+                last_offroad = bool(info.get("offroad", False))
+                last_stuck = bool(info.get("stuck", False))
+                last_info = dict(info)
+                episode_speed_sum += float(info.get("speed_kmh", 0.0))
+                episode_speed_count += 1
 
                 if done:
                     completed_episode_rewards.append(episode_reward)
                     completed_episode_progresses.append(last_route_progress)
+                    average_speed_kmh = episode_speed_sum / max(1, episode_speed_count)
                     write_training_log(
                         writer=log_writer,
                         log_file=log_file,
                         model_type=model_type,
+                        seed=seed,
                         record_type="episode",
                         update=update_index,
                         total_steps=total_steps,
@@ -358,8 +488,15 @@ def main() -> int:
                         episode_length=episode_length,
                         done_reason=last_done_reason,
                         route_progress=last_route_progress,
+                        reached_goal=last_reached_goal,
+                        collision=last_collision,
+                        offroad=last_offroad,
+                        stuck=last_stuck,
                         average_reward=float(np.mean(completed_episode_rewards)),
                         average_route_progress=float(np.mean(completed_episode_progresses)),
+                        average_speed_kmh=average_speed_kmh,
+                        initial_info=episode_initial_info,
+                        latest_info=last_info,
                         metrics={},
                     )
                     print(
@@ -370,7 +507,12 @@ def main() -> int:
                     episode_index += 1
                     episode_reward = 0.0
                     episode_length = 0
-                    observation = build_policy_observation(env.reset()["obs"], model_type)
+                    episode_speed_sum = 0.0
+                    episode_speed_count = 0
+                    reset_result = env.reset()
+                    episode_initial_info = dict(reset_result["info"])
+                    last_info = dict(reset_result["info"])
+                    observation = build_policy_observation(reset_result["obs"], model_type)
 
                 if total_steps >= total_timesteps:
                     break
@@ -387,6 +529,7 @@ def main() -> int:
 
             buffer.compute_returns_and_advantages(last_value=last_value, last_done=last_done)
             metrics = agent.update(buffer.get_training_batch(agent.device))
+            metrics.update(agent.get_diagnostics())
             update_index += 1
 
             print(
@@ -399,6 +542,7 @@ def main() -> int:
                 writer=log_writer,
                 log_file=log_file,
                 model_type=model_type,
+                seed=seed,
                 record_type="update",
                 update=update_index,
                 total_steps=total_steps,
@@ -407,8 +551,15 @@ def main() -> int:
                 episode_length=episode_length,
                 done_reason=last_done_reason,
                 route_progress=last_route_progress,
+                reached_goal=last_reached_goal,
+                collision=last_collision,
+                offroad=last_offroad,
+                stuck=last_stuck,
                 average_reward=float(np.mean(completed_episode_rewards)) if completed_episode_rewards else 0.0,
                 average_route_progress=float(np.mean(completed_episode_progresses)) if completed_episode_progresses else 0.0,
+                average_speed_kmh=(episode_speed_sum / max(1, episode_speed_count)),
+                initial_info=episode_initial_info,
+                latest_info=last_info,
                 metrics=metrics,
             )
 
