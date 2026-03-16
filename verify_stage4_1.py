@@ -55,8 +55,8 @@ _bootstrap_carla()
 FAILURES: list[str] = []
 WARNINGS: list[str] = []
 MODIFIED_FILES = [
-    os.path.abspath("train.py"),
-    os.path.abspath(os.path.join("rl", "ppo_agent.py")),
+    os.path.abspath("verify_stage4_1.py"),
+    os.path.abspath(os.path.join("env", "carla_env.py")),
 ]
 
 
@@ -95,6 +95,16 @@ def latest_matching_file(pattern: str) -> str:
     if not matches:
         raise FileNotFoundError(f"No files matched pattern: {pattern}")
     return str(matches[0])
+
+
+def safe_close_env(env: Any | None, label: str) -> None:
+    if env is None:
+        return
+    try:
+        env.close()
+        ok(f"{label}: env.close() 완료")
+    except Exception as exc:
+        warn(f"{label}: env.close() 중 예외 발생: {exc}")
 
 
 def static_structure_check() -> dict[str, Any]:
@@ -138,7 +148,6 @@ def static_structure_check() -> dict[str, Any]:
     require("model" in config, "config.model 존재", "config.model 이 없습니다.")
     require("ppo" in config, "config.ppo 존재", "config.ppo 가 없습니다.")
     require("env" in config, "config.env 존재", "config.env 가 없습니다.")
-
     return modules
 
 
@@ -153,8 +162,8 @@ def model_io_check(modules: dict[str, Any]) -> tuple[np.ndarray, dict[str, Any],
     source = inspect.getsource(build_single_modal_state)
     require('observation["ego"]' in source, 'single-modal state가 obs["ego"] 사용', 'single-modal state에서 obs["ego"] 사용이 보이지 않습니다.')
     require('observation["route"]' in source, 'single-modal state가 obs["route"] 사용', 'single-modal state에서 obs["route"] 사용이 보이지 않습니다.')
-    require('observation["rgb"]' not in source, 'single-modal state가 rgb를 직접 사용하지 않음', 'single-modal state에서 rgb 사용 흔적이 있습니다.')
-    require('observation["lidar_bev"]' not in source, 'single-modal state가 lidar_bev를 직접 사용하지 않음', 'single-modal state에서 lidar_bev 사용 흔적이 있습니다.')
+    require('observation["rgb"]' not in source, "single-modal state가 rgb를 직접 사용하지 않음", "single-modal state에서 rgb 사용 흔적이 있습니다.")
+    require('observation["lidar_bev"]' not in source, "single-modal state가 lidar_bev를 직접 사용하지 않음", "single-modal state에서 lidar_bev 사용 흔적이 있습니다.")
 
     env = carla_env_module.CarlaEnv(
         output_dir=os.path.join("outputs", "verify_stage4_1_model_io"),
@@ -162,42 +171,38 @@ def model_io_check(modules: dict[str, Any]) -> tuple[np.ndarray, dict[str, Any],
         image_every=100,
         client_timeout=30.0,
     )
-    try:
-        reset_result = env.reset()
-        obs = reset_result["obs"]
-        state = build_single_modal_state(obs)
-        require(state.shape == (13,), "single-modal 입력 shape=(13,)", f"single-modal 입력 shape가 잘못되었습니다: {state.shape}")
-        require(state.dtype == np.float32, "single-modal 입력 dtype=np.float32", f"single-modal 입력 dtype이 잘못되었습니다: {state.dtype}")
+    reset_result = env.reset()
+    obs = reset_result["obs"]
+    state = build_single_modal_state(obs)
+    require(state.shape == (13,), "single-modal 입력 shape=(13,)", f"single-modal 입력 shape가 잘못되었습니다: {state.shape}")
+    require(state.dtype == np.float32, "single-modal 입력 dtype=np.float32", f"single-modal 입력 dtype이 잘못되었습니다: {state.dtype}")
 
-        model = model_module.SingleModalActorCritic(model_module.ModelConfig(obs_dim=13, action_dim=3, hidden_dim=128))
-        obs_tensor = torch.as_tensor(state, dtype=torch.float32).unsqueeze(0)
-        action_mean, value = model(obs_tensor)
-        require(tuple(action_mean.shape) == (1, 3), "actor 출력 shape=(1,3)", f"actor 출력 shape가 잘못되었습니다: {tuple(action_mean.shape)}")
-        require(tuple(value.shape) == (1,), "critic 출력 shape=(1,)", f"critic 출력 shape가 잘못되었습니다: {tuple(value.shape)}")
+    model = model_module.SingleModalActorCritic(model_module.ModelConfig(obs_dim=13, action_dim=3, hidden_dim=128))
+    obs_tensor = torch.as_tensor(state, dtype=torch.float32).unsqueeze(0)
+    action_mean, value = model(obs_tensor)
+    require(tuple(action_mean.shape) == (1, 3), "actor 출력 shape=(1,3)", f"actor 출력 shape가 잘못되었습니다: {tuple(action_mean.shape)}")
+    require(tuple(value.shape) == (1,), "critic 출력 shape=(1,)", f"critic 출력 shape가 잘못되었습니다: {tuple(value.shape)}")
 
-        agent = ppo_module.PPOAgent(ppo_module.PPOConfig(obs_dim=13, action_dim=3, hidden_dim=128, rollout_steps=8, minibatch_size=4))
-        action, log_prob, state_value = agent.act(state)
-        require(action.shape == (3,), "sampled action shape=(3,)", f"sampled action shape가 잘못되었습니다: {action.shape}")
-        require(np.all(np.isfinite(action)), "sampled action finite", f"sampled action에 비정상 값이 있습니다: {action}")
-        require(-1.0 <= float(action[0]) <= 1.0, "steer 범위 정상", f"steer 범위 오류: {action[0]}")
-        require(0.0 <= float(action[1]) <= 1.0, "throttle 범위 정상", f"throttle 범위 오류: {action[1]}")
-        require(0.0 <= float(action[2]) <= 1.0, "brake 범위 정상", f"brake 범위 오류: {action[2]}")
-        require(np.isfinite(log_prob), "log_prob 계산 가능", f"log_prob 값이 비정상입니다: {log_prob}")
-        require(np.isfinite(state_value), "value 계산 가능", f"value 값이 비정상입니다: {state_value}")
+    agent = ppo_module.PPOAgent(ppo_module.PPOConfig(obs_dim=13, action_dim=3, hidden_dim=128, rollout_steps=8, minibatch_size=4))
+    action, log_prob, state_value = agent.act(state)
+    require(action.shape == (3,), "sampled action shape=(3,)", f"sampled action shape가 잘못되었습니다: {action.shape}")
+    require(np.all(np.isfinite(action)), "sampled action finite", f"sampled action에 비정상 값이 있습니다: {action}")
+    require(-1.0 <= float(action[0]) <= 1.0, "steer 범위 정상", f"steer 범위 오류: {action[0]}")
+    require(0.0 <= float(action[1]) <= 1.0, "throttle 범위 정상", f"throttle 범위 오류: {action[1]}")
+    require(0.0 <= float(action[2]) <= 1.0, "brake 범위 정상", f"brake 범위 오류: {action[2]}")
+    require(np.isfinite(log_prob), "log_prob 계산 가능", f"log_prob 값이 비정상입니다: {log_prob}")
+    require(np.isfinite(state_value), "value 계산 가능", f"value 값이 비정상입니다: {state_value}")
 
-        obs_batch = torch.as_tensor(np.stack([state, state], axis=0), dtype=torch.float32)
-        action_batch = torch.as_tensor(np.stack([action, action], axis=0), dtype=torch.float32)
-        eval_log_prob, entropy, eval_values = agent.evaluate_actions(obs_batch, action_batch)
-        require(tuple(eval_log_prob.shape) == (2,), "evaluate_actions log_prob shape 정상", f"log_prob batch shape가 잘못되었습니다: {tuple(eval_log_prob.shape)}")
-        require(tuple(entropy.shape) == (2,), "evaluate_actions entropy shape 정상", f"entropy batch shape가 잘못되었습니다: {tuple(entropy.shape)}")
-        require(tuple(eval_values.shape) == (2,), "evaluate_actions value shape 정상", f"value batch shape가 잘못되었습니다: {tuple(eval_values.shape)}")
-        require(torch.isfinite(eval_log_prob).all().item(), "batch log_prob finite", "batch log_prob에 비정상 값이 있습니다.")
-        require(torch.isfinite(entropy).all().item(), "batch entropy finite", "batch entropy에 비정상 값이 있습니다.")
-        require(torch.isfinite(eval_values).all().item(), "batch value finite", "batch value에 비정상 값이 있습니다.")
-        return state, obs, env
-    except Exception as exc:
-        fail(f"모델 입력/출력 검증 중 예외 발생: {exc}")
-        raise
+    obs_batch = torch.as_tensor(np.stack([state, state], axis=0), dtype=torch.float32)
+    action_batch = torch.as_tensor(np.stack([action, action], axis=0), dtype=torch.float32)
+    eval_log_prob, entropy, eval_values = agent.evaluate_actions(obs_batch, action_batch)
+    require(tuple(eval_log_prob.shape) == (2,), "evaluate_actions log_prob shape 정상", f"log_prob batch shape가 잘못되었습니다: {tuple(eval_log_prob.shape)}")
+    require(tuple(entropy.shape) == (2,), "evaluate_actions entropy shape 정상", f"entropy batch shape가 잘못되었습니다: {tuple(entropy.shape)}")
+    require(tuple(eval_values.shape) == (2,), "evaluate_actions value shape 정상", f"value batch shape가 잘못되었습니다: {tuple(eval_values.shape)}")
+    require(torch.isfinite(eval_log_prob).all().item(), "batch log_prob finite", "batch log_prob에 비정상 값이 있습니다.")
+    require(torch.isfinite(entropy).all().item(), "batch entropy finite", "batch entropy에 비정상 값이 있습니다.")
+    require(torch.isfinite(eval_values).all().item(), "batch value finite", "batch value에 비정상 값이 있습니다.")
+    return state, obs, env
 
 
 def ppo_update_check(modules: dict[str, Any], env: Any) -> None:
@@ -263,15 +268,41 @@ def ppo_update_check(modules: dict[str, Any], env: Any) -> None:
 
     changed = any(not torch.equal(pre, post) for pre, post in zip(before, after))
     require(changed, "gradient update 실제 수행", "모델 파라미터가 갱신되지 않았습니다.")
-
     print(
         f"[INFO] PPO update metrics: actor_loss={metrics['actor_loss']:.4f}, "
         f"critic_loss={metrics['critic_loss']:.4f}, entropy={metrics['entropy']:.4f}"
     )
 
 
+def reset_reuse_check(modules: dict[str, Any]) -> None:
+    print("\n[D] env.reset() world 재사용 검증")
+    carla_env_module = modules["env.carla_env"]
+    env = carla_env_module.CarlaEnv(
+        output_dir=os.path.join("outputs", "verify_stage4_1_reset_reuse"),
+        max_steps=16,
+        image_every=100,
+        client_timeout=30.0,
+    )
+    try:
+        env.reset()
+        world_id_1 = id(env.world)
+        map_name_1 = env.map.name if env.map is not None else ""
+        vehicle_id_1 = env.vehicle.id if env.vehicle is not None else -1
+
+        env.reset()
+        world_id_2 = id(env.world)
+        map_name_2 = env.map.name if env.map is not None else ""
+        vehicle_id_2 = env.vehicle.id if env.vehicle is not None else -1
+
+        require(world_id_1 == world_id_2, "reset() 시 world 객체 재사용", "reset() 시 world 객체가 다시 만들어졌습니다.")
+        require(map_name_1 == map_name_2, "reset() 시 map 유지", "reset() 시 map 정보가 달라졌습니다.")
+        require(vehicle_id_1 != vehicle_id_2, "reset() 시 vehicle 재생성", "reset() 시 vehicle 이 재생성되지 않았습니다.")
+    finally:
+        safe_close_env(env, "reset_reuse_check")
+
+
 def smoke_train_check() -> None:
-    print("\n[D] 짧은 train.py smoke 실행 검증")
+    print("\n[E] 짧은 train.py smoke 실행 검증")
     run_name = "verify_stage4_1_smoke"
     command = [
         sys.executable,
@@ -317,7 +348,6 @@ def smoke_train_check() -> None:
     update_rows = [row for row in rows if row.get("record_type") == "update"]
     require(len(episode_rows) > 0, "episode 로그 row 존재", "episode 로그 row가 없습니다.")
     require(len(update_rows) > 0, "update 로그 row 존재", "update 로그 row가 없습니다.")
-
     nonzero_loss_row = any(abs(float(row["actor_loss"])) > 0.0 or abs(float(row["critic_loss"])) > 0.0 for row in update_rows)
     require(nonzero_loss_row, "update 로그에 실제 loss 값 기록", "update 로그의 loss 값이 모두 0입니다.")
 
@@ -326,7 +356,7 @@ def smoke_train_check() -> None:
 
 
 def summarize() -> int:
-    print("\n[E] 결과 요약")
+    print("\n[F] 결과 요약")
     if FAILURES:
         verdict = "FAIL"
     elif WARNINGS:
@@ -343,7 +373,6 @@ def summarize() -> int:
         print("경고 항목:")
         for item in WARNINGS:
             print(f"- {item}")
-
     if MODIFIED_FILES:
         print("수정 파일:")
         for path in MODIFIED_FILES:
@@ -358,15 +387,16 @@ def main() -> int:
         modules = static_structure_check()
         _, _, env = model_io_check(modules)
         ppo_update_check(modules, env)
+
+        safe_close_env(env, "smoke_train_check 이전 정리")
+        env = None
+
+        reset_reuse_check(modules)
         smoke_train_check()
     except Exception as exc:
         fail(f"검증 중 예외 발생: {exc}")
     finally:
-        if env is not None:
-            try:
-                env.close()
-            except Exception as exc:
-                warn(f"env.close() 중 예외 발생: {exc}")
+        safe_close_env(env, "main finally")
     return summarize()
 
 

@@ -85,15 +85,15 @@ class CarlaEnv:
         self.offroad_steps = 0
 
     def reset(self) -> Dict[str, Any]:
-        self.close()
-        self._connect_and_load_world()
+        self._ensure_world_connected()
+        self._reset_episode_actors()
         self._spawn_vehicle()
         self._setup_sensors()
-        self._open_log()
-        self.spectator = self.world.get_spectator() if self.world is not None else None
-
-        initial_frame = self.world.tick()
         self._setup_route()
+        self._open_log()
+
+        self.spectator = self.world.get_spectator() if self.world is not None else None
+        initial_frame = self.world.tick()
         self._update_spectator()
         sensor_snapshot = self._collect_sensor_data(initial_frame)
         self.step_count = 0
@@ -214,6 +214,36 @@ class CarlaEnv:
         }
 
     def close(self) -> None:
+        self._reset_episode_actors()
+        self._close_log_file()
+
+        if self.world is not None and self.previous_settings is not None:
+            try:
+                self.world.apply_settings(self.previous_settings)
+            except RuntimeError:
+                pass
+
+        self.previous_settings = None
+        self.spectator = None
+        self.route_manager = None
+        self.prev_obs = None
+        self.prev_info = None
+        self.prev_action = np.zeros((3,), dtype=np.float32)
+        self.low_speed_steps = 0
+        self.offroad_steps = 0
+        self.step_count = 0
+        self.last_controls.clear()
+
+        self.map = None
+        self.world = None
+        self.client = None
+
+    def _ensure_world_connected(self) -> None:
+        if self.world is not None and self.map is not None and self.client is not None:
+            return
+        self._connect_and_load_world()
+
+    def _reset_episode_actors(self) -> None:
         if self.vehicle is not None:
             try:
                 self.vehicle.apply_control(carla.VehicleControl(brake=1.0, hand_brake=True))
@@ -234,25 +264,20 @@ class CarlaEnv:
                 pass
             self.vehicle = None
 
-        if self.world is not None and self.previous_settings is not None:
-            try:
-                self.world.apply_settings(self.previous_settings)
-            except RuntimeError:
-                pass
-            self.previous_settings = None
-
-        if self.csv_file is not None:
-            self.csv_file.close()
-            self.csv_file = None
-            self.csv_writer = None
-
         self.route_manager = None
-        self.spectator = None
         self.prev_obs = None
         self.prev_info = None
         self.prev_action = np.zeros((3,), dtype=np.float32)
         self.low_speed_steps = 0
         self.offroad_steps = 0
+        self.step_count = 0
+        self.last_controls.clear()
+
+    def _close_log_file(self) -> None:
+        if self.csv_file is not None:
+            self.csv_file.close()
+            self.csv_file = None
+            self.csv_writer = None
 
     def _connect_and_load_world(self) -> None:
         self.client = carla.Client(self.host, self.port)
@@ -547,9 +572,7 @@ class CarlaEnv:
         return image_path
 
     def _open_log(self) -> None:
-        if self.csv_file is not None:
-            self.csv_file.close()
-
+        self._close_log_file()
         self.csv_file = open(self.logs_path, "w", newline="", encoding="utf-8")
         self.csv_writer = csv.DictWriter(
             self.csv_file,
