@@ -8,12 +8,14 @@ import torch
 from torch import nn
 from torch.distributions import Normal
 
+from models.early_fusion_actor_critic import EarlyFusionActorCritic, EarlyFusionConfig
 from models.single_modal_actor_critic import ModelConfig, SingleModalActorCritic
 from utils.common import clamp
 
 
 @dataclass
 class PPOConfig:
+    model_type: str = "single_modal"
     obs_dim: int = 13
     action_dim: int = 3
     hidden_dim: int = 128
@@ -28,20 +30,47 @@ class PPOConfig:
     minibatch_size: int = 64
     rollout_steps: int = 256
     device: str = "cpu"
+    model_kwargs: dict[str, Any] | None = None
 
 
 class PPOAgent:
     def __init__(self, config: PPOConfig | None = None) -> None:
         self.config = config or PPOConfig()
         self.device = torch.device(self.config.device)
-        self.model = SingleModalActorCritic(
-            config=ModelConfig(
-                obs_dim=self.config.obs_dim,
-                action_dim=self.config.action_dim,
-                hidden_dim=self.config.hidden_dim,
-            )
-        ).to(self.device)
+        self.model = self._build_model().to(self.device)
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.config.learning_rate)
+
+    def _build_model(self) -> nn.Module:
+        model_kwargs = dict(self.config.model_kwargs or {})
+        if self.config.model_type == "single_modal":
+            return SingleModalActorCritic(
+                config=ModelConfig(
+                    obs_dim=self.config.obs_dim,
+                    action_dim=self.config.action_dim,
+                    hidden_dim=self.config.hidden_dim,
+                    min_std=float(model_kwargs.get("min_std", 0.05)),
+                )
+            )
+        if self.config.model_type == "early_fusion":
+            rgb_shape = tuple(model_kwargs["rgb_shape"])
+            lidar_shape = tuple(model_kwargs["lidar_shape"])
+            return EarlyFusionActorCritic(
+                config=EarlyFusionConfig(
+                    obs_dim=self.config.obs_dim,
+                    action_dim=self.config.action_dim,
+                    hidden_dim=self.config.hidden_dim,
+                    min_std=float(model_kwargs.get("min_std", 0.05)),
+                    rgb_shape=(int(rgb_shape[0]), int(rgb_shape[1]), int(rgb_shape[2])),
+                    lidar_shape=(int(lidar_shape[0]), int(lidar_shape[1]), int(lidar_shape[2])),
+                    ego_dim=int(model_kwargs.get("ego_dim", 7)),
+                    route_dim=int(model_kwargs.get("route_dim", 6)),
+                    rgb_feature_dim=int(model_kwargs.get("rgb_feature_dim", 64)),
+                    lidar_feature_dim=int(model_kwargs.get("lidar_feature_dim", 32)),
+                    ego_feature_dim=int(model_kwargs.get("ego_feature_dim", 32)),
+                    route_feature_dim=int(model_kwargs.get("route_feature_dim", 32)),
+                )
+            )
+        raise ValueError(f"Unsupported model_type: {self.config.model_type}")
 
     def _build_distribution(self, observations: torch.Tensor) -> tuple[Normal, torch.Tensor]:
         action_mean, value = self.model(observations)

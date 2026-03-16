@@ -93,7 +93,9 @@ class CarlaEnv:
         self._open_log()
 
         self.spectator = self.world.get_spectator() if self.world is not None else None
-        initial_frame = self.world.tick()
+        initial_frame = 0
+        for _ in range(2):
+            initial_frame = self.world.tick()
         self._update_spectator()
         sensor_snapshot = self._collect_sensor_data(initial_frame)
         self.step_count = 0
