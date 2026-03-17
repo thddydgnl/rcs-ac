@@ -199,7 +199,10 @@ def open_training_log(log_path: str) -> tuple[Any, csv.DictWriter]:
             "recent_steer_mean",
             "recent_throttle_mean",
             "recent_brake_mean",
+            "recent_speed_mean_kmh",
             "pedal_overlap_suppressed",
+            "low_speed_brake_suppressed",
+            "final_speed_kmh",
             "lane_offset",
             "heading_error",
             "target_distance",
@@ -285,7 +288,10 @@ def write_training_log(
             "recent_steer_mean": round(float(latest_info.get("recent_steer_mean", 0.0)), 6),
             "recent_throttle_mean": round(float(latest_info.get("recent_throttle_mean", 0.0)), 6),
             "recent_brake_mean": round(float(latest_info.get("recent_brake_mean", 0.0)), 6),
+            "recent_speed_mean_kmh": round(float(latest_info.get("recent_speed_mean_kmh", 0.0)), 6),
             "pedal_overlap_suppressed": bool(latest_info.get("pedal_overlap_suppressed", False)),
+            "low_speed_brake_suppressed": bool(latest_info.get("low_speed_brake_suppressed", False)),
+            "final_speed_kmh": round(float(latest_info.get("speed_kmh", 0.0)), 6),
             "lane_offset": round(float(latest_info.get("lane_offset", 0.0)), 6),
             "heading_error": round(float(latest_info.get("heading_error", 0.0)), 6),
             "target_distance": round(float(latest_info.get("target_distance", 0.0)), 6),
@@ -373,6 +379,9 @@ def main() -> int:
             else float(env_cfg_raw.get("offroad_lane_offset_threshold"))
         ),
         suppress_conflicting_pedals=bool(env_cfg_raw.get("suppress_conflicting_pedals", False)),
+        low_speed_brake_suppression=bool(env_cfg_raw.get("low_speed_brake_suppression", False)),
+        low_speed_brake_speed_threshold_kmh=float(env_cfg_raw.get("low_speed_brake_speed_threshold_kmh", 0.0)),
+        low_speed_brake_max=float(env_cfg_raw.get("low_speed_brake_max", 1.0)),
     )
 
     total_timesteps = int(config.get("total_timesteps", 512))

@@ -35,6 +35,8 @@ def main() -> int:
             f"episode_length={row.get('episode_length', '')} "
             f"route_progress={row.get('route_progress', '')} "
             f"average_speed_kmh={row.get('average_speed_kmh', '')} "
+            f"final_speed_kmh={row.get('final_speed_kmh', '')} "
+            f"recent_speed_mean_kmh={row.get('recent_speed_mean_kmh', '')} "
             f"low_speed_step_count={row.get('low_speed_step_count', '')} "
             f"stuck_trigger_step={row.get('stuck_trigger_step', '')} "
             f"final_lane_offset={row.get('lane_offset', '')} "
@@ -44,7 +46,8 @@ def main() -> int:
             f"steer:{row.get('recent_steer_mean', '')} "
             f"throttle:{row.get('recent_throttle_mean', '')} "
             f"brake:{row.get('recent_brake_mean', '')} "
-            f"pedal_overlap_suppressed={row.get('pedal_overlap_suppressed', '')}"
+            f"pedal_overlap_suppressed={row.get('pedal_overlap_suppressed', '')} "
+            f"low_speed_brake_suppressed={row.get('low_speed_brake_suppressed', '')}"
         )
     return 0
 

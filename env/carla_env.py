@@ -45,6 +45,9 @@ class CarlaEnv:
         offroad_grace_steps: int = 8,
         offroad_lane_offset_threshold: float | None = None,
         suppress_conflicting_pedals: bool = False,
+        low_speed_brake_suppression: bool = False,
+        low_speed_brake_speed_threshold_kmh: float = 0.0,
+        low_speed_brake_max: float = 1.0,
     ) -> None:
         self.host = host
         self.port = port
@@ -61,6 +64,9 @@ class CarlaEnv:
         self.offroad_grace_steps = max(0, int(offroad_grace_steps))
         self.offroad_lane_offset_threshold = offroad_lane_offset_threshold
         self.suppress_conflicting_pedals = bool(suppress_conflicting_pedals)
+        self.low_speed_brake_suppression = bool(low_speed_brake_suppression)
+        self.low_speed_brake_speed_threshold_kmh = max(0.0, float(low_speed_brake_speed_threshold_kmh))
+        self.low_speed_brake_max = clamp(float(low_speed_brake_max), 0.0, 1.0)
 
         self.images_dir = ensure_dir(os.path.join(self.output_dir, "rgb"))
         self.logs_path = os.path.join(self.output_dir, "logs.csv")
@@ -77,6 +83,7 @@ class CarlaEnv:
         self.step_count = 0
         self.previous_settings: Optional[carla.WorldSettings] = None
         self.last_controls: Deque[carla.VehicleControl] = deque(maxlen=10)
+        self.recent_speeds_kmh: Deque[float] = deque(maxlen=10)
         self.fixed_delta_seconds = 0.05
 
         self.state_builder = StateBuilder(observation_config or ObservationConfig())
@@ -111,6 +118,7 @@ class CarlaEnv:
         self.first_offroad_candidate_step = None
         self.stuck_trigger_step = -1
         self.prev_action = np.zeros((3,), dtype=np.float32)
+        self.recent_speeds_kmh.clear()
 
         route_metrics = self.route_manager.build_metrics(self.vehicle.get_transform())
         initial_control = carla.VehicleControl()
@@ -246,6 +254,7 @@ class CarlaEnv:
         self.stuck_trigger_step = -1
         self.step_count = 0
         self.last_controls.clear()
+        self.recent_speeds_kmh.clear()
 
         self.map = None
         self.world = None
@@ -287,6 +296,7 @@ class CarlaEnv:
         self.stuck_trigger_step = -1
         self.step_count = 0
         self.last_controls.clear()
+        self.recent_speeds_kmh.clear()
 
     def _close_log_file(self) -> None:
         if self.csv_file is not None:
@@ -431,13 +441,20 @@ class CarlaEnv:
         steer = float(action_vector[0])
         throttle = float(action_vector[1])
         brake = float(action_vector[2])
-        pedal_overlap_suppressed = False
+        speed_kmh = compute_speed_kmh(self.vehicle) if self.vehicle is not None else 0.0
 
         if self.suppress_conflicting_pedals and throttle > 0.05 and brake > 0.05:
             if throttle >= brake:
                 brake = 0.0
             else:
                 throttle = 0.0
+
+        if (
+            self.low_speed_brake_suppression
+            and speed_kmh < self.low_speed_brake_speed_threshold_kmh
+            and brake > self.low_speed_brake_max
+        ):
+            brake = self.low_speed_brake_max
 
         return carla.VehicleControl(
             steer=steer,
@@ -518,6 +535,8 @@ class CarlaEnv:
         vehicle_transform = self.vehicle.get_transform()
         speed_kmh = compute_speed_kmh(self.vehicle)
         speed_mps = compute_speed_mps(self.vehicle)
+        self.recent_speeds_kmh.append(float(speed_kmh))
+        recent_speed_mean = float(np.mean(np.asarray(self.recent_speeds_kmh, dtype=np.float32)))
         collision_events = sensor_snapshot["collision_events"]
         lane_events = sensor_snapshot["lane_events"]
         latest_collision = collision_events[-1] if collision_events else None
@@ -539,6 +558,7 @@ class CarlaEnv:
             "step": current_step,
             "spawn_point_index": self.spawn_point_index,
             "speed_kmh": speed_kmh,
+            "recent_speed_mean_kmh": recent_speed_mean,
             "speed_mps": speed_mps,
             "vehicle_x": vehicle_transform.location.x,
             "vehicle_y": vehicle_transform.location.y,
@@ -578,6 +598,11 @@ class CarlaEnv:
             "pedal_overlap_suppressed": bool(
                 abs(float(action_vector[1]) - float(control.throttle)) > 1e-6
                 or abs(float(action_vector[2]) - float(control.brake)) > 1e-6
+            ),
+            "low_speed_brake_suppressed": bool(
+                self.low_speed_brake_suppression
+                and speed_kmh < self.low_speed_brake_speed_threshold_kmh
+                and float(action_vector[2]) > float(control.brake) + 1e-6
             ),
             "recent_steer_mean": recent_control_summary["recent_steer_mean"],
             "recent_throttle_mean": recent_control_summary["recent_throttle_mean"],
@@ -730,7 +755,9 @@ class CarlaEnv:
                 "recent_throttle_mean",
                 "recent_brake_mean",
                 "recent_control_window",
+                "recent_speed_mean_kmh",
                 "pedal_overlap_suppressed",
+                "low_speed_brake_suppressed",
                 "reached_goal",
                 "reward",
                 "progress_reward",
@@ -792,7 +819,9 @@ class CarlaEnv:
             "recent_throttle_mean": round(float(info.get("recent_throttle_mean", 0.0)), 4),
             "recent_brake_mean": round(float(info.get("recent_brake_mean", 0.0)), 4),
             "recent_control_window": int(info.get("recent_control_window", 0)),
+            "recent_speed_mean_kmh": round(float(info.get("recent_speed_mean_kmh", 0.0)), 4),
             "pedal_overlap_suppressed": bool(info.get("pedal_overlap_suppressed", False)),
+            "low_speed_brake_suppressed": bool(info.get("low_speed_brake_suppressed", False)),
             "reached_goal": info["reached_goal"],
             "reward": round(float(info.get("reward", 0.0)), 6),
             "progress_reward": round(float(reward_breakdown["progress_reward"]), 6),
