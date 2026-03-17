@@ -1,0 +1,3 @@
+timestamp,model_type,record_type,update,total_steps,episode_index,episode_reward,episode_length,done_reason,route_progress,average_reward,average_route_progress,actor_loss,critic_loss,entropy
+2026-03-17T00:34:13,early_fusion,episode,0,41,0,-1.632655,41,stuck,0.025641,-1.632655,0.025641,0.0,0.0,0.0
+2026-03-17T00:34:20,early_fusion,episode,0,122,1,-4.237883,81,offroad,0.153846,-2.935269,0.089744,0.0,0.0,0.0
