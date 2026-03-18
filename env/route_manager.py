@@ -20,10 +20,18 @@ class RouteMetrics:
 
 
 class RouteManager:
-    def __init__(self, world_map: carla.Map, start_waypoint: carla.Waypoint, route_length: int = 40, waypoint_spacing: float = 3.0) -> None:
+    def __init__(
+        self,
+        world_map: carla.Map,
+        start_waypoint: carla.Waypoint,
+        route_length: int = 40,
+        waypoint_spacing: float = 3.0,
+        goal_radius: float = 3.0,
+    ) -> None:
         self.world_map = world_map
         self.route_length = route_length
         self.waypoint_spacing = waypoint_spacing
+        self.goal_radius = max(0.0, float(goal_radius))
         self.route: List[carla.Waypoint] = self._generate_route(start_waypoint)
         self.target_index = 1 if len(self.route) > 1 else 0
         self.completed = False
@@ -77,7 +85,7 @@ class RouteManager:
                 if next_distance < best_distance:
                     self.target_index += 1
 
-        self.completed = self.reached_goal(vehicle_location, threshold=reach_threshold)
+        self.completed = self.reached_goal(vehicle_location)
 
     def get_target_waypoint(self, vehicle_location: carla.Location, lookahead: float = 5.0) -> carla.Waypoint:
         self.update_progress(vehicle_location)
@@ -132,8 +140,12 @@ class RouteManager:
         return self._angle_diff_deg(target_waypoint.transform.rotation.yaw, vehicle_transform.rotation.yaw)
 
     def reached_goal(self, vehicle_location: carla.Location, threshold: float = 3.0) -> bool:
-        final_distance = vehicle_location.distance(self.route[-1].transform.location)
-        return self.target_index >= len(self.route) - 1 and final_distance <= threshold
+        effective_threshold = self.goal_radius if threshold == 3.0 else threshold
+        final_distance = self.final_goal_distance(vehicle_location)
+        return self.target_index >= len(self.route) - 1 and final_distance <= effective_threshold
+
+    def final_goal_distance(self, vehicle_location: carla.Location) -> float:
+        return vehicle_location.distance(self.route[-1].transform.location)
 
     def build_metrics(self, vehicle_transform: carla.Transform) -> RouteMetrics:
         self.update_progress(vehicle_transform.location)

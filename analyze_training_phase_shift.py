@@ -50,12 +50,16 @@ def summarize_phase(rows: list[dict[str, str]]) -> dict[str, float | dict[str, i
     speed_values = [float(row.get("average_speed_kmh", 0.0)) for row in rows]
     route_values = [float(row.get("route_progress", 0.0)) for row in rows]
     length_values = [float(row.get("episode_length", 0.0)) for row in rows]
+    min_target_values = [float(row.get("min_target_distance", row.get("target_distance", 0.0))) for row in rows]
+    final_target_values = [float(row.get("final_target_distance", row.get("target_distance", 0.0))) for row in rows]
 
     throttle_gt_brake = sum(1 for row in rows if float(row.get("recent_throttle_mean", 0.0)) > float(row.get("recent_brake_mean", 0.0)))
     brake_gt_throttle = sum(1 for row in rows if float(row.get("recent_brake_mean", 0.0)) > float(row.get("recent_throttle_mean", 0.0)))
     stuck_count = sum(1 for row in rows if row.get("done_reason") == "stuck")
     offroad_count = sum(1 for row in rows if row.get("done_reason") == "offroad")
     max_steps_count = sum(1 for row in rows if row.get("done_reason") == "max_steps")
+    goal_count = sum(1 for row in rows if row.get("done_reason") == "goal")
+    goal_check_count = sum(1 for row in rows if str(row.get("goal_check_hit", "")).lower() == "true")
     overlap_count = sum(1 for row in rows if str(row.get("pedal_overlap_suppressed", "")).lower() == "true")
     low_speed_brake_count = sum(1 for row in rows if str(row.get("low_speed_brake_suppressed", "")).lower() == "true")
 
@@ -66,9 +70,13 @@ def summarize_phase(rows: list[dict[str, str]]) -> dict[str, float | dict[str, i
         "avg_route_progress": average(route_values),
         "max_route_progress": max(route_values) if route_values else 0.0,
         "avg_episode_length": average(length_values),
+        "min_target_distance_min": min(min_target_values) if min_target_values else 0.0,
+        "avg_final_target_distance": average(final_target_values),
         "avg_recent_throttle_mean": average(throttle_values),
         "avg_recent_brake_mean": average(brake_values),
         "avg_recent_steer_mean": average(steer_values),
+        "goal_ratio": goal_count / total,
+        "goal_check_ratio": goal_check_count / total,
         "stuck_ratio": stuck_count / total,
         "offroad_ratio": offroad_count / total,
         "max_steps_ratio": max_steps_count / total,
@@ -88,9 +96,13 @@ def print_phase(name: str, summary: dict[str, float | dict[str, int]]) -> None:
         f"avg_route_progress={summary['avg_route_progress']:.6f} "
         f"max_route_progress={summary['max_route_progress']:.6f} "
         f"avg_episode_length={summary['avg_episode_length']:.3f} "
+        f"min_target_distance_min={summary['min_target_distance_min']:.6f} "
+        f"avg_final_target_distance={summary['avg_final_target_distance']:.6f} "
         f"avg_throttle={summary['avg_recent_throttle_mean']:.6f} "
         f"avg_brake={summary['avg_recent_brake_mean']:.6f} "
         f"avg_steer={summary['avg_recent_steer_mean']:.6f} "
+        f"goal_ratio={summary['goal_ratio']:.3f} "
+        f"goal_check_ratio={summary['goal_check_ratio']:.3f} "
         f"stuck_ratio={summary['stuck_ratio']:.3f} "
         f"offroad_ratio={summary['offroad_ratio']:.3f} "
         f"max_steps_ratio={summary['max_steps_ratio']:.3f} "
