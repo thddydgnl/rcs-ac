@@ -133,7 +133,7 @@ class StateBuilder:
     ) -> dict[str, np.ndarray]:
         observation = {
             "rgb": self.build_rgb(image),
-            "lidar_bev": self.build_lidar_bev(lidar_points),
+            "lidar": self.build_lidar_bev(lidar_points),
             "ego": self.build_ego(vehicle, control, route_metrics),
             "route": self.build_route(route_manager, vehicle.get_transform()),
         }

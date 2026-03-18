@@ -12,6 +12,8 @@ import numpy as np
 import torch
 import yaml
 
+from utils.observation_utils import flatten_multimodal_observation, summarize_observation_shapes, validate_observation_dict
+
 
 def _bootstrap_carla() -> None:
     try:
@@ -90,8 +92,9 @@ def set_seed(seed: int) -> None:
 
 
 def build_single_modal_state(observation: dict[str, np.ndarray]) -> np.ndarray:
-    ego = observation["ego"].astype(np.float32, copy=False)
-    route = observation["route"].astype(np.float32, copy=False)
+    validated = validate_observation_dict(observation)
+    ego = validated["ego"].astype(np.float32, copy=False)
+    route = validated["route"].astype(np.float32, copy=False)
     state = np.concatenate([ego, route], axis=0).astype(np.float32, copy=False)
     if state.shape != (13,):
         raise ValueError(f"Expected single-modal state shape (13,), got {state.shape}")
@@ -99,11 +102,7 @@ def build_single_modal_state(observation: dict[str, np.ndarray]) -> np.ndarray:
 
 
 def build_early_fusion_state(observation: dict[str, np.ndarray]) -> np.ndarray:
-    rgb = observation["rgb"].astype(np.float32, copy=False).reshape(-1)
-    lidar_bev = observation["lidar_bev"].astype(np.float32, copy=False).reshape(-1)
-    ego = observation["ego"].astype(np.float32, copy=False).reshape(-1)
-    route = observation["route"].astype(np.float32, copy=False).reshape(-1)
-    return np.concatenate([rgb, lidar_bev, ego, route], axis=0).astype(np.float32, copy=False)
+    return flatten_multimodal_observation(observation)
 
 
 def build_policy_observation(observation: dict[str, np.ndarray], model_type: str) -> np.ndarray:
@@ -125,7 +124,7 @@ def build_model_config(observation: dict[str, np.ndarray], config: dict[str, Any
         }
 
     rgb_shape = tuple(int(v) for v in observation["rgb"].shape)
-    lidar_shape = tuple(int(v) for v in observation["lidar_bev"].shape)
+    lidar_shape = tuple(int(v) for v in observation["lidar"].shape)
     ego_dim = int(observation["ego"].shape[0])
     route_dim = int(observation["route"].shape[0])
     obs_dim = (
@@ -162,7 +161,14 @@ def open_training_log(log_path: str) -> tuple[Any, csv.DictWriter]:
         fieldnames=[
             "timestamp",
             "model_type",
+            "model_variant",
+            "baseline_name",
             "seed",
+            "town",
+            "weather",
+            "traffic_mode",
+            "max_episode_steps",
+            "reward_version",
             "record_type",
             "update",
             "total_steps",
@@ -187,6 +193,12 @@ def open_training_log(log_path: str) -> tuple[Any, csv.DictWriter]:
             "attention_mean_lidar",
             "attention_mean_ego",
             "attention_mean_route",
+            "obs_keys",
+            "obs_shapes",
+            "encoder_feature_dims",
+            "fused_dim",
+            "action_dim",
+            "value_shape",
             "spawn_point_index",
             "initial_speed_kmh",
             "initial_heading_error",
@@ -229,7 +241,14 @@ def write_training_log(
     writer: csv.DictWriter,
     log_file: Any,
     model_type: str,
+    model_variant: str,
+    baseline_name: str,
     seed: int,
+    town: str,
+    weather: str,
+    traffic_mode: str,
+    max_episode_steps: int,
+    reward_version: str,
     record_type: str,
     update: int,
     total_steps: int,
@@ -248,15 +267,25 @@ def write_training_log(
     initial_info: dict[str, Any] | None,
     latest_info: dict[str, Any] | None,
     metrics: dict[str, float],
+    obs_shapes: dict[str, tuple[int, ...]] | None,
+    model_debug_info: dict[str, Any] | None,
 ) -> None:
     initial_info = initial_info or {}
     latest_info = latest_info or {}
+    model_debug_info = model_debug_info or {}
     control = latest_info.get("control", {})
     writer.writerow(
         {
             "timestamp": timestamp_string(),
             "model_type": model_type,
+            "model_variant": model_variant,
+            "baseline_name": baseline_name,
             "seed": seed,
+            "town": town,
+            "weather": weather,
+            "traffic_mode": traffic_mode,
+            "max_episode_steps": max_episode_steps,
+            "reward_version": reward_version,
             "record_type": record_type,
             "update": update,
             "total_steps": total_steps,
@@ -281,6 +310,12 @@ def write_training_log(
             "attention_mean_lidar": round(float(metrics.get("attention_mean_lidar", 0.0)), 6),
             "attention_mean_ego": round(float(metrics.get("attention_mean_ego", 0.0)), 6),
             "attention_mean_route": round(float(metrics.get("attention_mean_route", 0.0)), 6),
+            "obs_keys": ",".join(latest_info.get("observation_keys", [])),
+            "obs_shapes": str(obs_shapes or latest_info.get("observation_shapes", {})),
+            "encoder_feature_dims": str(model_debug_info.get("encoder_feature_dims", "")),
+            "fused_dim": int(model_debug_info.get("fused_dim", 0)),
+            "action_dim": int(model_debug_info.get("action_dim", 3)),
+            "value_shape": str(model_debug_info.get("value_shape", "")),
             "spawn_point_index": int(initial_info.get("spawn_point_index", latest_info.get("spawn_point_index", -1))),
             "initial_speed_kmh": round(float(initial_info.get("speed_kmh", 0.0)), 6),
             "initial_heading_error": round(float(initial_info.get("heading_error", 0.0)), 6),
@@ -343,6 +378,12 @@ def main() -> int:
     seed = int(config.get("seed", 7))
     set_seed(seed)
     model_type = str(config.get("model_type", "single_modal"))
+    model_variant = str(config.get("model_variant", model_type))
+    baseline_name = str(config.get("baseline_name", model_variant))
+    weather = str(config.get("weather", "default"))
+    traffic_mode = str(config.get("traffic_mode", "none"))
+    reward_version = str(config.get("reward_version", "default"))
+    debug_shapes = bool(config.get("debug_shapes", False))
 
     run_name = f"{config.get('run_name', model_type)}_{timestamp_string().replace(':', '').replace('-', '')}"
     logs_dir = ensure_dir(os.path.join(config.get("logs_dir", "logs"), run_name))
@@ -438,6 +479,7 @@ def main() -> int:
     try:
         reset_result = env.reset()
         initial_obs = reset_result["obs"]
+        initial_obs_shapes = summarize_observation_shapes(initial_obs)
         episode_initial_info = dict(reset_result["info"])
         last_info = dict(reset_result["info"])
         model_config = build_model_config(initial_obs, config, model_type)
@@ -462,6 +504,26 @@ def main() -> int:
             model_kwargs=dict(model_config["model_kwargs"]),
         )
         agent = PPOAgent(config=ppo_config)
+        model_debug_info: dict[str, Any] = {
+            "encoder_feature_dims": "",
+            "fused_dim": int(model_config["obs_dim"]),
+            "action_dim": int(model_config["action_dim"]),
+            "value_shape": "",
+        }
+        if model_type == "early_fusion" and hasattr(agent.model, "forward_with_debug"):
+            with torch.no_grad():
+                _, _, debug_info = agent.model.forward_with_debug(initial_obs)
+            model_debug_info = debug_info
+            if debug_shapes:
+                print(
+                    "[debug] early_fusion_shapes "
+                    f"obs_keys={list(initial_obs.keys())} "
+                    f"obs_shapes={initial_obs_shapes} "
+                    f"encoder_feature_dims={debug_info['encoder_feature_dims']} "
+                    f"fused_dim={debug_info['fused_dim']} "
+                    f"action_dim={debug_info['action_dim']} "
+                    f"value_shape={debug_info['value_shape']}"
+                )
         buffer = RolloutBuffer(
             capacity=ppo_config.rollout_steps,
             obs_dim=ppo_config.obs_dim,
@@ -518,7 +580,14 @@ def main() -> int:
                         writer=log_writer,
                         log_file=log_file,
                         model_type=model_type,
+                        model_variant=model_variant,
+                        baseline_name=baseline_name,
                         seed=seed,
+                        town=str(config.get("town", "Town04")),
+                        weather=weather,
+                        traffic_mode=traffic_mode,
+                        max_episode_steps=int(config.get("max_episode_steps", 128)),
+                        reward_version=reward_version,
                         record_type="episode",
                         update=update_index,
                         total_steps=total_steps,
@@ -537,6 +606,8 @@ def main() -> int:
                         initial_info=episode_initial_info,
                         latest_info=last_info,
                         metrics={},
+                        obs_shapes=initial_obs_shapes,
+                        model_debug_info=model_debug_info,
                     )
                     print(
                         f"[episode] idx={episode_index} total_steps={total_steps} "
@@ -551,6 +622,7 @@ def main() -> int:
                     reset_result = env.reset()
                     episode_initial_info = dict(reset_result["info"])
                     last_info = dict(reset_result["info"])
+                    initial_obs_shapes = summarize_observation_shapes(reset_result["obs"])
                     observation = build_policy_observation(reset_result["obs"], model_type)
 
                 if total_steps >= total_timesteps:
@@ -581,7 +653,14 @@ def main() -> int:
                 writer=log_writer,
                 log_file=log_file,
                 model_type=model_type,
+                model_variant=model_variant,
+                baseline_name=baseline_name,
                 seed=seed,
+                town=str(config.get("town", "Town04")),
+                weather=weather,
+                traffic_mode=traffic_mode,
+                max_episode_steps=int(config.get("max_episode_steps", 128)),
+                reward_version=reward_version,
                 record_type="update",
                 update=update_index,
                 total_steps=total_steps,
@@ -600,6 +679,8 @@ def main() -> int:
                 initial_info=episode_initial_info,
                 latest_info=last_info,
                 metrics=metrics,
+                obs_shapes=initial_obs_shapes,
+                model_debug_info=model_debug_info,
             )
 
             checkpoint_path = os.path.join(checkpoints_dir, f"update_{update_index:04d}.pt")

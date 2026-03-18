@@ -11,6 +11,7 @@ from torch.distributions import Normal
 from models.attention_fusion_actor_critic import AttentionFusionActorCritic, AttentionFusionConfig
 from models.early_fusion_actor_critic import EarlyFusionActorCritic, EarlyFusionConfig
 from models.single_modal_actor_critic import ModelConfig, SingleModalActorCritic
+from utils.observation_utils import flatten_multimodal_observation
 from utils.common import clamp
 
 
@@ -100,8 +101,17 @@ class PPOAgent:
         std = self.model.get_std().expand_as(action_mean)
         return Normal(action_mean, std), value
 
-    def act(self, observation: np.ndarray, deterministic: bool = False) -> tuple[np.ndarray, float, float]:
-        observation_tensor = torch.as_tensor(observation, dtype=torch.float32, device=self.device).unsqueeze(0)
+    def _prepare_observation_tensor(self, observation: np.ndarray | dict[str, np.ndarray]) -> torch.Tensor:
+        if isinstance(observation, dict):
+            if self.config.model_type == "single_modal":
+                raise TypeError("Single-modal PPOAgent.act expects a flattened observation array, not a dict.")
+            observation_array = flatten_multimodal_observation(observation)
+        else:
+            observation_array = np.asarray(observation, dtype=np.float32)
+        return torch.as_tensor(observation_array, dtype=torch.float32, device=self.device).unsqueeze(0)
+
+    def act(self, observation: np.ndarray | dict[str, np.ndarray], deterministic: bool = False) -> tuple[np.ndarray, float, float]:
+        observation_tensor = self._prepare_observation_tensor(observation)
         with torch.no_grad():
             distribution, value = self._build_distribution(observation_tensor)
             if deterministic:

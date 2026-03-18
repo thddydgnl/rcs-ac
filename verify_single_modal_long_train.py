@@ -11,7 +11,7 @@ import argparse
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Run a long single-modal training verification and print summaries.")
     parser.add_argument("--config", default=os.path.join("configs", "train_single_modal.yaml"), help="Config path.")
-    parser.add_argument("--run-name", default="verify_single_baseline_long", help="Run name override.")
+    parser.add_argument("--run-name", default="verify_single_pair1_baseline_long", help="Run name override.")
     parser.add_argument("--total-timesteps", default="8192", help="Total timesteps override.")
     return parser.parse_args()
 
