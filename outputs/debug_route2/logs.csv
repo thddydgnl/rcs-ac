@@ -1,2 +1,0 @@
-timestamp,frame,step,vehicle_x,vehicle_y,vehicle_z,speed_kmh,target_waypoint_index,remaining_waypoints,route_completed,collision,collision_actor,collision_intensity,lane_invasion,crossed_lane_markings,lidar_points,rgb_image_path
-2026-03-16T17:21:37,516634,0,225.252,-364.109,0.267,1.764,1,38,False,False,,0.0,False,,1352,

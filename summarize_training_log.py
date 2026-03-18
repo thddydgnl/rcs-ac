@@ -37,6 +37,27 @@ def main() -> int:
     route_progress_values = [float(row.get("route_progress", 0.0)) for row in episode_rows]
     episode_length_values = [float(row.get("episode_length", 0.0)) for row in episode_rows]
     avg_speed_values = [float(row.get("average_speed_kmh", 0.0)) for row in episode_rows]
+    throttle_values = [float(row.get("recent_throttle_mean", 0.0)) for row in episode_rows]
+    brake_values = [float(row.get("recent_brake_mean", 0.0)) for row in episode_rows]
+    steer_values = [float(row.get("recent_steer_mean", 0.0)) for row in episode_rows]
+    min_target_distances = [float(row.get("min_target_distance", row.get("target_distance", 0.0))) for row in episode_rows]
+    final_target_distances = [float(row.get("final_target_distance", row.get("target_distance", 0.0))) for row in episode_rows]
+    total_episodes = max(1, len(episode_rows))
+    goal_count = sum(1 for row in episode_rows if row.get("done_reason") == "goal")
+    stuck_count = sum(1 for row in episode_rows if row.get("done_reason") == "stuck")
+    offroad_count = sum(1 for row in episode_rows if row.get("done_reason") == "offroad")
+    max_steps_count = sum(1 for row in episode_rows if row.get("done_reason") == "max_steps")
+    throttle_gt_brake = sum(1 for row in episode_rows if float(row.get("recent_throttle_mean", 0.0)) > float(row.get("recent_brake_mean", 0.0)))
+    brake_gt_throttle = sum(1 for row in episode_rows if float(row.get("recent_brake_mean", 0.0)) > float(row.get("recent_throttle_mean", 0.0)))
+    low_speed_brake_suppressed = sum(
+        1 for row in episode_rows if str(row.get("low_speed_brake_suppressed", "")).lower() == "true"
+    )
+    goal_check_hits = sum(1 for row in episode_rows if str(row.get("goal_check_hit", "")).lower() == "true")
+    near_goal_max_steps = sum(
+        1
+        for row in episode_rows
+        if row.get("done_reason") == "max_steps" and float(row.get("route_progress_at_done", row.get("route_progress", 0.0))) >= 0.8
+    )
 
     print(f"[INFO] log={log_path.resolve()}")
     print(f"[INFO] episode_rows={len(episode_rows)} update_rows={len(update_rows)}")
@@ -45,6 +66,21 @@ def main() -> int:
     print(f"[INFO] avg_route_progress={average(route_progress_values):.6f}")
     print(f"[INFO] max_route_progress={max(route_progress_values) if route_progress_values else 0.0:.6f}")
     print(f"[INFO] avg_episode_speed_kmh={average(avg_speed_values):.6f}")
+    print(f"[INFO] avg_recent_throttle_mean={average(throttle_values):.6f}")
+    print(f"[INFO] avg_recent_brake_mean={average(brake_values):.6f}")
+    print(f"[INFO] avg_recent_steer_mean={average(steer_values):.6f}")
+    print(f"[INFO] min_target_distance_min={min(min_target_distances) if min_target_distances else 0.0:.6f}")
+    print(f"[INFO] avg_final_target_distance={average(final_target_distances):.6f}")
+    print(f"[INFO] goal_count={goal_count}")
+    print(f"[INFO] goal_ratio={goal_count / total_episodes:.3f}")
+    print(f"[INFO] goal_check_hit_count={goal_check_hits}")
+    print(f"[INFO] stuck_ratio={stuck_count / total_episodes:.3f}")
+    print(f"[INFO] offroad_ratio={offroad_count / total_episodes:.3f}")
+    print(f"[INFO] max_steps_ratio={max_steps_count / total_episodes:.3f}")
+    print(f"[INFO] near_goal_max_steps_count={near_goal_max_steps}")
+    print(f"[INFO] throttle_gt_brake_ratio={throttle_gt_brake / total_episodes:.3f}")
+    print(f"[INFO] brake_gt_throttle_ratio={brake_gt_throttle / total_episodes:.3f}")
+    print(f"[INFO] low_speed_brake_suppressed_ratio={low_speed_brake_suppressed / total_episodes:.3f}")
 
     if episode_rows:
         best_row = max(episode_rows, key=lambda row: float(row.get("route_progress", 0.0)))

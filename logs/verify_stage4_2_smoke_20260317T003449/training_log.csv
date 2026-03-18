@@ -1,9 +1,0 @@
-timestamp,model_type,record_type,update,total_steps,episode_index,episode_reward,episode_length,done_reason,route_progress,average_reward,average_route_progress,actor_loss,critic_loss,entropy
-2026-03-17T00:35:09,early_fusion,episode,0,103,0,0.623636,103,stuck,0.025641,0.623636,0.025641,0.0,0.0,0.0
-2026-03-17T00:35:09,early_fusion,episode,0,107,1,-5.282632,4,offroad,0.025641,-2.329498,0.025641,0.0,0.0,0.0
-2026-03-17T00:35:10,early_fusion,episode,0,111,2,-5.113046,4,offroad,0.025641,-3.257347,0.025641,0.0,0.0,0.0
-2026-03-17T00:35:10,early_fusion,episode,0,115,3,-5.186904,4,offroad,0.025641,-3.739736,0.025641,0.0,0.0,0.0
-2026-03-17T00:35:10,early_fusion,episode,0,119,4,-5.157257,4,offroad,0.025641,-4.02324,0.025641,0.0,0.0,0.0
-2026-03-17T00:35:11,early_fusion,episode,0,123,5,-5.119411,4,offroad,0.025641,-4.205935,0.025641,0.0,0.0,0.0
-2026-03-17T00:35:11,early_fusion,episode,0,127,6,-5.197427,4,offroad,0.025641,-4.347577,0.025641,0.0,0.0,0.0
-2026-03-17T00:35:12,early_fusion,update,1,128,7,-0.055725,1,running,0.025641,-4.347577,0.025641,-0.024697,0.712537,4.256282

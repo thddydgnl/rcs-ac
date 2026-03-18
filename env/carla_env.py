@@ -44,7 +44,11 @@ class CarlaEnv:
         offroad_min_steps: int = 5,
         offroad_grace_steps: int = 8,
         offroad_lane_offset_threshold: float | None = None,
+        goal_radius: float = 3.0,
         suppress_conflicting_pedals: bool = False,
+        low_speed_brake_suppression: bool = False,
+        low_speed_brake_speed_threshold_kmh: float = 0.0,
+        low_speed_brake_max: float = 1.0,
     ) -> None:
         self.host = host
         self.port = port
@@ -60,7 +64,11 @@ class CarlaEnv:
         self.offroad_min_steps = offroad_min_steps
         self.offroad_grace_steps = max(0, int(offroad_grace_steps))
         self.offroad_lane_offset_threshold = offroad_lane_offset_threshold
+        self.goal_radius = max(0.0, float(goal_radius))
         self.suppress_conflicting_pedals = bool(suppress_conflicting_pedals)
+        self.low_speed_brake_suppression = bool(low_speed_brake_suppression)
+        self.low_speed_brake_speed_threshold_kmh = max(0.0, float(low_speed_brake_speed_threshold_kmh))
+        self.low_speed_brake_max = clamp(float(low_speed_brake_max), 0.0, 1.0)
 
         self.images_dir = ensure_dir(os.path.join(self.output_dir, "rgb"))
         self.logs_path = os.path.join(self.output_dir, "logs.csv")
@@ -77,6 +85,7 @@ class CarlaEnv:
         self.step_count = 0
         self.previous_settings: Optional[carla.WorldSettings] = None
         self.last_controls: Deque[carla.VehicleControl] = deque(maxlen=10)
+        self.recent_speeds_kmh: Deque[float] = deque(maxlen=10)
         self.fixed_delta_seconds = 0.05
 
         self.state_builder = StateBuilder(observation_config or ObservationConfig())
@@ -90,6 +99,7 @@ class CarlaEnv:
         self.first_offroad_candidate_step: Optional[int] = None
         self.spawn_point_index = -1
         self.stuck_trigger_step = -1
+        self.min_target_distance = float("inf")
 
     def reset(self) -> Dict[str, Any]:
         self._ensure_world_connected()
@@ -111,6 +121,8 @@ class CarlaEnv:
         self.first_offroad_candidate_step = None
         self.stuck_trigger_step = -1
         self.prev_action = np.zeros((3,), dtype=np.float32)
+        self.recent_speeds_kmh.clear()
+        self.min_target_distance = float("inf")
 
         route_metrics = self.route_manager.build_metrics(self.vehicle.get_transform())
         initial_control = carla.VehicleControl()
@@ -246,6 +258,8 @@ class CarlaEnv:
         self.stuck_trigger_step = -1
         self.step_count = 0
         self.last_controls.clear()
+        self.recent_speeds_kmh.clear()
+        self.min_target_distance = float("inf")
 
         self.map = None
         self.world = None
@@ -287,6 +301,7 @@ class CarlaEnv:
         self.stuck_trigger_step = -1
         self.step_count = 0
         self.last_controls.clear()
+        self.recent_speeds_kmh.clear()
 
     def _close_log_file(self) -> None:
         if self.csv_file is not None:
@@ -386,6 +401,7 @@ class CarlaEnv:
             start_waypoint=start_waypoint,
             route_length=self.route_length,
             waypoint_spacing=self.route_spacing,
+            goal_radius=self.goal_radius,
         )
 
     def _collect_sensor_data(self, frame: int) -> Dict[str, Any]:
@@ -431,13 +447,20 @@ class CarlaEnv:
         steer = float(action_vector[0])
         throttle = float(action_vector[1])
         brake = float(action_vector[2])
-        pedal_overlap_suppressed = False
+        speed_kmh = compute_speed_kmh(self.vehicle) if self.vehicle is not None else 0.0
 
         if self.suppress_conflicting_pedals and throttle > 0.05 and brake > 0.05:
             if throttle >= brake:
                 brake = 0.0
             else:
                 throttle = 0.0
+
+        if (
+            self.low_speed_brake_suppression
+            and speed_kmh < self.low_speed_brake_speed_threshold_kmh
+            and brake > self.low_speed_brake_max
+        ):
+            brake = self.low_speed_brake_max
 
         return carla.VehicleControl(
             steer=steer,
@@ -518,12 +541,16 @@ class CarlaEnv:
         vehicle_transform = self.vehicle.get_transform()
         speed_kmh = compute_speed_kmh(self.vehicle)
         speed_mps = compute_speed_mps(self.vehicle)
+        self.recent_speeds_kmh.append(float(speed_kmh))
+        recent_speed_mean = float(np.mean(np.asarray(self.recent_speeds_kmh, dtype=np.float32)))
         collision_events = sensor_snapshot["collision_events"]
         lane_events = sensor_snapshot["lane_events"]
         latest_collision = collision_events[-1] if collision_events else None
         lane_markings = sorted({mark for event in lane_events for mark in event["markings"]})
         target_waypoint = self.route_manager.get_current_target_waypoint()
         target_distance = vehicle_transform.location.distance(target_waypoint.transform.location)
+        goal_distance = self.route_manager.final_goal_distance(vehicle_transform.location)
+        self.min_target_distance = min(self.min_target_distance, float(goal_distance))
         recent_control_summary = self._recent_control_summary()
         is_low_speed, stuck = self._update_stuck_status(speed_mps, route_metrics.reached_goal, current_step)
         offroad_candidate, offroad, offroad_threshold = self._update_offroad_status(
@@ -532,6 +559,7 @@ class CarlaEnv:
             route_metrics.reached_goal,
             current_step,
         )
+        goal_check_hit = bool(route_metrics.reached_goal)
 
         return {
             "timestamp": timestamp_string(),
@@ -539,6 +567,7 @@ class CarlaEnv:
             "step": current_step,
             "spawn_point_index": self.spawn_point_index,
             "speed_kmh": speed_kmh,
+            "recent_speed_mean_kmh": recent_speed_mean,
             "speed_mps": speed_mps,
             "vehicle_x": vehicle_transform.location.x,
             "vehicle_y": vehicle_transform.location.y,
@@ -554,9 +583,14 @@ class CarlaEnv:
             "route_progress": route_metrics.route_progress,
             "target_waypoint_index": route_metrics.target_index,
             "target_distance": target_distance,
+            "final_target_distance": goal_distance,
+            "min_target_distance": float(self.min_target_distance),
             "lane_offset": route_metrics.lane_offset,
             "heading_error": route_metrics.heading_error,
             "reached_goal": route_metrics.reached_goal,
+            "goal_check_hit": goal_check_hit,
+            "goal_radius": self.goal_radius,
+            "route_progress_at_done": route_metrics.route_progress,
             "stuck": stuck,
             "offroad": offroad,
             "is_low_speed": is_low_speed,
@@ -578,6 +612,11 @@ class CarlaEnv:
             "pedal_overlap_suppressed": bool(
                 abs(float(action_vector[1]) - float(control.throttle)) > 1e-6
                 or abs(float(action_vector[2]) - float(control.brake)) > 1e-6
+            ),
+            "low_speed_brake_suppressed": bool(
+                self.low_speed_brake_suppression
+                and speed_kmh < self.low_speed_brake_speed_threshold_kmh
+                and float(action_vector[2]) > float(control.brake) + 1e-6
             ),
             "recent_steer_mean": recent_control_summary["recent_steer_mean"],
             "recent_throttle_mean": recent_control_summary["recent_throttle_mean"],
@@ -714,6 +753,8 @@ class CarlaEnv:
                 "heading_error",
                 "lane_offset",
                 "target_distance",
+                "final_target_distance",
+                "min_target_distance",
                 "collision",
                 "lane_invasion",
                 "offroad",
@@ -730,15 +771,29 @@ class CarlaEnv:
                 "recent_throttle_mean",
                 "recent_brake_mean",
                 "recent_control_window",
+                "recent_speed_mean_kmh",
                 "pedal_overlap_suppressed",
+                "low_speed_brake_suppressed",
                 "reached_goal",
+                "goal_check_hit",
+                "goal_radius",
+                "route_progress_at_done",
                 "reward",
                 "progress_reward",
+                "dense_progress_reward",
                 "lane_reward",
+                "lane_offset_penalty",
+                "heading_error_penalty",
+                "heading_recovery_reward",
+                "speed_reward",
+                "speed_alignment_factor",
+                "speed_alignment_bonus",
+                "curve_overspeed_penalty",
                 "collision_penalty",
                 "offroad_penalty",
                 "lane_invasion_penalty",
                 "control_cost",
+                "high_speed_steer_penalty",
                 "goal_bonus",
                 "stuck_penalty",
                 "done",
@@ -776,6 +831,8 @@ class CarlaEnv:
             "heading_error": round(info["heading_error"], 4),
             "lane_offset": round(info["lane_offset"], 4),
             "target_distance": round(float(info.get("target_distance", 0.0)), 4),
+            "final_target_distance": round(float(info.get("final_target_distance", 0.0)), 4),
+            "min_target_distance": round(float(info.get("min_target_distance", 0.0)), 4),
             "collision": info["collision"],
             "lane_invasion": info["lane_invasion"],
             "offroad": info["offroad"],
@@ -792,15 +849,29 @@ class CarlaEnv:
             "recent_throttle_mean": round(float(info.get("recent_throttle_mean", 0.0)), 4),
             "recent_brake_mean": round(float(info.get("recent_brake_mean", 0.0)), 4),
             "recent_control_window": int(info.get("recent_control_window", 0)),
+            "recent_speed_mean_kmh": round(float(info.get("recent_speed_mean_kmh", 0.0)), 4),
             "pedal_overlap_suppressed": bool(info.get("pedal_overlap_suppressed", False)),
+            "low_speed_brake_suppressed": bool(info.get("low_speed_brake_suppressed", False)),
             "reached_goal": info["reached_goal"],
+            "goal_check_hit": bool(info.get("goal_check_hit", False)),
+            "goal_radius": round(float(info.get("goal_radius", self.goal_radius)), 4),
+            "route_progress_at_done": round(float(info.get("route_progress_at_done", 0.0)), 4),
             "reward": round(float(info.get("reward", 0.0)), 6),
             "progress_reward": round(float(reward_breakdown["progress_reward"]), 6),
+            "dense_progress_reward": round(float(reward_breakdown["dense_progress_reward"]), 6),
             "lane_reward": round(float(reward_breakdown["lane_reward"]), 6),
+            "lane_offset_penalty": round(float(reward_breakdown["lane_offset_penalty"]), 6),
+            "heading_error_penalty": round(float(reward_breakdown["heading_error_penalty"]), 6),
+            "heading_recovery_reward": round(float(reward_breakdown["heading_recovery_reward"]), 6),
+            "speed_reward": round(float(reward_breakdown["speed_reward"]), 6),
+            "speed_alignment_factor": round(float(reward_breakdown["speed_alignment_factor"]), 6),
+            "speed_alignment_bonus": round(float(reward_breakdown["speed_alignment_bonus"]), 6),
+            "curve_overspeed_penalty": round(float(reward_breakdown["curve_overspeed_penalty"]), 6),
             "collision_penalty": round(float(reward_breakdown["collision_penalty"]), 6),
             "offroad_penalty": round(float(reward_breakdown["offroad_penalty"]), 6),
             "lane_invasion_penalty": round(float(reward_breakdown["lane_invasion_penalty"]), 6),
             "control_cost": round(float(reward_breakdown["control_cost"]), 6),
+            "high_speed_steer_penalty": round(float(reward_breakdown["high_speed_steer_penalty"]), 6),
             "goal_bonus": round(float(reward_breakdown["goal_bonus"]), 6),
             "stuck_penalty": round(float(reward_breakdown["stuck_penalty"]), 6),
             "done": bool(info.get("done", False)),
@@ -847,11 +918,20 @@ class CarlaEnv:
     def _zero_reward_breakdown(self) -> Dict[str, float]:
         return {
             "progress_reward": 0.0,
+            "dense_progress_reward": 0.0,
             "lane_reward": 0.0,
+            "lane_offset_penalty": 0.0,
+            "heading_error_penalty": 0.0,
+            "heading_recovery_reward": 0.0,
+            "speed_reward": 0.0,
+            "speed_alignment_factor": 1.0,
+            "speed_alignment_bonus": 0.0,
+            "curve_overspeed_penalty": 0.0,
             "collision_penalty": 0.0,
             "offroad_penalty": 0.0,
             "lane_invasion_penalty": 0.0,
             "control_cost": 0.0,
+            "high_speed_steer_penalty": 0.0,
             "goal_bonus": 0.0,
             "stuck_penalty": 0.0,
         }

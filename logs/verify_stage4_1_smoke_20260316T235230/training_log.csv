@@ -1,4 +1,0 @@
-timestamp,record_type,update,total_steps,episode_index,episode_reward,episode_length,done_reason,route_progress,actor_loss,critic_loss,entropy
-2026-03-16T23:52:38,episode,0,45,0,-0.906276,45,stuck,0.025641,0.0,0.0,0.0
-2026-03-16T23:52:46,episode,0,90,1,-1.159011,45,stuck,0.025641,0.0,0.0,0.0
-2026-03-16T23:52:56,update,1,128,2,1.444711,38,running,0.025641,-0.012962,0.094411,4.25753

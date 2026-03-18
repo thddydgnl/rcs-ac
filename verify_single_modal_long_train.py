@@ -5,6 +5,15 @@ import os
 import subprocess
 import sys
 from pathlib import Path
+import argparse
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Run a long single-modal training verification and print summaries.")
+    parser.add_argument("--config", default=os.path.join("configs", "train_single_modal.yaml"), help="Config path.")
+    parser.add_argument("--run-name", default="verify_single_baseline_long", help="Run name override.")
+    parser.add_argument("--total-timesteps", default="8192", help="Total timesteps override.")
+    return parser.parse_args()
 
 
 def latest_matching_file(pattern: str) -> str:
@@ -30,16 +39,17 @@ def summarize_distribution(rows: list[dict[str, str]], key: str) -> dict[str, in
 
 
 def main() -> int:
-    run_name = "verify_single_long"
+    args = parse_args()
+    run_name = args.run_name
     command = [
         sys.executable,
         "train.py",
         "--config",
-        os.path.join("configs", "train_single_modal.yaml"),
+        args.config,
         "--model-type",
         "single_modal",
         "--total-timesteps",
-        "2048",
+        str(args.total_timesteps),
         "--run-name",
         run_name,
     ]
@@ -127,6 +137,17 @@ def main() -> int:
             f"throttle={sample.get('throttle', '')} "
             f"brake={sample.get('brake', '')}"
         )
+
+    for script_name in ("summarize_training_log.py", "analyze_stuck_debug.py", "analyze_training_phase_shift.py"):
+        summary_run = subprocess.run(
+            [sys.executable, script_name, training_log_path],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        print(summary_run.stdout)
+        if summary_run.stderr.strip():
+            print(summary_run.stderr)
 
     if not episode_rows or not update_rows:
         print("[RESULT] FAIL: episode/update rows are missing.")
