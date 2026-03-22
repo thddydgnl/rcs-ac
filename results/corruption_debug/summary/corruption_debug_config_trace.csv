@@ -1,0 +1,9 @@
+requested_probe_name,resolved_corruption_type,resolved_corruption_strength,env_mode,env_corruption_mode,wrapper_attached_flag,corruption_applied_flag,env_instance_id,corruption_metadata,go_no_go_for_calibration
+clean,clean,0.0,normal,clean,0,0,4385853792,"{""probe_cfg"": {""corruption_strength"": 0.0, ""corruption_type"": ""clean""}, ""probe_name"": ""clean""}",1
+weak_vision,vision,0.03,normal,clean,1,1,4536094496,"{""probe_cfg"": {""corruption_strength"": 0.03, ""corruption_type"": ""vision""}, ""probe_name"": ""weak_vision""}",1
+weak_distance,distance,0.03,normal,clean,1,1,4385853792,"{""probe_cfg"": {""corruption_strength"": 0.03, ""corruption_type"": ""distance""}, ""probe_name"": ""weak_distance""}",1
+weak_ego,ego,0.025,normal,clean,1,1,4536094496,"{""probe_cfg"": {""corruption_strength"": 0.025, ""corruption_type"": ""ego""}, ""probe_name"": ""weak_ego""}",1
+weak_route,route,0.03,normal,clean,1,1,4385853792,"{""probe_cfg"": {""corruption_strength"": 0.03, ""corruption_type"": ""route""}, ""probe_name"": ""weak_route""}",1
+mild_vision,vision,0.06,normal,clean,1,1,4536094496,"{""probe_cfg"": {""corruption_strength"": 0.06, ""corruption_type"": ""vision""}, ""probe_name"": ""mild_vision""}",1
+mild_distance,distance,0.06,normal,clean,1,1,4385853792,"{""probe_cfg"": {""corruption_strength"": 0.06, ""corruption_type"": ""distance""}, ""probe_name"": ""mild_distance""}",1
+mild_route,route,0.06,normal,clean,1,1,4536094496,"{""probe_cfg"": {""corruption_strength"": 0.06, ""corruption_type"": ""route""}, ""probe_name"": ""mild_route""}",1

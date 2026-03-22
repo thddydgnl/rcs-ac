@@ -1,0 +1,5 @@
+| model_name | eval_success_rate | eval_return | eval_avg_progress | stability_score | crashed_rate | nan_rate |
+| --- | --- | --- | --- | --- | --- | --- |
+| a_ego_route | 0.467 +/- 0.094 | 2.001 +/- 0.937 | 0.040 +/- 0.007 | 1.000 | 0.000 | 0.000 |
+| b_early_fusion | 0.567 +/- 0.170 | 3.257 +/- 0.771 | 0.044 +/- 0.006 | 1.000 | 0.000 | 0.000 |
+| c_attention_fusion | 0.567 +/- 0.262 | 2.845 +/- 1.651 | 0.035 +/- 0.008 | 1.000 | 0.000 | 0.000 |

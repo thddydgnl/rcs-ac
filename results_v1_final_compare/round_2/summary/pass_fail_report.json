@@ -1,0 +1,27 @@
+[
+  {
+    "config_name": "rcs_ac_v1_grad_clip_strong",
+    "verdict": "FAIL",
+    "reason": "performance materially below baseline or stability/runtime issue detected"
+  },
+  {
+    "config_name": "rcs_ac_v1_seq_short",
+    "verdict": "FAIL",
+    "reason": "performance materially below baseline or stability/runtime issue detected"
+  },
+  {
+    "config_name": "baseline_c_attention",
+    "verdict": "BASELINE",
+    "reason": "reference"
+  },
+  {
+    "config_name": "rcs_ac_v1_gru_small_grad_clip_strong",
+    "verdict": "FAIL",
+    "reason": "performance materially below baseline or stability/runtime issue detected"
+  },
+  {
+    "config_name": "rcs_ac_v1_gru_small_grad_clip_strong_seq_short",
+    "verdict": "FAIL",
+    "reason": "performance materially below baseline or stability/runtime issue detected"
+  }
+]

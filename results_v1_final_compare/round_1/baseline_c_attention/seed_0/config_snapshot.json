@@ -1,0 +1,50 @@
+{
+  "seed": 0,
+  "device": "cpu",
+  "env": {
+    "max_episode_steps": 200,
+    "corruption_mode": "clean"
+  },
+  "model": {
+    "baseline_type": "baseline_c",
+    "encoder_hidden_dims": [
+      64,
+      64
+    ],
+    "encoder_output_dim": 64,
+    "trunk_hidden_dims": [
+      128,
+      128
+    ],
+    "actor_hidden_dims": [
+      64
+    ],
+    "critic_hidden_dims": [
+      64
+    ],
+    "attention_hidden_dim": 64,
+    "action_log_std_init": -0.5
+  },
+  "ppo": {
+    "total_steps": 20000,
+    "rollout_steps": 1024,
+    "num_eval_episodes": 10,
+    "gamma": 0.99,
+    "gae_lambda": 0.95,
+    "clip_eps": 0.2,
+    "update_epochs": 4,
+    "minibatch_size": 256,
+    "learning_rate": 0.0001,
+    "value_loss_coef": 0.5,
+    "entropy_coef": 0.003,
+    "max_grad_norm": 0.3,
+    "target_kl": null
+  },
+  "logging": {
+    "run_name": "baseline_c_attention_seed_0",
+    "output_dir": "/Users/song-yonghwi/Documents/GitHub/RCS-AC_test/results_v1_final_compare/round_1/baseline_c_attention/seed_0",
+    "log_interval_updates": 1,
+    "eval_interval_updates": 2,
+    "save_interval_updates": 10
+  }
+}

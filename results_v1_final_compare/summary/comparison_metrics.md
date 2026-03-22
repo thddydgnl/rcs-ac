@@ -1,0 +1,6 @@
+| config_name                                       | mean_eval_success_rate   | mean_eval_return   | mean_eval_progress   |   collision_rate |   timeout_rate |   hidden_bug_rate |
+|:--------------------------------------------------|:-------------------------|:-------------------|:---------------------|-----------------:|---------------:|------------------:|
+| baseline_c_attention                              | 0.733 +/- 0.047          | 3.879 +/- 0.451    | 0.056 +/- 0.010      |            0.233 |              0 |                 0 |
+| rcs_ac_v1_gru_small_grad_clip_strong_seq_short    | 0.800 +/- 0.082          | 5.182 +/- 0.573    | 0.085 +/- 0.002      |            0.2   |              0 |                 0 |
+| rcs_ac_v1_gru_small_grad_clip_strong_longer_train | 0.867 +/- 0.047          | 5.702 +/- 0.372    | 0.095 +/- 0.001      |            0.133 |              0 |                 0 |
+| rcs_ac_v1_gru_small_grad_clip_strong_lr_low       | 0.767 +/- 0.125          | 5.118 +/- 0.715    | 0.080 +/- 0.008      |            0.233 |              0 |                 0 |

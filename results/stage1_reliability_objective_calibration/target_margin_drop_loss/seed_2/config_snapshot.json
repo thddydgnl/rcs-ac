@@ -1,0 +1,64 @@
+{
+  "seed": 2,
+  "device": "cpu",
+  "env": {
+    "corruption_mode": "clean"
+  },
+  "model": {
+    "encoder_hidden_dims": [
+      64,
+      64
+    ],
+    "encoder_output_dim": 64,
+    "attention_hidden_dim": 64,
+    "recurrent_hidden_dim": 64,
+    "attention_temperature": 1.5,
+    "use_feature_layer_norm": true,
+    "actor_hidden_dims": [
+      64
+    ],
+    "critic_hidden_dims": [
+      64
+    ],
+    "reliability_hidden_dims": [
+      64
+    ],
+    "reliability_input_mode": "own",
+    "action_log_std_init": -0.5
+  },
+  "ppo": {
+    "total_steps": 8192,
+    "rollout_steps": 1024,
+    "sequence_length": 16,
+    "num_eval_episodes": 10,
+    "gamma": 0.99,
+    "gae_lambda": 0.95,
+    "clip_eps": 0.2,
+    "update_epochs": 4,
+    "minibatch_num_sequences": 8,
+    "learning_rate": 0.0001,
+    "value_loss_coef": 0.5,
+    "entropy_coef": 0.003,
+    "max_grad_norm": 0.3
+  },
+  "warmup": {
+    "reliability_loss_coef": 0.1,
+    "weak_corruption_probability": 0.25,
+    "weak_corruption_scale": 0.03,
+    "use_aux_quality_labels": true,
+    "use_direct_corruption_targets": true,
+    "direct_target_drop_scale": 3.5,
+    "init_checkpoint_path": "/Users/song-yonghwi/Documents/GitHub/RCS-AC_test/results/stage1_reliability_calibration_v2/small_head_capacity_change/seed_2/checkpoint_00008.pt",
+    "calibration_objective": "mse",
+    "target_margin_loss_coef": 0.2,
+    "target_ranking_loss_coef": 0.0,
+    "target_margin_value": 0.08,
+    "target_ranking_margin": 0.03
+  },
+  "logging": {
+    "run_name": "target_margin_drop_loss_seed_2",
+    "output_dir": "/Users/song-yonghwi/Documents/GitHub/RCS-AC_test/results/stage1_reliability_objective_calibration/target_margin_drop_loss/seed_2",
+    "eval_interval_updates": 2,
+    "save_interval_updates": 4
+  }
+}

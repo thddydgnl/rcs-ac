@@ -1,0 +1,22 @@
+[
+  {
+    "config_name": "baseline_c_attention",
+    "verdict": "BASELINE",
+    "reason": "reference"
+  },
+  {
+    "config_name": "rcs_ac_v1_gru_small_grad_clip_strong_seq_short",
+    "verdict": "WARN",
+    "reason": "performance roughly competitive but variance or one metric remains weaker"
+  },
+  {
+    "config_name": "rcs_ac_v1_gru_small_grad_clip_strong_longer_train",
+    "verdict": "PASS",
+    "reason": "performance close or better, variance controlled, no hidden/runtime issues"
+  },
+  {
+    "config_name": "rcs_ac_v1_gru_small_grad_clip_strong_lr_low",
+    "verdict": "WARN",
+    "reason": "performance roughly competitive but variance or one metric remains weaker"
+  }
+]

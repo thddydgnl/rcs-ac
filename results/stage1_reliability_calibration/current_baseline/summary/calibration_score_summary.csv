@@ -1,0 +1,2 @@
+clean_success_rate,targeted_positive_ratio,targeted_top2_ratio,clean_route_dominance_ratio,nan_or_crash,calibration_score,candidate_name,round,pass_fail
+0.7999999999999999,0.0,1.0,10.00480766640217,0.0,1.7995192333597827,current_baseline,A,FAIL

@@ -1,0 +1,2 @@
+candidate_name,clean_success_rate,clean_return,clean_progress,clean_route_dominance_ratio,target_positive_ratio,target_top1_ratio,target_top2_ratio,weak_to_mild_monotonicity_ratio,target_vs_nontarget_ordering_ratio,clean_success_drop_vs_reference,clean_return_drop_vs_reference,clean_progress_drop_vs_reference,nan_or_crash,calibration_score,round,pass_fail
+target_margin_drop_plus_small_weight_up,0.7666666666666666,4.62174119041509,0.08874676245353068,7.370959520339966,0.5,0.5,0.5,0.0,0.5,0.06666666666666676,0.452412321708068,0.0,0.0,3.0457063689416,A,WARN

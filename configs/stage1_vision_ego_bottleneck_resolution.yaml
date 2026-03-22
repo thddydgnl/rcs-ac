@@ -1,0 +1,119 @@
+experiment_name: stage1_vision_ego_bottleneck_resolution
+output_root: /Users/song-yonghwi/Documents/GitHub/RCS-AC_test/results/stage1_vision_ego_bottleneck_resolution
+device: cpu
+feature_debug_config_path: /Users/song-yonghwi/Documents/GitHub/RCS-AC_test/configs/stage1_vision_ego_feature_debug.yaml
+base_stage1_config_path: /Users/song-yonghwi/Documents/GitHub/RCS-AC_test/configs/stage1_warmup.yaml
+base_checkpoint_root: /Users/song-yonghwi/Documents/GitHub/RCS-AC_test/results/stage1_reliability_objective_calibration/target_vs_nontarget_ranking_loss
+reference_candidate_name: reference_target_vs_nontarget_ranking_loss
+seeds: [0, 1, 2]
+num_eval_episodes: 20
+
+base_config_overrides:
+  model:
+    reliability_hidden_dims: [64]
+  warmup:
+    use_direct_corruption_targets: true
+    direct_target_drop_scale: 3.5
+    weak_corruption_probability: 0.15
+    weak_corruption_scale: 0.03
+    mild_corruption_probability: 0.15
+    mild_corruption_scale: 0.06
+    reliability_loss_coef: 0.10
+    target_ranking_loss_coef: 0.25
+    target_ranking_margin: 0.05
+    target_positive_margin_weak: 0.002
+    target_positive_margin_mild: 0.004
+    logit_positive_margin_weak: 0.03
+    logit_positive_margin_mild: 0.05
+    focus_vision_ego_pairing: true
+
+train:
+  total_steps: 8192
+  eval_interval_updates: 2
+  save_interval_updates: 4
+
+scoring:
+  weak_to_mild_margin_threshold: 0.001
+
+probes:
+  clean:
+    corruption_type: clean
+    corruption_strength: 0.0
+  weak_vision:
+    corruption_type: vision
+    corruption_strength: 0.03
+  weak_distance:
+    corruption_type: distance
+    corruption_strength: 0.03
+  weak_ego:
+    corruption_type: ego
+    corruption_strength: 0.025
+  weak_route:
+    corruption_type: route
+    corruption_strength: 0.03
+  mild_vision:
+    corruption_type: vision
+    corruption_strength: 0.06
+  mild_distance:
+    corruption_type: distance
+    corruption_strength: 0.06
+  mild_ego:
+    corruption_type: ego
+    corruption_strength: 0.05
+  mild_route:
+    corruption_type: route
+    corruption_strength: 0.06
+
+path_a_candidate_order:
+  - reference_target_vs_nontarget_ranking_loss
+  - reference_plus_minimal_modality_specific_head_gate
+  - reference_plus_minimal_modality_specific_head_gate_plus_vision_ego_target_positive
+
+path_b_candidate_order:
+  - reference_target_vs_nontarget_ranking_loss
+  - reference_plus_vision_ego_logit_positive_drop
+  - reference_plus_vision_ego_logit_positive_drop_plus_directional_monotonicity
+
+path_a_candidates:
+  reference_target_vs_nontarget_ranking_loss:
+    round: A
+    use_existing_checkpoint: true
+
+  reference_plus_minimal_modality_specific_head_gate:
+    round: A
+    overrides:
+      model:
+        reliability_input_mode: own_plus_fused
+
+  reference_plus_minimal_modality_specific_head_gate_plus_vision_ego_target_positive:
+    round: A
+    overrides:
+      model:
+        reliability_input_mode: own_plus_fused
+      warmup:
+        vision_target_positive_loss_coef: 0.30
+        ego_target_positive_loss_coef: 0.30
+        vision_ego_margin_multiplier: 1.35
+        vision_ego_weight_multiplier: 1.50
+
+path_b_candidates:
+  reference_target_vs_nontarget_ranking_loss:
+    round: B
+    use_existing_checkpoint: true
+
+  reference_plus_vision_ego_logit_positive_drop:
+    round: B
+    overrides:
+      warmup:
+        vision_logit_positive_loss_coef: 0.30
+        ego_logit_positive_loss_coef: 0.30
+        vision_ego_margin_multiplier: 1.25
+
+  reference_plus_vision_ego_logit_positive_drop_plus_directional_monotonicity:
+    round: B
+    overrides:
+      warmup:
+        vision_logit_positive_loss_coef: 0.30
+        ego_logit_positive_loss_coef: 0.30
+        directional_monotonicity_loss_coef: 0.10
+        vision_ego_margin_multiplier: 1.25

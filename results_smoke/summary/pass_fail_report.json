@@ -1,0 +1,27 @@
+{
+  "overall_grade": "FAIL",
+  "curve_checks": {
+    "a_ego_route": true,
+    "b_early_fusion": true,
+    "c_attention_fusion": true
+  },
+  "eval_file_checks": {
+    "a_ego_route": true,
+    "b_early_fusion": true,
+    "c_attention_fusion": true
+  },
+  "single_vs_early": {
+    "grade": "PASS",
+    "success_diff": 0.0,
+    "return_diff": 0.5262395197628806,
+    "progress_diff": 0.0027976564524393017,
+    "std_ratio": 0.0
+  },
+  "early_vs_attention": {
+    "grade": "FAIL",
+    "success_diff": 0.0,
+    "return_diff": -1.6545580946329723,
+    "progress_diff": 0.0007778809813943424,
+    "std_ratio": 0.0
+  }
+}

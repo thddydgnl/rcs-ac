@@ -1,0 +1,7 @@
+clean_success_rate,targeted_positive_ratio,targeted_top2_ratio,clean_route_dominance_ratio,nan_or_crash,calibration_score,candidate_name,round,pass_fail
+0.7833333333333332,0.0,1.0,7.498328962909916,0.0,2.0335004370423415,small_head_capacity_change,B,FAIL
+0.7833333333333333,0.0,1.0,7.980529264294147,0.0,1.9852804069039185,reliability_loss_weight_medium_up,A,FAIL
+0.7666666666666666,0.0,1.0,8.182308324687583,0.0,1.9484358341979084,modality_specific_reliability_target,A,FAIL
+0.8333333333333334,0.0,1.0,9.22345867429873,0.0,1.9109874659034605,weak_corruption_sampling_increase,A,FAIL
+0.7833333333333333,0.0,1.0,9.151773517245312,0.0,1.868155981608802,reliability_loss_weight_small_up,A,FAIL
+0.7999999999999999,0.0,1.0,10.00480766640217,0.0,1.7995192333597827,current_baseline,A,FAIL

@@ -1,0 +1,7 @@
+candidate_name,vision_positive_ratio,ego_positive_ratio,target_positive_ratio,weak_to_mild_directional_ratio,vision_directional_monotonicity_ratio,ego_directional_monotonicity_ratio,clean_success_rate,clean_return,clean_progress,clean_success_drop_vs_reference,clean_return_drop_vs_reference,clean_progress_drop_vs_reference,saturation_warning_flag,nan_or_crash,pass_fail,calibration_score,round
+reference_freeze_backbone_plus_vision_logit_triplet,1.0,1.0,1.0,1.0,1.0,1.0,0.8333333333333334,5.12049577568777,0.09041558325496374,0.0,0.0,0.0,0.0,0.0,PASS,17.0,B
+reference_freeze_backbone_plus_ego_logit_triplet,1.0,1.0,1.0,1.0,1.0,1.0,0.8333333333333334,5.12049577568777,0.09041558325496374,0.0,0.0,0.0,0.0,0.0,PASS,17.0,C
+reference_freeze_backbone_plus_vision_ego_logit_triplet,1.0,1.0,1.0,1.0,1.0,1.0,0.8333333333333334,5.12049577568777,0.09041558325496374,0.0,0.0,0.0,0.0,0.0,PASS,17.0,D
+reference_freeze_backbone_plus_vision_ego_logit_triplet_plus_directional_small,1.0,1.0,1.0,1.0,1.0,1.0,0.8333333333333334,5.12049577568777,0.09041558325496374,0.0,0.0,0.0,0.0,0.0,PASS,17.0,E
+reference_freeze_backbone_plus_vision_ego_logit_triplet_plus_small_strength_up,1.0,1.0,1.0,1.0,1.0,1.0,0.8333333333333334,5.12049577568777,0.09041558325496374,0.0,0.0,0.0,0.0,0.0,PASS,17.0,E
+reference_target_vs_nontarget_ranking_loss,0.0,0.0,0.0,0.0,0.0,0.0,0.8333333333333334,5.12049577568777,0.09041558325496374,0.0,0.0,0.0,0.0,0.0,FAIL,0.0,A

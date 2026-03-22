@@ -1,0 +1,2 @@
+update,train_step,wall_clock_time,finished_flag,nan_detected,crashed_flag,eval/return_mean,eval/success_rate,eval/collision_rate,eval/timeout_rate,eval/avg_progress_to_goal,model_name,seed
+1,256,0.8539700508117676,0,0,0,-2.346690286425752,0.0,0.4,0.0,-0.0007778809813943424,b_early_fusion,0

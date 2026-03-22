@@ -1,0 +1,12 @@
+{
+  "selected_path": "B",
+  "reason": "feature and head-input diffs exist, so the next bottleneck is likely objective/head calibration.",
+  "vision_feature_diff_positive_ratio": 1.0,
+  "ego_feature_diff_positive_ratio": 1.0,
+  "vision_head_input_diff_positive_ratio": 1.0,
+  "ego_head_input_diff_positive_ratio": 1.0,
+  "vision_head_logit_diff_positive_ratio": 1.0,
+  "ego_head_logit_diff_positive_ratio": 1.0,
+  "vision_reliability_directional_positive_ratio": 0.6944444444444444,
+  "ego_reliability_directional_positive_ratio": 0.7638888888888888
+}

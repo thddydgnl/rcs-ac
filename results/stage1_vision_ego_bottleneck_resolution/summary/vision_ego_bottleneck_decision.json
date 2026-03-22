@@ -1,0 +1,6 @@
+{
+  "selected_path": "B",
+  "reason": "feature and head-input diffs exist, so the next bottleneck is likely objective/head calibration.",
+  "recommended": "reference_plus_vision_ego_logit_positive_drop",
+  "secondary": "reference_target_vs_nontarget_ranking_loss"
+}

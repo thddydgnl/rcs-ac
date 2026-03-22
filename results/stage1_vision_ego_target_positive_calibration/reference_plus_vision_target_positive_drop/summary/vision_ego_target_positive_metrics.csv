@@ -1,0 +1,9 @@
+corruption_type,target_modality,target_delta_clean_minus_probe,target_delta_clean_minus_weak,target_delta_clean_minus_mild,weak_to_mild_delta,target_positive_flag,weak_to_mild_directional_flag,weak_to_mild_margin_flag,vision_specific_positive_flag,ego_specific_positive_flag,target_vs_nontarget_gap,saturation_warning_flag,weak_to_mild_directional_flag_dir,candidate_name
+mild_distance,distance,0.011137962341308594,0.0,0.011137962341308594,0.00601671139399218,1,0,1,0,0,0.011162453227572996,0,1,reference_plus_vision_target_positive_drop
+mild_ego,ego,-0.0001610716183980676,0.0,-0.0001610716183980676,-0.00012691815694176878,0,0,0,0,0,-0.00016119745042590208,0,0,reference_plus_vision_target_positive_drop
+mild_route,route,0.0011982123057047156,0.0,0.0011982123057047156,0.0006335576375324781,1,0,0,0,0,0.0014660027292039413,0,1,reference_plus_vision_target_positive_drop
+mild_vision,vision,-0.0008701483408610766,0.0,-0.0008701483408610766,-0.00027436017990112305,0,0,0,0,0,-0.0008393857214186543,0,0,reference_plus_vision_target_positive_drop
+weak_distance,distance,0.005121250947316414,0.005121250947316414,0.0,0.00601671139399218,1,0,1,0,0,0.0051589210828144605,0,1,reference_plus_vision_target_positive_drop
+weak_ego,ego,-3.415346145629883e-05,-3.415346145629883e-05,0.0,-0.00012691815694176878,0,0,0,0,0,-3.215339448718139e-05,0,0,reference_plus_vision_target_positive_drop
+weak_route,route,0.0005646546681722375,0.0005646546681722375,0.0,0.0006335576375324781,1,0,0,0,0,0.0005115270614624764,0,1,reference_plus_vision_target_positive_drop
+weak_vision,vision,-0.0005957881609599536,-0.0005957881609599536,0.0,-0.00027436017990112305,0,0,0,0,0,-0.0006073315938314172,0,0,reference_plus_vision_target_positive_drop

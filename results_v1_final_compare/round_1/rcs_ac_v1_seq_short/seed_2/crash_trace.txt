@@ -1,0 +1,9 @@
+Traceback (most recent call last):
+  File "/Users/song-yonghwi/Documents/GitHub/RCS-AC_test/run_v1_stabilized_comparison.py", line 189, in run_single_experiment
+    safe_auc(
+  File "/Users/song-yonghwi/Documents/GitHub/RCS-AC_test/run_v1_stabilized_comparison.py", line 77, in safe_auc
+    return float(np.trapz(y, x) / max(x[-1] - x[0], 1.0))
+                 ^^^^^^^^
+  File "/Users/song-yonghwi/miniforge3/lib/python3.12/site-packages/numpy/__init__.py", line 792, in __getattr__
+    raise AttributeError(f"module {__name__!r} has no attribute {attr!r}")
+AttributeError: module 'numpy' has no attribute 'trapz'. Did you mean: 'trace'?

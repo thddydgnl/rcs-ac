@@ -1,0 +1,32 @@
+seed: 7
+device: cpu
+
+model:
+  baseline_type: baseline_b
+  encoder_hidden_dims: [64, 64]
+  encoder_output_dim: 64
+  trunk_hidden_dims: [128, 128]
+  actor_hidden_dims: [64]
+  critic_hidden_dims: [64]
+  attention_hidden_dim: 64
+  action_log_std_init: -0.5
+
+ppo:
+  total_steps: 10000
+  rollout_steps: 1024
+  num_eval_episodes: 10
+  gamma: 0.99
+  gae_lambda: 0.95
+  clip_eps: 0.2
+  update_epochs: 8
+  minibatch_size: 256
+  learning_rate: 0.0003
+  value_loss_coef: 0.5
+  entropy_coef: 0.01
+  max_grad_norm: 0.5
+
+logging:
+  run_name: baseline_b_early_fusion
+  output_dir: /Users/song-yonghwi/Documents/GitHub/RCS-AC_test/runs/baseline_b_early_fusion
+  eval_interval_updates: 5
+  save_interval_updates: 10

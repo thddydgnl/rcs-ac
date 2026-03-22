@@ -1,0 +1,5 @@
+corruption_type,target_modality,target_delta_clean_minus_probe,target_relative_drop_ratio,rank_among_modalities,target_positive_flag,target_top1_flag,target_top2_flag,candidate_name
+distance,distance,0.003581384817759159,0.0036472481362374892,1,1,1,1,target_margin_drop_loss
+ego,ego,-4.3511390686035156e-05,-4.4428194229434865e-05,4,0,0,0,target_margin_drop_loss
+route,route,0.0006458063920339319,0.0006661018904633739,1,1,1,1,target_margin_drop_loss
+vision,vision,-6.881356239318848e-05,-7.012967764038692e-05,4,0,0,0,target_margin_drop_loss

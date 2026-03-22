@@ -1,0 +1,99 @@
+{
+  "seed": 2,
+  "device": "cpu",
+  "env": {
+    "corruption_mode": "clean"
+  },
+  "model": {
+    "encoder_hidden_dims": [
+      64,
+      64
+    ],
+    "encoder_output_dim": 64,
+    "attention_hidden_dim": 64,
+    "recurrent_hidden_dim": 64,
+    "attention_temperature": 1.5,
+    "use_feature_layer_norm": true,
+    "actor_hidden_dims": [
+      64
+    ],
+    "critic_hidden_dims": [
+      64
+    ],
+    "reliability_hidden_dims": [
+      64
+    ],
+    "reliability_input_mode": "own",
+    "action_log_std_init": -0.5
+  },
+  "ppo": {
+    "total_steps": 30000,
+    "rollout_steps": 1024,
+    "sequence_length": 16,
+    "num_eval_episodes": 10,
+    "gamma": 0.99,
+    "gae_lambda": 0.95,
+    "clip_eps": 0.2,
+    "update_epochs": 4,
+    "minibatch_num_sequences": 8,
+    "learning_rate": 0.0001,
+    "value_loss_coef": 0.5,
+    "entropy_coef": 0.003,
+    "max_grad_norm": 0.3
+  },
+  "warmup": {
+    "reliability_loss_coef": 0.05,
+    "weak_corruption_probability": 0.0,
+    "weak_corruption_scale": 0.03,
+    "mild_corruption_probability": 0.0,
+    "mild_corruption_scale": 0.06,
+    "use_aux_quality_labels": true,
+    "use_direct_corruption_targets": true,
+    "direct_target_drop_scale": 3.5,
+    "init_checkpoint_path": null,
+    "calibration_objective": "mse",
+    "target_margin_loss_coef": 0.0,
+    "target_ranking_loss_coef": 0.0,
+    "monotonicity_loss_coef": 0.0,
+    "directional_monotonicity_loss_coef": 0.1,
+    "vision_target_positive_loss_coef": 0.0,
+    "ego_target_positive_loss_coef": 0.0,
+    "vision_logit_positive_loss_coef": 0.0,
+    "ego_logit_positive_loss_coef": 0.0,
+    "target_margin_value": 0.05,
+    "target_ranking_margin": 0.03,
+    "monotonicity_margin": 0.04,
+    "monotonicity_margin_clean_weak": 0.0,
+    "monotonicity_margin_weak_mild": 0.0,
+    "target_positive_margin_weak": 0.0,
+    "target_positive_margin_mild": 0.0,
+    "logit_positive_margin_weak": 0.0,
+    "logit_positive_margin_mild": 0.0,
+    "freeze_policy_backbone": true,
+    "train_reliability_head_only": true,
+    "train_reliability_projection": true,
+    "use_paired_calibration_batches": true,
+    "logit_triplet_loss_coef": 1.0,
+    "weak_margin_vision": 0.01,
+    "mild_margin_vision": 0.015,
+    "weak_margin_ego": 0.008,
+    "mild_margin_ego": 0.012,
+    "calibration_only_vision_weak_strength": 0.035,
+    "calibration_only_vision_mild_strength": 0.07,
+    "calibration_only_ego_weak_strength": 0.03,
+    "calibration_only_ego_mild_strength": 0.055,
+    "vision_ego_margin_multiplier": 1.0,
+    "vision_margin_multiplier": 1.0,
+    "ego_margin_multiplier": 1.0,
+    "vision_ego_weight_multiplier": 1.0,
+    "vision_weight_multiplier": 1.0,
+    "ego_weight_multiplier": 1.0,
+    "focus_vision_ego_pairing": true
+  },
+  "logging": {
+    "run_name": "stage1_warmup",
+    "output_dir": "/Users/song-yonghwi/Documents/GitHub/RCS-AC_test/runs/stage1_warmup",
+    "eval_interval_updates": 2,
+    "save_interval_updates": 10
+  }
+}

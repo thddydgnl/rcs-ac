@@ -1,0 +1,2 @@
+candidate_name,consistency_loss,consistency_gap_mean,same_state_action_diff_clean_vs_corrupt,consistency_gain_score
+reference_freeze_backbone_plus_vision_ego_logit_triplet,0.0005497144635979442,0.012871876600989514,0.012871876600989514,0.13712812339901048

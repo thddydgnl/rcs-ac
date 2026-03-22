@@ -1,0 +1,5 @@
+corruption_type,target_modality,target_delta_clean_minus_probe,target_relative_drop_ratio,rank_among_modalities
+distance,distance,0.002917051315307617,0.002991493071470176,1
+route,route,0.000767896572748783,0.0007954992069088948,1
+ego,ego,-1.88151995340613e-05,-1.9300175631560285e-05,4
+vision,vision,-0.00013643503189086914,-0.00013987481702919577,4

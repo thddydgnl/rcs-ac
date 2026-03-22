@@ -1,0 +1,6 @@
+config_name,mean_eval_success_rate,mean_eval_return,mean_eval_progress,collision_rate,timeout_rate,hidden_bug_rate
+rcs_ac_v1_grad_clip_strong,0.000 +/- 0.000,0.000 +/- 0.000,0.000 +/- 0.000,0.000,0.000,0.000
+rcs_ac_v1_seq_short,0.000 +/- 0.000,0.000 +/- 0.000,0.000 +/- 0.000,0.000,0.000,0.000
+baseline_c_attention,0.000 +/- 0.000,0.000 +/- 0.000,0.000 +/- 0.000,0.000,0.000,0.000
+rcs_ac_v1_gru_small_grad_clip_strong,0.000 +/- 0.000,0.000 +/- 0.000,0.000 +/- 0.000,0.000,0.000,0.000
+rcs_ac_v1_gru_small_grad_clip_strong_seq_short,0.000 +/- 0.000,0.000 +/- 0.000,0.000 +/- 0.000,0.000,0.000,0.000

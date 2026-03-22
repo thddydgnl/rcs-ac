@@ -1,0 +1,5 @@
+config_name,success_diff_vs_baseline,return_diff_vs_baseline,progress_diff_vs_baseline,success_std_ratio_vs_baseline,return_std_ratio_vs_baseline,hidden_bug_rate,nan_rate,crashed_rate
+rcs_ac_v1_grad_clip_strong,0.0,0.0,0.0,0.0,0.0,0.0,0.0,1.0
+rcs_ac_v1_seq_short,0.0,0.0,0.0,0.0,0.0,0.0,0.0,1.0
+rcs_ac_v1_gru_small_grad_clip_strong,0.0,0.0,0.0,0.0,0.0,0.0,0.0,1.0
+rcs_ac_v1_gru_small_grad_clip_strong_seq_short,0.0,0.0,0.0,0.0,0.0,0.0,0.0,1.0

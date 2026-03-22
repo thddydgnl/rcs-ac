@@ -1,0 +1,17 @@
+requested_probe_name,step,modality,per_modality_obs_diff_l2,per_modality_obs_diff_max,per_modality_changed_count,exact_equal_flag,near_equal_flag
+weak_distance,0,vision,0.0,0.0,0,1,1
+weak_distance,0,distance,0.039377592504024506,0.030186355113983154,4,0,0
+weak_distance,0,ego,0.0,0.0,0,1,1
+weak_distance,0,route,0.0,0.0,0,1,1
+weak_distance,1,vision,0.0,0.0,0,1,1
+weak_distance,1,distance,0.03995551913976669,0.03684359788894653,4,0,0
+weak_distance,1,ego,0.0,0.0,0,1,1
+weak_distance,1,route,0.0,0.0,0,1,1
+weak_distance,2,vision,0.0,0.0,0,1,1
+weak_distance,2,distance,0.045569319278001785,0.03356260061264038,5,0,0
+weak_distance,2,ego,0.0,0.0,0,1,1
+weak_distance,2,route,0.0,0.0,0,1,1
+weak_distance,3,vision,0.0,0.0,0,1,1
+weak_distance,3,distance,0.04117145761847496,0.028801798820495605,5,0,0
+weak_distance,3,ego,0.0,0.0,0,1,1
+weak_distance,3,route,0.0,0.0,0,1,1
