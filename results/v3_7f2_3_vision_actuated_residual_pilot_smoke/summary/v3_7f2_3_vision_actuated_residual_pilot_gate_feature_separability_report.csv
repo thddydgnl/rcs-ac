@@ -1,0 +1,5 @@
+candidate_name,clean_vs_mild_gate_feature_auc,clean_vs_mild_gate_feature_delta_norm,source_gate_feature_onoff_auc_delta,teacher_delta_feature_onoff_auc_delta
+reference_v3_6_medium_locked,0.826875,0.06212895325607555,0.0,0.0
+reference_v3_7c_medium_locked,0.973125,0.010229826469726843,0.0,0.0
+v3_7f2_3_actuated_balanced,0.99125,0.6614536586097064,0.0,0.0006249999999999867
+v3_7f2_3_actuated_vision_heavy,0.99125,0.6614536592328951,0.0,0.0006249999999999867

@@ -1,0 +1,10 @@
+Traceback (most recent call last):
+  File "/Users/song-yonghwi/Documents/GitHub/RCS-AC_test/run_baseline_comparison.py", line 261, in run_single_experiment
+    "learning_curve_auc_success": float(_safe_auc(eval_steps, eval_success)) if len(eval_steps) > 0 else 0.0,
+                                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/song-yonghwi/Documents/GitHub/RCS-AC_test/run_baseline_comparison.py", line 131, in _safe_auc
+    return float(np.trapz(y, x) / max(x[-1] - x[0], 1.0))
+                 ^^^^^^^^
+  File "/Users/song-yonghwi/miniforge3/lib/python3.12/site-packages/numpy/__init__.py", line 792, in __getattr__
+    raise AttributeError(f"module {__name__!r} has no attribute {attr!r}")
+AttributeError: module 'numpy' has no attribute 'trapz'. Did you mean: 'trace'?

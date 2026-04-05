@@ -1,0 +1,172 @@
+"""Run Version 3.7f source-gate residual selective finetune."""
+
+from __future__ import annotations
+
+import argparse
+import copy
+
+from v3_shapley_helpers import (
+    Stage37fSourceGateResidualTrainer,
+    aggregate_stage2_results,
+    build_candidate_gate_thresholds,
+    build_v3_1b_targetlogit_summary,
+    build_v3_7f_candidate_score_summary,
+    choose_v3_recommendations,
+    compute_consistency_metrics,
+    compute_degradation_metrics,
+    compute_tiebreak_metrics,
+    compute_v3_7f_source_gate_residual_metrics,
+    ensure_dir,
+    generate_v3_7f_report,
+    infer_experiment_mode,
+    is_calibration_only,
+    load_yaml,
+    run_v3_candidate,
+    save_v3_handoff_snapshot,
+    save_yaml,
+)
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Run Version 3.7f source-gate residual selective finetune.")
+    parser.add_argument(
+        "--config",
+        type=str,
+        default="/Users/song-yonghwi/Documents/GitHub/RCS-AC_test/configs/v3_7f_source_gate_residual_selective_finetune.yaml",
+    )
+    parser.add_argument("--smoke", action="store_true")
+    return parser.parse_args()
+
+
+def _validate_v3_7f_config(config: dict) -> None:
+    if str(config["baseline_candidate"]) != "reference_v3_6_medium_locked":
+        raise ValueError("V3.7f baseline_candidate must be reference_v3_6_medium_locked")
+    if not config.get("sign_teacher_checkpoint_root"):
+        raise ValueError("V3.7f requires sign_teacher_checkpoint_root")
+    if not config.get("clean_teacher_checkpoint_root"):
+        raise ValueError("V3.7f requires clean_teacher_checkpoint_root")
+    losses_cfg = config["losses"]
+    if str(losses_cfg.get("gate_mode", "absolute_v1")) != "source_residual_v1":
+        raise ValueError("V3.7f requires gate_mode=source_residual_v1")
+    if str(losses_cfg.get("gate_input_mode", "legacy")) != "source_residual_bias_aware_v1":
+        raise ValueError("V3.7f requires gate_input_mode=source_residual_bias_aware_v1")
+    if not bool(losses_cfg.get("gate_only_finetune", False)):
+        raise ValueError("V3.7f requires gate_only_finetune=true")
+
+
+def run_v3_7f_source_gate_residual_selective_finetune(config: dict, smoke: bool = False) -> None:
+    _validate_v3_7f_config(config)
+    output_root = ensure_dir(config["output_root"])
+    summary_dir = ensure_dir(output_root / "summary")
+    save_yaml(summary_dir / "v3_7f_source_gate_residual_selective_finetune_config_snapshot.yaml", config)
+    save_v3_handoff_snapshot(config, summary_dir, "v3_7f_source_gate_residual_selective_finetune")
+
+    ordered_candidates = list(config.get("candidate_order", config["candidates"].keys()))
+    if smoke:
+        ordered_candidates = ordered_candidates[:3]
+    all_rows = []
+    for candidate_name in ordered_candidates:
+        rows = run_v3_candidate(
+            candidate_name=candidate_name,
+            config=config,
+            output_root=output_root,
+            metrics_filename="v3_7f_eval_rows.json",
+            smoke=smoke,
+            trainer_cls=Stage37fSourceGateResidualTrainer,
+        )
+        all_rows.extend(rows)
+
+    shadow_seeds = list(config.get("shadow_eval_seeds", []))
+    if shadow_seeds and not smoke:
+        shadow_config = copy.deepcopy(config)
+        shadow_config["seeds"] = shadow_seeds
+        for candidate_name in ordered_candidates:
+            rows = run_v3_candidate(
+                candidate_name=candidate_name,
+                config=shadow_config,
+                output_root=output_root,
+                metrics_filename="v3_7f_eval_rows.json",
+                smoke=False,
+                trainer_cls=Stage37fSourceGateResidualTrainer,
+            )
+            all_rows.extend(rows)
+
+    df = aggregate_stage2_results(all_rows, summary_dir, "v3_7f_source_gate_residual_selective_finetune")
+    degradation_df = compute_degradation_metrics(df)
+    consistency_df = compute_consistency_metrics(df)
+    tiebreak_df = compute_tiebreak_metrics(df)
+    targetlogit_df = build_v3_1b_targetlogit_summary(df)
+    gate_df = compute_v3_7f_source_gate_residual_metrics(
+        df,
+        candidate_thresholds=build_candidate_gate_thresholds(config),
+    )
+
+    degradation_df.to_csv(
+        summary_dir / "v3_7f_source_gate_residual_selective_finetune_degradation_summary.csv",
+        index=False,
+    )
+    consistency_df.to_csv(
+        summary_dir / "v3_7f_source_gate_residual_selective_finetune_consistency_summary.csv",
+        index=False,
+    )
+    tiebreak_df.to_csv(
+        summary_dir / "v3_7f_source_gate_residual_selective_finetune_tiebreak_summary.csv",
+        index=False,
+    )
+    targetlogit_df.to_csv(
+        summary_dir / "v3_7f_source_gate_residual_selective_finetune_targetlogit_shapley_summary.csv",
+        index=False,
+    )
+    gate_df.to_csv(
+        summary_dir / "v3_7f_source_gate_residual_selective_finetune_gate_summary.csv",
+        index=False,
+    )
+
+    score_df = build_v3_7f_candidate_score_summary(
+        df=df,
+        degradation_df=degradation_df,
+        consistency_df=consistency_df,
+        tiebreak_df=tiebreak_df,
+        targetlogit_df=targetlogit_df,
+        gate_df=gate_df,
+        baseline_candidate=config["baseline_candidate"],
+        tiebreak_weights=config["tiebreak_weights"],
+    )
+    score_df["experiment_mode"] = infer_experiment_mode(config["losses"])
+    score_df["calibration_only_flag"] = float(is_calibration_only(config["losses"]))
+    score_df.to_csv(summary_dir / "v3_7f_source_gate_residual_selective_finetune_score_summary.csv", index=False)
+    (summary_dir / "v3_7f_source_gate_residual_selective_finetune_pass_fail_report.md").write_text(
+        "# Version 3.7f Source-Gate Residual Selective Finetune PASS/WARN/FAIL Report\n\n"
+        + "> This run is calibration-only when `calibration_only_flag=1`.\n\n"
+        + score_df.to_markdown(index=False)
+        + "\n",
+        encoding="utf-8",
+    )
+    recommended, secondary = choose_v3_recommendations(
+        score_df=score_df,
+        baseline_candidate=config["baseline_candidate"],
+    )
+    generate_v3_7f_report(
+        score_df=score_df,
+        degradation_df=degradation_df,
+        tiebreak_df=tiebreak_df,
+        consistency_df=consistency_df,
+        targetlogit_df=targetlogit_df,
+        gate_df=gate_df,
+        output_path=summary_dir / "v3_7f_source_gate_residual_selective_finetune_final_recommendation.md",
+        recommended=recommended,
+        secondary=secondary,
+        title="Version 3.7f Source-Gate Residual Selective Finetune Report",
+    )
+    print("Recommended:", recommended)
+    print("Secondary:", secondary)
+
+
+def main() -> None:
+    args = parse_args()
+    config = load_yaml(args.config)
+    run_v3_7f_source_gate_residual_selective_finetune(config, smoke=args.smoke)
+
+
+if __name__ == "__main__":
+    main()

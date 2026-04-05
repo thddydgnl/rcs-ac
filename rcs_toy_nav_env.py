@@ -12,6 +12,7 @@ components shape-stable and normalized as much as possible.
 from __future__ import annotations
 
 from dataclasses import dataclass
+import os
 from typing import Any
 
 import gymnasium as gym
@@ -75,6 +76,20 @@ IDLE_PENALTY = -0.02
 REWARD_TOTAL_CLIP = 3.0
 
 
+def _env_override_bool(name: str, default: bool) -> bool:
+    raw_value = os.getenv(name)
+    if raw_value is None:
+        return bool(default)
+    return raw_value.strip().lower() not in {"0", "false", "no", "off"}
+
+
+def _env_override_int(name: str, default: int) -> int:
+    raw_value = os.getenv(name)
+    if raw_value is None:
+        return int(default)
+    return int(raw_value)
+
+
 @dataclass
 class CircleObstacle:
     """Simple circular obstacle."""
@@ -93,10 +108,25 @@ class RCSToyNavEnv(gym.Env):
         self,
         render_mode: str | None = None,
         corruption_config: dict[str, bool] | None = None,
+        route_include_waypoint: bool | None = None,
+        num_obstacles: int | None = None,
+        max_episode_steps: int | None = None,
     ):
         super().__init__()
         self.render_mode = render_mode
         self.corruption_config = corruption_config or {}
+        self.route_include_waypoint = _env_override_bool(
+            "RCS_TOY_ROUTE_INCLUDE_WAYPOINT",
+            ROUTE_INCLUDE_WAYPOINT if route_include_waypoint is None else route_include_waypoint,
+        )
+        self.num_obstacles = _env_override_int(
+            "RCS_TOY_NUM_OBSTACLES",
+            NUM_OBSTACLES if num_obstacles is None else num_obstacles,
+        )
+        self.max_episode_steps = _env_override_int(
+            "RCS_TOY_MAX_EPISODE_STEPS",
+            MAX_EPISODE_STEPS if max_episode_steps is None else max_episode_steps,
+        )
 
         self.action_space = spaces.Box(
             low=ACTION_LOW,
@@ -128,7 +158,7 @@ class RCSToyNavEnv(gym.Env):
                 "route": spaces.Box(
                     low=-1.0,
                     high=1.0,
-                    shape=(5 if ROUTE_INCLUDE_WAYPOINT else 3,),
+                    shape=(5 if self.route_include_waypoint else 3,),
                     dtype=np.float32,
                 ),
                 "aux": spaces.Box(
@@ -217,7 +247,7 @@ class RCSToyNavEnv(gym.Env):
         reached_goal = self._check_goal(goal_distance)
         collided = self._check_collision()
         out_of_bounds = self._check_out_of_bounds()
-        timeout = self.step_count >= MAX_EPISODE_STEPS
+        timeout = self.step_count >= self.max_episode_steps
 
         terminated = reached_goal or collided or out_of_bounds
         truncated = timeout and not terminated
@@ -396,7 +426,7 @@ class RCSToyNavEnv(gym.Env):
             goal_distance_norm,
         ]
 
-        if ROUTE_INCLUDE_WAYPOINT:
+        if self.route_include_waypoint:
             # Placeholder waypoint proxy: same as the immediate goal direction.
             # This keeps the shape future-proof for route-planner expansion.
             features.extend(
@@ -461,7 +491,7 @@ class RCSToyNavEnv(gym.Env):
 
             obstacles: list[CircleObstacle] = []
             valid = True
-            for _ob_idx in range(NUM_OBSTACLES):
+            for _ob_idx in range(self.num_obstacles):
                 placed = False
                 for _ in range(MAX_RESET_SAMPLING_TRIES):
                     obs_xy = self._sample_point(margin=SEED_OBSTACLE_MARGIN)

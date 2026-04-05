@@ -1,0 +1,103 @@
+experiment_name: stage2_ego_reliability_fix_pilot
+output_root: /Users/song-yonghwi/Documents/GitHub/RCS-AC_test/results/stage2_ego_reliability_fix_pilot
+device: cpu
+base_stage1_config_path: /Users/song-yonghwi/Documents/GitHub/RCS-AC_test/configs/stage1_warmup.yaml
+
+seeds: [0, 1, 2]
+num_eval_episodes: 20
+num_eval_episodes_smoke: 6
+
+candidate_order:
+  - ego_raw_observable_adapter
+  - ego_raw_observable_adapter_plus_ego_positive
+
+model:
+  reliability_input_mode: own_plus_fused_plus_raw
+  reliability_raw_adapter_dim: 16
+
+candidates:
+  ego_raw_observable_adapter:
+    checkpoint_root: /Users/song-yonghwi/Documents/GitHub/RCS-AC_test/results/stage2_confirm_5seed/reference_freeze_backbone_plus_vision_ego_logit_triplet
+    source_experiment_name: stage2_confirm_5seed
+  ego_raw_observable_adapter_plus_ego_positive:
+    checkpoint_root: /Users/song-yonghwi/Documents/GitHub/RCS-AC_test/results/stage2_confirm_5seed/reference_freeze_backbone_plus_vision_ego_logit_triplet
+    source_experiment_name: stage2_confirm_5seed
+    overrides:
+      losses:
+        ego_target_positive_loss_coef: 0.25
+        ego_logit_positive_loss_coef: 0.20
+        target_positive_margin_mild: 0.004
+        logit_positive_margin_mild: 0.05
+
+train:
+  total_steps: 1536
+  rollout_steps: 512
+  sequence_length: 16
+  minibatch_num_sequences: 8
+  learning_rate: 0.00005
+  eval_interval_updates: 1
+
+losses:
+  actor_loss_coef: 1.0
+  value_loss_coef: 0.5
+  entropy_coef: 0.003
+  reliability_loss_coef: 0.08
+  consistency_loss_coef: 0.0
+  shapley_loss_coef: 0.0
+  risk_loss_coef: 0.0
+  direct_target_drop_scale: 3.5
+  vision_logit_retention_loss_coef: 0.03
+  ego_logit_retention_loss_coef: 0.0
+  vision_logit_retention_margin: 0.002
+  ego_logit_retention_margin: 0.0
+  ego_target_positive_loss_coef: 0.0
+  ego_logit_positive_loss_coef: 0.0
+  target_positive_margin_mild: 0.004
+  logit_positive_margin_mild: 0.05
+
+train_corruption:
+  clean_probability: 0.50
+  mild_single_probability: 0.50
+  mild_mixed_probability: 0.00
+  single_modality:
+    - name: vision
+      strength: 0.07
+      weight: 1.0
+    - name: distance
+      strength: 0.06
+      weight: 0.25
+    - name: ego
+      strength: 0.06
+      weight: 2.0
+    - name: route
+      strength: 0.06
+      weight: 0.25
+  mixed: []
+
+eval_probes:
+  - name: normal_eval
+    kind: clean
+    strength: 0.0
+  - name: mild_vision
+    kind: single
+    modality: vision
+    strength: 0.06
+  - name: mild_distance
+    kind: single
+    modality: distance
+    strength: 0.06
+  - name: mild_ego
+    kind: single
+    modality: ego
+    strength: 0.05
+  - name: mild_route
+    kind: single
+    modality: route
+    strength: 0.06
+
+scoring:
+  required_target_modalities: 4
+  clean_success_rate_floor: 0.78
+  target_positive_ratio_pass: 1.0
+  target_lowest_ratio_pass: 0.75
+  mean_target_vs_nontarget_gap_pass: 0.0

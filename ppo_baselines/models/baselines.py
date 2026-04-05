@@ -237,7 +237,7 @@ class BaselineCAttentionFusionActorCritic(GaussianActorCriticBase):
         action_log_std_init: float,
         attention_hidden_dim: int,
     ):
-        self.fused_dim = encoder_output_dim
+        self.fused_dim = encoder_output_dim * 2
         super().__init__(
             modality_names=["vision", "distance", "ego", "route"],
             encoder_hidden_dims=encoder_hidden_dims,
@@ -251,8 +251,9 @@ class BaselineCAttentionFusionActorCritic(GaussianActorCriticBase):
         self.fusion_module = AttentionFusion(
             feature_dim=encoder_output_dim,
             hidden_dim=attention_hidden_dim,
+            append_mean_context=True,
         )
-        self.fused_dim = encoder_output_dim
+        self.fused_dim = encoder_output_dim * 2
         self._build_heads(trunk_hidden_dims, actor_hidden_dims, critic_hidden_dims)
 
 

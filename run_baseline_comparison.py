@@ -128,7 +128,10 @@ def _extract_best_metric(rows: list[dict[str, Any]], key: str, default: float = 
 def _safe_auc(x: np.ndarray, y: np.ndarray) -> float:
     if len(x) < 2:
         return float(y[0]) if len(y) == 1 else 0.0
-    return float(np.trapz(y, x) / max(x[-1] - x[0], 1.0))
+    trapz = getattr(np, "trapezoid", None)
+    if trapz is None:
+        trapz = np.trapz
+    return float(trapz(y, x) / max(x[-1] - x[0], 1.0))
 
 
 def _dataframe_to_markdown(df: pd.DataFrame) -> str:

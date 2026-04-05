@@ -1,0 +1,48 @@
+{
+  "seed": 2,
+  "device": "cpu",
+  "env": {
+    "corruption_mode": "clean"
+  },
+  "model": {
+    "encoder_hidden_dims": [
+      64,
+      64
+    ],
+    "encoder_output_dim": 128,
+    "attention_hidden_dim": 128,
+    "recurrent_hidden_dim": 128,
+    "append_mean_context": true,
+    "attention_temperature": 1.5,
+    "use_feature_layer_norm": true,
+    "actor_hidden_dims": [
+      128
+    ],
+    "critic_hidden_dims": [
+      128
+    ],
+    "action_log_std_init": -0.5,
+    "warm_start_baseline_c_checkpoint": "/Users/song-yonghwi/Documents/GitHub/RCS-AC_test/results/pre_v9_stage1_to_stage8_audit_2026-03-29/baseline_comparison/c_attention_fusion/seed_2/checkpoint_00040.pt"
+  },
+  "ppo": {
+    "total_steps": 80000,
+    "rollout_steps": 1024,
+    "sequence_length": 16,
+    "num_eval_episodes": 20,
+    "gamma": 0.99,
+    "gae_lambda": 0.95,
+    "clip_eps": 0.2,
+    "update_epochs": 8,
+    "minibatch_num_sequences": 8,
+    "learning_rate": 0.0003,
+    "value_loss_coef": 0.5,
+    "entropy_coef": 0.01,
+    "max_grad_norm": 0.5
+  },
+  "logging": {
+    "run_name": "standard_v1_seed_2",
+    "output_dir": "/Users/song-yonghwi/Documents/GitHub/RCS-AC_test/results/pre_v9_stage1_to_stage8_audit_2026-03-29/transition_to_stage1/revalidation/standard_v1/seed_2",
+    "eval_interval_updates": 5,
+    "save_interval_updates": 10
+  }
+}

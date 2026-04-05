@@ -10,7 +10,6 @@ import numpy as np
 import torch
 from torch import nn
 
-from ppo_baselines.models.baselines import BaselineCAttentionFusionActorCritic
 from ppo_baselines.utils.logger import ExperimentLogger
 from rcs_ac_v1.config import ExperimentConfig
 from rcs_ac_v1.evaluate import evaluate_recurrent_policy, obs_to_tensor
@@ -50,6 +49,7 @@ class RecurrentPPOTrainer:
             encoder_output_dim=config.model.encoder_output_dim,
             attention_hidden_dim=config.model.attention_hidden_dim,
             recurrent_hidden_dim=config.model.recurrent_hidden_dim,
+            append_mean_context=config.model.append_mean_context,
             attention_temperature=config.model.attention_temperature,
             use_feature_layer_norm=config.model.use_feature_layer_norm,
             actor_hidden_dims=config.model.actor_hidden_dims,
@@ -86,21 +86,27 @@ class RecurrentPPOTrainer:
         This keeps the recurrent core new while initializing shared multimodal
         front-end weights from the feedforward attention baseline.
         """
-        checkpoint = torch.load(checkpoint_path, map_location=self.device)
-        feedforward = BaselineCAttentionFusionActorCritic(
-            encoder_hidden_dims=self.config.model.encoder_hidden_dims,
-            encoder_output_dim=self.config.model.encoder_output_dim,
-            trunk_hidden_dims=[128, 128],
-            actor_hidden_dims=[64],
-            critic_hidden_dims=[64],
-            action_dim=int(self.train_env.action_space.shape[0]),
-            action_log_std_init=self.config.model.action_log_std_init,
-            attention_hidden_dim=self.config.model.attention_hidden_dim,
-        ).to(self.device)
-        feedforward.load_state_dict(checkpoint["model_state_dict"])
-        for name in self.model.modality_names:
-            self.model.encoders[name].load_state_dict(feedforward.encoders[name].state_dict())
-        self.model.fusion_module.score_net.load_state_dict(feedforward.fusion_module.score_net.state_dict())
+        checkpoint = torch.load(checkpoint_path, map_location=self.device, weights_only=False)
+        state_dict = checkpoint["model_state_dict"]
+        current_state = self.model.state_dict()
+
+        def _safe_shape(value: torch.Tensor) -> tuple[int, ...] | None:
+            try:
+                return tuple(value.shape)
+            except RuntimeError:
+                return None
+
+        compatible_frontend = {
+            key: value
+            for key, value in state_dict.items()
+            if (key.startswith("encoders.") or key.startswith("fusion_module."))
+            and key in current_state
+            and _safe_shape(current_state[key]) is not None
+            and _safe_shape(value) is not None
+            and _safe_shape(current_state[key]) == _safe_shape(value)
+        }
+        current_state.update(compatible_frontend)
+        self.model.load_state_dict(current_state)
 
     @staticmethod
     def _metrics_have_nan(metrics: dict[str, float]) -> bool:
@@ -122,7 +128,7 @@ class RecurrentPPOTrainer:
         )
 
     def load_checkpoint(self, checkpoint_path: str | Path) -> None:
-        checkpoint = torch.load(checkpoint_path, map_location=self.device)
+        checkpoint = torch.load(checkpoint_path, map_location=self.device, weights_only=False)
         self.model.load_state_dict(checkpoint["model_state_dict"])
         self.optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
 

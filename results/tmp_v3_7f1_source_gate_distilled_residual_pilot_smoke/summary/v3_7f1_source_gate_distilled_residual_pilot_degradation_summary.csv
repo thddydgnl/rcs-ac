@@ -1,0 +1,16 @@
+candidate_name,corruption_type,normal_to_mild_return_drop,normal_to_mild_success_drop,normal_to_mild_progress_drop
+reference_v3_6_medium_locked,mild_distance,0.16624144478235348,0.0,0.0019519746303558322
+reference_v3_6_medium_locked,mild_ego,0.0010884643346065204,0.0,2.362765371799469e-05
+reference_v3_6_medium_locked,mild_route,0.04709300124552129,0.0,0.00032857917249203006
+reference_v3_6_medium_locked,mild_vision,0.007908753897064358,0.0,0.00010490491986274442
+reference_v3_6_medium_locked,mixed_low,0.02587338486919144,0.0,0.00027794167399407266
+reference_v3_7c_medium_locked,mild_distance,0.11187467637937587,0.0,0.0008841775357723153
+reference_v3_7c_medium_locked,mild_ego,0.0014576472295457776,0.0,2.838782966135822e-05
+reference_v3_7c_medium_locked,mild_route,0.059792951303536235,0.0,0.0005916409194469396
+reference_v3_7c_medium_locked,mild_vision,0.007771138236858377,0.0,0.00010441392660140436
+reference_v3_7c_medium_locked,mixed_low,0.03424104344565482,0.0,0.0004304155707359203
+v3_7f1_distilled_residual_balanced,mild_distance,0.11187467945739549,0.0,0.0008841775357723153
+v3_7f1_distilled_residual_balanced,mild_ego,0.0014576575811950931,0.0,2.838782966135822e-05
+v3_7f1_distilled_residual_balanced,mild_route,0.05979293461190416,0.0,0.0005916409194469396
+v3_7f1_distilled_residual_balanced,mild_vision,0.00777113670017382,0.0,0.00010441392660140436
+v3_7f1_distilled_residual_balanced,mixed_low,0.034241058351470954,0.0,0.0004304155707359203

@@ -68,7 +68,9 @@ def evaluate_stage1_policy(
         episode_reliability = []
 
         while True:
-            obs_tensor = obs_to_tensor(obs, device)
+            current_obs = obs
+            current_aux = np.asarray(current_obs["aux"], dtype=np.float32).copy()
+            obs_tensor = obs_to_tensor(current_obs, device)
             output = model.step(
                 obs_dict=obs_tensor,
                 hidden_state=hidden,
@@ -77,20 +79,22 @@ def evaluate_stage1_policy(
             )
             hidden = output.hidden_state
             action = output.action.squeeze(0).cpu().numpy()
-            obs, reward, terminated, truncated, info = env.step(action)
-            episode_return += float(reward)
-            episode_progress.append(float(info.get("progress_delta", 0.0)))
-            hidden_norm_values.append(float(output.aux_outputs["hidden_norm"].mean().cpu().item()))
 
             attention = output.aux_outputs["attention_weights"].squeeze(0).cpu().numpy()
             reliability = output.aux_outputs["reliability_scores"].squeeze(0).cpu().numpy()
-            targets = aux_to_reliability_targets(obs["aux"])
+            # Eval targets must come from the same observation used for prediction.
+            current_targets = aux_to_reliability_targets(current_aux)
             attention_values.append(attention)
             reliability_values.append(reliability)
-            reliability_target_values.append(targets)
+            reliability_target_values.append(current_targets)
             episode_attention.append(attention)
             episode_reliability.append(reliability)
+            next_obs, reward, terminated, truncated, info = env.step(action)
+            episode_return += float(reward)
+            episode_progress.append(float(info.get("progress_delta", 0.0)))
+            hidden_norm_values.append(float(output.aux_outputs["hidden_norm"].mean().cpu().item()))
             episode_start = torch.tensor([float(terminated or truncated)], device=device)
+            obs = next_obs
 
             if terminated or truncated:
                 returns.append(episode_return)

@@ -9,6 +9,7 @@ Purpose:
 
 from __future__ import annotations
 
+import argparse
 import csv
 import json
 from pathlib import Path
@@ -22,12 +23,10 @@ from rcs_toy_nav_env import RCSToyNavEnv
 DEFAULT_NUM_EPISODES = 20
 DEFAULT_LOG_DIR = Path("/Users/song-yonghwi/Documents/GitHub/RCS-AC_test/stage0_logs")
 EXPECTED_OBS_KEYS = ("vision", "distance", "ego", "route", "aux")
+_SCHEMA_ENV = RCSToyNavEnv()
 EXPECTED_OBS_SHAPES = {
-    "vision": (8,),
-    "distance": (9,),
-    "ego": (5,),
-    "route": (5,),
-    "aux": (8,),
+    key: tuple(_SCHEMA_ENV.observation_space[key].shape)
+    for key in EXPECTED_OBS_KEYS
 }
 EXPECTED_INFO_KEYS = (
     "corruption_flags",
@@ -416,5 +415,13 @@ def run_smoke_test() -> None:
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Run Stage 0 environment validation.")
+    parser.add_argument("--num-episodes", type=int, default=20)
+    parser.add_argument(
+        "--log-dir",
+        type=Path,
+        default=DEFAULT_LOG_DIR,
+    )
+    args = parser.parse_args()
     run_smoke_test()
-    run_stage0_validation(num_episodes=20)
+    run_stage0_validation(num_episodes=int(args.num_episodes), log_dir=args.log_dir)

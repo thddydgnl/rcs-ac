@@ -1,0 +1,2 @@
+candidate_name,clean_success_rate,clean_return,observed_target_modalities,target_positive_ratio,target_lowest_ratio,mean_target_vs_nontarget_gap,vision_positive_ratio,distance_positive_ratio,ego_positive_ratio,route_positive_ratio,weakest_target_modality,pass_fail
+reference_freeze_backbone_plus_vision_ego_logit_triplet,0.8333333333333334,4.97967594865399,4,0.75,0.75,0.004277646541595459,1.0,1.0,0.0,1.0,ego,WARN

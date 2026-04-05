@@ -1,0 +1,249 @@
+{
+  "candidate_name": "reference_v3_6_medium_locked",
+  "seed": 0,
+  "config": {
+    "experiment_name": "tmp_v3_7c_dual_teacher_gated_bias_pilot_smoke",
+    "output_root": "/Users/song-yonghwi/Documents/GitHub/RCS-AC_test/results/tmp_v3_7c_dual_teacher_gated_bias_pilot_smoke",
+    "device": "cpu",
+    "base_stage1_config_path": "/Users/song-yonghwi/Documents/GitHub/RCS-AC_test/configs/stage1_warmup.yaml",
+    "source_experiment_name": "v3_7_reliability_bias_pilot",
+    "source_checkpoint_root": "/Users/song-yonghwi/Documents/GitHub/RCS-AC_test/results/v3_7_reliability_bias_pilot/v3_7_reliability_bias_medium",
+    "sign_teacher_checkpoint_root": "/Users/song-yonghwi/Documents/GitHub/RCS-AC_test/results/v3_7_reliability_bias_pilot/v3_7_reliability_bias_medium",
+    "clean_teacher_experiment_name": "v3_6_relative_head_pilot",
+    "clean_teacher_checkpoint_root": "/Users/song-yonghwi/Documents/GitHub/RCS-AC_test/results/v3_6_relative_head_pilot/v3_6_relative_head_medium",
+    "reference_model_mode": "source_checkpoint",
+    "baseline_candidate": "reference_v3_6_medium_locked",
+    "seeds": [
+      0
+    ],
+    "shadow_eval_seeds": [],
+    "num_eval_episodes": 2,
+    "num_eval_episodes_smoke": 2,
+    "candidate_order": [
+      "reference_v3_6_medium_locked",
+      "v3_7c_gated_bias_small"
+    ],
+    "candidates": {
+      "reference_v3_6_medium_locked": {
+        "checkpoint_root": "/Users/song-yonghwi/Documents/GitHub/RCS-AC_test/results/v3_6_relative_head_pilot/v3_6_relative_head_medium",
+        "source_experiment_name": "v3_6_relative_head_pilot",
+        "eval_only": true,
+        "loss_overrides": {
+          "use_relative_score_head": true,
+          "use_reliability_bias_head": true,
+          "use_reliability_bias_gate": true,
+          "relative_gap_mode": "vision_anchor",
+          "reliability_bias_residual_scale": 0.0,
+          "reliability_bias_gate_temperature": 1.0,
+          "reliability_bias_gate_threshold": 0.0,
+          "vision_pairgap_route_loss_coef": 0.0,
+          "vision_pairgap_distance_loss_coef": 0.0,
+          "vision_attention_score_margin_loss_coef": 0.0,
+          "vision_bias_monotonicity_loss_coef": 0.0,
+          "clean_bias_zero_loss_coef": 0.0,
+          "clean_gate_suppression_loss_coef": 0.0,
+          "mild_gate_activation_loss_coef": 0.0,
+          "mild_gate_activation_margin": 0.0,
+          "gate_contrast_loss_coef": 0.0,
+          "gate_contrast_margin": 0.0,
+          "clean_score_anchor_loss_coef": 0.0,
+          "clean_action_anchor_loss_coef": 0.0,
+          "attention_score_drift_loss_coef": 0.0
+        }
+      },
+      "v3_7c_gated_bias_small": {
+        "checkpoint_root": "/Users/song-yonghwi/Documents/GitHub/RCS-AC_test/results/v3_7_reliability_bias_pilot/v3_7_reliability_bias_medium",
+        "source_experiment_name": "v3_7_reliability_bias_pilot",
+        "loss_overrides": {
+          "use_relative_score_head": true,
+          "use_reliability_bias_head": true,
+          "use_reliability_bias_gate": true,
+          "relative_gap_mode": "vision_anchor",
+          "score_adapter_residual_scale": 0.15,
+          "relative_gap_residual_scale": 0.2,
+          "reliability_bias_residual_scale": 0.2,
+          "reliability_bias_gate_temperature": 6.0,
+          "reliability_bias_gate_threshold": 0.5,
+          "vision_pairgap_route_loss_coef": 0.22,
+          "vision_pairgap_distance_loss_coef": 0.22,
+          "vision_pairgap_route_margin": 0.035,
+          "vision_pairgap_distance_margin": 0.035,
+          "vision_attention_score_margin_loss_coef": 0.12,
+          "vision_attention_score_margin": 0.02,
+          "vision_bias_monotonicity_loss_coef": 0.12,
+          "vision_bias_monotonicity_margin": 0.015,
+          "clean_bias_zero_loss_coef": 0.03,
+          "clean_gate_suppression_loss_coef": 0.08,
+          "mild_gate_activation_loss_coef": 0.06,
+          "mild_gate_activation_margin": 0.2,
+          "gate_contrast_loss_coef": 0.08,
+          "gate_contrast_margin": 0.1,
+          "clean_score_anchor_loss_coef": 0.1,
+          "clean_action_anchor_loss_coef": 0.04,
+          "attention_score_drift_loss_coef": 0.003
+        }
+      }
+    },
+    "train": {
+      "total_steps": 64,
+      "rollout_steps": 32,
+      "sequence_length": 8,
+      "minibatch_num_sequences": 2,
+      "learning_rate": 5e-05,
+      "eval_interval_updates": 2
+    },
+    "losses": {
+      "use_relative_score_head": true,
+      "use_reliability_bias_head": true,
+      "use_reliability_bias_gate": true,
+      "relative_gap_mode": "vision_anchor",
+      "score_adapter_residual_scale": 0.15,
+      "relative_gap_residual_scale": 0.2,
+      "reliability_bias_residual_scale": 0.0,
+      "reliability_bias_gate_temperature": 1.0,
+      "reliability_bias_gate_threshold": 0.0,
+      "actor_loss_coef": 0.0,
+      "value_loss_coef": 0.0,
+      "entropy_coef": 0.0,
+      "reliability_loss_coef": 0.0,
+      "consistency_loss_coef": 0.0,
+      "shapley_loss_coef": 0.0,
+      "shapley_alignment_loss_coef": 0.0,
+      "vision_targetlogit_shapley_drop_loss_coef": 0.0,
+      "ego_targetlogit_shapley_drop_loss_coef": 0.0,
+      "vision_targetlogit_drop_margin": 0.0,
+      "ego_targetlogit_drop_margin": 0.0,
+      "vision_attention_drop_loss_coef": 0.0,
+      "vision_attention_drop_margin": 0.0,
+      "vision_attention_score_margin_loss_coef": 0.0,
+      "vision_attention_weight_margin_loss_coef": 0.0,
+      "vision_attention_score_margin": 0.02,
+      "vision_attention_weight_margin": 0.0,
+      "vision_bias_monotonicity_loss_coef": 0.0,
+      "vision_bias_monotonicity_margin": 0.015,
+      "clean_bias_zero_loss_coef": 0.0,
+      "clean_gate_suppression_loss_coef": 0.0,
+      "mild_gate_activation_loss_coef": 0.0,
+      "mild_gate_activation_margin": 0.0,
+      "gate_contrast_loss_coef": 0.0,
+      "gate_contrast_margin": 0.0,
+      "clean_score_anchor_loss_coef": 0.0,
+      "clean_action_anchor_loss_coef": 0.0,
+      "attention_score_centering_mode": "mean",
+      "vision_pairgap_route_loss_coef": 0.0,
+      "vision_pairgap_distance_loss_coef": 0.0,
+      "vision_pairgap_route_margin": 0.035,
+      "vision_pairgap_distance_margin": 0.035,
+      "vision_logweight_gap_route_loss_coef": 0.0,
+      "vision_logweight_gap_distance_loss_coef": 0.0,
+      "vision_logweight_gap_margin": 0.0,
+      "vision_reliability_score_coupling_loss_coef": 0.0,
+      "vision_reliability_score_coupling_alpha": 4.0,
+      "attention_score_drift_loss_coef": 0.0,
+      "attention_logratio_eps": 1e-06,
+      "mild_target_teacher_mix_alpha": 0.0,
+      "risk_loss_coef": 0.0,
+      "direct_target_drop_scale": 0.0,
+      "vision_logit_retention_loss_coef": 0.0,
+      "ego_logit_retention_loss_coef": 0.0,
+      "vision_logit_retention_margin": 0.0,
+      "ego_logit_retention_margin": 0.0,
+      "shapley_reference_mode": "clean_full",
+      "shapley_temperature": 0.25,
+      "shapley_num_states_per_minibatch": 1,
+      "shapley_counterfactual_baseline": "zero",
+      "shapley_utility": "fused_feature_l2_to_full"
+    },
+    "train_corruption": {
+      "clean_probability": 0.5,
+      "mild_single_probability": 0.48,
+      "mild_mixed_probability": 0.02,
+      "single_modality": [
+        {
+          "name": "vision",
+          "strength": 0.06,
+          "weight": 2.2
+        },
+        {
+          "name": "distance",
+          "strength": 0.06,
+          "weight": 0.2
+        },
+        {
+          "name": "ego",
+          "strength": 0.05,
+          "weight": 0.2
+        },
+        {
+          "name": "route",
+          "strength": 0.06,
+          "weight": 0.2
+        }
+      ],
+      "mixed": [
+        {
+          "name": "mild_vision_route",
+          "modalities": [
+            "vision",
+            "route"
+          ],
+          "strengths": [
+            0.05,
+            0.05
+          ]
+        },
+        {
+          "name": "mild_distance_ego",
+          "modalities": [
+            "distance",
+            "ego"
+          ],
+          "strengths": [
+            0.05,
+            0.045
+          ]
+        }
+      ]
+    },
+    "eval_probes": [
+      {
+        "name": "normal_eval",
+        "kind": "clean",
+        "strength": 0.0
+      },
+      {
+        "name": "mild_vision",
+        "kind": "single",
+        "modality": "vision",
+        "strength": 0.06
+      }
+    ],
+    "tiebreak_weights": {
+      "vision_sign_match": 6.0,
+      "normal_success": 5.0,
+      "vision_attention_delta": 5.0,
+      "vision_attention_score_delta": 4.0,
+      "vision_gate_delta": 4.0,
+      "clean_score_anchor": -2.0,
+      "clean_action_anchor": -2.0,
+      "bias_activity": 1.0,
+      "return_degradation": -1.0
+    },
+    "reference_checkpoint_root": "/Users/song-yonghwi/Documents/GitHub/RCS-AC_test/results/v3_6_relative_head_pilot/v3_6_relative_head_medium"
+  },
+  "handoff": {
+    "candidate_name": "reference_v3_6_medium_locked",
+    "source_experiment_name": "v3_6_relative_head_pilot",
+    "source_checkpoint_path": "/Users/song-yonghwi/Documents/GitHub/RCS-AC_test/results/v3_6_relative_head_pilot/v3_6_relative_head_medium/seed_0/checkpoint_final.pt",
+    "source_snapshot_path": "/Users/song-yonghwi/Documents/GitHub/RCS-AC_test/results/v3_6_relative_head_pilot/v3_6_relative_head_medium/seed_0/config_snapshot.json",
+    "seed": 0,
+    "source_seed": 0
+  },
+  "import_paths": {
+    "attention_fusion_module": "/Users/song-yonghwi/Documents/GitHub/RCS-AC_test/ppo_baselines/models/fusion.py",
+    "rcs_model_module": "/Users/song-yonghwi/Documents/GitHub/RCS-AC_test/rcs_ac_v1/model.py",
+    "warmup_model_module": "/Users/song-yonghwi/Documents/GitHub/RCS-AC_test/stage1_warmup/model.py"
+  },
+  "experiment_mode": "calibration_only",
+  "reference_model_mode": "source_checkpoint"
+}

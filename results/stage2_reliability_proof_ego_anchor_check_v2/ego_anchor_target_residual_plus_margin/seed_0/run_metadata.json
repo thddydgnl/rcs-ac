@@ -1,0 +1,7 @@
+{
+  "mode": "full",
+  "num_eval_episodes": 24,
+  "metrics_filename": "eval_rows.json",
+  "candidate_name": "ego_anchor_target_residual_plus_margin",
+  "config_hash": "4dd8079305ac740b"
+}

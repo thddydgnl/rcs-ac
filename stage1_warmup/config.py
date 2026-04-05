@@ -20,12 +20,22 @@ class ModelConfig:
     encoder_output_dim: int = 64
     attention_hidden_dim: int = 64
     recurrent_hidden_dim: int = 64
+    append_mean_context: bool = False
     attention_temperature: float = 1.5
     use_feature_layer_norm: bool = True
     actor_hidden_dims: list[int] = field(default_factory=lambda: [64])
     critic_hidden_dims: list[int] = field(default_factory=lambda: [64])
     reliability_hidden_dims: list[int] = field(default_factory=lambda: [32])
     reliability_input_mode: str = "own"
+    reliability_raw_adapter_dim: int = 16
+    reliability_ego_residual_enabled: bool = False
+    reliability_ego_raw_adapter_dim: int = 8
+    reliability_ego_residual_input_mode: str = "raw_only"
+    reliability_ego_residual_apply_to_provisional: bool = True
+    reliability_local_residual_enabled_modalities: list[str] = field(default_factory=list)
+    reliability_local_residual_adapter_dim: int = 16
+    reliability_local_residual_input_mode: str = "raw_route_fused_v2"
+    reliability_local_residual_apply_to_provisional: bool = False
     action_log_std_init: float = -0.5
 
 
@@ -66,6 +76,9 @@ class WarmupConfig:
     ego_target_positive_loss_coef: float = 0.0
     vision_logit_positive_loss_coef: float = 0.0
     ego_logit_positive_loss_coef: float = 0.0
+    local_residual_clean_zero_loss_coef: float = 0.0
+    local_residual_selectivity_margin_loss_coef: float = 0.0
+    local_residual_selectivity_margin: float = 0.002
     target_margin_value: float = 0.05
     target_ranking_margin: float = 0.03
     monotonicity_margin: float = 0.04
@@ -77,6 +90,10 @@ class WarmupConfig:
     logit_positive_margin_mild: float = 0.0
     freeze_policy_backbone: bool = False
     train_reliability_head_only: bool = False
+    train_ego_reliability_residual_only: bool = False
+    train_local_reliability_residual_only: bool = False
+    attention_finetune_mode: str = ""
+    train_gate_input_adapter: bool = False
     train_reliability_projection: bool = True
     use_paired_calibration_batches: bool = False
     logit_triplet_loss_coef: float = 0.0

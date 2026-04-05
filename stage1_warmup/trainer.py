@@ -57,12 +57,18 @@ class Stage1WarmupTrainer:
             encoder_output_dim=config.model.encoder_output_dim,
             attention_hidden_dim=config.model.attention_hidden_dim,
             recurrent_hidden_dim=config.model.recurrent_hidden_dim,
+            append_mean_context=config.model.append_mean_context,
             attention_temperature=config.model.attention_temperature,
             use_feature_layer_norm=config.model.use_feature_layer_norm,
             actor_hidden_dims=config.model.actor_hidden_dims,
             critic_hidden_dims=config.model.critic_hidden_dims,
             reliability_hidden_dims=config.model.reliability_hidden_dims,
             reliability_input_mode=config.model.reliability_input_mode,
+            reliability_raw_adapter_dim=config.model.reliability_raw_adapter_dim,
+            reliability_ego_residual_enabled=config.model.reliability_ego_residual_enabled,
+            reliability_ego_raw_adapter_dim=config.model.reliability_ego_raw_adapter_dim,
+            reliability_ego_residual_input_mode=config.model.reliability_ego_residual_input_mode,
+            reliability_ego_residual_apply_to_provisional=config.model.reliability_ego_residual_apply_to_provisional,
             action_dim=int(self.train_env.action_space.shape[0]),
             action_log_std_init=config.model.action_log_std_init,
         ).to(self.device)
@@ -110,7 +116,7 @@ class Stage1WarmupTrainer:
         return False
 
     def load_checkpoint(self, checkpoint_path: str) -> None:
-        checkpoint = torch.load(checkpoint_path, map_location=self.device)
+        checkpoint = torch.load(checkpoint_path, map_location=self.device, weights_only=False)
         state_dict = checkpoint["model_state_dict"]
         current = self.model.state_dict()
         compatible = {

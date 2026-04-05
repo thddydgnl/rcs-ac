@@ -1,0 +1,13 @@
+candidate_name,corruption_type,normal_to_mild_return_drop,normal_to_mild_success_drop,normal_to_mild_progress_drop
+reference_v3_6_medium_locked,mild_distance,-0.2648736601439303,0.0,-0.012870558963290285
+reference_v3_6_medium_locked,mild_distance_ego,0.015409034125040577,0.0,0.0005207296460866956
+reference_v3_6_medium_locked,mild_ego,4.631013143630014e-06,0.0,-4.4209882616996765e-06
+reference_v3_6_medium_locked,mild_route,-3.015867896752897,-0.5,-0.029865563412507373
+reference_v3_6_medium_locked,mild_vision,-0.006982020586729476,0.0,-0.0003694660961627849
+reference_v3_6_medium_locked,mild_vision_route,-3.004554451853328,-0.5,-0.029487868398427958
+v3_7d_gate_sharp_low,mild_distance,-2.944573066539597,-0.5,-0.02744451630860567
+v3_7d_gate_sharp_low,mild_distance_ego,0.018977277921511604,0.0,0.0002667754888534546
+v3_7d_gate_sharp_low,mild_ego,-0.00012163537088838439,0.0,-1.2134760618204288e-05
+v3_7d_gate_sharp_low,mild_route,-2.995680174890441,-0.5,-0.028889477066695687
+v3_7d_gate_sharp_low,mild_vision,-0.011112257253845126,0.0,-0.0005732119083404486
+v3_7d_gate_sharp_low,mild_vision_route,-2.9860320467292336,-0.5,-0.028567646505932007

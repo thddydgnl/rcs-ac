@@ -97,6 +97,16 @@ def save_yaml(path: str | Path, data: dict[str, Any]) -> None:
         yaml.safe_dump(data, file, sort_keys=False)
 
 
+def latest_checkpoint(seed_dir: Path) -> Path:
+    checkpoint_final = seed_dir / "checkpoint_final.pt"
+    if checkpoint_final.exists():
+        return checkpoint_final
+    checkpoints = sorted(seed_dir.glob("checkpoint_*.pt"))
+    if checkpoints:
+        return checkpoints[-1]
+    raise FileNotFoundError(f"No checkpoint found in {seed_dir}")
+
+
 def register_standard_v1_config(config: dict[str, Any]) -> tuple[Path, dict[str, Any]]:
     standard_spec = config["standard_v1"]
     base_cfg = load_rec_config(standard_spec["base_config_path"])
@@ -108,35 +118,66 @@ def register_standard_v1_config(config: dict[str, Any]) -> tuple[Path, dict[str,
     return out_path, snapshot
 
 
-def _build_baseline_trainer(config_path: str, seed: int, output_dir: str, env_mode: str, total_steps: int, eval_interval: int):
+def _build_baseline_trainer(
+    config_path: str,
+    seed: int,
+    output_dir: str,
+    env_mode: str,
+    total_steps: int,
+    eval_interval: int,
+    num_eval_episodes: int | None = None,
+):
     config = load_ff_config(config_path)
     config.model.baseline_type = "baseline_c"
     config.seed = seed
     config.env.corruption_mode = env_mode_to_corruption_mode(env_mode)
     config.ppo.total_steps = total_steps
+    if num_eval_episodes is not None:
+        config.ppo.num_eval_episodes = int(num_eval_episodes)
     config.logging.eval_interval_updates = eval_interval
     config.logging.output_dir = output_dir
     config.logging.run_name = f"baseline_c_attention_seed_{seed}"
     return PPOTrainer, config
 
 
-def _build_standard_v1_trainer(config_path: str, seed: int, output_dir: str, env_mode: str, total_steps: int, eval_interval: int):
+def _build_standard_v1_trainer(
+    config_path: str,
+    seed: int,
+    output_dir: str,
+    env_mode: str,
+    total_steps: int,
+    eval_interval: int,
+    num_eval_episodes: int | None = None,
+    warm_start_checkpoint_path: str | None = None,
+):
     config = load_rec_config(config_path)
     config.seed = seed
     config.env.corruption_mode = env_mode_to_corruption_mode(env_mode)
     config.ppo.total_steps = total_steps
+    if num_eval_episodes is not None:
+        config.ppo.num_eval_episodes = int(num_eval_episodes)
+    if warm_start_checkpoint_path:
+        config.model.warm_start_baseline_c_checkpoint = str(warm_start_checkpoint_path)
     config.logging.eval_interval_updates = eval_interval
     config.logging.output_dir = output_dir
     config.logging.run_name = f"standard_v1_seed_{seed}"
     return RecurrentPPOTrainer, config
 
 
-def _build_stage1_trainer(config_path: str, seed: int, output_dir: str, env_mode: str):
+def _build_stage1_trainer(
+    config_path: str,
+    seed: int,
+    output_dir: str,
+    env_mode: str,
+    init_checkpoint_path: str | None = None,
+):
     config = load_stage1_config(config_path)
     config.seed = seed
     config.env.corruption_mode = env_mode_to_corruption_mode(env_mode)
     config.logging.output_dir = output_dir
     config.logging.run_name = f"stage1_warmup_seed_{seed}"
+    if init_checkpoint_path:
+        config.warmup.init_checkpoint_path = init_checkpoint_path
     return Stage1WarmupTrainer, config
 
 
@@ -230,8 +271,15 @@ def run_revalidation_experiment(
                 env_mode=env_mode,
                 total_steps=total_steps,
                 eval_interval=eval_interval,
+                num_eval_episodes=model_spec.get("num_eval_episodes"),
             )
         else:
+            warm_start_checkpoint_path = None
+            baseline_checkpoint_root = model_spec.get("baseline_checkpoint_root")
+            if baseline_checkpoint_root:
+                warm_start_checkpoint_path = str(
+                    latest_checkpoint(Path(str(baseline_checkpoint_root)) / f"seed_{seed}")
+                )
             trainer_cls, trainer_config = _build_standard_v1_trainer(
                 config_path=model_spec["config_path"],
                 seed=seed,
@@ -239,6 +287,8 @@ def run_revalidation_experiment(
                 env_mode=env_mode,
                 total_steps=total_steps,
                 eval_interval=eval_interval,
+                num_eval_episodes=model_spec.get("num_eval_episodes"),
+                warm_start_checkpoint_path=warm_start_checkpoint_path,
             )
         trainer = trainer_cls(trainer_config)
         trainer.train()
@@ -305,11 +355,15 @@ def run_multi_seed_revalidation(config: dict[str, Any], standard_config_path: Pa
     env_mode = config["revalidation"]["env_mode"]
     total_steps = int(config["revalidation"]["total_steps"])
     eval_interval = int(config["revalidation"]["eval_interval_updates"])
+    num_eval_episodes = int(config["revalidation"].get("num_eval_episodes", 10))
     baseline_spec = {
         "config_path": config["revalidation"]["baseline_config_path"],
+        "num_eval_episodes": num_eval_episodes,
     }
     standard_spec = {
         "config_path": str(standard_config_path),
+        "num_eval_episodes": num_eval_episodes,
+        "baseline_checkpoint_root": config["revalidation"].get("baseline_checkpoint_root"),
     }
     rows = []
     for model_name, model_spec in (
@@ -452,6 +506,7 @@ def run_stage1_warmup(config: dict[str, Any], resume: bool = False) -> list[dict
     seeds = list(config["stage1_warmup"]["seeds"])
     env_mode = config["stage1_warmup"]["env_mode"]
     config_path = config["stage1_warmup"]["config_path"]
+    init_checkpoint_root = config["stage1_warmup"].get("init_checkpoint_root")
     rows = []
     for seed in seeds:
         run_dir = ensure_dir(output_root / f"seed_{seed}")
@@ -460,11 +515,15 @@ def run_stage1_warmup(config: dict[str, Any], resume: bool = False) -> list[dict
             rows.append(json.loads(run_summary_path.read_text(encoding="utf-8")))
             continue
         try:
+            init_checkpoint_path = None
+            if init_checkpoint_root:
+                init_checkpoint_path = str(latest_checkpoint(Path(init_checkpoint_root) / f"seed_{seed}"))
             trainer_cls, trainer_config = _build_stage1_trainer(
                 config_path=config_path,
                 seed=seed,
                 output_dir=str(run_dir),
                 env_mode=env_mode,
+                init_checkpoint_path=init_checkpoint_path,
             )
             trainer = trainer_cls(trainer_config)
             trainer.train()
@@ -524,6 +583,7 @@ def run_stage1_warmup(config: dict[str, Any], resume: bool = False) -> list[dict
                 "failure_episode_attention_summary_route": float(last_metric(eval_rows, "eval_attention_failure/route", 0.0)),
                 "success_episode_reliability_summary_route": float(last_metric(eval_rows, "eval_reliability_success/route", 0.0)),
                 "failure_episode_reliability_summary_route": float(last_metric(eval_rows, "eval_reliability_failure/route", 0.0)),
+                "init_checkpoint_path": init_checkpoint_path or "",
             }
         except Exception as exc:
             error_message = "".join(traceback.format_exception_only(type(exc), exc)).strip()
@@ -546,6 +606,7 @@ def run_stage1_warmup(config: dict[str, Any], resume: bool = False) -> list[dict
                 "crashed_flag": 1,
                 "finished_flag": 0,
                 "error_message": error_message,
+                "init_checkpoint_path": init_checkpoint_path or "",
             }
             (run_dir / "run_status.json").write_text(
                 json.dumps({"finished_flag": 0, "crashed_flag": 1, "nan_detected": 0, "error_message": error_message}, ensure_ascii=True, indent=2),

@@ -9,7 +9,7 @@ source_checkpoint_root: /Users/song-yonghwi/Documents/GitHub/RCS-AC_test/results
 baseline_candidate: reference_v3_1_small_locked
 
 seeds: [0, 1, 2]
-num_eval_episodes: 24
+num_eval_episodes: 12
 num_eval_episodes_smoke: 6
 
 candidate_order:
@@ -64,7 +64,7 @@ train:
   sequence_length: 16
   minibatch_num_sequences: 8
   learning_rate: 0.00005
-  eval_interval_updates: 2
+  eval_interval_updates: 4
 
 losses:
   actor_loss_coef: 1.0
@@ -86,7 +86,7 @@ losses:
   ego_logit_retention_margin: 0.001
   shapley_reference_mode: clean_full
   shapley_temperature: 0.25
-  shapley_num_states_per_minibatch: 4
+  shapley_num_states_per_minibatch: 2
   shapley_counterfactual_baseline: zero
   shapley_utility: fused_feature_l2_to_full
 

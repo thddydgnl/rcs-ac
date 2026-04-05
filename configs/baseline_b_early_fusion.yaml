@@ -4,17 +4,17 @@ device: cpu
 model:
   baseline_type: baseline_b
   encoder_hidden_dims: [64, 64]
-  encoder_output_dim: 64
-  trunk_hidden_dims: [128, 128]
-  actor_hidden_dims: [64]
-  critic_hidden_dims: [64]
+  encoder_output_dim: 128
+  trunk_hidden_dims: [256, 256]
+  actor_hidden_dims: [128]
+  critic_hidden_dims: [128]
   attention_hidden_dim: 64
   action_log_std_init: -0.5
 
 ppo:
-  total_steps: 10000
+  total_steps: 50000
   rollout_steps: 1024
-  num_eval_episodes: 10
+  num_eval_episodes: 20
   gamma: 0.99
   gae_lambda: 0.95
   clip_eps: 0.2

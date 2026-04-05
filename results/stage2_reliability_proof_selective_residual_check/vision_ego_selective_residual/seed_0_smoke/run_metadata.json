@@ -1,0 +1,7 @@
+{
+  "mode": "smoke",
+  "num_eval_episodes": 6,
+  "metrics_filename": "eval_rows.json",
+  "candidate_name": "vision_ego_selective_residual",
+  "config_hash": "ba5088d13469e4d1"
+}

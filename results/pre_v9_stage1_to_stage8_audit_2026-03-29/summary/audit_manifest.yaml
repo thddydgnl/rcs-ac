@@ -1,0 +1,4 @@
+tmp_config_dir: /tmp/rcs_ac_pre_v9_audit_2026-03-29
+audit_root: /Users/song-yonghwi/Documents/GitHub/RCS-AC_test/results/pre_v9_stage1_to_stage8_audit_2026-03-29
+expected_stage1_winner: reference_freeze_backbone_plus_vision_ego_logit_triplet
+expected_stage1_backup: reference_freeze_backbone_plus_ego_logit_triplet

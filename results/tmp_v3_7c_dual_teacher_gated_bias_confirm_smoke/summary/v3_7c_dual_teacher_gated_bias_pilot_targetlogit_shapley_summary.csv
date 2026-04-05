@@ -1,0 +1,3 @@
+candidate_name,vision_targetlogit_shapley_clean_minus_mild,ego_targetlogit_shapley_clean_minus_mild,vision_attention_targetlogit_sign_match_flag,ego_attention_targetlogit_sign_match_flag,targetlogit_shapley_mean_vision,targetlogit_shapley_mean_ego
+reference_v3_6_medium_locked,0.027149975299835205,,0.0,0.0,0.12272264063358307,0.06755614280700684
+v3_7c_gated_bias_small,0.03235449641942978,,0.0,0.0,0.13654151931405067,0.06681568548083305

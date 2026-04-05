@@ -82,6 +82,9 @@ def evaluate_policy(
                 metrics[f"eval_attention_mean/{name}"] = float(value)
             for name, value in zip(ordered_modalities, all_std):
                 metrics[f"eval_attention_std/{name}"] = float(value)
+            route_idx = ordered_modalities.index("route")
+            other_mean = np.mean(np.delete(all_mean, route_idx))
+            metrics["eval_attention/route_dominance_ratio"] = float(all_mean[route_idx] / max(other_mean, 1e-6))
         if attention_success:
             success_mean = np.mean(np.stack(attention_success, axis=0), axis=0)
             for name, value in zip(ordered_modalities, success_mean):

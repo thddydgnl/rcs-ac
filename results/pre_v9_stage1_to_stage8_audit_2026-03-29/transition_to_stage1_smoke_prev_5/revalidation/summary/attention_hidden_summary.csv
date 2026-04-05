@@ -1,0 +1,3 @@
+model_name,seed,attention_mean_vision,attention_mean_distance,attention_mean_ego,attention_mean_route,attention_std_vision,attention_std_distance,attention_std_ego,attention_std_route,route_attention_dominance_ratio,hidden_norm_mean,hidden_norm_std,hidden_reset_count,sequence_length,masked_timestep_ratio,hidden_nan_detected,hidden_shape_mismatch_detected,hidden_leakage_suspected
+baseline_c_attention,0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0
+standard_v1,0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0

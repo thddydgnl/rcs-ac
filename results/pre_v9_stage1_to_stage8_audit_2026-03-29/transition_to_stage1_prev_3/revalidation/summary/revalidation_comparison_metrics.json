@@ -1,0 +1,32 @@
+[
+  {
+    "model_name":"baseline_c_attention",
+    "mean_eval_success_rate":0.9333333333,
+    "std_eval_success_rate":0.023570226,
+    "mean_eval_return":5.3548761115,
+    "std_eval_return":0.1107392344,
+    "mean_eval_avg_progress_to_goal":0.0930513776,
+    "std_eval_avg_progress_to_goal":0.0008337767,
+    "collision_rate":0.0666666667,
+    "timeout_rate":0.0,
+    "hidden_bug_rate":0.0,
+    "nan_rate":0.0,
+    "crashed_rate":0.0,
+    "training_completion_rate":1.0
+  },
+  {
+    "model_name":"standard_v1",
+    "mean_eval_success_rate":0.0,
+    "std_eval_success_rate":0.0,
+    "mean_eval_return":0.0,
+    "std_eval_return":0.0,
+    "mean_eval_avg_progress_to_goal":0.0,
+    "std_eval_avg_progress_to_goal":0.0,
+    "collision_rate":0.0,
+    "timeout_rate":0.0,
+    "hidden_bug_rate":0.0,
+    "nan_rate":0.0,
+    "crashed_rate":1.0,
+    "training_completion_rate":0.0
+  }
+]

@@ -1,0 +1,469 @@
+{
+  "candidate_name": "reference_v3_6_medium_locked",
+  "seed": 0,
+  "config": {
+    "experiment_name": "v3_7f2_11_cancel_rescue_pilot",
+    "output_root": "/Users/song-yonghwi/Documents/GitHub/RCS-AC_test/results/v3_7f2_11_cancel_rescue_pilot",
+    "device": "cpu",
+    "base_stage1_config_path": "/Users/song-yonghwi/Documents/GitHub/RCS-AC_test/configs/stage1_warmup.yaml",
+    "source_experiment_name": "v3_7c_dual_teacher_gated_bias_pilot",
+    "source_checkpoint_root": "/Users/song-yonghwi/Documents/GitHub/RCS-AC_test/results/v3_7c_dual_teacher_gated_bias_pilot/v3_7c_gated_bias_medium",
+    "sign_teacher_checkpoint_root": "/Users/song-yonghwi/Documents/GitHub/RCS-AC_test/results/v3_7c_dual_teacher_gated_bias_pilot/v3_7c_gated_bias_medium",
+    "clean_teacher_experiment_name": "v3_6_relative_head_pilot",
+    "clean_teacher_checkpoint_root": "/Users/song-yonghwi/Documents/GitHub/RCS-AC_test/results/v3_6_relative_head_pilot/v3_6_relative_head_medium",
+    "source_gate_teacher_candidate": "reference_v3_7c_medium_locked",
+    "clean_teacher_candidate": "reference_v3_6_medium_locked",
+    "teacher_reproduction_check": true,
+    "smoke_teacher_reproduction_warn_only": true,
+    "teacher_reference_summary_path": "/Users/song-yonghwi/Documents/GitHub/RCS-AC_test/results/v3_7c_dual_teacher_gated_bias_pilot/summary/v3_7c_dual_teacher_gated_bias_pilot_score_summary.csv",
+    "teacher_reference_gate_summary_path": "/Users/song-yonghwi/Documents/GitHub/RCS-AC_test/results/v3_7c_dual_teacher_gated_bias_pilot/summary/v3_7c_dual_teacher_gated_bias_pilot_gate_summary.csv",
+    "teacher_reference_eval_rows_root": "/Users/song-yonghwi/Documents/GitHub/RCS-AC_test/results/v3_7c_dual_teacher_gated_bias_pilot/v3_7c_gated_bias_medium",
+    "teacher_reference_eval_rows_filename": "v3_7c_pilot_eval_rows.json",
+    "teacher_reference_candidate_name": "v3_7c_gated_bias_medium",
+    "teacher_snapshot_precedence": true,
+    "teacher_reproduction_tolerance_default": 0.0001,
+    "teacher_reproduction_tolerances": {
+      "vision_attention_relative_score_clean_minus_mild": 0.02,
+      "vision_attention_clean_minus_mild": 0.005,
+      "vision_route_score_gap_clean_minus_mild": 0.02,
+      "vision_distance_score_gap_clean_minus_mild": 0.02,
+      "vision_gate_clean_mean": 0.001,
+      "vision_gate_mild_mean": 0.001
+    },
+    "reference_model_mode": "source_checkpoint",
+    "baseline_candidate": "reference_v3_6_medium_locked",
+    "seeds": [
+      0
+    ],
+    "shadow_eval_seeds": [],
+    "num_eval_episodes": 2,
+    "num_eval_episodes_smoke": 1,
+    "candidate_order": [
+      "reference_v3_6_medium_locked",
+      "reference_v3_7c_medium_locked",
+      "v3_7f2_11_cancel_rescue_balanced",
+      "v3_7f2_11_cancel_rescue_rescue_heavy"
+    ],
+    "candidates": {
+      "reference_v3_6_medium_locked": {
+        "checkpoint_root": "/Users/song-yonghwi/Documents/GitHub/RCS-AC_test/results/v3_6_relative_head_pilot/v3_6_relative_head_medium",
+        "source_experiment_name": "v3_6_relative_head_pilot",
+        "eval_only": true,
+        "loss_overrides": {
+          "use_relative_score_head": true,
+          "use_reliability_bias_head": true,
+          "use_reliability_bias_gate": true,
+          "gate_mode": "absolute_v1",
+          "gate_input_mode": "legacy",
+          "relative_gap_mode": "vision_anchor",
+          "score_adapter_residual_scale": 0.15,
+          "relative_gap_residual_scale": 0.2,
+          "reliability_bias_residual_scale": 0.0,
+          "reliability_bias_gate_temperature": 1.0,
+          "reliability_bias_gate_threshold": 0.0
+        }
+      },
+      "reference_v3_7c_medium_locked": {
+        "checkpoint_root": "/Users/song-yonghwi/Documents/GitHub/RCS-AC_test/results/v3_7c_dual_teacher_gated_bias_pilot/v3_7c_gated_bias_medium",
+        "source_experiment_name": "v3_7c_dual_teacher_gated_bias_pilot",
+        "eval_only": true,
+        "loss_overrides": {
+          "use_relative_score_head": true,
+          "use_reliability_bias_head": true,
+          "use_reliability_bias_gate": true,
+          "gate_mode": "absolute_v1",
+          "gate_input_mode": "legacy",
+          "relative_gap_mode": "vision_anchor",
+          "score_adapter_residual_scale": 0.15,
+          "relative_gap_residual_scale": 0.2,
+          "reliability_bias_residual_scale": 0.22,
+          "reliability_bias_gate_temperature": 8.0,
+          "reliability_bias_gate_threshold": 0.52
+        }
+      },
+      "v3_7f2_11_cancel_rescue_balanced": {
+        "checkpoint_root": "/Users/song-yonghwi/Documents/GitHub/RCS-AC_test/results/v3_7c_dual_teacher_gated_bias_pilot/v3_7c_gated_bias_medium",
+        "source_experiment_name": "v3_7c_dual_teacher_gated_bias_pilot",
+        "loss_overrides": {
+          "gate_output_scale_init": [
+            2.0,
+            1.0,
+            1.0,
+            1.0
+          ],
+          "gate_common_cancel_alpha_init": [
+            3.5,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "gate_common_cancel_alpha_max": 6.0,
+          "gate_mild_rescue_alpha_init": [
+            2.5,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "gate_mild_rescue_alpha_max": 8.0,
+          "vision_common_cancel_clean_target_fraction": 0.6,
+          "vision_common_cancel_mild_target_fraction": 0.35,
+          "vision_mild_rescue_target_loss_coef": 0.22,
+          "vision_mild_rescue_margin_loss_coef": 0.18,
+          "vision_clean_rescue_zero_loss_coef": 0.2,
+          "mild_rescue_target_fraction": 0.4,
+          "mild_rescue_margin": 0.04,
+          "clean_gate_max": 0.02,
+          "mild_gate_min": 0.08,
+          "gate_gap_margin": 0.05
+        }
+      },
+      "v3_7f2_11_cancel_rescue_rescue_heavy": {
+        "checkpoint_root": "/Users/song-yonghwi/Documents/GitHub/RCS-AC_test/results/v3_7c_dual_teacher_gated_bias_pilot/v3_7c_gated_bias_medium",
+        "source_experiment_name": "v3_7c_dual_teacher_gated_bias_pilot",
+        "loss_overrides": {
+          "gate_output_scale_init": [
+            2.0,
+            1.0,
+            1.0,
+            1.0
+          ],
+          "gate_common_cancel_alpha_init": [
+            3.5,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "gate_common_cancel_alpha_max": 6.0,
+          "gate_mild_rescue_alpha_init": [
+            4.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "gate_mild_rescue_alpha_max": 10.0,
+          "vision_common_cancel_clean_target_fraction": 0.6,
+          "vision_common_cancel_mild_target_fraction": 0.35,
+          "vision_mild_rescue_target_loss_coef": 0.3,
+          "vision_mild_rescue_margin_loss_coef": 0.24,
+          "vision_clean_rescue_zero_loss_coef": 0.24,
+          "mild_rescue_target_fraction": 0.5,
+          "mild_rescue_margin": 0.05,
+          "clean_gate_max": 0.02,
+          "mild_gate_min": 0.1,
+          "gate_gap_margin": 0.06
+        }
+      }
+    },
+    "train": {
+      "total_steps": 1536,
+      "rollout_steps": 512,
+      "sequence_length": 16,
+      "minibatch_num_sequences": 8,
+      "learning_rate": 3e-05,
+      "eval_interval_updates": 1
+    },
+    "losses": {
+      "use_relative_score_head": true,
+      "use_reliability_bias_head": true,
+      "use_reliability_bias_gate": true,
+      "gate_mode": "absolute_v1",
+      "gate_only_finetune": true,
+      "freeze_bias_head": true,
+      "freeze_score_heads": true,
+      "freeze_relative_head": true,
+      "train_score_adapter": false,
+      "train_adapter_gate_coupler": true,
+      "train_adapter_gate_input_adapter": true,
+      "freeze_policy_core": true,
+      "freeze_reliability_head": true,
+      "train_gate_input_adapter": true,
+      "gate_input_mode": "legacy",
+      "adapter_gate_input_mode": "dedicated_v1",
+      "gate_use_abs_bias_feature": true,
+      "gate_use_score_delta_feature": true,
+      "gate_use_teacher_delta_feature": true,
+      "gate_use_source_gate_feature": true,
+      "gate_use_adapter_delta_feature": true,
+      "gate_use_adapter_norm_feature": true,
+      "gate_use_adapter_teacher_delta_feature": true,
+      "gate_feature_stopgrad_on_bias": true,
+      "gate_feature_stopgrad_on_source_gate": true,
+      "gate_feature_stopgrad_on_adapter_delta": false,
+      "relative_gap_mode": "vision_anchor",
+      "score_adapter_residual_scale": 0.15,
+      "relative_gap_residual_scale": 0.2,
+      "reliability_bias_residual_scale": 0.0,
+      "residual_alpha_mode": "learnable",
+      "residual_alpha_init": [
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ],
+      "residual_alpha_max": 2.0,
+      "residual_alpha_l2_coef": 0.003,
+      "gate_logit_offset_mode": "learnable",
+      "gate_logit_offset_init": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "gate_logit_offset_max_abs": 0.15,
+      "gate_logit_offset_l2_coef": 0.005,
+      "adapter_gate_alpha_mode": "learnable",
+      "adapter_gate_alpha_init": [
+        6.0,
+        0.15,
+        0.15,
+        0.15
+      ],
+      "adapter_gate_alpha_max": 10.0,
+      "adapter_gate_alpha_l2_coef": 0.001,
+      "gate_output_scale_mode": "fixed",
+      "gate_output_scale_init": [
+        2.0,
+        1.0,
+        1.0,
+        1.0
+      ],
+      "gate_output_scale_max": 12.0,
+      "gate_output_scale_l2_coef": 0.0,
+      "gate_threshold_shift_alpha_mode": "fixed",
+      "gate_threshold_shift_alpha_init": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "gate_threshold_shift_alpha_max": 0.0,
+      "gate_threshold_shift_alpha_l2_coef": 0.0,
+      "gate_source_logit_bias_mode": "fixed",
+      "gate_source_logit_bias_init": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "gate_source_logit_bias_max_abs": 0.0,
+      "gate_source_logit_bias_l2_coef": 0.0,
+      "gate_common_cancel_alpha_mode": "learnable",
+      "gate_common_cancel_alpha_init": [
+        3.5,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "gate_common_cancel_alpha_max": 6.0,
+      "gate_common_cancel_alpha_l2_coef": 0.001,
+      "gate_contrast_shift_alpha_mode": "fixed",
+      "gate_contrast_shift_alpha_init": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "gate_contrast_shift_alpha_max": 0.0,
+      "gate_contrast_shift_alpha_l2_coef": 0.0,
+      "gate_mild_rescue_alpha_mode": "learnable",
+      "gate_mild_rescue_alpha_init": [
+        2.5,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "gate_mild_rescue_alpha_max": 8.0,
+      "gate_mild_rescue_alpha_l2_coef": 0.001,
+      "clean_gate_cap_loss_coef": 0.2,
+      "mild_gate_floor_loss_coef": 0.28,
+      "gate_gap_margin_loss_coef": 0.16,
+      "residual_gap_margin_loss_coef": 0.12,
+      "residual_logit_target_loss_coef": 0.1,
+      "residual_logit_target_loss_type": "huber",
+      "residual_logit_target_clip": 8.0,
+      "vision_final_gate_target_loss_coef": 0.14,
+      "final_gate_target_loss_type": "huber",
+      "nonvision_gate_stability_loss_coef": 0.1,
+      "vision_adapter_readout_target_loss_coef": 0.18,
+      "vision_adapter_readout_margin_loss_coef": 0.14,
+      "adapter_gate_projection_norm_floor_loss_coef": 0.08,
+      "nonvision_adapter_readout_stability_loss_coef": 0.1,
+      "adapter_gate_input_adapter_weight_l2_coef": 0.0001,
+      "adapter_gate_weight_l2_coef": 0.0001,
+      "common_cancel_anchor_gate": 0.05,
+      "post_cancel_floor_gate": 0.02,
+      "vision_common_cancel_target_loss_coef": 0.3,
+      "vision_common_cancel_clean_target_fraction": 0.6,
+      "vision_common_cancel_mild_target_fraction": 0.35,
+      "vision_common_cancel_overreach_loss_coef": 0.16,
+      "vision_mild_rescue_target_loss_coef": 0.22,
+      "vision_mild_rescue_margin_loss_coef": 0.18,
+      "vision_clean_rescue_zero_loss_coef": 0.2,
+      "nonvision_common_cancel_stability_loss_coef": 0.12,
+      "nonvision_mild_rescue_stability_loss_coef": 0.1,
+      "common_cancel_head_weight_l2_coef": 0.0001,
+      "mild_rescue_gate_head_weight_l2_coef": 0.0001,
+      "mild_rescue_value_head_weight_l2_coef": 0.0001,
+      "source_sign_score_anchor_loss_coef": 0.1,
+      "clean_score_anchor_loss_coef": 0.06,
+      "clean_action_anchor_loss_coef": 0.03,
+      "paired_selective_gate_supervision": true,
+      "paired_clean_mild_vision_prob": 0.5,
+      "train_vision_corruption_schedule": [
+        0.1,
+        0.12,
+        0.15
+      ],
+      "disable_vision_final_gate_teacher_preserve": true,
+      "actor_loss_coef": 0.0,
+      "value_loss_coef": 0.0,
+      "entropy_coef": 0.0,
+      "reliability_loss_coef": 0.0,
+      "consistency_loss_coef": 0.0,
+      "shapley_loss_coef": 0.0,
+      "shapley_alignment_loss_coef": 0.0,
+      "vision_targetlogit_shapley_drop_loss_coef": 0.0,
+      "ego_targetlogit_shapley_drop_loss_coef": 0.0,
+      "vision_pairgap_route_loss_coef": 0.04,
+      "vision_pairgap_distance_loss_coef": 0.04,
+      "vision_pairgap_route_margin": 0.03,
+      "vision_pairgap_distance_margin": 0.03,
+      "vision_attention_score_margin_loss_coef": 0.04,
+      "vision_attention_score_margin": 0.015,
+      "attention_score_drift_loss_coef": 0.001,
+      "clean_gate_max": 0.02,
+      "mild_gate_min": 0.08,
+      "gate_gap_margin": 0.05,
+      "residual_selective_margin": 0.01,
+      "direct_target_drop_scale": 0.0,
+      "shapley_estimator": "sampled",
+      "shapley_num_subsets": 4,
+      "mild_rescue_target_fraction": 0.4,
+      "mild_rescue_margin": 0.04,
+      "mild_rescue_target_loss_type": "huber",
+      "reliability_bias_gate_temperature": 1.0,
+      "reliability_bias_gate_threshold": 0.0
+    },
+    "eval_probes": [
+      {
+        "name": "normal_eval",
+        "kind": "clean"
+      },
+      {
+        "name": "mild_vision",
+        "kind": "single",
+        "modality": "vision",
+        "strength": 0.06
+      },
+      {
+        "name": "mild_vision_route",
+        "kind": "mixed",
+        "modalities": [
+          "vision",
+          "route"
+        ],
+        "strengths": [
+          0.06,
+          0.05
+        ]
+      }
+    ],
+    "tiebreak_weights": {
+      "vision_sign_match": 4.0,
+      "vision_attention_delta": 2.0,
+      "vision_attention_score_delta": 2.0,
+      "vision_attention_relative_score_delta": 2.5,
+      "vision_route_gap_delta": 1.5,
+      "vision_distance_gap_delta": 1.5,
+      "vision_gate_delta": 2.0,
+      "normal_success": 1.5,
+      "mild_success": 1.0,
+      "return_degradation": -1.0,
+      "bias_activity": -0.5,
+      "consistency_gain": 0.5,
+      "clean_score_anchor": -0.5,
+      "clean_action_anchor": -0.5,
+      "adapter_activity": -0.25,
+      "alignment_kl_improvement": 0.0,
+      "alignment_rank_corr_improvement": 0.0,
+      "attention_sign_match": 0.0,
+      "ego_delta": 0.0,
+      "ego_logit_delta": 0.0,
+      "ego_raw_shapley_delta": 0.0,
+      "ego_shapley_delta": 0.0,
+      "vision_bias_delta": 0.0,
+      "vision_delta": 0.0,
+      "vision_logit_delta": 0.0,
+      "vision_raw_shapley_delta": 0.0,
+      "vision_shapley_delta": 0.0,
+      "success_rate": 0.0,
+      "degradation": 0.0,
+      "vision_targetlogit_delta": 0.0,
+      "relative_head_activity": 0.0,
+      "saturation_penalty": 0.0,
+      "side_effect_penalty": 0.0
+    },
+    "train_corruption": {
+      "clean_probability": 0.5,
+      "mild_single_probability": 0.48,
+      "mild_mixed_probability": 0.02,
+      "paired_clean_mild_vision_prob": 0.5,
+      "train_vision_corruption_schedule": [
+        0.1,
+        0.12,
+        0.15
+      ],
+      "single_modality": [
+        {
+          "name": "vision",
+          "strength": 0.1,
+          "weight": 2.2
+        },
+        {
+          "name": "distance",
+          "strength": 0.06,
+          "weight": 0.2
+        },
+        {
+          "name": "ego",
+          "strength": 0.05,
+          "weight": 0.2
+        },
+        {
+          "name": "route",
+          "strength": 0.06,
+          "weight": 0.2
+        }
+      ],
+      "mixed": [
+        {
+          "name": "mild_vision_route",
+          "modalities": [
+            "vision",
+            "route"
+          ],
+          "strengths": [
+            0.1,
+            0.06
+          ]
+        }
+      ]
+    },
+    "reference_checkpoint_root": "/Users/song-yonghwi/Documents/GitHub/RCS-AC_test/results/v3_6_relative_head_pilot/v3_6_relative_head_medium"
+  },
+  "handoff": {
+    "candidate_name": "reference_v3_6_medium_locked",
+    "source_experiment_name": "v3_6_relative_head_pilot",
+    "source_checkpoint_path": "/Users/song-yonghwi/Documents/GitHub/RCS-AC_test/results/v3_6_relative_head_pilot/v3_6_relative_head_medium/seed_0/checkpoint_final.pt",
+    "source_snapshot_path": "/Users/song-yonghwi/Documents/GitHub/RCS-AC_test/results/v3_6_relative_head_pilot/v3_6_relative_head_medium/seed_0/config_snapshot.json",
+    "seed": 0,
+    "source_seed": 0
+  },
+  "import_paths": {
+    "attention_fusion_module": "/Users/song-yonghwi/Documents/GitHub/RCS-AC_test/ppo_baselines/models/fusion.py",
+    "rcs_model_module": "/Users/song-yonghwi/Documents/GitHub/RCS-AC_test/rcs_ac_v1/model.py",
+    "warmup_model_module": "/Users/song-yonghwi/Documents/GitHub/RCS-AC_test/stage1_warmup/model.py"
+  },
+  "experiment_mode": "calibration_only",
+  "reference_model_mode": "source_checkpoint"
+}

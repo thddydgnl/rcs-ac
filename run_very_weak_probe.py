@@ -7,10 +7,10 @@ import json
 from pathlib import Path
 from typing import Any
 
-import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import torch
+from torch.nn.parameter import UninitializedBuffer, UninitializedParameter
 import yaml
 
 from rcs_ac_v1.model import MODALITY_NAMES
@@ -101,17 +101,31 @@ def build_model(stage1_config_source: str | dict[str, Any], checkpoint_path: Pat
         critic_hidden_dims=cfg.model.critic_hidden_dims,
         reliability_hidden_dims=cfg.model.reliability_hidden_dims,
         reliability_input_mode=cfg.model.reliability_input_mode,
+        reliability_raw_adapter_dim=cfg.model.reliability_raw_adapter_dim,
+        reliability_ego_residual_enabled=cfg.model.reliability_ego_residual_enabled,
+        reliability_ego_raw_adapter_dim=cfg.model.reliability_ego_raw_adapter_dim,
+        reliability_ego_residual_input_mode=cfg.model.reliability_ego_residual_input_mode,
+        reliability_ego_residual_apply_to_provisional=cfg.model.reliability_ego_residual_apply_to_provisional,
+        reliability_local_residual_enabled_modalities=cfg.model.reliability_local_residual_enabled_modalities,
+        reliability_local_residual_adapter_dim=cfg.model.reliability_local_residual_adapter_dim,
+        reliability_local_residual_input_mode=cfg.model.reliability_local_residual_input_mode,
+        reliability_local_residual_apply_to_provisional=cfg.model.reliability_local_residual_apply_to_provisional,
         action_dim=2,
         action_log_std_init=cfg.model.action_log_std_init,
     ).to(device)
-    checkpoint = torch.load(checkpoint_path, map_location=device)
+    checkpoint = torch.load(checkpoint_path, map_location=device, weights_only=False)
     state_dict = checkpoint["model_state_dict"]
     current = model.state_dict()
-    compatible = {
-        key: value
-        for key, value in state_dict.items()
-        if key in current and tuple(current[key].shape) == tuple(value.shape)
-    }
+    compatible = {}
+    for key, value in state_dict.items():
+        if key not in current:
+            continue
+        current_value = current[key]
+        if isinstance(current_value, (UninitializedParameter, UninitializedBuffer)):
+            compatible[key] = value
+            continue
+        if tuple(current_value.shape) == tuple(value.shape):
+            compatible[key] = value
     current.update(compatible)
     model.load_state_dict(current)
     model.eval()
@@ -131,6 +145,7 @@ def run_clean_eval(
     device: torch.device,
     seed: int,
     num_eval_episodes: int,
+    run_mode: str = "full",
 ) -> dict[str, Any]:
     return run_weak_corruption_eval(
         model=model,
@@ -139,6 +154,7 @@ def run_clean_eval(
         probe_name="clean",
         probe_cfg={"corruption_type": "clean", "corruption_strength": 0.0},
         num_eval_episodes=num_eval_episodes,
+        run_mode=run_mode,
     )
 
 
@@ -150,6 +166,7 @@ def run_weak_corruption_eval(
     probe_name: str,
     probe_cfg: dict[str, Any],
     num_eval_episodes: int,
+    run_mode: str = "full",
 ) -> dict[str, Any]:
     env = RCSToyNavEnv()
     env.set_corruption_mode("clean")
@@ -164,6 +181,10 @@ def run_weak_corruption_eval(
     failure_attention = []
     success_reliability = []
     failure_reliability = []
+    vision_residual_delta_values = []
+    provisional_vision_residual_delta_values = []
+    ego_residual_delta_values = []
+    provisional_ego_residual_delta_values = []
     rng = np.random.default_rng(seed + 1000)
 
     for episode_idx in range(num_eval_episodes):
@@ -191,6 +212,28 @@ def run_weak_corruption_eval(
             episode_progress.append(float(info.get("progress_delta", 0.0)))
             attention = output.aux_outputs["attention_weights"].squeeze(0).cpu().numpy()
             reliability = output.aux_outputs["reliability_scores"].squeeze(0).cpu().numpy()
+            local_residual_deltas = output.aux_outputs.get(
+                "reliability_local_residual_deltas",
+                output.aux_outputs.get("reliability_ego_residual_deltas"),
+            )
+            if local_residual_deltas is not None:
+                squeezed_local = local_residual_deltas.squeeze(0)
+                vision_residual_delta_values.append(
+                    float(squeezed_local[MODALITY_NAMES.index("vision")].cpu().item())
+                )
+                ego_residual_delta_values.append(float(squeezed_local[MODALITY_NAMES.index("ego")].cpu().item()))
+            provisional_local_residual_deltas = output.aux_outputs.get(
+                "provisional_reliability_local_residual_deltas",
+                output.aux_outputs.get("provisional_reliability_ego_residual_deltas"),
+            )
+            if provisional_local_residual_deltas is not None:
+                squeezed_provisional = provisional_local_residual_deltas.squeeze(0)
+                provisional_vision_residual_delta_values.append(
+                    float(squeezed_provisional[MODALITY_NAMES.index("vision")].cpu().item())
+                )
+                provisional_ego_residual_delta_values.append(
+                    float(squeezed_provisional[MODALITY_NAMES.index("ego")].cpu().item())
+                )
             attention_values.append(attention)
             reliability_values.append(reliability)
             episode_attention.append(attention)
@@ -226,6 +269,8 @@ def run_weak_corruption_eval(
         "base_corruption_type": probe_cfg.get("corruption_type", probe_name),
         "corruption_strength": float(probe_cfg.get("corruption_strength", 0.0)),
         "seed": seed,
+        "num_eval_episodes": int(num_eval_episodes),
+        "run_mode": str(run_mode),
         "eval_return": float(np.mean(returns)),
         "eval_success_rate": float(np.mean(successes)),
         "eval_collision_rate": float(np.mean(collisions)),
@@ -252,6 +297,30 @@ def run_weak_corruption_eval(
         for idx, name in enumerate(MODALITY_NAMES):
             metrics[f"reliability_mean_{name}"] = float(rel_mean[idx])
             metrics[f"reliability_std_{name}"] = float(rel_std[idx])
+    metrics["reliability_vision_residual_delta_mean"] = (
+        float(np.mean(vision_residual_delta_values)) if vision_residual_delta_values else 0.0
+    )
+    metrics["reliability_vision_residual_delta_std"] = (
+        float(np.std(vision_residual_delta_values)) if vision_residual_delta_values else 0.0
+    )
+    metrics["reliability_ego_residual_delta_mean"] = (
+        float(np.mean(ego_residual_delta_values)) if ego_residual_delta_values else 0.0
+    )
+    metrics["reliability_ego_residual_delta_std"] = (
+        float(np.std(ego_residual_delta_values)) if ego_residual_delta_values else 0.0
+    )
+    metrics["provisional_reliability_vision_residual_delta_mean"] = (
+        float(np.mean(provisional_vision_residual_delta_values)) if provisional_vision_residual_delta_values else 0.0
+    )
+    metrics["provisional_reliability_vision_residual_delta_std"] = (
+        float(np.std(provisional_vision_residual_delta_values)) if provisional_vision_residual_delta_values else 0.0
+    )
+    metrics["provisional_reliability_ego_residual_delta_mean"] = (
+        float(np.mean(provisional_ego_residual_delta_values)) if provisional_ego_residual_delta_values else 0.0
+    )
+    metrics["provisional_reliability_ego_residual_delta_std"] = (
+        float(np.std(provisional_ego_residual_delta_values)) if provisional_ego_residual_delta_values else 0.0
+    )
 
     for prefix, values in (("success_episode_attention_summary", success_attention), ("failure_episode_attention_summary", failure_attention)):
         if values:
@@ -274,17 +343,32 @@ def aggregate_probe_results(rows: list[dict[str, Any]], summary_dir: Path) -> pd
     return df
 
 
+def _weighted_mean(values: pd.Series, weights: pd.Series | None) -> float:
+    numeric_values = pd.to_numeric(values, errors="coerce")
+    if numeric_values.empty:
+        return 0.0
+    if weights is None:
+        return float(numeric_values.mean())
+    numeric_weights = pd.to_numeric(weights, errors="coerce").fillna(0.0)
+    valid = numeric_values.notna() & numeric_weights.gt(0.0)
+    if not valid.any():
+        return float(numeric_values.mean())
+    return float(np.average(numeric_values[valid].to_numpy(dtype=np.float64), weights=numeric_weights[valid].to_numpy(dtype=np.float64)))
+
+
 def compare_clean_vs_corrupted_reliability(df: pd.DataFrame) -> pd.DataFrame:
     mods = list(MODALITY_NAMES)
     key_col = "probe_name" if "probe_name" in df.columns else "corruption_type"
     clean = df[df[key_col] == "clean"]
     rows = []
-    clean_means = {m: float(clean[f"reliability_mean_{m}"].mean()) for m in mods}
-    clean_stds = {m: float(clean[f"reliability_std_{m}"].mean()) for m in mods}
+    clean_weights = clean["num_eval_episodes"] if "num_eval_episodes" in clean.columns else None
+    clean_means = {m: _weighted_mean(clean[f"reliability_mean_{m}"], clean_weights) for m in mods}
+    clean_stds = {m: _weighted_mean(clean[f"reliability_std_{m}"], clean_weights) for m in mods}
     for corruption_type in [x for x in df[key_col].unique() if x != "clean"]:
         sub = df[df[key_col] == corruption_type]
+        sub_weights = sub["num_eval_episodes"] if "num_eval_episodes" in sub.columns else None
         for m in mods:
-            weak_mean = float(sub[f"reliability_mean_{m}"].mean())
+            weak_mean = _weighted_mean(sub[f"reliability_mean_{m}"], sub_weights)
             clean_mean = clean_means[m]
             delta = clean_mean - weak_mean
             rows.append(
@@ -294,7 +378,7 @@ def compare_clean_vs_corrupted_reliability(df: pd.DataFrame) -> pd.DataFrame:
                     "clean_mean": clean_mean,
                     "weak_mean": weak_mean,
                     "delta_clean_minus_weak": delta,
-                    "weak_std": float(sub[f"reliability_std_{m}"].mean()),
+                    "weak_std": _weighted_mean(sub[f"reliability_std_{m}"], sub_weights),
                     "clean_std": clean_stds[m],
                     "relative_drop_ratio": float(delta / max(clean_mean, 1e-6)),
                 }
@@ -307,12 +391,14 @@ def compare_clean_vs_corrupted_attention(df: pd.DataFrame) -> pd.DataFrame:
     key_col = "probe_name" if "probe_name" in df.columns else "corruption_type"
     clean = df[df[key_col] == "clean"]
     rows = []
-    clean_means = {m: float(clean[f"attention_mean_{m}"].mean()) for m in mods}
-    clean_stds = {m: float(clean[f"attention_std_{m}"].mean()) for m in mods}
+    clean_weights = clean["num_eval_episodes"] if "num_eval_episodes" in clean.columns else None
+    clean_means = {m: _weighted_mean(clean[f"attention_mean_{m}"], clean_weights) for m in mods}
+    clean_stds = {m: _weighted_mean(clean[f"attention_std_{m}"], clean_weights) for m in mods}
     for corruption_type in [x for x in df[key_col].unique() if x != "clean"]:
         sub = df[df[key_col] == corruption_type]
+        sub_weights = sub["num_eval_episodes"] if "num_eval_episodes" in sub.columns else None
         for m in mods:
-            weak_mean = float(sub[f"attention_mean_{m}"].mean())
+            weak_mean = _weighted_mean(sub[f"attention_mean_{m}"], sub_weights)
             clean_mean = clean_means[m]
             rows.append(
                 {
@@ -321,7 +407,7 @@ def compare_clean_vs_corrupted_attention(df: pd.DataFrame) -> pd.DataFrame:
                     "clean_mean": clean_mean,
                     "weak_mean": weak_mean,
                     "delta_clean_minus_weak": float(clean_mean - weak_mean),
-                    "weak_std": float(sub[f"attention_std_{m}"].mean()),
+                    "weak_std": _weighted_mean(sub[f"attention_std_{m}"], sub_weights),
                     "clean_std": clean_stds[m],
                 }
             )
@@ -432,6 +518,8 @@ def generate_weak_probe_report(
 
 
 def plot_probe_summary(perf_df: pd.DataFrame, output_path: Path) -> None:
+    import matplotlib.pyplot as plt
+
     fig, axes = plt.subplots(1, 2, figsize=(10, 4))
     axes[0].bar(perf_df["corruption_type"], perf_df["eval_success_rate"], color="#4472C4")
     axes[0].set_title("Eval Success Rate")

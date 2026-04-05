@@ -1,0 +1,7 @@
+{
+  "mode": "smoke",
+  "num_eval_episodes": 6,
+  "metrics_filename": "fusion_shift_eval_rows.json",
+  "candidate_name": "reference_freeze_backbone_plus_vision_ego_logit_triplet",
+  "config_hash": "4931daf11ce83bd8"
+}

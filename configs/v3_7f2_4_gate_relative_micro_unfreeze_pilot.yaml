@@ -1,0 +1,307 @@
+experiment_name: v3_7f2_4_gate_relative_micro_unfreeze_pilot
+output_root: /Users/song-yonghwi/Documents/GitHub/RCS-AC_test/results/v3_7f2_4_gate_relative_micro_unfreeze_pilot
+device: cpu
+base_stage1_config_path: /Users/song-yonghwi/Documents/GitHub/RCS-AC_test/configs/stage1_warmup.yaml
+
+source_experiment_name: v3_7c_dual_teacher_gated_bias_pilot
+source_checkpoint_root: /Users/song-yonghwi/Documents/GitHub/RCS-AC_test/results/v3_7c_dual_teacher_gated_bias_pilot/v3_7c_gated_bias_medium
+sign_teacher_checkpoint_root: /Users/song-yonghwi/Documents/GitHub/RCS-AC_test/results/v3_7c_dual_teacher_gated_bias_pilot/v3_7c_gated_bias_medium
+clean_teacher_experiment_name: v3_6_relative_head_pilot
+clean_teacher_checkpoint_root: /Users/song-yonghwi/Documents/GitHub/RCS-AC_test/results/v3_6_relative_head_pilot/v3_6_relative_head_medium
+source_gate_teacher_candidate: reference_v3_7c_medium_locked
+clean_teacher_candidate: reference_v3_6_medium_locked
+
+teacher_reproduction_check: true
+smoke_teacher_reproduction_warn_only: true
+teacher_reference_summary_path: /Users/song-yonghwi/Documents/GitHub/RCS-AC_test/results/v3_7c_dual_teacher_gated_bias_pilot/summary/v3_7c_dual_teacher_gated_bias_pilot_score_summary.csv
+teacher_reference_gate_summary_path: /Users/song-yonghwi/Documents/GitHub/RCS-AC_test/results/v3_7c_dual_teacher_gated_bias_pilot/summary/v3_7c_dual_teacher_gated_bias_pilot_gate_summary.csv
+teacher_reference_eval_rows_root: /Users/song-yonghwi/Documents/GitHub/RCS-AC_test/results/v3_7c_dual_teacher_gated_bias_pilot/v3_7c_gated_bias_medium
+teacher_reference_eval_rows_filename: v3_7c_pilot_eval_rows.json
+teacher_reference_candidate_name: v3_7c_gated_bias_medium
+teacher_snapshot_precedence: true
+teacher_reproduction_tolerance_default: 0.0001
+teacher_reproduction_tolerances:
+  vision_attention_relative_score_clean_minus_mild: 0.02
+  vision_attention_clean_minus_mild: 0.005
+  vision_route_score_gap_clean_minus_mild: 0.02
+  vision_distance_score_gap_clean_minus_mild: 0.02
+  vision_gate_clean_mean: 0.001
+  vision_gate_mild_mean: 0.001
+
+reference_model_mode: source_checkpoint
+baseline_candidate: reference_v3_6_medium_locked
+
+seeds: [0]
+shadow_eval_seeds: []
+num_eval_episodes: 2
+num_eval_episodes_smoke: 1
+
+candidate_order:
+  - reference_v3_6_medium_locked
+  - reference_v3_7c_medium_locked
+  - v3_7f2_4_gate_relative_balanced
+  - v3_7f2_4_gate_relative_geometry_guarded
+
+candidates:
+  reference_v3_6_medium_locked:
+    checkpoint_root: /Users/song-yonghwi/Documents/GitHub/RCS-AC_test/results/v3_6_relative_head_pilot/v3_6_relative_head_medium
+    source_experiment_name: v3_6_relative_head_pilot
+    eval_only: true
+    loss_overrides:
+      use_relative_score_head: true
+      use_reliability_bias_head: true
+      use_reliability_bias_gate: true
+      gate_mode: absolute_v1
+      gate_input_mode: legacy
+      relative_gap_mode: vision_anchor
+      score_adapter_residual_scale: 0.15
+      relative_gap_residual_scale: 0.20
+      reliability_bias_residual_scale: 0.0
+      reliability_bias_gate_temperature: 1.0
+      reliability_bias_gate_threshold: 0.0
+      clean_gate_max: 0.02
+      mild_gate_min: 0.08
+      gate_gap_margin: 0.05
+
+  reference_v3_7c_medium_locked:
+    checkpoint_root: /Users/song-yonghwi/Documents/GitHub/RCS-AC_test/results/v3_7c_dual_teacher_gated_bias_pilot/v3_7c_gated_bias_medium
+    source_experiment_name: v3_7c_dual_teacher_gated_bias_pilot
+    eval_only: true
+    loss_overrides:
+      use_relative_score_head: true
+      use_reliability_bias_head: true
+      use_reliability_bias_gate: true
+      gate_mode: absolute_v1
+      gate_input_mode: legacy
+      relative_gap_mode: vision_anchor
+      score_adapter_residual_scale: 0.15
+      relative_gap_residual_scale: 0.20
+      reliability_bias_residual_scale: 0.22
+      reliability_bias_gate_temperature: 8.0
+      reliability_bias_gate_threshold: 0.52
+      clean_gate_max: 0.02
+      mild_gate_min: 0.08
+      gate_gap_margin: 0.05
+
+  v3_7f2_4_gate_relative_balanced:
+    checkpoint_root: /Users/song-yonghwi/Documents/GitHub/RCS-AC_test/results/v3_7c_dual_teacher_gated_bias_pilot/v3_7c_gated_bias_medium
+    source_experiment_name: v3_7c_dual_teacher_gated_bias_pilot
+    loss_overrides:
+      train_gate_input_adapter: true
+      train_relative_gap_head: true
+      relative_head_lr_scale: 0.5
+      residual_alpha_mode: learnable
+      residual_alpha_init: [4.0, 1.0, 1.0, 1.0]
+      residual_alpha_max: 12.0
+      residual_alpha_l2_coef: 0.001
+      gate_logit_offset_mode: learnable
+      gate_logit_offset_init: [0.0, 0.0, 0.0, 0.0]
+      gate_logit_offset_max_abs: 2.0
+      gate_logit_offset_l2_coef: 0.002
+      source_gate_residual_zero_loss_coef: 0.00
+      residual_logit_target_loss_coef: 0.18
+      residual_gap_margin_loss_coef: 0.16
+      vision_final_gate_target_loss_coef: 0.16
+      clean_relative_gap_anchor_loss_coef: 0.08
+      source_relative_gap_anchor_loss_coef: 0.10
+      vision_relative_gap_margin_loss_coef: 0.10
+      nonvision_relative_gap_stability_loss_coef: 0.04
+      relative_head_weight_l2_coef: 0.0001
+      source_sign_score_anchor_loss_coef: 0.10
+      clean_score_anchor_loss_coef: 0.06
+      clean_action_anchor_loss_coef: 0.03
+      clean_gate_cap_loss_coef: 0.20
+      mild_gate_floor_loss_coef: 0.28
+      gate_gap_margin_loss_coef: 0.36
+      paired_clean_mild_vision_prob: 0.5
+      clean_gate_max: 0.02
+      mild_gate_min: 0.08
+      gate_gap_margin: 0.05
+      residual_selective_margin: 0.01
+      vision_relative_gap_margin: 0.05
+
+  v3_7f2_4_gate_relative_geometry_guarded:
+    checkpoint_root: /Users/song-yonghwi/Documents/GitHub/RCS-AC_test/results/v3_7c_dual_teacher_gated_bias_pilot/v3_7c_gated_bias_medium
+    source_experiment_name: v3_7c_dual_teacher_gated_bias_pilot
+    loss_overrides:
+      train_gate_input_adapter: true
+      train_relative_gap_head: true
+      relative_head_lr_scale: 0.35
+      residual_alpha_mode: learnable
+      residual_alpha_init: [3.5, 1.0, 1.0, 1.0]
+      residual_alpha_max: 10.0
+      residual_alpha_l2_coef: 0.001
+      gate_logit_offset_mode: learnable
+      gate_logit_offset_init: [0.0, 0.0, 0.0, 0.0]
+      gate_logit_offset_max_abs: 2.0
+      gate_logit_offset_l2_coef: 0.0025
+      source_gate_residual_zero_loss_coef: 0.00
+      residual_logit_target_loss_coef: 0.14
+      residual_gap_margin_loss_coef: 0.14
+      vision_final_gate_target_loss_coef: 0.14
+      clean_relative_gap_anchor_loss_coef: 0.12
+      source_relative_gap_anchor_loss_coef: 0.14
+      vision_relative_gap_margin_loss_coef: 0.08
+      nonvision_relative_gap_stability_loss_coef: 0.06
+      relative_head_weight_l2_coef: 0.0002
+      source_sign_score_anchor_loss_coef: 0.12
+      clean_score_anchor_loss_coef: 0.06
+      clean_action_anchor_loss_coef: 0.03
+      clean_gate_cap_loss_coef: 0.20
+      mild_gate_floor_loss_coef: 0.28
+      gate_gap_margin_loss_coef: 0.36
+      paired_clean_mild_vision_prob: 0.5
+      clean_gate_max: 0.02
+      mild_gate_min: 0.08
+      gate_gap_margin: 0.05
+      residual_selective_margin: 0.01
+      vision_relative_gap_margin: 0.05
+
+train:
+  total_steps: 1536
+  rollout_steps: 512
+  sequence_length: 16
+  minibatch_num_sequences: 8
+  learning_rate: 0.00003
+  eval_interval_updates: 1
+
+losses:
+  use_relative_score_head: true
+  use_reliability_bias_head: true
+  use_reliability_bias_gate: true
+  gate_mode: source_residual_logit_v2
+  gate_only_finetune: true
+  freeze_bias_head: true
+  freeze_score_heads: true
+  freeze_relative_head: false
+  train_relative_gap_head: true
+  freeze_policy_core: true
+  freeze_reliability_head: true
+  train_gate_input_adapter: true
+  gate_input_mode: source_residual_bias_aware_v1
+  gate_use_abs_bias_feature: true
+  gate_use_score_delta_feature: true
+  gate_use_teacher_delta_feature: true
+  gate_use_source_gate_feature: true
+  gate_feature_stopgrad_on_bias: true
+  gate_feature_stopgrad_on_source_gate: true
+  relative_gap_mode: vision_anchor
+  score_adapter_residual_scale: 0.15
+  relative_gap_residual_scale: 0.20
+  reliability_bias_residual_scale: 0.22
+  residual_alpha_mode: learnable
+  residual_alpha_init: [4.0, 1.0, 1.0, 1.0]
+  residual_alpha_max: 12.0
+  residual_alpha_l2_coef: 0.001
+  gate_logit_offset_mode: learnable
+  gate_logit_offset_init: [0.0, 0.0, 0.0, 0.0]
+  gate_logit_offset_max_abs: 2.0
+  gate_logit_offset_l2_coef: 0.002
+  relative_head_lr_scale: 0.5
+  relative_head_weight_l2_coef: 0.0001
+  relative_head_activity_cap: 0.35
+  relative_gap_anchor_loss_type: mse
+  paired_selective_gate_supervision: true
+  paired_clean_mild_vision_prob: 0.5
+  train_vision_corruption_schedule: [0.10, 0.12, 0.15]
+  disable_vision_final_gate_teacher_preserve: true
+  actor_loss_coef: 0.0
+  value_loss_coef: 0.0
+  entropy_coef: 0.0
+  reliability_loss_coef: 0.0
+  consistency_loss_coef: 0.0
+  shapley_loss_coef: 0.0
+  shapley_alignment_loss_coef: 0.0
+  vision_targetlogit_shapley_drop_loss_coef: 0.0
+  ego_targetlogit_shapley_drop_loss_coef: 0.0
+  clean_gate_cap_loss_coef: 0.20
+  mild_gate_floor_loss_coef: 0.28
+  gate_gap_margin_loss_coef: 0.36
+  residual_gap_margin_loss_coef: 0.16
+  residual_logit_target_loss_coef: 0.18
+  residual_logit_target_loss_type: huber
+  residual_logit_target_clip: 8.0
+  vision_final_gate_target_loss_coef: 0.16
+  final_gate_target_loss_type: huber
+  nonvision_gate_stability_loss_coef: 0.10
+  clean_relative_gap_anchor_loss_coef: 0.08
+  source_relative_gap_anchor_loss_coef: 0.10
+  vision_relative_gap_margin_loss_coef: 0.10
+  nonvision_relative_gap_stability_loss_coef: 0.04
+  source_gate_distill_loss_coef: 0.00
+  source_clean_gate_preserve_loss_coef: 0.00
+  source_gate_residual_zero_loss_coef: 0.00
+  source_sign_score_anchor_loss_coef: 0.10
+  clean_score_anchor_loss_coef: 0.06
+  clean_action_anchor_loss_coef: 0.03
+  vision_pairgap_route_loss_coef: 0.04
+  vision_pairgap_distance_loss_coef: 0.04
+  vision_pairgap_route_margin: 0.030
+  vision_pairgap_distance_margin: 0.030
+  vision_attention_score_margin_loss_coef: 0.04
+  vision_attention_score_margin: 0.015
+  attention_score_drift_loss_coef: 0.0010
+  clean_gate_max: 0.02
+  mild_gate_min: 0.08
+  gate_gap_margin: 0.05
+  residual_selective_margin: 0.01
+  vision_relative_gap_margin: 0.05
+  direct_target_drop_scale: 0.0
+  shapley_estimator: sampled
+  shapley_num_subsets: 4
+
+train_corruption:
+  clean_probability: 0.50
+  mild_single_probability: 0.48
+  mild_mixed_probability: 0.02
+  paired_clean_mild_vision_prob: 0.5
+  train_vision_corruption_schedule: [0.10, 0.12, 0.15]
+  single_modality:
+    - name: vision
+      strength: 0.10
+      weight: 2.20
+    - name: distance
+      strength: 0.06
+      weight: 0.20
+    - name: ego
+      strength: 0.05
+      weight: 0.20
+    - name: route
+      strength: 0.06
+      weight: 0.20
+  mixed:
+    - name: mild_vision_route
+      modalities: [vision, route]
+      strengths: [0.10, 0.06]
+    - name: mild_distance_ego
+      modalities: [distance, ego]
+      strengths: [0.05, 0.045]
+
+eval_probes:
+  - name: normal_eval
+    kind: clean
+  - name: mild_vision
+    kind: single
+    modality: vision
+    strength: 0.06
+  - name: mild_vision_route
+    kind: mixed
+    modalities: [vision, route]
+    strengths: [0.06, 0.05]
+
+tiebreak_weights:
+  vision_sign_match: 4.0
+  vision_attention_delta: 2.0
+  vision_attention_score_delta: 2.0
+  vision_attention_relative_score_delta: 2.5
+  vision_route_gap_delta: 1.5
+  vision_distance_gap_delta: 1.5
+  vision_gate_delta: 2.0
+  normal_success: 1.5
+  mild_success: 1.0
+  return_degradation: -1.0
+  bias_activity: -0.5
+  consistency_gain: 0.5
+  clean_score_anchor: -0.5
+  clean_action_anchor: -0.5
+  relative_head_activity: -0.25

@@ -1,0 +1,242 @@
+experiment_name: stage2_fusion_shift_prebias_output_anchor_pilot
+output_root: /Users/song-yonghwi/Documents/GitHub/RCS-AC_test/results/stage2_fusion_shift_prebias_output_anchor_pilot
+device: cpu
+base_stage1_config_path: /Users/song-yonghwi/Documents/GitHub/RCS-AC_test/configs/stage1_warmup.yaml
+baseline_eval_rows_path: /Users/song-yonghwi/Documents/GitHub/RCS-AC_test/results/stage2_reliability_proof_reference_v2/reference_freeze_backbone_plus_vision_ego_logit_triplet/eval_rows.json
+baseline_eval_rows_path_smoke: /Users/song-yonghwi/Documents/GitHub/RCS-AC_test/results/stage2_fusion_shift_prebias_output_anchor_reference_smoke/reference_freeze_backbone_plus_vision_ego_logit_triplet/eval_rows.json
+reference_model_mode: frozen_copy
+teacher_reference_model_mode: disabled
+teacher_reference_required: false
+seeds:
+- 0
+- 1
+- 2
+num_eval_episodes: 24
+num_eval_episodes_smoke: 6
+candidate_order:
+- vision_prebias_output_anchor_amp_a
+- vision_prebias_output_anchor_amp_b
+- vision_prebias_output_anchor_amp_c
+- vision_prebias_output_anchor_amp_d
+warmup:
+  attention_finetune_mode: source_gate_bias_adapter_output_scale_micro_unfreeze
+  train_gate_input_adapter: true
+fusion_gate:
+  use_relative_score_head: false
+  use_reliability_bias_head: true
+  use_reliability_bias_gate: true
+  gate_mode: source_residual_logit_v2
+  gate_input_mode: source_residual_adapter_delta_aware_v2
+  gate_use_source_gate_feature: true
+  gate_use_teacher_delta_feature: true
+  gate_use_adapter_teacher_delta_feature: true
+  gate_use_score_delta_feature: true
+  adapter_gate_input_mode: dedicated_v1
+  gate_feature_stopgrad_on_bias: true
+  gate_feature_stopgrad_on_source_gate: true
+  gate_residual_alpha_mode: learnable
+  gate_residual_alpha_init:
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  gate_logit_offset_mode: learnable
+  gate_logit_offset_init:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 0.0
+  adapter_gate_alpha_mode: learnable
+  adapter_gate_alpha_init:
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  gate_output_scale_mode: learnable
+  gate_output_scale_init:
+  - 2.0
+  - 2.0
+  - 2.0
+  - 2.0
+  gate_source_logit_bias_mode: learnable
+  gate_source_logit_bias_init:
+  - 0.0
+  - 0.0
+  - 0.0
+  - 0.0
+  score_adapter_residual_scale: 0.1
+  gate_residual_scale: 0.05
+  reliability_bias_residual_scale: 0.1
+candidates:
+  vision_prebias_output_anchor_amp_a:
+    checkpoint_root: /Users/song-yonghwi/Documents/GitHub/RCS-AC_test/results/stage2_confirm_5seed/reference_freeze_backbone_plus_vision_ego_logit_triplet
+    source_experiment_name: stage2_confirm_5seed
+    overrides:
+      fusion_gate:
+        reliability_bias_residual_scale: 0.1
+        score_adapter_residual_scale: 0.1
+        gate_residual_scale: 0.05
+        gate_output_scale_init:
+        - 2.0
+        - 2.0
+        - 2.0
+        - 2.0
+      losses:
+        teacher_nonvision_gate_effect_preserve_loss_coef: 0.0
+  vision_prebias_output_anchor_amp_b:
+    checkpoint_root: /Users/song-yonghwi/Documents/GitHub/RCS-AC_test/results/stage2_confirm_5seed/reference_freeze_backbone_plus_vision_ego_logit_triplet
+    source_experiment_name: stage2_confirm_5seed
+    overrides:
+      fusion_gate:
+        reliability_bias_residual_scale: 0.1
+        score_adapter_residual_scale: 0.2
+        gate_residual_scale: 0.05
+        gate_output_scale_init:
+        - 2.0
+        - 2.0
+        - 2.0
+        - 2.0
+      losses:
+        teacher_nonvision_gate_effect_preserve_loss_coef: 0.0
+  vision_prebias_output_anchor_amp_c:
+    checkpoint_root: /Users/song-yonghwi/Documents/GitHub/RCS-AC_test/results/stage2_confirm_5seed/reference_freeze_backbone_plus_vision_ego_logit_triplet
+    source_experiment_name: stage2_confirm_5seed
+    overrides:
+      fusion_gate:
+        reliability_bias_residual_scale: 0.2
+        score_adapter_residual_scale: 0.1
+        gate_residual_scale: 0.1
+        gate_output_scale_init:
+        - 4.0
+        - 4.0
+        - 4.0
+        - 4.0
+      losses:
+        teacher_nonvision_gate_effect_preserve_loss_coef: 0.0
+  vision_prebias_output_anchor_amp_d:
+    checkpoint_root: /Users/song-yonghwi/Documents/GitHub/RCS-AC_test/results/stage2_confirm_5seed/reference_freeze_backbone_plus_vision_ego_logit_triplet
+    source_experiment_name: stage2_confirm_5seed
+    overrides:
+      fusion_gate:
+        reliability_bias_residual_scale: 0.2
+        score_adapter_residual_scale: 0.2
+        gate_residual_scale: 0.1
+        gate_output_scale_init:
+        - 4.0
+        - 4.0
+        - 4.0
+        - 4.0
+      losses:
+        teacher_nonvision_gate_effect_preserve_loss_coef: 0.0
+train:
+  total_steps: 3072
+  rollout_steps: 512
+  sequence_length: 16
+  minibatch_num_sequences: 8
+  learning_rate: 5.0e-05
+  eval_interval_updates: 1
+losses:
+  actor_loss_coef: 0.0
+  value_loss_coef: 0.0
+  entropy_coef: 0.0
+  reliability_loss_coef: 0.01
+  consistency_loss_coef: 0.0
+  shapley_loss_coef: 0.0
+  risk_loss_coef: 0.0
+  reliability_target_mode: reference_anchored
+  direct_target_drop_scale: 3.5
+  proof_teacher_mode: reference_corrupt
+  disable_vision_final_gate_teacher_preserve: true
+  disable_teacher_target_distill: true
+  fusion_shift_target_modality: vision
+  target_gate_down_loss_coef: 0.0
+  target_gate_effect_down_loss_coef: 0.2
+  target_attention_down_loss_coef: 0.1
+  target_final_score_down_loss_coef: 0.2
+  target_bias_score_down_loss_coef: 0.15
+  target_prebias_score_down_loss_coef: 0.3
+  nontarget_rescue_loss_coef: 0.05
+  reliability_gate_alignment_loss_coef: 0.0
+  gate_attention_alignment_loss_coef: 0.0
+  reliability_attention_alignment_loss_coef: 0.0
+  clean_gate_cap_loss_coef: 0.0
+  mild_gate_floor_loss_coef: 0.0
+  gate_gap_margin_loss_coef: 0.0
+  source_gate_distill_loss_coef: 0.0
+  source_clean_gate_preserve_loss_coef: 0.0
+  clean_score_anchor_loss_coef: 0.05
+  clean_action_anchor_loss_coef: 0.05
+  source_gate_residual_zero_loss_coef: 0.0
+  vision_final_gate_target_loss_coef: 0.0
+  nonvision_gate_stability_loss_coef: 0.0
+  clean_gate_effect_small_loss_coef: 0.0
+  mild_gate_effect_target_loss_coef: 0.0
+  gate_effect_gap_margin_loss_coef: 0.0
+  teacher_gate_effect_distill_loss_coef: 0.0
+  teacher_clean_gate_effect_preserve_loss_coef: 0.0
+  teacher_nonvision_gate_effect_preserve_loss_coef: 0.0
+  clean_attention_weight_anchor_loss_coef: 0.2
+  clean_reliability_anchor_loss_coef: 0.1
+  clean_bias_score_anchor_loss_coef: 0.1
+  clean_prebias_score_anchor_loss_coef: 0.1
+  prebias_score_alignment_loss_coef: 0.1
+  gate_effect_score_alignment_loss_coef: 0.1
+  gate_effect_down_margin: 0.01
+  attention_down_margin: 0.005
+  final_score_down_margin: 0.005
+  bias_score_down_margin: 0.01
+  prebias_score_down_margin: 0.01
+  nontarget_rescue_margin: 0.0
+  alignment_margin: 0.005
+  score_alignment_margin: 0.005
+train_corruption:
+  clean_probability: 0.7
+  mild_single_probability: 0.3
+  mild_mixed_probability: 0.0
+  single_modality:
+  - name: vision
+    strength: 0.06
+    weight: 1.0
+  mixed: []
+eval_probes:
+- name: normal_eval
+  kind: clean
+  strength: 0.0
+- name: mild_vision
+  kind: single
+  modality: vision
+  strength: 0.06
+scoring:
+  smoke_clean_success_rate_standalone_floor: 0.7
+  smoke_vision_reliability_delta_pass: 0.0
+  smoke_vision_prebias_score_delta_pass: 0.0
+  smoke_vision_bias_score_delta_pass: 0.0
+  smoke_vision_gate_effect_delta_pass: 0.0
+  smoke_vision_final_score_delta_pass: 0.0
+  smoke_vision_attention_delta_pass: 0.0
+  smoke_vision_gate_effect_absmax_pass: 0.0001
+  smoke_vision_gate_effect_attention_alignment_ratio_pass: 0.2
+  smoke_vision_gate_effect_score_alignment_ratio_pass: 0.2
+  smoke_vision_prebias_score_final_score_alignment_ratio_pass: 0.2
+  smoke_nontarget_rescue_delta_pass: 0.0
+  smoke_max_non_target_clean_attention_drift_standalone_pass: 0.12
+  smoke_max_non_ego_clean_reliability_drift_standalone_pass: 0.02
+  smoke_clean_score_anchor_error_pass: 0.02
+  smoke_clean_action_anchor_error_pass: 0.01
+  clean_success_rate_standalone_floor: 0.79
+  vision_reliability_delta_pass: 0.0
+  vision_prebias_score_delta_pass: 0.0
+  vision_bias_score_delta_pass: 0.0
+  vision_gate_effect_delta_pass: 0.0
+  vision_final_score_delta_pass: 0.0
+  vision_attention_delta_pass: 0.0
+  vision_gate_effect_absmax_pass: 0.0001
+  vision_reliability_gate_effect_alignment_ratio_pass: 0.2
+  vision_gate_effect_attention_alignment_ratio_pass: 0.2
+  vision_gate_effect_score_alignment_ratio_pass: 0.2
+  vision_prebias_score_final_score_alignment_ratio_pass: 0.2
+  nontarget_rescue_delta_pass: 0.0
+  max_non_target_clean_attention_drift_standalone_pass: 0.05
+  max_non_ego_clean_reliability_drift_standalone_pass: 0.02
+  clean_score_anchor_error_pass: 0.01
+  clean_action_anchor_error_pass: 0.005

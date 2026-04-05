@@ -1,0 +1,3 @@
+update,train_step,wall_clock_time,finished_flag,nan_detected,crashed_flag,train/episode_return,train/episode_length,train/success_rate,train/collision_rate,train/timeout_rate,train/avg_progress_to_goal,loss/actor,loss/critic,loss/entropy,model_name,seed
+1,1024,0.8719699382781982,0,0,0,-4.998413011305035,173.8,0.0,0.2,0.4,-0.0021209591913568934,-0.0069055634521646425,0.04004329349845648,1.834080297499895,a_ego_route,0
+2,2048,3.8273959159851074,0,0,0,-3.4465852461382753,167.4,0.0,0.2,0.4,0.005046301195474697,-0.006435782808694057,0.040619904932100326,1.8305429182946682,a_ego_route,0

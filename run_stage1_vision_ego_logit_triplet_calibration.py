@@ -11,6 +11,7 @@ from typing import Any
 import numpy as np
 import pandas as pd
 import torch
+from torch.nn.parameter import UninitializedBuffer, UninitializedParameter
 import yaml
 
 from rcs_ac_v1.model import MODALITY_NAMES
@@ -60,13 +61,27 @@ def build_model_and_cfg(config_path: str, checkpoint_path: Path, seed: int, devi
         critic_hidden_dims=cfg.model.critic_hidden_dims,
         reliability_hidden_dims=cfg.model.reliability_hidden_dims,
         reliability_input_mode=cfg.model.reliability_input_mode,
+        reliability_raw_adapter_dim=cfg.model.reliability_raw_adapter_dim,
+        reliability_ego_residual_enabled=cfg.model.reliability_ego_residual_enabled,
+        reliability_ego_raw_adapter_dim=cfg.model.reliability_ego_raw_adapter_dim,
+        reliability_ego_residual_input_mode=cfg.model.reliability_ego_residual_input_mode,
+        reliability_ego_residual_apply_to_provisional=cfg.model.reliability_ego_residual_apply_to_provisional,
         action_dim=2,
         action_log_std_init=cfg.model.action_log_std_init,
     ).to(torch.device(device))
-    checkpoint = torch.load(checkpoint_path, map_location=device)
+    checkpoint = torch.load(checkpoint_path, map_location=device, weights_only=False)
     state_dict = checkpoint["model_state_dict"]
     current = model.state_dict()
-    compatible = {k: v for k, v in state_dict.items() if k in current and tuple(current[k].shape) == tuple(v.shape)}
+    compatible = {}
+    for key, value in state_dict.items():
+        if key not in current:
+            continue
+        current_value = current[key]
+        if isinstance(current_value, (UninitializedParameter, UninitializedBuffer)):
+            compatible[key] = value
+            continue
+        if tuple(current_value.shape) == tuple(value.shape):
+            compatible[key] = value
     current.update(compatible)
     model.load_state_dict(current)
     return cfg, model

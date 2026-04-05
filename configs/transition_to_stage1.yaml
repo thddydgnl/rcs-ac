@@ -6,22 +6,32 @@ standard_v1:
   base_config_path: /Users/song-yonghwi/Documents/GitHub/RCS-AC_test/configs/rcs_ac_v1.yaml
   registered_config_path: /Users/song-yonghwi/Documents/GitHub/RCS-AC_test/configs/standard_v1.yaml
   overrides:
+    model:
+      encoder_output_dim: 128
+      attention_hidden_dim: 128
+      recurrent_hidden_dim: 128
+      append_mean_context: true
+      actor_hidden_dims: [128]
+      critic_hidden_dims: [128]
     ppo:
-      total_steps: 30000
+      total_steps: 50000
       sequence_length: 16
-      update_epochs: 4
-      learning_rate: 0.0001
-      entropy_coef: 0.003
-      max_grad_norm: 0.3
+      num_eval_episodes: 20
+      update_epochs: 8
+      learning_rate: 0.0003
+      entropy_coef: 0.01
+      max_grad_norm: 0.5
     logging:
-      eval_interval_updates: 2
+      eval_interval_updates: 5
 
 revalidation:
   baseline_config_path: /Users/song-yonghwi/Documents/GitHub/RCS-AC_test/configs/baseline_c_attention_fusion.yaml
+  baseline_checkpoint_root:
   seeds: [0, 1, 2, 3, 4]
   env_mode: normal
-  total_steps: 30000
-  eval_interval_updates: 2
+  total_steps: 50000
+  eval_interval_updates: 5
+  num_eval_episodes: 20
 
 stage1_warmup:
   config_path: /Users/song-yonghwi/Documents/GitHub/RCS-AC_test/configs/stage1_warmup.yaml

@@ -1,0 +1,50 @@
+{
+  "seed": 0,
+  "device": "cpu",
+  "env": {
+    "max_episode_steps": 200,
+    "corruption_mode": "clean"
+  },
+  "model": {
+    "baseline_type": "baseline_c",
+    "encoder_hidden_dims": [
+      64,
+      64
+    ],
+    "encoder_output_dim": 128,
+    "trunk_hidden_dims": [
+      256,
+      256
+    ],
+    "actor_hidden_dims": [
+      128
+    ],
+    "critic_hidden_dims": [
+      128
+    ],
+    "attention_hidden_dim": 128,
+    "action_log_std_init": -0.5
+  },
+  "ppo": {
+    "total_steps": 50000,
+    "rollout_steps": 1024,
+    "num_eval_episodes": 20,
+    "gamma": 0.99,
+    "gae_lambda": 0.95,
+    "clip_eps": 0.2,
+    "update_epochs": 8,
+    "minibatch_size": 256,
+    "learning_rate": 0.0003,
+    "value_loss_coef": 0.5,
+    "entropy_coef": 0.01,
+    "max_grad_norm": 0.5,
+    "target_kl": null
+  },
+  "logging": {
+    "run_name": "c_attention_fusion_seed_0",
+    "output_dir": "/Users/song-yonghwi/Documents/GitHub/RCS-AC_test/results/pre_v9_stage1_to_stage8_audit_2026-03-29/baseline_comparison/c_attention_fusion/seed_0",
+    "log_interval_updates": 1,
+    "eval_interval_updates": 5,
+    "save_interval_updates": 10
+  }
+}

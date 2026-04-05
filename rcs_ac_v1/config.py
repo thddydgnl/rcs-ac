@@ -20,6 +20,7 @@ class ModelConfig:
     encoder_output_dim: int = 64
     attention_hidden_dim: int = 64
     recurrent_hidden_dim: int = 64
+    append_mean_context: bool = False
     attention_temperature: float = 1.5
     use_feature_layer_norm: bool = True
     actor_hidden_dims: list[int] = field(default_factory=lambda: [64])

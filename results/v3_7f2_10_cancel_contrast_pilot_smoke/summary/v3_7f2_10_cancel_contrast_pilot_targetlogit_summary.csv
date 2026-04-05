@@ -1,0 +1,5 @@
+candidate_name,vision_targetlogit_shapley_clean_minus_mild,ego_targetlogit_shapley_clean_minus_mild,vision_attention_targetlogit_sign_match_flag,ego_attention_targetlogit_sign_match_flag,targetlogit_shapley_mean_vision,targetlogit_shapley_mean_ego
+reference_v3_6_medium_locked,0.006815187292886549,,0.0,0.0,-0.004635920861498259,0.042662465324004493
+reference_v3_7c_medium_locked,0.006815906429437746,,1.0,0.0,-0.004637481240630829,0.042723326633373894
+v3_7f2_10_cancel_contrast_balanced,0.006815890813413716,,1.0,0.0,-0.004637478684950717,0.04272334153453509
+v3_7f2_10_cancel_contrast_contrast_heavy,0.006815890813413716,,1.0,0.0,-0.004637478684950717,0.04272330924868584
