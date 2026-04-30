@@ -26,17 +26,14 @@ function Test-CarlaPythonProbe {
         return $true
     }
 
-    $probeCode = @"
-import carla
-client = carla.Client("127.0.0.1", $Port)
-client.set_timeout(10.0)
-print(client.get_server_version())
-print(client.get_world().get_map().name)
-"@
+    $probeCode = "import carla; client = carla.Client('127.0.0.1', $Port); client.set_timeout(10.0); print(client.get_server_version()); print(client.get_world().get_map().name)"
 
     Push-Location $ProjectRoot
     try {
+        $previousErrorActionPreference = $ErrorActionPreference
+        $ErrorActionPreference = "Continue"
         $output = & py -3.12 -B -c $probeCode 2>&1
+        $ErrorActionPreference = $previousErrorActionPreference
         if ($LASTEXITCODE -ne 0) {
             Write-Host "PYTHON_PROBE_FAILED"
             Write-Host $output
