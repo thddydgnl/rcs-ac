@@ -629,6 +629,23 @@ If Git pull fails on Windows:
 rcswinssh song@100.87.219.58 'powershell -NoProfile -Command "cd C:\Users\thddy\Documents\code\RCS-AC-first; git status --short --branch; git remote -v; git pull --ff-only"'
 ```
 
+If Mac push over HTTPS asks for a username or fails in a non-interactive shell:
+
+```bash
+gh auth status
+gh auth setup-git
+git push
+```
+
+If Mac push over SSH fails on GitHub host verification:
+
+```bash
+ssh-keyscan -H github.com >> ~/.ssh/known_hosts
+ssh -T git@github.com
+```
+
+If SSH then says `Permission denied (publickey)`, use the authenticated HTTPS remote through `gh auth setup-git` unless a write-capable SSH key is intentionally configured on Mac.
+
 If CARLA port does not open:
 
 ```bash
