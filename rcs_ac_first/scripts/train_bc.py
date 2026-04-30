@@ -180,6 +180,8 @@ def _compute_frame_perception_losses(
         return _zero_perception_losses(action_mean)
     road_target = batch.get("aux_road_mask_target")
     lane_target = batch.get("aux_lane_edge_mask_target")
+    if lane_target is None:
+        lane_target = batch.get("aux_lane_edge_target")
     available = batch.get("aux_mask_targets_available")
     if road_target is None or lane_target is None or available is None:
         return _zero_perception_losses(action_mean)

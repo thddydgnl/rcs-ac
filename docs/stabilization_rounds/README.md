@@ -38,3 +38,4 @@ docs/operating_guides/01_remote_mac_windows_stabilization_workflow.md
 - `10_preoffroad_speed_guard_hold_v1_result.md`
 - `11_rgb_aux_no_lateral_recovery_probe_result.md`
 - `12_rgb_perception_actor_features_v1_result.md`
+- `13_rgb_perception_actor_features_v2_pretrain_plan.md`

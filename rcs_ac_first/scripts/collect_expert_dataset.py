@@ -114,6 +114,9 @@ def main() -> int:
         "drop_lidar": [],
         "drop_ego": [],
         "drop_route": [],
+        "aux_road_mask_target": [],
+        "aux_lane_edge_target": [],
+        "aux_mask_targets_available": [],
     }
     accepted = 0
     attempted = 0
@@ -147,6 +150,31 @@ def main() -> int:
                 arrays["corruption_level"].append(float(info.get("corruption_level", 0.0)))
                 for key in ("rgb", "lidar", "ego", "route"):
                     arrays[f"drop_{key}"].append(float(info.get(f"drop_{key}", 0.0)))
+                mask_available = bool(info.get("aux_mask_targets_available", False))
+                road_mask = np.asarray(
+                    info.get(
+                        "aux_road_mask_target",
+                        np.zeros((1, config.model.aux_mask_height, config.model.aux_mask_width)),
+                    ),
+                    dtype=np.float32,
+                )
+                lane_mask = np.asarray(
+                    info.get(
+                        "aux_lane_edge_target",
+                        np.zeros((1, config.model.aux_mask_height, config.model.aux_mask_width)),
+                    ),
+                    dtype=np.float32,
+                )
+                expected_mask_shape = (1, int(config.model.aux_mask_height), int(config.model.aux_mask_width))
+                if road_mask.shape != expected_mask_shape:
+                    road_mask = np.zeros(expected_mask_shape, dtype=np.float32)
+                    mask_available = False
+                if lane_mask.shape != expected_mask_shape:
+                    lane_mask = np.zeros(expected_mask_shape, dtype=np.float32)
+                    mask_available = False
+                arrays["aux_road_mask_target"].append(road_mask.astype(np.float32, copy=False))
+                arrays["aux_lane_edge_target"].append(lane_mask.astype(np.float32, copy=False))
+                arrays["aux_mask_targets_available"].append(float(mask_available))
                 accepted += 1
             if bool(step_result["done"]):
                 env.disable_ego_autopilot()
@@ -179,6 +207,9 @@ def main() -> int:
         "drop_lidar": np.asarray(arrays["drop_lidar"], dtype=np.float32),
         "drop_ego": np.asarray(arrays["drop_ego"], dtype=np.float32),
         "drop_route": np.asarray(arrays["drop_route"], dtype=np.float32),
+        "aux_road_mask_target": np.stack(arrays["aux_road_mask_target"]).astype(np.float32, copy=False),
+        "aux_lane_edge_target": np.stack(arrays["aux_lane_edge_target"]).astype(np.float32, copy=False),
+        "aux_mask_targets_available": np.asarray(arrays["aux_mask_targets_available"], dtype=np.float32),
     }
     summary = save_expert_npz(output_path, stacked)
     summary_path = output_path.with_suffix(".summary.json")

@@ -58,6 +58,7 @@ class RCSACFirstModelConfig:
     aux_perception_hidden_channels: int = 64
     use_rgb_perception_actor_features: bool = False
     rgb_perception_actor_feature_dim: int = 16
+    rgb_perception_actor_adapter_init_std: float = 0.005
     auxiliary_dim: int = DEFAULT_AUXILIARY_DIM
     quality_stats_dim: int = DEFAULT_QUALITY_STATS_DIM
     risk_stats_dim: int = DEFAULT_RISK_STATS_DIM
@@ -97,6 +98,7 @@ class RCSACFirstModelConfig:
         self.aux_perception_hidden_channels = int(self.aux_perception_hidden_channels)
         self.use_rgb_perception_actor_features = bool(self.use_rgb_perception_actor_features)
         self.rgb_perception_actor_feature_dim = int(self.rgb_perception_actor_feature_dim)
+        self.rgb_perception_actor_adapter_init_std = float(self.rgb_perception_actor_adapter_init_std)
         self.auxiliary_dim = int(self.auxiliary_dim)
         self.quality_stats_dim = int(self.quality_stats_dim)
         self.risk_stats_dim = int(self.risk_stats_dim)
@@ -132,6 +134,8 @@ class RCSACFirstModelConfig:
         ):
             if int(getattr(self, name)) <= 0:
                 raise ValueError(f"{name} must be > 0, got {getattr(self, name)!r}")
+        if self.rgb_perception_actor_adapter_init_std < 0.0:
+            raise ValueError("rgb_perception_actor_adapter_init_std must be >= 0")
         expected_auxiliary_dim = (
             self.quality_stats_dim
             + self.risk_stats_dim

@@ -1,6 +1,7 @@
 # Remote Mac/Windows Stabilization Workflow
 
 Created: 2026-04-30
+Updated: 2026-05-01
 
 ## 0. Purpose
 
@@ -24,11 +25,11 @@ MacBook responsibilities:
 ```text
 1. Clone and edit the RCS-AC-first GitHub repo.
 2. Run Codex and any sub-agent analysis.
-3. Inspect copied logs, csv/json metrics, result docs, and selected images.
+3. Inspect the complete text/table logs for each experiment, plus selected images when needed.
 4. Modify code/config/docs.
 5. Commit and push code changes to GitHub.
 6. Trigger Windows experiments over SSH.
-7. Pull back selected logs/results over SCP.
+7. Pull back the experiment's complete text/table logs over SCP.
 8. Write stabilization reports and next-step recommendations.
 ```
 
@@ -38,7 +39,8 @@ MacBook should not:
 1. Run CARLA.
 2. Pull full sensor image folders by default.
 3. Pull checkpoints by default.
-4. Run heavy raw sensor processing unless explicitly requested.
+4. Pull `.npz` datasets or other large binary artifacts by default.
+5. Run heavy raw sensor processing unless explicitly requested.
 ```
 
 ### Windows Desktop
@@ -61,7 +63,7 @@ Windows should not:
 
 ```text
 1. Run Codex sub-agents during CARLA experiments.
-2. Push large checkpoints/logs/sensor outputs to GitHub.
+2. Push logs, checkpoints, datasets, or sensor outputs to GitHub.
 3. Send full raw output trees to Mac unless explicitly requested.
 ```
 
@@ -80,6 +82,15 @@ C:\Users\thddy\Documents\code\
   RCS-AC-first\
   shared_core\
 ```
+
+Remote access identity:
+
+```text
+SSH login: song@100.87.219.58
+Windows project path: C:\Users\thddy\Documents\code\RCS-AC-first
+```
+
+The SSH account name and the Windows profile path are intentionally different.
 
 Mac recommended layout:
 
@@ -126,7 +137,7 @@ C:\Users\thddy\.ssh\authorized_keys
 Test from Mac:
 
 ```bash
-ssh thddy@100.87.219.58 'hostname'
+ssh song@100.87.219.58 'hostname'
 ```
 
 Use LAN address when Mac and Windows are on the same local network:
@@ -139,6 +150,24 @@ Use Tailscale address when not on the same LAN:
 
 ```text
 100.87.219.58
+```
+
+If the Mac/Codex environment does not have a system Tailscale route, run userspace Tailscale and connect through its SOCKS proxy:
+
+```bash
+/opt/homebrew/opt/tailscale/bin/tailscaled \
+  --tun=userspace-networking \
+  --socks5-server=localhost:1055 \
+  --socket=$HOME/.local/run/tailscaled-codex.sock \
+  --statedir=$HOME/.local/share/tailscale-codex
+```
+
+In another shell:
+
+```bash
+rcswinssh() { ssh -o 'ProxyCommand=nc -x localhost:1055 %h %p' "$@"; }
+rcswinscp() { scp -o 'ProxyCommand=nc -x localhost:1055 %h %p' "$@"; }
+rcswinssh song@100.87.219.58 'hostname'
 ```
 
 ### 3.2 Mac Clone
@@ -165,8 +194,16 @@ git status --short --branch
 Expected:
 
 ```text
-origin  https://github.com/thddydgnl/RCS-AC-first.git
+origin  git@github.com:thddydgnl/RCS-AC-first.git
 main...origin/main
+```
+
+Windows uses a read-only GitHub deploy key for `git pull --ff-only`. If the remote is still HTTPS, fix it before running remote experiments:
+
+```powershell
+cd C:\Users\thddy\Documents\code\RCS-AC-first
+git remote set-url origin git@github.com:thddydgnl/RCS-AC-first.git
+git pull --ff-only
 ```
 
 ## 4. Stabilization Round Lifecycle
@@ -181,7 +218,7 @@ Every stabilization round should follow this order:
 5. Mac commits and pushes changes.
 6. Mac triggers Windows run over SSH.
 7. Windows pulls latest code and runs CARLA/Python.
-8. Mac pulls selected logs/results over SCP.
+8. Mac pulls the experiment's complete text/table logs over SCP.
 9. Mac Codex analyzes results.
 10. Mac Codex writes a report.
 11. Mac commits/pushes report and any follow-up code.
@@ -200,7 +237,7 @@ Sub-agents/analysis/edit/report: Mac
 CARLA/Python execution/raw artifacts: Windows
 ```
 
-## 5. Pull Logs From Windows To Mac
+## 5. Pull Experiment Logs From Windows To Mac
 
 Create local result folders on Mac:
 
@@ -208,36 +245,65 @@ Create local result folders on Mac:
 mkdir -p ~/code/windows_results/rcs-ac-first/logs
 mkdir -p ~/code/windows_results/rcs-ac-first/remote_runs
 mkdir -p ~/code/windows_results/rcs-ac-first/metrics
+mkdir -p ~/code/windows_results/rcs-ac-first/experiments
 ```
 
-Pull training logs:
+Principle:
+
+```text
+For each experiment, pull all text/table logs needed to reconstruct the run.
+Do not pull large binary or raw sensor artifacts by default.
+```
+
+For a run named `RUN_NAME`, create an experiment bundle:
 
 ```bash
-scp -r 'thddy@100.87.219.58:C:/Users/thddy/Documents/code/RCS-AC-first/logs' \
-  ~/code/windows_results/rcs-ac-first/
+RUN_NAME="YOUR_RUN_NAME"
+DEST="$HOME/code/windows_results/rcs-ac-first/experiments/$RUN_NAME"
+mkdir -p "$DEST"/{logs,remote_runs,outputs,data_summaries}
 ```
 
-Pull remote runner transcripts:
+Pull all training logs for that run:
 
 ```bash
-scp -r 'thddy@100.87.219.58:C:/Users/thddy/Documents/code/RCS-AC-first/remote_runs/logs' \
-  ~/code/windows_results/rcs-ac-first/remote_runs/
+rcswinscp -r "song@100.87.219.58:C:/Users/thddy/Documents/code/RCS-AC-first/logs/${RUN_NAME}*" \
+  "$DEST/logs/"
 ```
 
-List csv/json outputs without copying image folders:
+Pull all remote runner transcripts for that run:
 
 ```bash
-ssh thddy@100.87.219.58 'powershell -NoProfile -Command "Get-ChildItem C:\Users\thddy\Documents\code\RCS-AC-first\outputs -Recurse -Include *.csv,*.json | Select-Object -ExpandProperty FullName"'
+rcswinscp -r "song@100.87.219.58:C:/Users/thddy/Documents/code/RCS-AC-first/remote_runs/logs/${RUN_NAME}*" \
+  "$DEST/remote_runs/"
 ```
 
-Copy one selected file:
+Pull all `.csv` / `.json` outputs for that run without copying image folders:
 
 ```bash
-scp 'thddy@100.87.219.58:C:/Users/thddy/Documents/code/RCS-AC-first/outputs/PATH/TO/metrics.csv' \
-  ~/code/windows_results/rcs-ac-first/metrics/
+rcswinssh song@100.87.219.58 "powershell -NoProfile -Command \"Get-ChildItem C:\Users\thddy\Documents\code\RCS-AC-first\outputs -Recurse -Include *.csv,*.json | Where-Object { \\\$_.FullName -like '*${RUN_NAME}*' } | ForEach-Object { \\\$relative = \\\$_.FullName.Substring('C:\Users\thddy\Documents\code\RCS-AC-first\'.Length); \\\$target = Join-Path 'C:\Users\thddy\Documents\code\RCS-AC-first\remote_runs\export_text_logs\${RUN_NAME}' \\\$relative; New-Item -ItemType Directory -Force -Path (Split-Path \\\$target) | Out-Null; Copy-Item \\\$_.FullName \\\$target -Force }\""
+rcswinscp -r "song@100.87.219.58:C:/Users/thddy/Documents/code/RCS-AC-first/remote_runs/export_text_logs/${RUN_NAME}" \
+  "$DEST/outputs/"
 ```
 
-Do not copy these by default:
+Pull dataset summary JSON files for that run, if any:
+
+```bash
+rcswinscp "song@100.87.219.58:C:/Users/thddy/Documents/code/RCS-AC-first/data/expert/*${RUN_NAME}*.summary.json" \
+  "$DEST/data_summaries/"
+```
+
+Pull these by default for each experiment:
+
+```text
+logs/<RUN_NAME>*/
+remote_runs/logs/<RUN_NAME>*
+outputs/**/*<RUN_NAME>*.csv
+outputs/**/*<RUN_NAME>*.json
+data/expert/*<RUN_NAME>*.summary.json
+selected sample images only when a visual diagnosis needs them
+```
+
+Do not pull these by default:
 
 ```text
 outputs/**/rgb/
@@ -245,6 +311,8 @@ outputs/**/semantic/
 outputs/**/lidar/
 checkpoints/
 data/**/*.npz
+*.pt
+raw frame dumps
 ```
 
 ## 6. Mac Edit And Push
@@ -282,19 +350,19 @@ Windows command to run:
 Default PPO run:
 
 ```bash
-ssh thddy@100.87.219.58 'powershell -ExecutionPolicy Bypass -File "C:\Users\thddy\Documents\Codex\2026-04-30\new-chat\carla-remote-runner\run_rcs_ac_first.ps1" -Mode ppo -Config "configs\phase3_bc_clean_rgb_perception_actor_features_v1_smoke.yaml" -RunName "remote_test"'
+rcswinssh song@100.87.219.58 'powershell -ExecutionPolicy Bypass -File "C:\Users\thddy\Documents\Codex\2026-04-30\new-chat\carla-remote-runner\run_rcs_ac_first.ps1" -Mode ppo -Config "configs\phase3_bc_clean_rgb_perception_actor_features_v1_smoke.yaml" -RunName "remote_test"'
 ```
 
 Short smoke run:
 
 ```bash
-ssh thddy@100.87.219.58 'powershell -ExecutionPolicy Bypass -File "C:\Users\thddy\Documents\Codex\2026-04-30\new-chat\carla-remote-runner\run_rcs_ac_first.ps1" -Mode ppo -Config "configs\phase3_bc_clean_rgb_perception_actor_features_v1_smoke.yaml" -RunName "smoke_remote" -TotalTimesteps 512'
+rcswinssh song@100.87.219.58 'powershell -ExecutionPolicy Bypass -File "C:\Users\thddy\Documents\Codex\2026-04-30\new-chat\carla-remote-runner\run_rcs_ac_first.ps1" -Mode ppo -Config "configs\phase3_bc_clean_rgb_perception_actor_features_v1_smoke.yaml" -RunName "smoke_remote" -TotalTimesteps 512'
 ```
 
 2048 stabilization gate:
 
 ```bash
-ssh thddy@100.87.219.58 'powershell -ExecutionPolicy Bypass -File "C:\Users\thddy\Documents\Codex\2026-04-30\new-chat\carla-remote-runner\run_rcs_ac_first.ps1" -Mode ppo -Config "configs\YOUR_CONFIG.yaml" -RunName "YOUR_ROUND_2048" -TotalTimesteps 2048'
+rcswinssh song@100.87.219.58 'powershell -ExecutionPolicy Bypass -File "C:\Users\thddy\Documents\Codex\2026-04-30\new-chat\carla-remote-runner\run_rcs_ac_first.ps1" -Mode ppo -Config "configs\YOUR_CONFIG.yaml" -RunName "YOUR_ROUND_2048" -TotalTimesteps 2048'
 ```
 
 Windows runner behavior:
@@ -314,7 +382,7 @@ Windows runner behavior:
 Collect expert transitions:
 
 ```bash
-ssh thddy@100.87.219.58 'powershell -ExecutionPolicy Bypass -File "C:\Users\thddy\Documents\Codex\2026-04-30\new-chat\carla-remote-runner\run_rcs_ac_first.ps1" -Mode collect -Config "configs\phase3_bc_clean_rgb_perception_actor_features_v1_smoke.yaml" -Dataset "data\expert\remote_collect_1024.npz" -TotalTimesteps 1024 -RunName "remote_collect_1024"'
+rcswinssh song@100.87.219.58 'powershell -ExecutionPolicy Bypass -File "C:\Users\thddy\Documents\Codex\2026-04-30\new-chat\carla-remote-runner\run_rcs_ac_first.ps1" -Mode collect -Config "configs\phase3_bc_clean_rgb_perception_actor_features_v1_smoke.yaml" -Dataset "data\expert\remote_collect_1024.npz" -TotalTimesteps 1024 -RunName "remote_collect_1024"'
 ```
 
 Generated `.npz` files stay on Windows unless explicitly copied.
@@ -322,7 +390,7 @@ Generated `.npz` files stay on Windows unless explicitly copied.
 Copy only summary JSON by default:
 
 ```bash
-scp 'thddy@100.87.219.58:C:/Users/thddy/Documents/code/RCS-AC-first/data/expert/remote_collect_1024.summary.json' \
+rcswinscp 'song@100.87.219.58:C:/Users/thddy/Documents/code/RCS-AC-first/data/expert/remote_collect_1024.summary.json' \
   ~/code/windows_results/rcs-ac-first/metrics/
 ```
 
@@ -340,13 +408,13 @@ Run BC on Mac only for light analysis or when the dataset has intentionally been
 Windows BC from Mac:
 
 ```bash
-ssh thddy@100.87.219.58 'powershell -ExecutionPolicy Bypass -File "C:\Users\thddy\Documents\Codex\2026-04-30\new-chat\carla-remote-runner\run_rcs_ac_first.ps1" -Mode bc -Config "configs\bc_frame_rgb_perception_actor_features_v2_pretrain_smoke.yaml" -Dataset "data\expert\clean_probe_256.npz" -RunName "bc_probe_remote"'
+rcswinssh song@100.87.219.58 'powershell -ExecutionPolicy Bypass -File "C:\Users\thddy\Documents\Codex\2026-04-30\new-chat\carla-remote-runner\run_rcs_ac_first.ps1" -Mode bc -Config "configs\bc_frame_rgb_perception_actor_features_v2_pretrain_smoke.yaml" -Dataset "data\expert\clean_probe_256.npz" -RunName "bc_probe_remote"'
 ```
 
 Mac BC only after copying the selected dataset:
 
 ```bash
-scp 'thddy@100.87.219.58:C:/Users/thddy/Documents/code/RCS-AC-first/data/expert/clean_probe_256.npz' \
+rcswinscp 'song@100.87.219.58:C:/Users/thddy/Documents/code/RCS-AC-first/data/expert/clean_probe_256.npz' \
   ~/code/windows_results/rcs-ac-first/data/
 ```
 
@@ -413,7 +481,7 @@ GitHub repo:
 https://github.com/thddydgnl/RCS-AC-first
 
 Windows SSH:
-thddy@100.87.219.58
+song@100.87.219.58
 
 Windows project:
 C:/Users/thddy/Documents/code/RCS-AC-first
@@ -421,8 +489,8 @@ C:/Users/thddy/Documents/code/RCS-AC-first
 Windows runner:
 C:/Users/thddy/Documents/Codex/2026-04-30/new-chat/carla-remote-runner/run_rcs_ac_first.ps1
 
-Do not copy full outputs, checkpoints, or npz datasets unless explicitly requested.
-Pull logs, remote_runs/logs, csv/json metrics, and selected sample images only.
+For each experiment, pull all text/table logs: logs, remote runner transcripts, csv/json outputs, and summary json files.
+Do not copy checkpoints, npz datasets, or raw sensor/image folders unless explicitly requested.
 Before each experiment, write an Experiment Brief.
 After each experiment, write a PASS/WARN/FAIL report with metrics and next action.
 ```
@@ -432,19 +500,19 @@ After each experiment, write a PASS/WARN/FAIL report with metrics and next actio
 If SSH fails:
 
 ```bash
-ssh -v thddy@100.87.219.58 'hostname'
+rcswinssh -v song@100.87.219.58 'hostname'
 ```
 
 If Git pull fails on Windows:
 
 ```bash
-ssh thddy@100.87.219.58 'powershell -NoProfile -Command "cd C:\Users\thddy\Documents\code\RCS-AC-first; git status --short --branch; git remote -v"'
+rcswinssh song@100.87.219.58 'powershell -NoProfile -Command "cd C:\Users\thddy\Documents\code\RCS-AC-first; git status --short --branch; git remote -v; git pull --ff-only"'
 ```
 
 If CARLA port does not open:
 
 ```bash
-ssh thddy@100.87.219.58 'powershell -NoProfile -Command "Get-Process CarlaUE4 -ErrorAction SilentlyContinue; netstat -ano | findstr :2000"'
+rcswinssh song@100.87.219.58 'powershell -NoProfile -Command "Get-Process CarlaUE4 -ErrorAction SilentlyContinue; netstat -ano | findstr :2000"'
 ```
 
 If Windows reboots or powers off:
@@ -461,6 +529,6 @@ If Windows reboots or powers off:
 
 Use GitHub for code.
 Use SSH for commands.
-Use SCP for selected logs.
-Keep raw CARLA outputs on Windows.
+Use SCP for each experiment's complete text/table logs.
+Keep raw CARLA sensor outputs, checkpoints, and datasets on Windows by default.
 Keep Codex reasoning and reports on Mac.

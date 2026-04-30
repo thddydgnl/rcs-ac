@@ -1,12 +1,59 @@
 # RCS-AC-first
 
-작성일: 2026-04-26
+작성일: 2026-04-26  
+현재 상태 갱신: 2026-05-01
 
-이 폴더는 `RCS-AC_1-12_상세계획서.pdf`를 기준으로 RCS-AC 완성본을 새로 구현하기 위한 첫 작업 공간이다.
+`RCS-AC-first`는 `RCS-AC_1-12_상세계획서.pdf`를 기준으로 reliability, counterfactual contribution, risk-aware weighting을 결합한 멀티센서 actor-critic을 구현하는 작업 공간이다.
 
-목표는 기존 `RCS-AC/rcs_ac`의 smoke scaffold를 그대로 복사하는 것이 아니라, 상세계획서가 말하는 최종 RCS-AC 구조를 처음부터 단계적으로 구현하는 것이다.
+현재 코드는 초기 scaffold 단계를 지나 다음 범위까지 구현되어 있다.
 
-## 기준 문서
+- Phase 1: RGB/LiDAR/ego/route encoder, fusion gate, GRU actor-critic, PPO rollout/update
+- Phase 1.1: RGB dense perception auxiliary head와 mask loss
+- Phase 2: reliability head, risk/context head, corruption-aware target, risk-aware fusion/loss
+- Phase 3: current critic 기반 Shapley contribution, masked value path, dropout consistency, Shapley evaluation
+- BC/안정화: expert dataset 수집, behavior cloning 학습/평가, stabilization round 기록
+
+## 빠른 검증
+
+CARLA 없이 로컬에서 모델 wiring, loss, checkpoint, recurrent rollout update를 확인한다.
+
+```bash
+python -m rcs_ac_first.scripts.smoke_check --device cpu
+python -m pytest tests
+```
+
+CARLA 환경이 준비되어 있으면 PPO smoke/train은 아래 entrypoint를 사용한다.
+
+```bash
+python -m rcs_ac_first.scripts.train --config configs/phase3_full_shapley_smoke.yaml
+```
+
+BC 관련 entrypoint:
+
+```bash
+python -m rcs_ac_first.scripts.train_bc --help
+python -m rcs_ac_first.scripts.evaluate_bc --help
+```
+
+Shapley 평가:
+
+```bash
+python -m rcs_ac_first.scripts.evaluate_shapley --help
+```
+
+## 주요 문서
+
+- `docs/00_three_phase_master_plan.md`: 원래 3단계 구현 철학과 설계 기준
+- `docs/01_phase_checklist.md`: Phase별 완료 기록과 과거 세부 체크리스트
+- `docs/10_phase1_core_result.md`: Phase 1 결과
+- `docs/11_phase2_reliability_risk_result.md`: Phase 2 결과
+- `docs/12_phase3_counterfactual_shapley_result.md`: Phase 3 결과
+- `docs/14_imitation_rl_execution_plan.md`: imitation/BC 이후 계획
+- `docs/15_clean_stability_foundation_plan.md`: clean 주행 안정화 기반 계획
+- `docs/stabilization_rounds/`: 안정화 실험 기록
+- `docs/operating_guides/`: 원격 Mac/Windows 실험 운영 규칙
+
+## 기준 참고 자료
 
 - 원문 PDF: `C:/Users/thddy/Documents/code/RCS-AC/docs/RCS-AC_1-12_상세계획서.pdf`
 - 텍스트 추출본: `C:/Users/thddy/Documents/code/RCS-AC/docs/RCS-AC_1-12_상세계획서.txt`
@@ -14,55 +61,18 @@
 - shared runtime 참고: `C:/Users/thddy/Documents/code/shared_core`
 - PPO 학습 루프 참고: `C:/Users/thddy/Documents/code/attention`
 
-## 3단계 구현 원칙
-
-1. Phase 1: RCS-AC Core
-   - 모달별 encoder, fusion interface, recurrent actor-critic, PPO 연결을 먼저 완성한다.
-   - reliability, risk, Shapley는 자리만 만들고 loss weight는 꺼둔다.
-
-2. Phase 2: Reliability + Risk-aware Fusion
-   - reliability head, risk/context head, sensor corruption, reliability supervision, risk regularization을 켠다.
-   - 이 단계부터 RCS-AC가 attention baseline과 구조적으로 달라지기 시작한다.
-
-3. Phase 3: Counterfactual Shapley Full RCS-AC
-   - masked critic, approximate Shapley estimator, contribution-aware fusion, Shapley alignment, dropout consistency를 완성한다.
-   - 평가 시 exact-ish subset sweep으로 해석 자료까지 만든다.
-
-## 문서 구성
-
-- `docs/00_three_phase_master_plan.md`
-  - 전체 구현 철학, 폴더 구조, 모듈 설계, 단계별 구현 범위, 성공 기준을 정리한 마스터 플랜
-- `docs/01_phase_checklist.md`
-  - 실제 구현할 때 체크박스로 따라갈 수 있는 단계별 작업 목록
-- `docs/02_phase1_core_execution_validation.md`
-  - Phase 1 Core를 실제로 진행하고 검증하는 상세 절차 문서
-
-## 폴더 생성 후 첫 구현 추천
-
-다음 작업은 Phase 1의 코드 scaffold 생성이다.
-
-권장 시작 파일:
+## 현재 코드 구조
 
 ```text
 RCS-AC-first/
+  configs/                  # 실행용 YAML config
+  data/expert/              # expert/BC dataset summary
+  docs/                     # 설계, 결과, 운영, 안정화 기록
   rcs_ac_first/
-    __init__.py
-    models/
-      __init__.py
-      encoders.py
-      fusion_gate.py
-      recurrent_actor_critic.py
-      rcs_ac_model.py
-    rl/
-      __init__.py
-      losses.py
-      rollout_buffer.py
-      ppo_agent.py
-    runtime/
-      __init__.py
-      observation.py
-      config.py
-    scripts/
-      train.py
-      smoke_check.py
+    data/                   # dataset utilities
+    models/                 # encoders, fusion, reliability/risk, actor-critic, masked critic
+    rl/                     # PPO, rollout buffer, losses, distributions, Shapley
+    runtime/                # observation/action/config/auxiliary contracts
+    scripts/                # train, smoke, Shapley eval, BC tools, dataset collection
+  tests/                    # pytest regression tests for core contracts
 ```

@@ -435,7 +435,10 @@ class RCSACFirstModel(nn.Module):
             self.actor_input_adapter.weight[:, :fusion_dim].copy_(torch.eye(fusion_dim))
             visual_dim = int(self.config.rgb_perception_actor_feature_dim)
             if visual_dim > 0:
-                self.actor_input_adapter.weight[:, fusion_dim:].normal_(mean=0.0, std=0.005)
+                self.actor_input_adapter.weight[:, fusion_dim:].normal_(
+                    mean=0.0,
+                    std=float(self.config.rgb_perception_actor_adapter_init_std),
+                )
 
     def _prepare_auxiliary(
         self,
