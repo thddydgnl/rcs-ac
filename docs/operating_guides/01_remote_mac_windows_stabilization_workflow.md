@@ -405,7 +405,7 @@ Use this prompt when starting a Mac Codex session:
 ```text
 You are working on RCS-AC-first from Mac.
 
-Follow docs/stabilization_rounds/13_remote_mac_windows_stabilization_workflow.md.
+Follow docs/operating_guides/01_remote_mac_windows_stabilization_workflow.md.
 Use Mac for analysis, code edits, commits, and reports.
 Use Windows only through SSH for CARLA/Python execution.
 

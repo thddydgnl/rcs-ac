@@ -41,5 +41,5 @@ ssh thddy@100.87.219.58 'powershell -ExecutionPolicy Bypass -File "C:\Users\thdd
 For the full Mac analysis/edit/report and Windows CARLA/Python execution workflow, see:
 
 ```text
-docs/stabilization_rounds/13_remote_mac_windows_stabilization_workflow.md
+docs/operating_guides/01_remote_mac_windows_stabilization_workflow.md
 ```

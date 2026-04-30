@@ -13,7 +13,7 @@ User trigger:
 Workflow source:
 
 ```text
-docs/stabilization_rounds/00_agent_workflow_rules.md
+docs/operating_guides/00_agent_workflow_rules.md
 ```
 
 ## 2. Baseline
