@@ -91,7 +91,7 @@ Candidate dataset should contain:
 
 ```text
 aux_road_mask_target
-aux_lane_edge_mask_target
+aux_lane_edge_target
 aux_mask_targets_available
 ```
 

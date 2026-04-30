@@ -263,6 +263,16 @@ DEST="$HOME/code/windows_results/rcs-ac-first/experiments/$RUN_NAME"
 mkdir -p "$DEST"/{logs,remote_runs,outputs,data_summaries}
 ```
 
+If one stabilization round contains multiple related runs, prefer one round folder with run-specific subfolders instead of copying everything into the root. This avoids overwriting common filenames such as `summary.json`, `env_step_log.csv`, and `bc_eval_log.csv`.
+
+Example:
+
+```bash
+ROUND="rgb_perception_actor_features_v2_masked_clean_round13"
+DEST="$HOME/code/windows_results/rcs-ac-first/experiments/$ROUND"
+mkdir -p "$DEST"/{dataset,collect_env,bc_pretrain,pretrain_eval,ppo_lowstd,lowstd_eval,remote_runs}
+```
+
 Pull all training logs for that run:
 
 ```bash
@@ -377,6 +387,79 @@ Windows runner behavior:
 7. save transcript in remote_runs/logs
 ```
 
+Observed limitation:
+
+```text
+The runner can start CARLA over SSH with Start-Process, but GUI/UE4 startup may be unstable from a non-interactive SSH session.
+If CARLA opens port 2000 and then dies, or if the runner times out waiting for port 2000, treat this as infrastructure FAIL and use the interactive scheduled-task fallback below.
+```
+
+### 7.1 CARLA Interactive Scheduled-Task Fallback
+
+Use this when the runner reports:
+
+```text
+CARLA did not open port 2000 within N seconds
+```
+
+or when Python fails at `client.load_world()` / streaming connection after a runner-started CARLA.
+
+Preferred command after pulling the latest repo on Windows:
+
+```bash
+rcswinssh song@100.87.219.58 'powershell -ExecutionPolicy Bypass -File "C:\Users\thddy\Documents\code\RCS-AC-first\scripts\windows\start_carla_interactive.ps1"'
+```
+
+Equivalent manual fallback, if the script is not present yet:
+
+```bash
+rcswinssh song@100.87.219.58 'powershell -NoProfile -Command "
+Get-Process CarlaUE4,CarlaUE4-Win64-Shipping -ErrorAction SilentlyContinue | Stop-Process -Force
+Start-Sleep -Seconds 2
+$taskName = \"RCSCarlaStart\"
+$exe = \"C:\Users\thddy\Documents\CARLA_0.9.16\CarlaUE4.exe\"
+$arguments = \"-carla-rpc-port=2000 -quality-level=Low -nosound -windowed -ResX=800 -ResY=600\"
+Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction SilentlyContinue
+$action = New-ScheduledTaskAction -Execute $exe -Argument $arguments
+$trigger = New-ScheduledTaskTrigger -Once -At (Get-Date).AddMinutes(1)
+$principal = New-ScheduledTaskPrincipal -UserId \"song\song\" -LogonType Interactive -RunLevel Highest
+Register-ScheduledTask -TaskName $taskName -Action $action -Trigger $trigger -Principal $principal -Force | Out-Null
+Start-ScheduledTask -TaskName $taskName
+"'
+```
+
+Then wait for the port and confirm the real UE4 process is alive:
+
+```bash
+rcswinssh song@100.87.219.58 'powershell -NoProfile -Command "
+for ($i = 0; $i -lt 180; $i++) {
+  $ok = (Test-NetConnection -ComputerName 127.0.0.1 -Port 2000 -WarningAction SilentlyContinue).TcpTestSucceeded
+  if ($ok) { Write-Host PORT_OPEN_AT_SECOND=$i; break }
+  Start-Sleep -Seconds 1
+}
+Get-Process CarlaUE4,CarlaUE4-Win64-Shipping -ErrorAction SilentlyContinue |
+  Select-Object Id,ProcessName,CPU,Responding
+"'
+```
+
+After CARLA is up, run Python scripts directly from SSH instead of using the runner:
+
+```bash
+rcswinssh song@100.87.219.58 'powershell -NoProfile -Command "
+Set-Location C:\Users\thddy\Documents\code\RCS-AC-first
+py -3.12 -B -m rcs_ac_first.scripts.evaluate_bc --config configs\YOUR_CONFIG.yaml --checkpoint checkpoints\YOUR_RUN\last.pt --run-name YOUR_EVAL_512 --num-steps 512 --device auto
+"'
+```
+
+Recommended config setting for remote CARLA eval/train on Windows:
+
+```yaml
+env:
+  client_timeout: 120.0
+```
+
+`30.0` seconds can be too short after CARLA has just loaded or after a previous run has stressed streaming.
+
 ## 8. Run Dataset Collection On Windows From Mac
 
 Collect expert transitions:
@@ -394,6 +477,25 @@ rcswinscp 'song@100.87.219.58:C:/Users/thddy/Documents/code/RCS-AC-first/data/ex
   ~/code/windows_results/rcs-ac-first/metrics/
 ```
 
+For RGB/line perception rounds, verify the dataset really contains usable semantic mask targets before training BC:
+
+```bash
+rcswinssh song@100.87.219.58 'powershell -NoProfile -Command "
+Set-Location C:\Users\thddy\Documents\code\RCS-AC-first
+py -3.12 -B -c \"import numpy as np; d=np.load(r'\''data/expert/YOUR_DATASET.npz'\''); print(d.files); print(float(d['\''aux_mask_targets_available'\''].mean()), float(d['\''aux_road_mask_target'\''].mean()), float(d['\''aux_lane_edge_target'\''].mean()))\"
+"'
+```
+
+Expected for a useful RGB/line pretrain dataset:
+
+```text
+aux_mask_targets_available mean > 0
+aux_road_mask_target mean > 0
+aux_lane_edge_target mean > 0
+```
+
+If `aux_mask_targets_available` is `0.0`, do not interpret RGB/line pretrain results; the perception loss was inactive.
+
 ## 9. Run BC On Mac Or Windows
 
 BC training can run without CARLA if the dataset exists locally.
@@ -409,6 +511,24 @@ Windows BC from Mac:
 
 ```bash
 rcswinssh song@100.87.219.58 'powershell -ExecutionPolicy Bypass -File "C:\Users\thddy\Documents\Codex\2026-04-30\new-chat\carla-remote-runner\run_rcs_ac_first.ps1" -Mode bc -Config "configs\bc_frame_rgb_perception_actor_features_v2_pretrain_smoke.yaml" -Dataset "data\expert\clean_probe_256.npz" -RunName "bc_probe_remote"'
+```
+
+For perception BC, inspect the last train/val rows before moving to eval/PPO:
+
+```bash
+rcswinssh song@100.87.219.58 'powershell -NoProfile -Command "
+Import-Csv C:\Users\thddy\Documents\code\RCS-AC-first\logs\YOUR_BC_RUN\bc_training_log.csv |
+  Select-Object -Last 4 |
+  Format-Table epoch,split,bc_loss,perception_aux_loss,aux_mask_available_rate,aux_road_mask_loss,aux_lane_edge_mask_loss,visual_actor_delta_l1_mean -AutoSize
+"'
+```
+
+Required gate:
+
+```text
+aux_mask_available_rate > 0
+perception_aux_loss > 0
+visual_actor_delta_l1_mean > 0
 ```
 
 Mac BC only after copying the selected dataset:
@@ -514,6 +634,23 @@ If CARLA port does not open:
 ```bash
 rcswinssh song@100.87.219.58 'powershell -NoProfile -Command "Get-Process CarlaUE4 -ErrorAction SilentlyContinue; netstat -ano | findstr :2000"'
 ```
+
+If CARLA port opens but `load_world()` or streaming fails:
+
+```text
+1. Stop CarlaUE4 and CarlaUE4-Win64-Shipping.
+2. Restart CARLA through the interactive scheduled-task fallback in Section 7.1.
+3. Retry only the failed Python command.
+4. Do not classify the model as failed unless the Python script reaches rollout/eval and writes metrics.
+```
+
+If Git history was amended after Windows already pulled the branch:
+
+```bash
+rcswinssh song@100.87.219.58 'powershell -NoProfile -Command "Set-Location C:\Users\thddy\Documents\code\RCS-AC-first; git fetch origin YOUR_BRANCH; git reset --hard origin/YOUR_BRANCH"'
+```
+
+Use this only for code branches where Windows has no local source edits. It does not delete ignored logs, outputs, datasets, or checkpoints.
 
 If Windows reboots or powers off:
 
