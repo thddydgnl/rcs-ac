@@ -1,0 +1,408 @@
+from __future__ import annotations
+
+import argparse
+import csv
+import json
+import math
+import sys
+from collections import Counter
+from pathlib import Path
+from typing import Any
+
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+WORKSPACE_ROOT = PROJECT_ROOT.parent
+for candidate in (PROJECT_ROOT, WORKSPACE_ROOT):
+    if str(candidate) not in sys.path:
+        sys.path.insert(0, str(candidate))
+
+import numpy as np
+import torch
+
+from rcs_ac_first.models.rcs_ac_model import RCSACFirstModel
+from rcs_ac_first.runtime.action import clamp_action_tensor, decode_stage4_action_v2
+from rcs_ac_first.runtime.auxiliary import build_auxiliary_observation_spec, flatten_auxiliary_observation_dict
+from rcs_ac_first.runtime.config import load_phase1_config
+from rcs_ac_first.runtime.observation import build_policy_observation_spec, flatten_observation_dict
+from rcs_ac_first.scripts.train import _build_env, _project_path, _resolve_config_path, _set_seed, _timestamp
+
+
+BC_EVAL_FIELDS: tuple[str, ...] = (
+    "step",
+    "episode",
+    "steer",
+    "longitudinal",
+    "throttle",
+    "brake",
+    "reward",
+    "done",
+    "done_reason",
+    "route_progress",
+    "speed_kmh",
+    "collision",
+    "offroad",
+    "stuck",
+    "steer_delta_abs",
+    "longitudinal_delta_abs",
+    "action_jitter_l1",
+    "fusion_rgb",
+    "fusion_lidar",
+    "fusion_ego",
+    "fusion_route",
+    "reliability_rgb",
+    "reliability_lidar",
+    "reliability_ego",
+    "reliability_route",
+    "risk_scalar",
+    "contribution_rgb",
+    "contribution_lidar",
+    "contribution_ego",
+    "contribution_route",
+    "compact_visual_features_enabled",
+    "compact_visual_feature_dim",
+    "compact_visual_feature_l1_mean",
+    "road_compact_feature_l1_mean",
+    "lane_compact_feature_l1_mean",
+    "compact_visual_actor_input_l1_mean",
+    "visual_actor_delta_l1_mean",
+)
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Evaluate a Behavior Cloning checkpoint in CARLA.")
+    parser.add_argument("--config", required=True)
+    parser.add_argument("--checkpoint", required=True)
+    parser.add_argument("--run-name", default="bc_clean_eval")
+    parser.add_argument("--num-steps", type=int, default=512)
+    parser.add_argument("--device", default=None, choices=["auto", "cpu", "cuda"])
+    parser.add_argument("--host", default=None)
+    parser.add_argument("--port", type=int, default=None)
+    return parser.parse_args()
+
+
+def _load_model(*, config: Any, checkpoint_path: Path, device: torch.device) -> RCSACFirstModel:
+    model = RCSACFirstModel(config.model, config.fusion).to(device)
+    checkpoint = torch.load(checkpoint_path, map_location=device)
+    if not isinstance(checkpoint, dict) or "model_state_dict" not in checkpoint:
+        raise ValueError(f"Checkpoint does not contain model_state_dict: {checkpoint_path}")
+    missing, unexpected = model.load_state_dict(checkpoint["model_state_dict"], strict=False)
+    if missing or unexpected:
+        raise RuntimeError(
+            "BC checkpoint state_dict mismatch: "
+            f"missing={list(missing)}, unexpected={list(unexpected)}"
+        )
+    model.eval()
+    return model
+
+
+def _mean(rows: list[dict[str, Any]], key: str) -> float:
+    if not rows:
+        return 0.0
+    values = [float(row.get(key, 0.0)) for row in rows]
+    return float(sum(values) / len(values))
+
+
+def _rate(rows: list[dict[str, Any]], key: str) -> float:
+    if not rows:
+        return 0.0
+    count = sum(1 for row in rows if bool(row.get(key, False)))
+    return float(count / len(rows))
+
+
+def _safe_diag(diagnostics: dict[str, float], *names: str, default: float = 0.0) -> float:
+    for name in names:
+        if name in diagnostics:
+            value = float(diagnostics[name])
+            return value if math.isfinite(value) else default
+    return default
+
+
+def _build_log_row(
+    *,
+    step: int,
+    episode: int,
+    action: np.ndarray,
+    previous_action: np.ndarray | None,
+    reward: float,
+    done: bool,
+    info: dict[str, Any],
+    diagnostics: dict[str, float],
+) -> dict[str, Any]:
+    decoded = decode_stage4_action_v2(action.tolist())
+    if previous_action is None:
+        steer_delta_abs = 0.0
+        longitudinal_delta_abs = 0.0
+    else:
+        steer_delta_abs = abs(float(action[0]) - float(previous_action[0]))
+        longitudinal_delta_abs = abs(float(action[1]) - float(previous_action[1]))
+    row: dict[str, Any] = {
+        "step": int(step),
+        "episode": int(episode),
+        "steer": float(decoded["steer"]),
+        "longitudinal": float(decoded["longitudinal"]),
+        "throttle": float(decoded["throttle"]),
+        "brake": float(decoded["brake"]),
+        "reward": float(reward),
+        "done": bool(done),
+        "done_reason": str(info.get("done_reason", "running")),
+        "route_progress": float(info.get("route_progress", 0.0)),
+        "speed_kmh": float(info.get("speed_kmh", info.get("speed", 0.0))),
+        "collision": bool(info.get("collision", False)),
+        "offroad": bool(info.get("offroad", False)),
+        "stuck": bool(info.get("stuck", False)),
+        "steer_delta_abs": float(steer_delta_abs),
+        "longitudinal_delta_abs": float(longitudinal_delta_abs),
+        "action_jitter_l1": float(steer_delta_abs + longitudinal_delta_abs),
+        "risk_scalar": _safe_diag(diagnostics, "risk_scalar_mean", "risk_scalar"),
+    }
+    for modality in ("rgb", "lidar", "ego", "route"):
+        row[f"fusion_{modality}"] = _safe_diag(
+            diagnostics,
+            f"fusion_weight_{modality}",
+            f"fusion_{modality}",
+        )
+        row[f"reliability_{modality}"] = _safe_diag(
+            diagnostics,
+            f"reliability_{modality}",
+            default=1.0,
+        )
+        row[f"contribution_{modality}"] = _safe_diag(
+            diagnostics,
+            f"contribution_{modality}",
+            default=0.25,
+        )
+    for key in (
+        "compact_visual_features_enabled",
+        "compact_visual_feature_dim",
+        "compact_visual_feature_l1_mean",
+        "road_compact_feature_l1_mean",
+        "lane_compact_feature_l1_mean",
+        "compact_visual_actor_input_l1_mean",
+        "visual_actor_delta_l1_mean",
+    ):
+        row[key] = _safe_diag(diagnostics, key)
+    return row
+
+
+def _finite_rows(rows: list[dict[str, Any]]) -> bool:
+    numeric_keys = [field for field in BC_EVAL_FIELDS if field not in {"done", "done_reason", "collision", "offroad", "stuck"}]
+    for row in rows:
+        for key in numeric_keys:
+            value = row.get(key)
+            if value is None:
+                return False
+            try:
+                if not math.isfinite(float(value)):
+                    return False
+            except (TypeError, ValueError):
+                return False
+    return True
+
+
+def _build_summary(
+    *,
+    run_name: str,
+    checkpoint_path: Path,
+    num_steps: int,
+    rows: list[dict[str, Any]],
+    output_csv: Path,
+) -> dict[str, Any]:
+    completed_steps = len(rows)
+    route_values = [float(row["route_progress"]) for row in rows]
+    done_reasons = Counter(str(row["done_reason"]) for row in rows if bool(row["done"]))
+    action_range_ok = all(-1.0001 <= float(row["steer"]) <= 1.0001 and -1.0001 <= float(row["longitudinal"]) <= 1.0001 for row in rows)
+    finite_ok = _finite_rows(rows)
+    mean_route_progress = _mean(rows, "route_progress")
+    collision_rate = _rate(rows, "collision")
+    offroad_rate = _rate(rows, "offroad")
+    stuck_rate = _rate(rows, "stuck")
+    mean_steer_jitter = _mean(rows, "steer_delta_abs")
+    mean_longitudinal_jitter = _mean(rows, "longitudinal_delta_abs")
+    mean_action_jitter_l1 = _mean(rows, "action_jitter_l1")
+
+    pass_reasons: list[str] = []
+    fail_reasons: list[str] = []
+    warn_reasons: list[str] = []
+
+    if completed_steps <= 0:
+        fail_reasons.append("no rollout steps were completed")
+    if completed_steps < int(num_steps):
+        fail_reasons.append(f"completed_steps {completed_steps} < requested num_steps {num_steps}")
+    if not finite_ok:
+        fail_reasons.append("non-finite value detected in evaluation rows")
+    if not action_range_ok:
+        fail_reasons.append("action outside [-1, 1] detected")
+    if max(route_values, default=0.0) <= 0.0:
+        fail_reasons.append("route_progress never became positive")
+    if mean_route_progress <= 0.0:
+        fail_reasons.append("mean_route_progress is not positive")
+    if collision_rate > 0.50:
+        fail_reasons.append(f"collision_rate {collision_rate:.3f} > 0.50")
+    if stuck_rate > 0.50:
+        fail_reasons.append(f"stuck_rate {stuck_rate:.3f} > 0.50")
+    if not math.isfinite(mean_action_jitter_l1):
+        fail_reasons.append("action jitter is non-finite")
+
+    if collision_rate > 0.30:
+        warn_reasons.append(f"collision_rate {collision_rate:.3f} exceeds PPO fine-tuning recommendation 0.30")
+    if stuck_rate > 0.30:
+        warn_reasons.append(f"stuck_rate {stuck_rate:.3f} exceeds PPO fine-tuning recommendation 0.30")
+    if mean_steer_jitter > 0.30:
+        warn_reasons.append(f"mean_steer_jitter {mean_steer_jitter:.3f} exceeds recommendation 0.30")
+    if mean_longitudinal_jitter > 0.35:
+        warn_reasons.append(
+            f"mean_longitudinal_jitter {mean_longitudinal_jitter:.3f} exceeds recommendation 0.35"
+        )
+
+    if not fail_reasons:
+        pass_reasons.append("BC clean rollout completed with finite in-range actions and positive route progress")
+    if fail_reasons:
+        pass_status = "FAIL"
+        pass_reasons.extend(fail_reasons)
+    elif warn_reasons:
+        pass_status = "WARN"
+        pass_reasons.extend(warn_reasons)
+    else:
+        pass_status = "PASS"
+        pass_reasons.append("BC checkpoint satisfies initial and recommended I2 thresholds except random-policy comparison")
+
+    return {
+        "run_name": run_name,
+        "checkpoint_path": str(checkpoint_path),
+        "num_steps": int(num_steps),
+        "completed_steps": int(completed_steps),
+        "episode_count": int(max((int(row["episode"]) for row in rows), default=0) + 1 if rows else 0),
+        "final_route_progress": float(route_values[-1]) if route_values else 0.0,
+        "mean_route_progress": float(mean_route_progress),
+        "max_route_progress": float(max(route_values, default=0.0)),
+        "collision_rate": float(collision_rate),
+        "offroad_rate": float(offroad_rate),
+        "stuck_rate": float(stuck_rate),
+        "mean_steer_jitter": float(mean_steer_jitter),
+        "mean_longitudinal_jitter": float(mean_longitudinal_jitter),
+        "mean_action_jitter_l1": float(mean_action_jitter_l1),
+        "done_reason_counts": dict(done_reasons),
+        "pass_status": pass_status,
+        "pass_reasons": pass_reasons,
+        "output_csv": str(output_csv),
+    }
+
+
+def main() -> int:
+    args = parse_args()
+    config_path = _resolve_config_path(str(args.config))
+    config = load_phase1_config(config_path)
+    device = torch.device(config.train.resolve_device(args.device))
+    _set_seed(config.train.seed)
+
+    checkpoint_path = _project_path(args.checkpoint)
+    if not checkpoint_path.exists():
+        raise FileNotFoundError(f"BC checkpoint not found: {checkpoint_path}")
+
+    run_name = f"{args.run_name}_{_timestamp()}"
+    output_dir = PROJECT_ROOT / "outputs" / "bc_eval" / run_name
+    output_dir.mkdir(parents=True, exist_ok=True)
+    log_path = output_dir / "bc_eval_log.csv"
+    summary_path = output_dir / "summary.json"
+
+    obs_spec = build_policy_observation_spec(
+        rgb_shape=config.model.rgb_shape,
+        lidar_shape=config.model.lidar_shape,
+        ego_dim=config.model.ego_dim,
+        route_dim=config.model.route_dim,
+    )
+    aux_spec = build_auxiliary_observation_spec(
+        quality_stats_dim=config.model.quality_stats_dim,
+        risk_stats_dim=config.model.risk_stats_dim,
+        route_commitment_stats_dim=config.model.route_commitment_stats_dim,
+        sensor_dropout_dim=config.model.sensor_dropout_dim,
+    )
+    model = _load_model(config=config, checkpoint_path=checkpoint_path, device=device)
+    env = _build_env(
+        config,
+        host=args.host or config.train.host,
+        port=int(args.port if args.port is not None else config.train.port),
+        output_dir=output_dir,
+        run_name=run_name,
+    )
+
+    rows: list[dict[str, Any]] = []
+    try:
+        reset = env.reset()
+        observation = flatten_observation_dict(reset["obs"], obs_spec)
+        auxiliary = flatten_auxiliary_observation_dict(reset["obs"], aux_spec)
+        hidden_state: torch.Tensor | None = None
+        previous_action: np.ndarray | None = None
+        episode = 0
+
+        with log_path.open("w", encoding="utf-8", newline="") as handle:
+            writer = csv.DictWriter(handle, fieldnames=BC_EVAL_FIELDS)
+            writer.writeheader()
+
+            for step in range(int(args.num_steps)):
+                obs_t = torch.as_tensor(observation, dtype=torch.float32, device=device).reshape(1, -1)
+                aux_t = torch.as_tensor(auxiliary, dtype=torch.float32, device=device).reshape(1, -1)
+                with torch.no_grad():
+                    outputs = model.forward_policy_outputs(
+                        obs_t,
+                        auxiliary=aux_t,
+                        hidden_state=hidden_state,
+                        track_diagnostics=True,
+                    )
+                    action_mean = outputs["action_mean"]
+                    if not isinstance(action_mean, torch.Tensor):
+                        raise RuntimeError("Model output action_mean is missing.")
+                    if not torch.isfinite(action_mean).all():
+                        raise RuntimeError("BC policy produced non-finite action_mean.")
+                    action_t = clamp_action_tensor(action_mean[0])
+                    next_hidden = outputs["next_hidden_state"]
+                    hidden_state = next_hidden.detach() if isinstance(next_hidden, torch.Tensor) else None
+                action = action_t.detach().cpu().numpy().astype(np.float32)
+                if not np.all(np.isfinite(action)):
+                    raise RuntimeError(f"BC policy produced non-finite action: {action}")
+
+                diagnostics = model.get_diagnostics()
+                result = env.step(action, policy_diagnostics=diagnostics)
+                info = dict(result["info"])
+                reward = float(result["reward"])
+                done = bool(result["done"])
+                row = _build_log_row(
+                    step=step,
+                    episode=episode,
+                    action=action,
+                    previous_action=previous_action,
+                    reward=reward,
+                    done=done,
+                    info=info,
+                    diagnostics=diagnostics,
+                )
+                writer.writerow(row)
+                handle.flush()
+                rows.append(row)
+                previous_action = action.copy()
+
+                observation = flatten_observation_dict(result["obs"], obs_spec)
+                auxiliary = flatten_auxiliary_observation_dict(result["obs"], aux_spec)
+                if done and step + 1 < int(args.num_steps):
+                    episode += 1
+                    hidden_state = None
+                    previous_action = None
+                    reset = env.reset()
+                    observation = flatten_observation_dict(reset["obs"], obs_spec)
+                    auxiliary = flatten_auxiliary_observation_dict(reset["obs"], aux_spec)
+
+        summary = _build_summary(
+            run_name=run_name,
+            checkpoint_path=checkpoint_path,
+            num_steps=int(args.num_steps),
+            rows=rows,
+            output_csv=log_path,
+        )
+        summary_path.write_text(json.dumps(summary, indent=2, sort_keys=True), encoding="utf-8")
+        print(json.dumps(summary, indent=2, sort_keys=True))
+        return 0 if summary["pass_status"] in {"PASS", "WARN"} else 1
+    finally:
+        env.close()
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

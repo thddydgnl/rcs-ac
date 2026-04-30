@@ -1,0 +1,107 @@
+seed: 7
+model_type: rcs_ac_first
+model_variant: phase2_reliability_risk
+training_stage: phase2_reliability_risk_smoke
+run_name: rcs_ac_first_phase2_reliability_risk_smoke
+town: Town04
+host: 127.0.0.1
+port: 2000
+device: auto
+total_timesteps: 2048
+rollout_steps: 128
+max_episode_steps: 384
+save_every_updates: 1
+logs_dir: logs
+checkpoints_dir: checkpoints
+output_root: outputs/phase2_reliability_risk_env
+
+model:
+  action_dim: 2
+  rgb_shape: [3, 90, 160]
+  lidar_shape: [1, 64, 64]
+  ego_dim: 5
+  route_dim: 10
+  feature_dim: 128
+  fusion_dim: 128
+  recurrent_hidden_dim: 256
+  recurrent_layers: 1
+  actor_hidden_dim: 256
+  critic_hidden_dim: 256
+  aux_hidden_dim: 128
+  enable_rgb_perception_aux: true
+  aux_mask_height: 45
+  aux_mask_width: 80
+  aux_perception_hidden_channels: 64
+  auxiliary_dim: 30
+  quality_stats_dim: 15
+  risk_stats_dim: 6
+  route_commitment_stats_dim: 5
+  sensor_dropout_dim: 4
+  reliability_hidden_dim: 64
+  risk_hidden_dim: 64
+  risk_context_dim: 64
+  reliability_min: 0.02
+  reliability_max: 1.0
+  log_std_init_by_dim: [-0.2, -0.2]
+  min_std_by_dim: [0.05, 0.05]
+  max_std_by_dim: [0.8, 0.8]
+  enable_reliability: true
+  enable_risk_context: true
+  enable_shapley: false
+  enable_dropout_consistency: false
+
+fusion:
+  temperature: 1.0
+  route_weight_floor: 0.08
+  ego_weight_floor: 0.05
+  contribution_bias_scale: 0.0
+  risk_context_dim: 64
+  reliability_logit_scale: 1.0
+  risk_logit_scale: 0.5
+  use_risk_context: true
+
+loss:
+  value_loss_weight: 0.5
+  entropy_loss_weight: 0.01
+  aux_lane_offset_loss_weight: 1.0
+  aux_heading_error_loss_weight: 1.0
+  aux_road_mask_loss_weight: 0.25
+  aux_lane_edge_mask_loss_weight: 1.0
+  aux_lane_edge_pos_weight: 3.0
+  reliability_loss_weight: 0.10
+  risk_supervision_loss_weight: 0.05
+  risk_regularization_weight: 0.03
+  shapley_alignment_loss_weight: 0.0
+  dropout_consistency_loss_weight: 0.0
+
+ppo:
+  learning_rate: 0.0001
+  gamma: 0.99
+  gae_lambda: 0.95
+  clip_coef: 0.2
+  update_epochs: 1
+  minibatch_size: 64
+  max_grad_norm: 0.5
+
+env:
+  route_representation: target_xy_plus_two_distance_heading_plus_third_heading_plus_turn_delta_plus_maneuver_hint_v1
+  route_lookahead_count: 3
+  maneuver_command_enabled: true
+  maneuver_command_mode: cycle
+  maneuver_command_values: ["straight", "left", "right"]
+  semantic_aux_camera_enabled: true
+  aux_mask_width: 80
+  aux_mask_height: 45
+  corruption:
+    enabled: auto
+    mode: mixed
+    level: 0.60
+    warmup_steps: 8
+    window_steps: 16
+    cycle_period_steps: 64
+
+aux_target_normalization:
+  lane_offset_divisor_m: 2.5
+  lane_offset_clip_abs: 1.0
+  heading_error_divisor_deg: 30.0
+  heading_error_clip_abs: 1.0

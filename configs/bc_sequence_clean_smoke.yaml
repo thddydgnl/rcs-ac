@@ -1,0 +1,134 @@
+seed: 7
+model_type: rcs_ac_first
+model_variant: bc_sequence_rcs_ac_phase3
+training_stage: bc_sequence_clean_smoke
+run_name: bc_sequence_clean_smoke
+town: Town04
+host: 127.0.0.1
+port: 2000
+device: auto
+total_timesteps: 2048
+rollout_steps: 128
+max_episode_steps: 384
+save_every_updates: 1
+logs_dir: logs
+checkpoints_dir: checkpoints
+output_root: outputs/bc_sequence_expert_env
+
+model:
+  action_dim: 2
+  rgb_shape: [3, 90, 160]
+  lidar_shape: [1, 64, 64]
+  ego_dim: 5
+  route_dim: 10
+  feature_dim: 128
+  fusion_dim: 128
+  recurrent_hidden_dim: 256
+  recurrent_layers: 1
+  actor_hidden_dim: 256
+  critic_hidden_dim: 256
+  aux_hidden_dim: 128
+  enable_rgb_perception_aux: true
+  aux_mask_height: 45
+  aux_mask_width: 80
+  aux_perception_hidden_channels: 64
+  auxiliary_dim: 30
+  quality_stats_dim: 15
+  risk_stats_dim: 6
+  route_commitment_stats_dim: 5
+  sensor_dropout_dim: 4
+  reliability_hidden_dim: 64
+  risk_hidden_dim: 64
+  risk_context_dim: 64
+  reliability_min: 0.02
+  reliability_max: 1.0
+  log_std_init_by_dim: [-2.0, -2.0]
+  min_std_by_dim: [0.03, 0.03]
+  max_std_by_dim: [0.20, 0.25]
+  enable_reliability: true
+  enable_risk_context: true
+  enable_shapley: true
+  enable_dropout_consistency: true
+
+fusion:
+  temperature: 1.0
+  route_weight_floor: 0.08
+  ego_weight_floor: 0.05
+  contribution_bias_scale: 0.5
+  risk_context_dim: 64
+  reliability_logit_scale: 1.0
+  risk_logit_scale: 0.5
+  use_risk_context: true
+
+loss:
+  value_loss_weight: 0.5
+  entropy_loss_weight: 0.0
+  aux_lane_offset_loss_weight: 1.0
+  aux_heading_error_loss_weight: 1.0
+  aux_road_mask_loss_weight: 0.25
+  aux_lane_edge_mask_loss_weight: 1.0
+  aux_lane_edge_pos_weight: 3.0
+  reliability_loss_weight: 0.0
+  risk_supervision_loss_weight: 0.0
+  risk_regularization_weight: 0.0
+  shapley_alignment_loss_weight: 0.0
+  dropout_consistency_loss_weight: 0.0
+
+shapley:
+  enabled: false
+  value_source: current_critic
+  contribution_temperature: 1.0
+  subsets_per_sample: 4
+  batch_fraction: 0.25
+  min_contribution: 0.02
+
+dropout_consistency:
+  enabled: false
+  mode: representation_mask
+  batch_fraction: 0.25
+  action_mean_weight: 1.0
+  value_weight: 0.25
+
+ppo:
+  learning_rate: 0.0003
+  gamma: 0.99
+  gae_lambda: 0.95
+  clip_coef: 0.2
+  update_epochs: 1
+  minibatch_size: 64
+  max_grad_norm: 0.5
+
+bc:
+  mode: sequence
+  epochs: 8
+  batch_size: 8
+  learning_rate: 0.0002
+  weight_decay: 0.00001
+  val_fraction: 0.1
+  grad_clip_norm: 0.5
+  bc_loss_weight: 1.0
+  steer_loss_weight: 1.0
+  longitudinal_loss_weight: 1.0
+  action_smooth_loss_weight: 0.02
+  sequence_length: 32
+  sequence_stride: 8
+  perception_aux_loss_weight: 0.0
+  use_auxiliary: true
+  use_shapley_online: false
+  include_bad_transitions: true
+  num_workers: 0
+  log_interval: 10
+
+env:
+  route_representation: target_xy_plus_two_distance_heading_plus_third_heading_plus_turn_delta_plus_maneuver_hint_v1
+  route_lookahead_count: 3
+  semantic_aux_camera_enabled: true
+  aux_mask_width: 80
+  aux_mask_height: 45
+  image_every: 50
+  weather: default
+  traffic_mode: none
+  corruption:
+    enabled: false
+    mode: none
+    level: 0.0

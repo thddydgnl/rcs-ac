@@ -1,0 +1,19 @@
+{
+  "num_transitions": 1024,
+  "obs_dim": 47311,
+  "auxiliary_dim": 30,
+  "action_dim": 2,
+  "bad_transition_count": 0,
+  "done_count": 0,
+  "route_progress_min": 0.25641027092933655,
+  "route_progress_max": 0.4871794879436493,
+  "route_progress_mean": 0.34352463483810425,
+  "input_paths": [
+    "C:\\Users\\thddy\\Documents\\code\\RCS-AC-first\\data\\expert\\recovery_imitation_v3_offroad_tail_primary_768.npz",
+    "C:\\Users\\thddy\\Documents\\code\\RCS-AC-first\\data\\expert\\recovery_imitation_v3_offroad_tail_late_256.npz"
+  ],
+  "input_counts": [
+    768,
+    256
+  ]
+}

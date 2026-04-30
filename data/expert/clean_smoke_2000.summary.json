@@ -1,0 +1,12 @@
+{
+  "num_transitions": 2000,
+  "obs_dim": 47311,
+  "auxiliary_dim": 30,
+  "action_dim": 2,
+  "bad_transition_count": 8,
+  "done_count": 11,
+  "route_progress_min": 0.025641025975346565,
+  "route_progress_max": 1.0,
+  "route_progress_mean": 0.2274615466594696,
+  "attempted_transitions": 2000
+}

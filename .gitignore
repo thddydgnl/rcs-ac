@@ -1,0 +1,41 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# OS/editor noise
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# CARLA/RL run artifacts
+checkpoints/
+logs/
+outputs/
+remote_runs/
+
+# Local datasets and generated artifacts
+data/**/*.npz
+data/**/*.npy
+data/**/*.pt
+data/**/*.pth
+data/**/*.pkl
+data/**/*.jsonl
+
+# Keep small hand-authored metadata/docs, but not huge raw captures.
+*.log
+
+# Local secrets/config overrides
+.env
+.env.*
+local_config*.yaml
