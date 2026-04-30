@@ -6,6 +6,7 @@ param(
     [int]$ResX = 800,
     [int]$ResY = 600,
     [int]$StartupTimeoutSeconds = 180,
+    [int]$PostPortSettleSeconds = 10,
     [string]$InteractiveUser = "song\song"
 )
 
@@ -19,14 +20,16 @@ if (-not (Test-Path $CarlaExe)) {
 }
 
 $arguments = "-carla-rpc-port=$CarlaPort -quality-level=$QualityLevel -nosound -windowed -ResX=$ResX -ResY=$ResY"
+$workingDirectory = Split-Path -Parent $CarlaExe
 
 Unregister-ScheduledTask -TaskName $TaskName -Confirm:$false -ErrorAction SilentlyContinue
 
-$action = New-ScheduledTaskAction -Execute $CarlaExe -Argument $arguments
+$action = New-ScheduledTaskAction -Execute $CarlaExe -Argument $arguments -WorkingDirectory $workingDirectory
 $trigger = New-ScheduledTaskTrigger -Once -At (Get-Date).AddMinutes(1)
 $principal = New-ScheduledTaskPrincipal -UserId $InteractiveUser -LogonType Interactive -RunLevel Highest
+$settings = New-ScheduledTaskSettingsSet -MultipleInstances IgnoreNew -ExecutionTimeLimit ([TimeSpan]::Zero)
 
-Register-ScheduledTask -TaskName $TaskName -Action $action -Trigger $trigger -Principal $principal -Force | Out-Null
+Register-ScheduledTask -TaskName $TaskName -Action $action -Trigger $trigger -Principal $principal -Settings $settings -Force | Out-Null
 Start-ScheduledTask -TaskName $TaskName
 
 Write-Host "started scheduled task $TaskName for $InteractiveUser"
@@ -53,4 +56,9 @@ Get-Process CarlaUE4,CarlaUE4-Win64-Shipping -ErrorAction SilentlyContinue |
 
 if (-not $finalPortOpen) {
     throw "CARLA did not open port $CarlaPort within $StartupTimeoutSeconds seconds."
+}
+
+if ($PostPortSettleSeconds -gt 0) {
+    Write-Host "POST_PORT_SETTLE_SECONDS=$PostPortSettleSeconds"
+    Start-Sleep -Seconds $PostPortSettleSeconds
 }

@@ -47,8 +47,10 @@ This is the verified path for cases where the runner times out waiting for port 
 Shortcut after Windows has pulled the latest repo:
 
 ```bash
-ssh song@100.87.219.58 'powershell -ExecutionPolicy Bypass -File "C:\Users\thddy\Documents\code\RCS-AC-first\scripts\windows\start_carla_interactive.ps1"'
+ssh song@100.87.219.58 'powershell -ExecutionPolicy Bypass -File "C:\Users\thddy\Documents\code\RCS-AC-first\scripts\windows\ensure_carla_ready.ps1"'
 ```
+
+Use `start_carla_interactive.ps1` directly only when you intentionally want to kill and relaunch the CARLA process. `ensure_carla_ready.ps1` is safer between round steps because it restarts only when the process, port, or Python CARLA probe fails.
 
 Current verified details:
 

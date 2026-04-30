@@ -313,19 +313,21 @@ data/expert/*<RUN_NAME>*.summary.json
 selected sample images only when a visual diagnosis needs them
 ```
 
-When running multiple CARLA scripts in one round, re-check the simulator between scripts:
+When running multiple CARLA scripts in one round, re-check the simulator between scripts with the guard script:
 
 ```bash
-rcswinssh song@100.87.219.58 "powershell -NoProfile -Command \"Get-Process -Name CarlaUE4-Win64-Shipping -ErrorAction SilentlyContinue | Select ProcessName,Id,CPU,Responding\""
+rcswinssh song@100.87.219.58 'powershell -ExecutionPolicy Bypass -File "C:\Users\thddy\Documents\code\RCS-AC-first\scripts\windows\ensure_carla_ready.ps1"'
 ```
 
-If the process is missing or port 2000 refuses connections, restart CARLA with the interactive helper before launching the next collect/train/eval command:
+The guard checks all three conditions before the next collect/train/eval command:
 
-```bash
-rcswinssh song@100.87.219.58 "powershell -ExecutionPolicy Bypass -File C:\Users\thddy\Documents\code\RCS-AC-first\scripts\windows\start_carla_interactive.ps1"
+```text
+1. `CarlaUE4-Win64-Shipping` process exists.
+2. TCP port 2000 accepts connections.
+3. Python can import `carla`, connect to the server, and read the current world/map.
 ```
 
-This matters after dataset collection, BC evaluation, and PPO training because CARLA may exit between scripts even when the previous Python command completed successfully.
+If any check fails, the guard restarts CARLA through the interactive scheduled-task helper and waits for a stable healthy state. This matters after dataset collection, BC evaluation, and PPO training because CARLA may exit between scripts even when the previous Python command completed successfully.
 
 Do not pull these by default:
 
@@ -419,6 +421,12 @@ CARLA did not open port 2000 within N seconds
 or when Python fails at `client.load_world()` / streaming connection after a runner-started CARLA.
 
 Preferred command after pulling the latest repo on Windows:
+
+```bash
+rcswinssh song@100.87.219.58 'powershell -ExecutionPolicy Bypass -File "C:\Users\thddy\Documents\code\RCS-AC-first\scripts\windows\ensure_carla_ready.ps1"'
+```
+
+Use the lower-level restart helper only when you intentionally want to kill and relaunch CARLA:
 
 ```bash
 rcswinssh song@100.87.219.58 'powershell -ExecutionPolicy Bypass -File "C:\Users\thddy\Documents\code\RCS-AC-first\scripts\windows\start_carla_interactive.ps1"'
