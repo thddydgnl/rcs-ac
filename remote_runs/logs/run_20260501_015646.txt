@@ -1,0 +1,35 @@
+﻿**********************
+Windows PowerShell 기록 시작
+시작 시간: 20260501015646
+사용자 이름: Song\song
+RunAs 사용자: Song\song
+구성 이름: 
+Machine: SONG (Microsoft Windows NT 10.0.26200.0)
+호스트 응용 프로그램: powershell -ExecutionPolicy Bypass -File C:\Users\thddy\Documents\Codex\2026-04-30\new-chat\carla-remote-runner\run_rcs_ac_first.ps1 -Help
+프로세스 ID: 20460
+PSVersion: 5.1.26100.8115
+PSEdition: Desktop
+PSCompatibleVersions: 1.0, 2.0, 3.0, 4.0, 5.0, 5.1.26100.8115
+BuildVersion: 10.0.26100.8115
+CLRVersion: 4.0.30319.42000
+WSManStackVersion: 3.0
+PSRemotingProtocolVersion: 2.3
+SerializationVersion: 1.1.0.1
+**********************
+
+==> Project: C:\Users\thddy\Documents\code\RCS-AC-first
+
+==> Pulling latest code
+
+
+==> Installing CARLA Python wheel
+
+
+==> Starting CARLA if port 2000 is not already open
+CARLA PID: 14232
+
+==> Waiting for CARLA RPC port
+**********************
+Windows PowerShell 기록 끝
+종료 시간: 20260501015821
+**********************

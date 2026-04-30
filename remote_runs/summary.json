@@ -1,0 +1,27 @@
+﻿{
+    "status":  "failed",
+    "started_at":  "2026-05-01T02:36:27.8190834+09:00",
+    "ended_at":  "2026-05-01T02:38:36.0618662+09:00",
+    "project_dir":  "C:\\Users\\thddy\\Documents\\code\\RCS-AC-first",
+    "experiment_script":  "rcs_ac_first\\scripts\\collect_expert_dataset.py",
+    "experiment_args":  [
+                            "--config",
+                            "configs\\bc_frame_rgb_perception_actor_features_v2_pretrain_smoke.yaml",
+                            "--output",
+                            "data\\expert\\rgb_perception_actor_features_v2_masked_clean_256.npz",
+                            "--num-transitions",
+                            "256",
+                            "--run-name",
+                            "rgb_perception_actor_features_v2_masked_clean_collect_256"
+                        ],
+    "carla_exe":  "C:\\Users\\thddy\\Documents\\CARLA_0.9.16\\CarlaUE4.exe",
+    "carla_port":  2000,
+    "quality_level":  "Low",
+    "python":  "py -3.12",
+    "git_ref":  "codex-stabilization-rgb-v2",
+    "no_git_pull":  false,
+    "skip_carla":  false,
+    "transcript":  "C:\\Users\\thddy\\Documents\\code\\RCS-AC-first\\remote_runs\\logs\\run_20260501_023627.txt",
+    "metrics_csv":  null,
+    "error":  "CARLA did not open port 2000 within 120 seconds."
+}
