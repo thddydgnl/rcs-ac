@@ -14,6 +14,11 @@ Use this folder for stable process rules, machine split rules, remote execution 
      - Mac: Codex, sub-agents, analysis, code edits, commits, reports.
      - Windows: CARLA, Python execution, raw logs, checkpoints, sensor outputs.
 
+3. `02_integrated_subagent_remote_stabilization_workflow.md`
+   - Defines the combined workflow when a stabilization round should use both:
+     - sub-agent analysis and Experiment Brief barriers
+     - Mac-to-Windows SSH execution with CARLA readiness guards
+
 ## Not Stored Here
 
 Do not put one-off experiment results in this folder.
