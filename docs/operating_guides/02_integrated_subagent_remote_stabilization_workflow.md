@@ -170,7 +170,8 @@ create a new config
 copy an old config into a new experiment
 patch runtime/control/reward/model code
 start dataset collection
-start CARLA eval/train/PPO
+start CARLA eval
+start PPO training
 promote a checkpoint
 ```
 
@@ -249,7 +250,9 @@ Before every CARLA-dependent command, run:
 rcswinssh song@100.87.219.58 'powershell -ExecutionPolicy Bypass -File "C:\Users\thddy\Documents\code\RCS-AC-first\scripts\windows\ensure_carla_ready.ps1"'
 ```
 
-The guard must pass before collect/eval/train/PPO.
+The guard must pass before dataset collection, CARLA evaluation, and PPO training.
+
+Behavior cloning training with `rcs_ac_first.scripts.train_bc` does not require CARLA after the dataset exists, so it does not need the CARLA readiness guard. It still needs normal local/Windows Python validation and log capture.
 
 It checks:
 
@@ -272,7 +275,7 @@ Do not rely on port-open alone. A port can briefly open while CARLA is not ready
 
 Run only one CARLA job at a time.
 
-Before each item below, run `ensure_carla_ready.ps1`:
+Before each CARLA-dependent item below, run `ensure_carla_ready.ps1`:
 
 ```text
 dataset collection
@@ -281,6 +284,8 @@ deterministic BC eval
 4096 PPO smoke
 final checkpoint eval
 ```
+
+Do not interpret these as mandatory steps for every round. A plain PPO stabilization round may only need eval -> 2048 PPO -> final eval. An imitation/data round may additionally need collect -> BC train -> BC eval before PPO. The guard rule applies to the CARLA steps, not to every possible script in every round.
 
 Default gate:
 
