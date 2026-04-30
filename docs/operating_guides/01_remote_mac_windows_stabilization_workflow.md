@@ -313,6 +313,20 @@ data/expert/*<RUN_NAME>*.summary.json
 selected sample images only when a visual diagnosis needs them
 ```
 
+When running multiple CARLA scripts in one round, re-check the simulator between scripts:
+
+```bash
+rcswinssh song@100.87.219.58 "powershell -NoProfile -Command \"Get-Process -Name CarlaUE4-Win64-Shipping -ErrorAction SilentlyContinue | Select ProcessName,Id,CPU,Responding\""
+```
+
+If the process is missing or port 2000 refuses connections, restart CARLA with the interactive helper before launching the next collect/train/eval command:
+
+```bash
+rcswinssh song@100.87.219.58 "powershell -ExecutionPolicy Bypass -File C:\Users\thddy\Documents\code\RCS-AC-first\scripts\windows\start_carla_interactive.ps1"
+```
+
+This matters after dataset collection, BC evaluation, and PPO training because CARLA may exit between scripts even when the previous Python command completed successfully.
+
 Do not pull these by default:
 
 ```text
