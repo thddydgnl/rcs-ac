@@ -35,3 +35,11 @@ Example from Mac:
 ```bash
 ssh thddy@100.87.219.58 'powershell -ExecutionPolicy Bypass -File "C:\Users\thddy\Documents\Codex\2026-04-30\new-chat\carla-remote-runner\run_rcs_ac_first.ps1" -Mode ppo -Config "configs\phase3_bc_clean_rgb_perception_actor_features_v1_smoke.yaml" -RunName "remote_test"'
 ```
+
+## Stabilization Workflow
+
+For the full Mac analysis/edit/report and Windows CARLA/Python execution workflow, see:
+
+```text
+docs/stabilization_rounds/13_remote_mac_windows_stabilization_workflow.md
+```
