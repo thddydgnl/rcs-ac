@@ -123,7 +123,7 @@ env:
   aux_mask_width: 80
   aux_mask_height: 45
   image_every: 50
-  client_timeout: 30.0
+  client_timeout: 120.0
   route_length: 40
   route_spacing: 3.0
   stuck_speed_threshold_mps: 0.3

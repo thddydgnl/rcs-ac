@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -345,7 +346,7 @@ def run_loss_check(model: RCSACFirstModel, obs: torch.Tensor, auxiliary: torch.T
 def run_checkpoint_check(config_path: Path, device_override: str | None) -> dict[str, object]:
     config = load_phase1_config(config_path)
     agent = PPOAgent(PPOConfig.from_phase1_config(config, device_override=device_override))
-    checkpoint_dir = PROJECT_ROOT / "checkpoints" / "smoke_check"
+    checkpoint_dir = PROJECT_ROOT / "checkpoints" / "smoke_check" / config_path.stem / f"pid_{os.getpid()}"
     checkpoint_dir.mkdir(parents=True, exist_ok=True)
     checkpoint_path = checkpoint_dir / "last.pt"
     agent.save(str(checkpoint_path), extra_state={"smoke_check": True, "global_step": 0})
