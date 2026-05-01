@@ -121,6 +121,16 @@ def validate_expert_arrays(
         optional = np.asarray(value)
         if optional.shape[:1] == (n,):
             result[key] = optional.copy()
+    if (
+        "target_corrective_delta" not in result
+        and "target_corrected_steer" in result
+        and "policy_action_steer" in result
+    ):
+        result["target_corrective_delta"] = (
+            np.asarray(result["target_corrected_steer"], dtype=np.float32).reshape(-1)
+            - np.asarray(result["policy_action_steer"], dtype=np.float32).reshape(-1)
+        ).astype(np.float32, copy=False)
+        result["target_corrective_delta_available"] = np.ones((n,), dtype=np.float32)
     _validate_optional_mask_arrays(result, n)
     return result
 
