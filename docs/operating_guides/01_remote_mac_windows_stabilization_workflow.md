@@ -383,6 +383,16 @@ The guard checks all three conditions before the next collect/train/eval command
 
 If any check fails, the guard restarts CARLA through the interactive scheduled-task helper and waits for a stable healthy state. This matters after dataset collection, BC evaluation, and PPO training because CARLA may exit between scripts even when the previous Python command completed successfully.
 
+A normal interactive CARLA launch often shows one `CarlaUE4` wrapper process and one `CarlaUE4-Win64-Shipping` process. That pair is not a duplicate launch. Treat the state as unsafe when there is more than one `CarlaUE4-Win64-Shipping` process, more than one port-2000 listener, or any `CrashReportClient` process/dialog.
+
+Before the first CARLA command in a round, and after any CARLA fatal dialog, `TaskGraphThreadNP` crash, streaming timeout, `load_world()` timeout, reset timeout, or CrashReportClient appearance, use a forced guard instead of a normal guard:
+
+```bash
+rcswinssh song@100.87.219.58 'powershell -ExecutionPolicy Bypass -File "C:\Users\thddy\Documents\code\RCS-AC-first\scripts\windows\ensure_carla_ready.ps1" -ForceRestart'
+```
+
+Do not continue a collect/eval/PPO sequence from that contaminated CARLA state just because port 2000 is open or the next light probe succeeds. Force-restart first, then retry only the failed Python command.
+
 Do not pull these by default:
 
 ```text
@@ -472,12 +482,18 @@ Use this when the runner reports:
 CARLA did not open port 2000 within N seconds
 ```
 
-or when Python fails at `client.load_world()` / streaming connection after a runner-started CARLA.
+or when Python fails at `client.load_world()` / streaming connection after a runner-started CARLA. Also use the forced variant after a Windows CARLA fatal dialog such as `Crash in runnable thread TaskGraphThreadNP 4`.
 
 Preferred command after pulling the latest repo on Windows:
 
 ```bash
 rcswinssh song@100.87.219.58 'powershell -ExecutionPolicy Bypass -File "C:\Users\thddy\Documents\code\RCS-AC-first\scripts\windows\ensure_carla_ready.ps1"'
+```
+
+Forced restart command after a crash, fatal dialog, CrashReportClient, duplicate shipping process, or contaminated timeout:
+
+```bash
+rcswinssh song@100.87.219.58 'powershell -ExecutionPolicy Bypass -File "C:\Users\thddy\Documents\code\RCS-AC-first\scripts\windows\ensure_carla_ready.ps1" -ForceRestart'
 ```
 
 Use the lower-level restart helper only when you intentionally want to kill and relaunch CARLA:
@@ -770,11 +786,26 @@ If CARLA port does not open:
 rcswinssh song@100.87.219.58 'powershell -NoProfile -Command "Get-Process CarlaUE4 -ErrorAction SilentlyContinue; netstat -ano | findstr :2000"'
 ```
 
+If Windows shows `Fatal error! Crash in runnable thread TaskGraphThreadNP`, `CrashReportClient`, a CARLA crash dialog, duplicate `CarlaUE4-Win64-Shipping`, or duplicate port listeners:
+
+```bash
+rcswinssh song@100.87.219.58 'powershell -NoProfile -Command "Get-Process CarlaUE4,CarlaUE4-Win64-Shipping,CrashReportClient -ErrorAction SilentlyContinue | Select-Object Id,ProcessName,CPU,StartTime,Responding; netstat -ano | findstr :2000"'
+rcswinssh song@100.87.219.58 'powershell -ExecutionPolicy Bypass -File "C:\Users\thddy\Documents\code\RCS-AC-first\scripts\windows\ensure_carla_ready.ps1" -ForceRestart'
+```
+
+Classification rule:
+
+```text
+1. If the Python script had not reached rollout/eval or did not write metrics, discard the run as infrastructure invalid and retry after ForceRestart.
+2. If metrics were already completely written before the fatal dialog, keep the metrics but ForceRestart before the next CARLA command.
+3. A `CarlaUE4` + `CarlaUE4-Win64-Shipping` pair is normal; duplicate `CarlaUE4-Win64-Shipping` or CrashReportClient is not.
+```
+
 If CARLA port opens but `load_world()` or streaming fails:
 
 ```text
-1. Stop CarlaUE4 and CarlaUE4-Win64-Shipping.
-2. Restart CARLA through the interactive scheduled-task fallback in Section 7.1.
+1. Treat the current CARLA state as contaminated even if port 2000 is open.
+2. Restart CARLA with `ensure_carla_ready.ps1 -ForceRestart`.
 3. Retry only the failed Python command.
 4. Do not classify the model as failed unless the Python script reaches rollout/eval and writes metrics.
 ```

@@ -290,6 +290,14 @@ rcswinssh song@100.87.219.58 'powershell -ExecutionPolicy Bypass -File "C:\Users
 
 The guard must pass before dataset collection, CARLA evaluation, and PPO training.
 
+For the first CARLA command of a stabilization round, and after any fatal dialog, `TaskGraphThreadNP` crash, `CrashReportClient`, streaming failure, `load_world()` timeout, reset timeout, or duplicate CARLA process state, use:
+
+```bash
+rcswinssh song@100.87.219.58 'powershell -ExecutionPolicy Bypass -File "C:\Users\thddy\Documents\code\RCS-AC-first\scripts\windows\ensure_carla_ready.ps1" -ForceRestart'
+```
+
+Do not treat a normal `CarlaUE4` wrapper plus one `CarlaUE4-Win64-Shipping` process as two CARLAs. That pair is expected. Treat more than one `CarlaUE4-Win64-Shipping`, more than one port-2000 listener, or any `CrashReportClient` as contaminated state that requires `-ForceRestart`.
+
 Behavior cloning training with `rcs_ac_first.scripts.train_bc` does not require CARLA after the dataset exists, so it does not need the CARLA readiness guard. It still needs normal local/Windows Python validation and log capture.
 
 It checks:
@@ -309,6 +317,8 @@ scripts/windows/start_carla_interactive.ps1
 
 Do not rely on port-open alone. A port can briefly open while CARLA is not ready for `client.load_world()` or streaming.
 
+If a crash or timeout happens after the guard passes, classify the current CARLA state as contaminated. Retry only after `ensure_carla_ready.ps1 -ForceRestart`; do not proceed to PPO or the next eval from that simulator instance.
+
 ## 9. CARLA Execution Rules
 
 Run only one CARLA job at a time.
@@ -321,6 +331,15 @@ deterministic BC eval
 2048 PPO smoke
 4096 PPO smoke
 final checkpoint eval
+```
+
+Crash/fatal handling is non-negotiable:
+
+```text
+1. `Fatal error! Crash in runnable thread TaskGraphThreadNP ...`, CrashReportClient, streaming timeout, `load_world()` timeout, or reset timeout is infrastructure contamination first, not model failure.
+2. If the Python command did not complete and write metrics, discard that run and retry after `ensure_carla_ready.ps1 -ForceRestart`.
+3. If metrics were fully written before the crash appeared, keep the metrics but force-restart before the next CARLA command.
+4. Never continue from a contaminated CARLA state into 2048 PPO, 4096 PPO, or checkpoint promotion.
 ```
 
 Do not interpret these as mandatory steps for every round. A plain PPO stabilization round may only need eval -> 2048 PPO -> final eval. An imitation/data round may additionally need collect -> BC train -> BC eval before PPO. The guard rule applies to the CARLA steps, not to every possible script in every round.
