@@ -379,7 +379,8 @@ def _build_log_row(
 
 
 def _finite_rows(rows: list[dict[str, Any]]) -> bool:
-    numeric_keys = [field for field in BC_EVAL_FIELDS if field not in {"done", "done_reason", "collision", "offroad", "stuck"}]
+    non_numeric_keys = {"done", "done_reason", "collision", "offroad", "stuck", "maneuver_command"}
+    numeric_keys = [field for field in BC_EVAL_FIELDS if field not in non_numeric_keys]
     for row in rows:
         for key in numeric_keys:
             value = row.get(key)

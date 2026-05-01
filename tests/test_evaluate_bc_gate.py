@@ -268,3 +268,4 @@ def test_summary_records_initial_audit_window() -> None:
     assert audit["right_steer_rate"] == 0.4
     assert audit["final_lane_offset"] == -0.4
     assert audit["maneuver_command_counts"] == {"straight": 5}
+    assert summary["pass_status"] == "PASS"
