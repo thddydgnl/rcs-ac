@@ -1,0 +1,223 @@
+seed: 7
+model_type: rcs_ac_first
+model_variant: bc_frame_rgb_perception_actor_features_v2_near_cluster_route_offset_round27c
+training_stage: bc_frame_rgb_perception_actor_features_v2_near_cluster_route_offset_round27c
+run_name: bc_frame_rgb_perception_actor_features_v2_near_cluster_route_offset_round27c
+town: Town04
+host: 127.0.0.1
+port: 2000
+device: auto
+total_timesteps: 2048
+rollout_steps: 128
+max_episode_steps: 512
+save_every_updates: 1
+logs_dir: logs
+checkpoints_dir: checkpoints
+output_root: outputs/bc_frame_rgb_perception_actor_features_v2_near_cluster_route_offset_round27c_env
+
+model:
+  action_dim: 2
+  rgb_shape: [3, 90, 160]
+  lidar_shape: [1, 64, 64]
+  ego_dim: 5
+  route_dim: 10
+  feature_dim: 128
+  fusion_dim: 128
+  recurrent_hidden_dim: 256
+  recurrent_layers: 1
+  actor_hidden_dim: 256
+  critic_hidden_dim: 256
+  aux_hidden_dim: 128
+  enable_rgb_perception_aux: true
+  use_rgb_perception_actor_features: true
+  rgb_perception_actor_feature_dim: 16
+  rgb_perception_actor_adapter_init_std: 0.05
+  aux_mask_height: 45
+  aux_mask_width: 80
+  aux_perception_hidden_channels: 64
+  auxiliary_dim: 30
+  quality_stats_dim: 15
+  risk_stats_dim: 6
+  route_commitment_stats_dim: 5
+  sensor_dropout_dim: 4
+  reliability_hidden_dim: 64
+  risk_hidden_dim: 64
+  risk_context_dim: 64
+  reliability_min: 0.02
+  reliability_max: 1.0
+  log_std_init_by_dim: [-2.0, -2.0]
+  min_std_by_dim: [0.03, 0.03]
+  max_std_by_dim: [0.20, 0.25]
+  enable_reliability: true
+  enable_risk_context: true
+  enable_shapley: true
+  enable_dropout_consistency: true
+
+fusion:
+  temperature: 1.0
+  route_weight_floor: 0.08
+  ego_weight_floor: 0.05
+  contribution_bias_scale: 0.5
+  risk_context_dim: 64
+  reliability_logit_scale: 1.0
+  risk_logit_scale: 0.5
+  use_risk_context: true
+
+loss:
+  value_loss_weight: 0.5
+  entropy_loss_weight: 0.0
+  aux_lane_offset_loss_weight: 1.0
+  aux_heading_error_loss_weight: 1.0
+  aux_road_mask_loss_weight: 0.25
+  aux_lane_edge_mask_loss_weight: 1.0
+  aux_lane_edge_pos_weight: 3.0
+  reliability_loss_weight: 0.0
+  risk_supervision_loss_weight: 0.0
+  risk_regularization_weight: 0.0
+  shapley_alignment_loss_weight: 0.0
+  dropout_consistency_loss_weight: 0.0
+
+shapley:
+  enabled: false
+  value_source: current_critic
+  contribution_temperature: 1.0
+  subsets_per_sample: 4
+  batch_fraction: 0.25
+  min_contribution: 0.02
+
+dropout_consistency:
+  enabled: false
+  mode: representation_mask
+  batch_fraction: 0.25
+  action_mean_weight: 1.0
+  value_weight: 0.25
+
+ppo:
+  learning_rate: 0.000005
+  gamma: 0.99
+  gae_lambda: 0.95
+  clip_coef: 0.06
+  update_epochs: 1
+  minibatch_size: 64
+  max_grad_norm: 0.5
+  override_loaded_log_std: true
+  loaded_log_std_by_dim: [-2.0, -2.0]
+
+bc:
+  mode: frame
+  epochs: 5
+  batch_size: 32
+  learning_rate: 0.0001
+  weight_decay: 0.00001
+  val_fraction: 0.1
+  grad_clip_norm: 0.5
+  bc_loss_weight: 1.0
+  steer_loss_weight: 3.0
+  longitudinal_loss_weight: 0.5
+  action_smooth_loss_weight: 0.0
+  perception_aux_loss_weight: 0.5
+  visual_zero_margin: 0.02
+  visual_zero_margin_loss_weight: 0.02
+  visual_zero_steer_margin: 0.004
+  visual_zero_steer_margin_loss_weight: 0.08
+  visual_zero_route_min: 0.10
+  visual_zero_route_max: 0.60
+  visual_zero_abs_lane_offset_min: 1.5
+  visual_zero_abs_heading_error_min: 6.0
+  visual_zero_corrective_steer_margin: 0.012
+  visual_zero_corrective_sign_loss_weight: 0.30
+  target_corrective_delta_loss_weight: 0.40
+  visual_zero_target_delta_loss_weight: 0.20
+  visual_center_corrective_sign_loss_weight: 0.20
+  visual_center_corrective_margin: 0.004
+  visual_center_error_min: 0.05
+  route_aware_visual_center_loss_weight: 0.15
+  route_aware_visual_center_route_min: 0.205
+  route_aware_visual_center_route_max: 0.36
+  route_aware_visual_center_margin: 0.007
+  collision_cluster_route_offset_agreement_loss_weight: 0.60
+  collision_cluster_route_min: 0.10
+  collision_cluster_route_max: 0.32
+  collision_cluster_lane_offset_min: 0.75
+  collision_cluster_heading_error_max: -3.0
+  collision_cluster_route_offset_margin: 0.018
+  road_mask_weight: 0.25
+  lane_edge_weight: 1.0
+  lane_edge_pos_weight: 3.0
+  use_auxiliary: true
+  use_shapley_online: false
+  include_bad_transitions: false
+  num_workers: 0
+  log_interval: 5
+  trainable_module_names:
+    - perception_aux_head
+    - rgb_perception_actor_features
+    - actor_input_adapter
+
+env:
+  weather: default
+  traffic_mode: none
+  traffic_vehicle_count: 0
+  traffic_seed: 7
+  route_representation: target_xy_plus_two_distance_heading_plus_third_heading_plus_turn_delta_plus_maneuver_hint_v1
+  route_lookahead_count: 3
+  maneuver_command_enabled: true
+  maneuver_command_mode: cycle
+  maneuver_command_values: ["straight", "left", "right"]
+  semantic_aux_camera_enabled: true
+  aux_mask_width: 80
+  aux_mask_height: 45
+  image_every: 50
+  client_timeout: 120.0
+  route_length: 40
+  route_spacing: 3.0
+  stuck_speed_threshold_mps: 0.3
+  stuck_min_steps: 70
+  offroad_min_steps: 10
+  offroad_grace_steps: 12
+  goal_radius: 3.0
+  suppress_conflicting_pedals: true
+  low_speed_brake_suppression: true
+  low_speed_brake_speed_threshold_kmh: 3.0
+  low_speed_brake_max: 0.05
+  longitudinal_control:
+    mode: target_speed
+    min_target_speed_kmh: 6.0
+    max_target_speed_kmh: 28.0
+    speed_deadband_kmh: 1.5
+    throttle_kp: 0.075
+    brake_kp: 0.05
+    max_throttle: 0.48
+    max_brake: 0.40
+  action_smoothing:
+    enabled: true
+    steer_alpha: 0.75
+    throttle_rise_limit: 0.08
+    throttle_fall_limit: 0.25
+    brake_rise_limit: 0.10
+    brake_fall_limit: 0.25
+  lateral_recovery:
+    enabled: false
+    turn_boost_enabled: false
+  corruption:
+    enabled: false
+    mode: none
+    level: 0.0
+
+bc_eval:
+  corrective_route_min: 0.20
+  corrective_route_max: 0.32
+  corrective_abs_lane_offset_min: 1.8
+  corrective_abs_heading_error_min: 6.0
+  ppo_gate_max_offroad: 2
+  ppo_gate_min_max_route: 0.282051
+  ppo_gate_min_mean_route: 0.132762
+  ppo_gate_max_action_jitter: 0.07
+  ppo_gate_min_visual_zero_action_l1: 0.012
+  ppo_gate_min_visual_zero_steer_delta: 0.003
+  ppo_gate_min_corrective_count: 32
+  ppo_gate_min_corrective_visual_zero_steer_delta: 0.004
+  ppo_gate_min_corrective_sign_rate: 0.70
+  visual_center_error_min: 0.05
+  ppo_gate_min_visual_center_correction_rate: 0.70
+  ppo_gate_corrective_sign_source: visual_center
