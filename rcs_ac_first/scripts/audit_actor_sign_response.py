@@ -36,6 +36,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--checkpoint", required=True)
     parser.add_argument("--dataset", default=None)
     parser.add_argument("--sample-index", type=int, default=0)
+    parser.add_argument("--sample-selector", default="index", choices=["index", "early_left", "early_any"])
+    parser.add_argument("--early-route-max", type=float, default=0.08)
+    parser.add_argument("--early-left-lane-max", type=float, default=-0.5)
     parser.add_argument("--device", default="auto", choices=["auto", "cpu", "cuda"])
     parser.add_argument("--output-dir", default="outputs/actor_sign_audit")
     parser.add_argument("--run-name", default="actor_sign_audit")
@@ -86,6 +89,7 @@ def _load_base_tensors(
     dataset_path: Path | None,
     sample_index: int,
     device: torch.device,
+    args: argparse.Namespace,
 ) -> tuple[torch.Tensor, torch.Tensor, dict[str, Any]]:
     obs_spec = build_policy_observation_spec(
         rgb_shape=config.model.rgb_shape,
@@ -111,16 +115,19 @@ def _load_base_tensors(
             raise ValueError(
                 f"Dataset action dim {int(arrays['expert_action'].shape[1])} != config action dim {config.model.action_dim}"
             )
-        index = int(np.clip(sample_index, 0, int(arrays["obs_flat"].shape[0]) - 1))
+        index = _select_sample_index(arrays, sample_index=sample_index, args=args)
         obs = torch.as_tensor(arrays["obs_flat"][index], dtype=torch.float32, device=device).unsqueeze(0)
         aux = torch.as_tensor(arrays["auxiliary"][index], dtype=torch.float32, device=device).unsqueeze(0)
         meta = {
             "source": "dataset",
             "dataset": str(dataset_path),
+            "sample_selector": str(args.sample_selector),
             "sample_index": int(index),
             "episode_id": int(arrays["episode_id"][index]),
             "step_in_episode": int(arrays["step_in_episode"][index]),
             "route_progress": float(arrays["route_progress"][index]),
+            "lane_offset": float(np.asarray(arrays.get("lane_offset", np.zeros_like(arrays["route_progress"]))).reshape(-1)[index]),
+            "heading_error": float(np.asarray(arrays.get("heading_error", np.zeros_like(arrays["route_progress"]))).reshape(-1)[index]),
         }
     else:
         obs = torch.zeros((1, obs_spec.total_dim), dtype=torch.float32, device=device)
@@ -128,12 +135,35 @@ def _load_base_tensors(
         meta = {
             "source": "zero_template",
             "dataset": "",
+            "sample_selector": "none",
             "sample_index": 0,
             "episode_id": -1,
             "step_in_episode": -1,
             "route_progress": 0.0,
+            "lane_offset": 0.0,
+            "heading_error": 0.0,
         }
     return obs, aux, meta
+
+
+def _select_sample_index(arrays: dict[str, np.ndarray], *, sample_index: int, args: argparse.Namespace) -> int:
+    n = int(arrays["obs_flat"].shape[0])
+    if str(args.sample_selector) == "index":
+        return int(np.clip(sample_index, 0, n - 1))
+    route_progress = np.asarray(arrays["route_progress"], dtype=np.float32).reshape(-1)
+    if str(args.sample_selector) == "early_any":
+        candidates = np.flatnonzero(route_progress <= float(args.early_route_max))
+    else:
+        lane_offset = np.asarray(arrays.get("lane_offset", np.zeros_like(route_progress)), dtype=np.float32).reshape(-1)
+        candidates = np.flatnonzero(
+            (route_progress <= float(args.early_route_max)) & (lane_offset <= float(args.early_left_lane_max))
+        )
+    if candidates.size == 0:
+        raise ValueError(
+            f"No samples matched selector={args.sample_selector!r} "
+            f"early_route_max={float(args.early_route_max)} early_left_lane_max={float(args.early_left_lane_max)}"
+        )
+    return int(candidates[0])
 
 
 def _forward(model: RCSACFirstModel, obs: torch.Tensor, aux: torch.Tensor) -> dict[str, float]:
@@ -254,6 +284,7 @@ def main() -> int:
         dataset_path=dataset_path,
         sample_index=int(args.sample_index),
         device=device,
+        args=args,
     )
     values = _parse_probe_values(str(args.probe_values))
     axes = ("lane_offset", "heading_error", "route_target_y")
