@@ -18,6 +18,10 @@ from rcs_ac_first.data.expert_dataset import load_expert_npz, save_expert_npz
 from rcs_ac_first.scripts.train import _project_path
 
 OPTIONAL_FLOAT_KEYS: tuple[str, ...] = (
+    "lane_offset",
+    "heading_error",
+    "speed_kmh",
+    "curve_proxy",
     "policy_action_steer",
     "policy_action_longitudinal",
     "target_corrected_steer",
