@@ -68,6 +68,7 @@ class PPOAgent:
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=float(config.train.learning_rate))
         self.hidden_state: torch.Tensor | None = None
         self.hidden_state_before_action: torch.Tensor | None = None
+        self.update_count = 0
 
     def reset_hidden(self) -> None:
         self.hidden_state = None
@@ -133,6 +134,8 @@ class PPOAgent:
         auxiliary_observations: torch.Tensor | None,
         actions: torch.Tensor,
         hidden_states: torch.Tensor | None = None,
+        *,
+        use_shapley_estimate: bool = True,
     ) -> tuple[dict[str, torch.Tensor | None], torch.Tensor, torch.Tensor]:
         hidden_for_model = self._prepare_batch_hidden(
             hidden_states,
@@ -143,6 +146,7 @@ class PPOAgent:
             auxiliary_observations,
             hidden_for_model,
             track_diagnostics=True,
+            use_shapley_estimate=use_shapley_estimate,
         )
         action_mean = outputs["action_mean"]
         dist = self._distribution(action_mean)  # type: ignore[arg-type]
@@ -153,6 +157,9 @@ class PPOAgent:
         indices = torch.arange(num_items, device=self.device)
         minibatch_size = min(int(self.config.train.minibatch_size), num_items)
         totals = _MetricAccumulator()
+        use_shapley_this_update = self._shapley_enabled() and (
+            int(self.update_count) % int(self.config.shapley.every_updates) == 0
+        )
 
         for _ in range(int(self.config.train.update_epochs)):
             perm = indices[torch.randperm(num_items, device=self.device)]
@@ -163,6 +170,12 @@ class PPOAgent:
                     batch.auxiliary_observations[mb_idx],
                     batch.actions[mb_idx],
                     batch.hidden_states[mb_idx],
+                    use_shapley_estimate=use_shapley_this_update,
+                )
+                outputs["_shapley_estimated"] = torch.as_tensor(
+                    float(use_shapley_this_update),
+                    dtype=torch.float32,
+                    device=self.device,
                 )
                 value = outputs["value"]
 
@@ -242,10 +255,12 @@ class PPOAgent:
                         "risk_supervision_loss": float(risk_supervision_loss.detach().cpu().item()),
                         "risk_regularization": float(risk_regularization.detach().cpu().item()),
                         **self._phase2_metrics(outputs, batch, mb_idx),
+                        "shapley_estimated": float(use_shapley_this_update),
                         "shapley_alignment_loss": float(shapley_alignment_loss.detach().cpu().item()),
                         **dropout_metrics,
                     }
                 )
+        self.update_count += 1
         return totals.mean()
 
     def get_diagnostics(self) -> dict[str, float]:
@@ -315,8 +330,9 @@ class PPOAgent:
         track_diagnostics: bool,
         modality_mask: torch.Tensor | None = None,
         contribution_override: torch.Tensor | None = None,
+        use_shapley_estimate: bool = True,
     ) -> dict[str, torch.Tensor | None]:
-        if contribution_override is not None or not self._shapley_enabled():
+        if contribution_override is not None or not self._shapley_enabled() or not bool(use_shapley_estimate):
             return self.model.forward_policy_outputs(
                 observations,
                 auxiliary=auxiliary_observations,
@@ -385,6 +401,9 @@ class PPOAgent:
         if not isinstance(fusion_weights, torch.Tensor):
             raise RuntimeError("fusion_weights missing from model outputs")
         if not self._shapley_enabled():
+            return fusion_weights.new_zeros(())
+        estimated = outputs.get("_shapley_estimated")
+        if isinstance(estimated, torch.Tensor) and float(estimated.detach().cpu().item()) <= 0.0:
             return fusion_weights.new_zeros(())
         if not isinstance(contribution, torch.Tensor):
             raise RuntimeError("contribution missing from model outputs")

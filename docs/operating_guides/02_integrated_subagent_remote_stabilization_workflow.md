@@ -22,7 +22,15 @@ It does not replace them. If details conflict, use the stricter rule.
 
 ## 1. Trigger Phrase
 
-Use this phrase when both workflows should be active:
+For this repository, any request to run a stabilization round activates both workflows by default.
+
+The short default trigger is:
+
+```text
+안정화 라운드 진행해줘
+```
+
+It is equivalent to:
 
 ```text
 다음 라운드 서브에이전트 구조로, Mac-Windows 원격 실행 방식까지 포함해서 안정화 진행해줘.
@@ -31,18 +39,26 @@ Use this phrase when both workflows should be active:
 Equivalent acceptable phrases:
 
 ```text
+라운드 안정화 진행해줘
+안정화 진행해줘
 서브에이전트 구조로 Mac-Windows 연결해서 안정화 진행해줘
 다음 라운드 서브에이전트로 안정화 진행하고 Windows CARLA에서 실행해줘
 라운드 안정화 진행해줘, 서브에이전트 분석과 Windows 원격 실행 방식 둘 다 적용해줘
 ```
 
-If the user only says:
+When the user says:
+
+```text
+안정화 라운드 진행해줘
+```
+
+or:
 
 ```text
 라운드 안정화 진행해줘
 ```
 
-the main agent should still prefer this integrated workflow when the current project context clearly involves Windows CARLA execution, but it must state the assumption in the first progress update.
+the main agent must use this integrated workflow without asking for confirmation. State in the first progress update that the short trigger is being treated as the full sub-agent + Mac-Windows remote stabilization workflow.
 
 ## 2. Role Split
 

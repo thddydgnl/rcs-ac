@@ -94,6 +94,7 @@ TRAINING_LOG_FIELDS: tuple[str, ...] = (
     "shapley_raw_ego",
     "shapley_raw_route",
     "contribution_entropy",
+    "shapley_estimated",
     "dropout_action_l1",
     "dropout_value_l1",
     "dropout_mask_rgb_rate",

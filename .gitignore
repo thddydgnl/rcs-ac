@@ -20,9 +20,15 @@ Thumbs.db
 
 # CARLA/RL run artifacts
 checkpoints/
-logs/
 outputs/
-remote_runs/
+logs/*
+!logs/**/
+!logs/**/*.csv
+remote_runs/*
+!remote_runs/**/
+!remote_runs/summary.json
+!remote_runs/metrics.csv
+!remote_runs/**/*.txt
 
 # Local datasets and generated artifacts
 data/**/*.npz

@@ -38,6 +38,8 @@ BC_EVAL_FIELDS: tuple[str, ...] = (
     "done_reason",
     "route_progress",
     "speed_kmh",
+    "lane_offset",
+    "heading_error",
     "collision",
     "offroad",
     "stuck",
@@ -64,6 +66,9 @@ BC_EVAL_FIELDS: tuple[str, ...] = (
     "lane_compact_feature_l1_mean",
     "compact_visual_actor_input_l1_mean",
     "visual_actor_delta_l1_mean",
+    "visual_zero_action_l1_mean",
+    "visual_zero_steer_delta_mean",
+    "visual_zero_longitudinal_delta_mean",
 )
 
 
@@ -126,6 +131,7 @@ def _build_log_row(
     done: bool,
     info: dict[str, Any],
     diagnostics: dict[str, float],
+    visual_zero_deltas: dict[str, float],
 ) -> dict[str, Any]:
     decoded = decode_stage4_action_v2(action.tolist())
     if previous_action is None:
@@ -146,6 +152,8 @@ def _build_log_row(
         "done_reason": str(info.get("done_reason", "running")),
         "route_progress": float(info.get("route_progress", 0.0)),
         "speed_kmh": float(info.get("speed_kmh", info.get("speed", 0.0))),
+        "lane_offset": float(info.get("lane_offset", 0.0)),
+        "heading_error": float(info.get("heading_error", 0.0)),
         "collision": bool(info.get("collision", False)),
         "offroad": bool(info.get("offroad", False)),
         "stuck": bool(info.get("stuck", False)),
@@ -153,6 +161,9 @@ def _build_log_row(
         "longitudinal_delta_abs": float(longitudinal_delta_abs),
         "action_jitter_l1": float(steer_delta_abs + longitudinal_delta_abs),
         "risk_scalar": _safe_diag(diagnostics, "risk_scalar_mean", "risk_scalar"),
+        "visual_zero_action_l1_mean": float(visual_zero_deltas.get("action_l1", 0.0)),
+        "visual_zero_steer_delta_mean": float(visual_zero_deltas.get("steer", 0.0)),
+        "visual_zero_longitudinal_delta_mean": float(visual_zero_deltas.get("longitudinal", 0.0)),
     }
     for modality in ("rgb", "lidar", "ego", "route"):
         row[f"fusion_{modality}"] = _safe_diag(
@@ -218,6 +229,9 @@ def _build_summary(
     mean_steer_jitter = _mean(rows, "steer_delta_abs")
     mean_longitudinal_jitter = _mean(rows, "longitudinal_delta_abs")
     mean_action_jitter_l1 = _mean(rows, "action_jitter_l1")
+    mean_visual_zero_action_l1 = _mean(rows, "visual_zero_action_l1_mean")
+    mean_visual_zero_steer_delta = _mean(rows, "visual_zero_steer_delta_mean")
+    mean_visual_zero_longitudinal_delta = _mean(rows, "visual_zero_longitudinal_delta_mean")
 
     pass_reasons: list[str] = []
     fail_reasons: list[str] = []
@@ -280,6 +294,9 @@ def _build_summary(
         "mean_steer_jitter": float(mean_steer_jitter),
         "mean_longitudinal_jitter": float(mean_longitudinal_jitter),
         "mean_action_jitter_l1": float(mean_action_jitter_l1),
+        "mean_visual_zero_action_l1": float(mean_visual_zero_action_l1),
+        "mean_visual_zero_steer_delta": float(mean_visual_zero_steer_delta),
+        "mean_visual_zero_longitudinal_delta": float(mean_visual_zero_longitudinal_delta),
         "done_reason_counts": dict(done_reasons),
         "pass_status": pass_status,
         "pass_reasons": pass_reasons,
@@ -354,6 +371,23 @@ def main() -> int:
                     if not torch.isfinite(action_mean).all():
                         raise RuntimeError("BC policy produced non-finite action_mean.")
                     action_t = clamp_action_tensor(action_mean[0])
+                    zero_outputs = model.forward_policy_outputs(
+                        obs_t,
+                        auxiliary=aux_t,
+                        hidden_state=hidden_state,
+                        track_diagnostics=False,
+                        zero_rgb_perception_actor_features=True,
+                    )
+                    zero_action_mean = zero_outputs["action_mean"]
+                    if not isinstance(zero_action_mean, torch.Tensor):
+                        raise RuntimeError("Model zero-visual output action_mean is missing.")
+                    zero_action_t = clamp_action_tensor(zero_action_mean[0])
+                    visual_zero_diff = (action_t - zero_action_t).detach().abs().cpu().numpy().astype(np.float32)
+                    visual_zero_deltas = {
+                        "steer": float(visual_zero_diff[0]),
+                        "longitudinal": float(visual_zero_diff[1]),
+                        "action_l1": float(visual_zero_diff.sum()),
+                    }
                     next_hidden = outputs["next_hidden_state"]
                     hidden_state = next_hidden.detach() if isinstance(next_hidden, torch.Tensor) else None
                 action = action_t.detach().cpu().numpy().astype(np.float32)
@@ -374,6 +408,7 @@ def main() -> int:
                     done=done,
                     info=info,
                     diagnostics=diagnostics,
+                    visual_zero_deltas=visual_zero_deltas,
                 )
                 writer.writerow(row)
                 handle.flush()

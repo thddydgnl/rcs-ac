@@ -6,6 +6,20 @@ Use this folder for stable process rules, machine split rules, remote execution 
 
 ## Required Every Round
 
+Default trigger:
+
+```text
+안정화 라운드 진행해줘
+```
+
+In this repository, that short request means:
+
+```text
+다음 라운드 서브에이전트 구조로, Mac-Windows 원격 실행 방식까지 포함해서 안정화 진행해줘.
+```
+
+Do not ask for confirmation before applying the integrated workflow.
+
 1. `00_agent_workflow_rules.md`
    - Defines the stabilization agent workflow, Experiment Brief barrier, sub-agent roles, PASS/WARN/FAIL gates, and reporting expectations.
 

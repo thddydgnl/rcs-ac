@@ -295,10 +295,13 @@ class SequenceExpertDataset(Dataset[dict[str, torch.Tensor]]):
         include_bad_transitions: bool = True,
     ) -> None:
         arrays = load_expert_npz(path)
+        source_indices = np.arange(int(arrays["obs_flat"].shape[0]), dtype=np.int64)
         if not include_bad_transitions:
             keep = ~arrays["bad_transition_mask"].astype(np.bool_)
             arrays = {key: value[keep] if value.shape[:1] == keep.shape else value for key, value in arrays.items()}
+            source_indices = source_indices[keep]
         self.arrays = arrays
+        self.source_indices = source_indices
         self.path = Path(path)
         self.split = split
         self.sequence_length = int(sequence_length)
@@ -359,6 +362,12 @@ class SequenceExpertDataset(Dataset[dict[str, torch.Tensor]]):
             row = start + step
             if row >= n or int(self.arrays["episode_id"][row]) != episode_id:
                 break
+            if step > 0:
+                previous_row = row - 1
+                source_gap = int(self.source_indices[row]) - int(self.source_indices[previous_row])
+                step_gap = int(self.arrays["step_in_episode"][row]) - int(self.arrays["step_in_episode"][previous_row])
+                if source_gap != 1 or step_gap != 1:
+                    break
             obs[step] = self.arrays["obs_flat"][row].astype(np.float32, copy=False)
             auxiliary[step] = self.arrays["auxiliary"][row].astype(np.float32, copy=False)
             expert_action[step] = self.arrays["expert_action"][row].astype(np.float32, copy=False)

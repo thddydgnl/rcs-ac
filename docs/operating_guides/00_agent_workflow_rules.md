@@ -12,19 +12,36 @@ The trigger phrase is:
 서브 에이전트 구조로 안정화 진행해줘
 ```
 
+Important default:
+
+```text
+안정화 라운드 진행해줘
+```
+
+This short request is also a full stabilization trigger. In this project, it must be interpreted as:
+
+```text
+다음 라운드 서브에이전트 구조로, Mac-Windows 원격 실행 방식까지 포함해서 안정화 진행해줘.
+```
+
 Canonical trigger phrases:
 
 ```text
+안정화 라운드 진행해줘
+라운드 안정화 진행해줘
 서브에이전트로 안정화 진행해줘
 서브에이전트 구조로 안정화 진행해줘
 다음 라운드 서브 에이전트로 안정화 진행해줘
 ```
 
 When any trigger phrase is used, the stabilization round should be executed with a main-agent orchestration structure and specialized sub-agents.
+For this repository, the short stabilization trigger also implies the Mac-Windows remote execution workflow in `02_integrated_subagent_remote_stabilization_workflow.md`.
 
 Correct trigger phrases, if the older Korean text above appears corrupted by encoding:
 
 ```text
+안정화 라운드 진행해줘
+라운드 안정화 진행해줘
 서브에이전트로 안정화 진행해줘
 서브에이전트 구조로 안정화 진행해줘
 다음 라운드 서브 에이전트로 안정화 진행해줘
@@ -2101,13 +2118,31 @@ try_again
 When the user says:
 
 ```text
+안정화 라운드 진행해줘
+```
+
+or:
+
+```text
+라운드 안정화 진행해줘
+```
+
+the assistant must treat it as the integrated stabilization command:
+
+```text
+다음 라운드 서브에이전트 구조로, Mac-Windows 원격 실행 방식까지 포함해서 안정화 진행해줘.
+```
+
+When the user says:
+
+```text
 서브 에이전트 구조로 안정화 진행해줘
 ```
 
 The assistant should interpret it as:
 
 ```text
-1. Use this document as the workflow source.
+1. Use this document and `02_integrated_subagent_remote_stabilization_workflow.md` as the workflow source.
 2. Identify the latest relevant logs/checkpoints.
 3. Spawn Log Analyst, Code Auditor, Mechanism Verifier, Safety Regression Analyst, and Hardcoding / Privileged Controller Auditor if available.
 4. Add Imitation/Data Auditor when BC, expert data, recovery datasets, or target relabeling are involved.

@@ -46,6 +46,9 @@ BC_LOG_FIELDS: tuple[str, ...] = (
     "aux_road_mask_positive_ratio",
     "aux_lane_edge_positive_ratio",
     "aux_mask_available_rate",
+    "sequence_valid_rate",
+    "sequence_mask_available_valid_rate",
+    "sequence_perception_logits_available",
     "policy_std",
     "fusion_rgb",
     "fusion_lidar",
@@ -200,6 +203,61 @@ def _compute_frame_perception_losses(
     return result
 
 
+def _compute_sequence_perception_losses(
+    *,
+    outputs: dict[str, torch.Tensor | None],
+    batch: dict[str, torch.Tensor],
+    valid_mask: torch.Tensor,
+    perception_aux_loss_weight: float,
+    road_mask_weight: float,
+    lane_edge_weight: float,
+    lane_edge_pos_weight: float,
+) -> dict[str, torch.Tensor]:
+    action_mean = outputs.get("action_mean_sequence")
+    if not isinstance(action_mean, torch.Tensor):
+        fallback = outputs.get("action_mean")
+        if not isinstance(fallback, torch.Tensor):
+            raise RuntimeError("Model sequence output action_mean is missing.")
+        return _zero_perception_losses(fallback)
+    if float(perception_aux_loss_weight) <= 0.0:
+        return _zero_perception_losses(action_mean)
+    pred_road = outputs.get("pred_road_mask_logits_sequence")
+    pred_lane = outputs.get("pred_lane_edge_mask_logits_sequence")
+    if not isinstance(pred_road, torch.Tensor) or not isinstance(pred_lane, torch.Tensor):
+        result = _zero_perception_losses(action_mean)
+        result["sequence_valid_rate"] = valid_mask.to(device=action_mean.device, dtype=action_mean.dtype).mean()
+        result["sequence_mask_available_valid_rate"] = action_mean.new_zeros(())
+        result["sequence_perception_logits_available"] = action_mean.new_zeros(())
+        return result
+    road_target = batch.get("aux_road_mask_target")
+    lane_target = batch.get("aux_lane_edge_mask_target")
+    if lane_target is None:
+        lane_target = batch.get("aux_lane_edge_target")
+    available = batch.get("aux_mask_targets_available")
+    if road_target is None or lane_target is None or available is None:
+        return _zero_perception_losses(action_mean)
+    batch_size, sequence_length = int(pred_road.shape[0]), int(pred_road.shape[1])
+    flat_valid = valid_mask.to(device=pred_road.device, dtype=pred_road.dtype).reshape(batch_size * sequence_length)
+    flat_available = available.to(device=pred_road.device, dtype=pred_road.dtype).reshape(batch_size * sequence_length)
+    dense_loss, metrics = compute_dense_perception_aux_loss(
+        pred_road.reshape(batch_size * sequence_length, *pred_road.shape[2:]),
+        road_target.to(device=pred_road.device, dtype=pred_road.dtype).reshape(batch_size * sequence_length, *pred_road.shape[2:]),
+        pred_lane.reshape(batch_size * sequence_length, *pred_lane.shape[2:]),
+        lane_target.to(device=pred_lane.device, dtype=pred_lane.dtype).reshape(batch_size * sequence_length, *pred_lane.shape[2:]),
+        flat_available * flat_valid,
+        road_mask_weight=road_mask_weight,
+        lane_edge_weight=lane_edge_weight,
+        lane_edge_pos_weight=lane_edge_pos_weight,
+    )
+    result = {key: action_mean.new_tensor(float(value)) for key, value in metrics.items()}
+    result["perception_aux_loss"] = dense_loss
+    result["sequence_valid_rate"] = flat_valid.mean()
+    valid_count = flat_valid.sum().clamp_min(1.0)
+    result["sequence_mask_available_valid_rate"] = (flat_available * flat_valid).sum() / valid_count
+    result["sequence_perception_logits_available"] = action_mean.new_ones(())
+    return result
+
+
 def _compute_sequence_losses(
     action_mean: torch.Tensor,
     expert_action: torch.Tensor,
@@ -253,6 +311,8 @@ def _forward_sequence_outputs(
         raise ValueError(f"sequence obs must have shape [B, L, D], got {tuple(obs.shape)}")
     hidden: torch.Tensor | None = None
     actions: list[torch.Tensor] = []
+    road_logits: list[torch.Tensor] = []
+    lane_logits: list[torch.Tensor] = []
     last_outputs: dict[str, torch.Tensor | None] | None = None
     sequence_length = int(obs.shape[1])
     for step in range(sequence_length):
@@ -267,12 +327,23 @@ def _forward_sequence_outputs(
         if not isinstance(action_mean, torch.Tensor):
             raise RuntimeError("Model output action_mean is missing.")
         actions.append(action_mean)
+        pred_road = outputs.get("pred_road_mask_logits")
+        pred_lane = outputs.get("pred_lane_edge_mask_logits")
+        if isinstance(pred_road, torch.Tensor) and isinstance(pred_lane, torch.Tensor):
+            road_logits.append(pred_road)
+            lane_logits.append(pred_lane)
         next_hidden = outputs["next_hidden_state"]
         hidden = next_hidden if isinstance(next_hidden, torch.Tensor) else None
         last_outputs = outputs
     if last_outputs is None:
         raise RuntimeError("Empty sequence batch.")
-    return torch.stack(actions, dim=1), last_outputs
+    action_sequence = torch.stack(actions, dim=1)
+    last_outputs = dict(last_outputs)
+    last_outputs["action_mean_sequence"] = action_sequence
+    if len(road_logits) == sequence_length and len(lane_logits) == sequence_length:
+        last_outputs["pred_road_mask_logits_sequence"] = torch.stack(road_logits, dim=1)
+        last_outputs["pred_lane_edge_mask_logits_sequence"] = torch.stack(lane_logits, dim=1)
+    return action_sequence, last_outputs
 
 
 def _metric_row(
@@ -304,6 +375,9 @@ def _metric_row(
         "risk_scalar": float(risk_scalar.detach().mean().cpu().item()),
     }
     for key in PERCEPTION_AUX_METRIC_KEYS:
+        value = losses.get(key)
+        row[key] = 0.0 if value is None else float(value.detach().cpu().item())
+    for key in ("sequence_valid_rate", "sequence_mask_available_valid_rate", "sequence_perception_logits_available"):
         value = losses.get(key)
         row[key] = 0.0 if value is None else float(value.detach().cpu().item())
     for index, key in enumerate(("rgb", "lidar", "ego", "route")):
@@ -358,6 +432,17 @@ def _evaluate(
                     batch["valid_mask"],
                     steer_loss_weight=steer_loss_weight,
                     longitudinal_loss_weight=longitudinal_loss_weight,
+                )
+                losses.update(
+                    _compute_sequence_perception_losses(
+                        outputs=outputs,
+                        batch=batch,
+                        valid_mask=batch["valid_mask"],
+                        perception_aux_loss_weight=perception_aux_loss_weight,
+                        road_mask_weight=road_mask_weight,
+                        lane_edge_weight=lane_edge_weight,
+                        lane_edge_pos_weight=lane_edge_pos_weight,
+                    )
                 )
             else:
                 auxiliary = batch["auxiliary"] if use_auxiliary else None
@@ -617,6 +702,17 @@ def main() -> int:
                         action_smooth_loss_weight=action_smooth_loss_weight,
                         steer_loss_weight=steer_loss_weight,
                         longitudinal_loss_weight=longitudinal_loss_weight,
+                    )
+                    losses.update(
+                        _compute_sequence_perception_losses(
+                            outputs=outputs,
+                            batch=batch,
+                            valid_mask=batch["valid_mask"],
+                            perception_aux_loss_weight=perception_aux_loss_weight,
+                            road_mask_weight=road_mask_weight,
+                            lane_edge_weight=lane_edge_weight,
+                            lane_edge_pos_weight=lane_edge_pos_weight,
+                        )
                     )
                 else:
                     auxiliary = batch["auxiliary"] if use_auxiliary else None
