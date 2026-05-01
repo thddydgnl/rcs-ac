@@ -17,6 +17,14 @@ import numpy as np
 from rcs_ac_first.data.expert_dataset import load_expert_npz, save_expert_npz
 from rcs_ac_first.scripts.train import _project_path
 
+OPTIONAL_FLOAT_KEYS: tuple[str, ...] = (
+    "policy_action_steer",
+    "policy_action_longitudinal",
+    "target_corrected_steer",
+    "target_corrective_delta",
+    "target_corrective_delta_available",
+)
+
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Build a mixed expert NPZ from existing expert datasets.")
@@ -89,6 +97,11 @@ def _concat_parts(parts: list[dict[str, np.ndarray]], *, shuffle_output: bool, s
         "step_in_episode",
         "bad_transition_mask",
     }
+    for part in parts:
+        n = int(part["obs_flat"].shape[0])
+        for key in OPTIONAL_FLOAT_KEYS:
+            if key not in part:
+                part[key] = np.zeros((n,), dtype=np.float32)
     common_keys = set(parts[0])
     for part in parts[1:]:
         common_keys &= set(part)

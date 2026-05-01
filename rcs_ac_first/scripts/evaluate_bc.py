@@ -64,6 +64,9 @@ BC_EVAL_FIELDS: tuple[str, ...] = (
     "compact_visual_feature_l1_mean",
     "road_compact_feature_l1_mean",
     "lane_compact_feature_l1_mean",
+    "visual_road_x_mean",
+    "visual_lane_x_mean",
+    "visual_lane_center_error_mean",
     "compact_visual_actor_input_l1_mean",
     "visual_actor_delta_l1_mean",
     "visual_zero_action_l1_mean",
@@ -73,6 +76,7 @@ BC_EVAL_FIELDS: tuple[str, ...] = (
     "failure_window_active",
     "corrective_need_active",
     "visual_zero_steer_share",
+    "visual_zero_signed_steer_delta",
     "visual_zero_corrective_sign",
     "visual_zero_corrective_steer_delta",
 )
@@ -162,7 +166,7 @@ def _build_log_row(
     corrective_need_active = lane_risk_active and failure_window_active
     visual_zero_steer_share = visual_zero_steer_delta / max(visual_zero_action_l1, 1.0e-6)
     signed_steer_delta = float(visual_zero_deltas.get("signed_steer", 0.0))
-    corrective_sign = bool(abs(lane_offset) >= 1.8 and signed_steer_delta * (-lane_offset) > 0.0)
+    corrective_sign = bool(lane_risk_active and signed_steer_delta * (-lane_offset) > 0.0)
     corrective_steer_delta = visual_zero_steer_delta if corrective_sign else 0.0
     row: dict[str, Any] = {
         "step": int(step),
@@ -192,6 +196,7 @@ def _build_log_row(
         "failure_window_active": bool(failure_window_active),
         "corrective_need_active": bool(corrective_need_active),
         "visual_zero_steer_share": float(visual_zero_steer_share),
+        "visual_zero_signed_steer_delta": float(signed_steer_delta),
         "visual_zero_corrective_sign": bool(corrective_sign),
         "visual_zero_corrective_steer_delta": float(corrective_steer_delta),
     }
@@ -217,6 +222,9 @@ def _build_log_row(
         "compact_visual_feature_l1_mean",
         "road_compact_feature_l1_mean",
         "lane_compact_feature_l1_mean",
+        "visual_road_x_mean",
+        "visual_lane_x_mean",
+        "visual_lane_center_error_mean",
         "compact_visual_actor_input_l1_mean",
         "visual_actor_delta_l1_mean",
     ):

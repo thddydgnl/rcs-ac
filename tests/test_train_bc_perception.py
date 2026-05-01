@@ -1,6 +1,7 @@
 import torch
 
 from rcs_ac_first.scripts.train_bc import (
+    _compute_corrective_delta_losses,
     _compute_frame_perception_losses,
     _compute_sequence_perception_losses,
     _compute_visual_zero_losses,
@@ -140,3 +141,22 @@ def test_visual_zero_corrective_loss_is_zero_without_masked_rows() -> None:
     assert torch.isclose(losses["visual_zero_corrective_mask_rate"], torch.tensor(0.0))
     assert torch.isclose(losses["visual_zero_corrective_steer_delta"], torch.tensor(0.0))
     assert torch.isclose(losses["visual_zero_corrective_sign_loss"], torch.tensor(0.0))
+
+
+def test_corrective_delta_loss_matches_policy_and_visual_delta_targets() -> None:
+    action_mean = torch.tensor([[0.20, 0.0], [-0.10, 0.0], [0.30, 0.0]])
+    zero_action_mean = torch.tensor([[0.05, 0.0], [0.00, 0.0], [0.10, 0.0]])
+    batch = {
+        "policy_action_steer": torch.tensor([0.00, -0.20, 0.10]),
+        "target_corrective_delta": torch.tensor([0.20, 0.10, 0.20]),
+        "target_corrective_delta_available": torch.tensor([1.0, 1.0, 0.0]),
+    }
+
+    losses = _compute_corrective_delta_losses(action_mean, zero_action_mean, batch)
+
+    assert torch.isclose(losses["target_corrective_delta_loss"], torch.tensor(0.0))
+    assert torch.isclose(losses["target_corrective_delta_l1"], torch.tensor(0.0))
+    assert torch.isclose(losses["target_corrective_delta_sign_rate"], torch.tensor(1.0))
+    assert torch.isclose(losses["visual_zero_target_delta_loss"], torch.tensor(0.02125))
+    assert torch.isclose(losses["visual_zero_target_delta_sign_rate"], torch.tensor(0.5))
+    assert torch.isclose(losses["target_corrective_delta_mask_rate"], torch.tensor(2.0 / 3.0))

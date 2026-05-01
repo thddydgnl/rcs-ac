@@ -420,6 +420,9 @@ class RCSACFirstModel(nn.Module):
             "compact_visual_feature_l1_mean": 0.0,
             "road_compact_feature_l1_mean": 0.0,
             "lane_compact_feature_l1_mean": 0.0,
+            "visual_road_x_mean": 0.0,
+            "visual_lane_x_mean": 0.0,
+            "visual_lane_center_error_mean": 0.0,
             "compact_visual_actor_input_l1_mean": 0.0,
             "visual_actor_delta_l1_mean": 0.0,
             "recurrent_hidden_l1_mean": 0.0,
@@ -599,6 +602,11 @@ class RCSACFirstModel(nn.Module):
             lane_raw = perception_actor_raw_features[:, [4, 5, 6, 7, 8, 9, 11, 13]]
             diagnostics["road_compact_feature_l1_mean"] = float(road_raw.detach().abs().mean().cpu().item())
             diagnostics["lane_compact_feature_l1_mean"] = float(lane_raw.detach().abs().mean().cpu().item())
+            road_x = perception_actor_raw_features[:, 10]
+            lane_x = perception_actor_raw_features[:, 11]
+            diagnostics["visual_road_x_mean"] = float(road_x.detach().mean().cpu().item())
+            diagnostics["visual_lane_x_mean"] = float(lane_x.detach().mean().cpu().item())
+            diagnostics["visual_lane_center_error_mean"] = float((lane_x - road_x).detach().mean().cpu().item())
         diagnostics["compact_visual_actor_input_l1_mean"] = float(
             actor_input.detach().abs().mean().cpu().item()
         )

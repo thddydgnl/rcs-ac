@@ -17,6 +17,14 @@ import numpy as np
 from rcs_ac_first.data.expert_dataset import load_expert_npz, save_expert_npz
 from rcs_ac_first.scripts.train import _project_path
 
+OPTIONAL_FLOAT_KEYS: tuple[str, ...] = (
+    "policy_action_steer",
+    "policy_action_longitudinal",
+    "target_corrected_steer",
+    "target_corrective_delta",
+    "target_corrective_delta_available",
+)
+
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Combine compatible expert/recovery .npz datasets.")
@@ -48,6 +56,11 @@ def _reindex_episode_ids(arrays_list: list[dict[str, np.ndarray]]) -> None:
 def _combine(inputs: list[Path]) -> dict[str, np.ndarray]:
     arrays_list = [load_expert_npz(path) for path in inputs]
     _reindex_episode_ids(arrays_list)
+    for arrays in arrays_list:
+        n = int(arrays["obs_flat"].shape[0])
+        for key in OPTIONAL_FLOAT_KEYS:
+            if key not in arrays:
+                arrays[key] = np.zeros((n,), dtype=np.float32)
     common_keys = set(arrays_list[0].keys())
     for arrays in arrays_list[1:]:
         common_keys &= set(arrays.keys())

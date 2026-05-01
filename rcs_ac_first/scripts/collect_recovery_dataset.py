@@ -154,6 +154,8 @@ def main() -> int:
         "policy_action_steer": [],
         "policy_action_longitudinal": [],
         "target_corrected_steer": [],
+        "target_corrective_delta": [],
+        "target_corrective_delta_available": [],
         "aux_road_mask_target": [],
         "aux_lane_edge_target": [],
         "aux_mask_targets_available": [],
@@ -255,6 +257,8 @@ def main() -> int:
                     "policy_action_steer",
                     "policy_action_longitudinal",
                     "target_corrected_steer",
+                    "target_corrective_delta",
+                    "target_corrective_delta_available",
                 ):
                     if key == "done_reason":
                         _append(arrays, key, str(info.get("done_reason", "running")))
@@ -264,6 +268,10 @@ def main() -> int:
                         _append(arrays, key, float(policy_action.get("longitudinal", action[1])))
                     elif key == "target_corrected_steer":
                         _append(arrays, key, float(target_action[0]))
+                    elif key == "target_corrective_delta":
+                        _append(arrays, key, float(target_action[0]) - float(policy_action.get("steer", action[0])))
+                    elif key == "target_corrective_delta_available":
+                        _append(arrays, key, 1.0)
                     elif key in {
                         "junction_branch_choice_active",
                         "lateral_recovery_branch_active",
@@ -321,6 +329,8 @@ def main() -> int:
         "policy_action_steer": np.asarray(arrays["policy_action_steer"], dtype=np.float32),
         "policy_action_longitudinal": np.asarray(arrays["policy_action_longitudinal"], dtype=np.float32),
         "target_corrected_steer": np.asarray(arrays["target_corrected_steer"], dtype=np.float32),
+        "target_corrective_delta": np.asarray(arrays["target_corrective_delta"], dtype=np.float32),
+        "target_corrective_delta_available": np.asarray(arrays["target_corrective_delta_available"], dtype=np.float32),
         "aux_road_mask_target": np.stack(arrays["aux_road_mask_target"]).astype(np.float32, copy=False),
         "aux_lane_edge_target": np.stack(arrays["aux_lane_edge_target"]).astype(np.float32, copy=False),
         "aux_mask_targets_available": np.asarray(arrays["aux_mask_targets_available"], dtype=np.float32),
@@ -340,6 +350,11 @@ def main() -> int:
         "accept_lateral_branch_only": bool(args.accept_lateral_branch_only),
         "require_turn_boost": bool(args.require_turn_boost),
         "require_speed_gate_active": bool(args.require_speed_gate_active),
+        "target_corrective_delta_mean": float(np.mean(stacked["target_corrective_delta"])),
+        "target_corrective_delta_abs_mean": float(np.mean(np.abs(stacked["target_corrective_delta"]))),
+        "target_corrective_delta_sign_rate": float(
+            np.mean(stacked["target_corrective_delta"] * (-stacked["lane_offset"]) > 0.0)
+        ),
     }
     summary_path = output_path.with_suffix(".summary.json")
     summary_path.write_text(json.dumps(summary.to_dict() | extra, indent=2), encoding="utf-8")
