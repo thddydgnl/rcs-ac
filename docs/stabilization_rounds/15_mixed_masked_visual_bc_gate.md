@@ -193,6 +193,19 @@ Pulled logs:
 /Users/song-yonghwi/code/windows_results/rcs-ac-first/experiments/rgb_perception_actor_features_v2_masked_mix_round15
 ```
 
+Operational note:
+
+```text
+After the round result was already written and pulled, Windows showed a CARLA/Unreal fatal error dialog:
+Fatal error! Crash in runnable thread TaskGraphThreadNP 4
+
+Remote checks still showed CarlaUE4-Win64-Shipping alive and port 2000 open, but the crash dialog could contaminate the next run.
+CARLA was force-stopped and restarted through scripts/windows/ensure_carla_ready.ps1.
+Final post-crash guard result: CARLA_READY=True.
+
+This is classified as a post-result infrastructure event, not a model failure for Round 15.
+```
+
 ## Judgment
 
 Status: **WARN / do not run PPO 2048 yet**.
