@@ -69,6 +69,7 @@ def test_visual_zero_loss_uses_action_delta_sum_and_margin() -> None:
     assert torch.isclose(losses["visual_zero_steer_delta"], torch.tensor(0.125))
     assert torch.isclose(losses["visual_zero_longitudinal_delta"], torch.tensor(0.20))
     assert torch.isclose(losses["visual_zero_margin_loss"], torch.tensor(0.075))
+    assert torch.isclose(losses["visual_zero_steer_margin_loss"], torch.tensor(0.0))
 
 
 def test_visual_zero_sequence_loss_respects_valid_mask() -> None:
@@ -80,6 +81,7 @@ def test_visual_zero_sequence_loss_respects_valid_mask() -> None:
         action_mean,
         zero_action_mean,
         visual_zero_margin=0.30,
+        visual_zero_steer_margin=0.20,
         valid_mask=valid_mask,
     )
 
@@ -87,3 +89,4 @@ def test_visual_zero_sequence_loss_respects_valid_mask() -> None:
     assert torch.isclose(losses["visual_zero_steer_delta"], torch.tensor(0.10))
     assert torch.isclose(losses["visual_zero_longitudinal_delta"], torch.tensor(0.10))
     assert torch.isclose(losses["visual_zero_margin_loss"], torch.tensor(0.10))
+    assert torch.isclose(losses["visual_zero_steer_margin_loss"], torch.tensor(0.10))

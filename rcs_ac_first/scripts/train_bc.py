@@ -40,6 +40,7 @@ BC_LOG_FIELDS: tuple[str, ...] = (
     "visual_zero_steer_delta",
     "visual_zero_longitudinal_delta",
     "visual_zero_margin_loss",
+    "visual_zero_steer_margin_loss",
     "perception_aux_loss",
     "aux_road_mask_loss",
     "aux_lane_edge_mask_loss",
@@ -308,6 +309,7 @@ def _compute_visual_zero_losses(
     zero_action_mean: torch.Tensor,
     *,
     visual_zero_margin: float = 0.0,
+    visual_zero_steer_margin: float = 0.0,
     valid_mask: torch.Tensor | None = None,
 ) -> dict[str, torch.Tensor]:
     if action_mean.shape != zero_action_mean.shape:
@@ -328,11 +330,16 @@ def _compute_visual_zero_losses(
         longitudinal_delta = delta[..., 1].mean()
     margin = float(visual_zero_margin)
     margin_loss = F.relu(action_l1.new_tensor(margin) - action_l1) if margin > 0.0 else action_l1.new_zeros(())
+    steer_margin = float(visual_zero_steer_margin)
+    steer_margin_loss = (
+        F.relu(steer_delta.new_tensor(steer_margin) - steer_delta) if steer_margin > 0.0 else steer_delta.new_zeros(())
+    )
     return {
         "visual_zero_action_l1": action_l1,
         "visual_zero_steer_delta": steer_delta,
         "visual_zero_longitudinal_delta": longitudinal_delta,
         "visual_zero_margin_loss": margin_loss,
+        "visual_zero_steer_margin_loss": steer_margin_loss,
     }
 
 
@@ -420,6 +427,9 @@ def _metric_row(
         "visual_zero_margin_loss": float(
             losses.get("visual_zero_margin_loss", fusion.new_zeros(())).detach().cpu().item()
         ),
+        "visual_zero_steer_margin_loss": float(
+            losses.get("visual_zero_steer_margin_loss", fusion.new_zeros(())).detach().cpu().item()
+        ),
         "policy_std": float(model.get_std().detach().mean().cpu().item()),
         "risk_scalar": float(risk_scalar.detach().mean().cpu().item()),
     }
@@ -460,6 +470,7 @@ def _evaluate(
     lane_edge_weight: float,
     lane_edge_pos_weight: float,
     visual_zero_margin: float,
+    visual_zero_steer_margin: float,
 ) -> tuple[dict[str, torch.Tensor], dict[str, torch.Tensor | None]]:
     model.eval()
     totals = {
@@ -471,6 +482,7 @@ def _evaluate(
         "visual_zero_steer_delta": 0.0,
         "visual_zero_longitudinal_delta": 0.0,
         "visual_zero_margin_loss": 0.0,
+        "visual_zero_steer_margin_loss": 0.0,
     }
     totals.update({key: 0.0 for key in PERCEPTION_AUX_METRIC_KEYS})
     count = 0
@@ -515,6 +527,7 @@ def _evaluate(
                         action_mean,
                         zero_action_mean,
                         visual_zero_margin=visual_zero_margin,
+                        visual_zero_steer_margin=visual_zero_steer_margin,
                         valid_mask=batch["valid_mask"],
                     )
                 )
@@ -560,6 +573,7 @@ def _evaluate(
                         action_mean,
                         zero_action_mean,
                         visual_zero_margin=visual_zero_margin,
+                        visual_zero_steer_margin=visual_zero_steer_margin,
                     )
                 )
             batch_size = int(batch["obs"].shape[0])
@@ -699,6 +713,8 @@ def main() -> int:
     perception_aux_loss_weight = float(bc_raw.get("perception_aux_loss_weight", 0.0))
     visual_zero_margin = float(bc_raw.get("visual_zero_margin", 0.0))
     visual_zero_margin_loss_weight = float(bc_raw.get("visual_zero_margin_loss_weight", 0.0))
+    visual_zero_steer_margin = float(bc_raw.get("visual_zero_steer_margin", 0.0))
+    visual_zero_steer_margin_loss_weight = float(bc_raw.get("visual_zero_steer_margin_loss_weight", 0.0))
     road_mask_weight = float(bc_raw.get("road_mask_weight", config.loss.aux_road_mask_loss_weight))
     lane_edge_weight = float(bc_raw.get("lane_edge_weight", config.loss.aux_lane_edge_mask_loss_weight))
     lane_edge_pos_weight = float(bc_raw.get("lane_edge_pos_weight", config.loss.aux_lane_edge_pos_weight))
@@ -819,6 +835,7 @@ def main() -> int:
                             action_mean,
                             zero_action_mean,
                             visual_zero_margin=visual_zero_margin,
+                            visual_zero_steer_margin=visual_zero_steer_margin,
                             valid_mask=batch["valid_mask"],
                         )
                     )
@@ -864,6 +881,7 @@ def main() -> int:
                             action_mean,
                             zero_action_mean,
                             visual_zero_margin=visual_zero_margin,
+                            visual_zero_steer_margin=visual_zero_steer_margin,
                         )
                     )
                 total_loss = losses["bc_loss"] * bc_loss_weight
@@ -871,6 +889,11 @@ def main() -> int:
                 total_loss = (
                     total_loss
                     + losses.get("visual_zero_margin_loss", total_loss.new_zeros(())) * visual_zero_margin_loss_weight
+                )
+                total_loss = (
+                    total_loss
+                    + losses.get("visual_zero_steer_margin_loss", total_loss.new_zeros(()))
+                    * visual_zero_steer_margin_loss_weight
                 )
                 if not torch.isfinite(total_loss):
                     raise RuntimeError(f"Non-finite BC loss at step {global_step}: {float(total_loss.detach().cpu())}")
@@ -904,6 +927,7 @@ def main() -> int:
                 lane_edge_weight=lane_edge_weight,
                 lane_edge_pos_weight=lane_edge_pos_weight,
                 visual_zero_margin=visual_zero_margin,
+                visual_zero_steer_margin=visual_zero_steer_margin,
             )
             last_val_loss = float(val_losses["bc_loss"].detach().cpu().item())
             writer.writerow(

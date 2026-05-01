@@ -43,3 +43,4 @@ docs/operating_guides/02_integrated_subagent_remote_stabilization_workflow.md
 - `14_masked_recovery_visual_pretrain_plan.md`
 - `15_mixed_masked_visual_bc_gate.md`
 - `16_visual_zero_margin_bc_gate.md`
+- `17_drift_window_visual_steer_bc_gate.md`

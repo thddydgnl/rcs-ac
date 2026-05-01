@@ -69,6 +69,12 @@ BC_EVAL_FIELDS: tuple[str, ...] = (
     "visual_zero_action_l1_mean",
     "visual_zero_steer_delta_mean",
     "visual_zero_longitudinal_delta_mean",
+    "lane_risk_active",
+    "failure_window_active",
+    "corrective_need_active",
+    "visual_zero_steer_share",
+    "visual_zero_corrective_sign",
+    "visual_zero_corrective_steer_delta",
 )
 
 
@@ -140,6 +146,18 @@ def _build_log_row(
     else:
         steer_delta_abs = abs(float(action[0]) - float(previous_action[0]))
         longitudinal_delta_abs = abs(float(action[1]) - float(previous_action[1]))
+    route_progress = float(info.get("route_progress", 0.0))
+    lane_offset = float(info.get("lane_offset", 0.0))
+    heading_error = float(info.get("heading_error", 0.0))
+    visual_zero_action_l1 = float(visual_zero_deltas.get("action_l1", 0.0))
+    visual_zero_steer_delta = float(visual_zero_deltas.get("steer", 0.0))
+    lane_risk_active = abs(lane_offset) >= 1.8 or abs(heading_error) >= 8.0
+    failure_window_active = 0.12 <= route_progress <= 0.23
+    corrective_need_active = lane_risk_active and failure_window_active
+    visual_zero_steer_share = visual_zero_steer_delta / max(visual_zero_action_l1, 1.0e-6)
+    signed_steer_delta = float(visual_zero_deltas.get("signed_steer", 0.0))
+    corrective_sign = bool(abs(lane_offset) >= 1.8 and signed_steer_delta * (-lane_offset) > 0.0)
+    corrective_steer_delta = visual_zero_steer_delta if corrective_sign else 0.0
     row: dict[str, Any] = {
         "step": int(step),
         "episode": int(episode),
@@ -150,10 +168,10 @@ def _build_log_row(
         "reward": float(reward),
         "done": bool(done),
         "done_reason": str(info.get("done_reason", "running")),
-        "route_progress": float(info.get("route_progress", 0.0)),
+        "route_progress": route_progress,
         "speed_kmh": float(info.get("speed_kmh", info.get("speed", 0.0))),
-        "lane_offset": float(info.get("lane_offset", 0.0)),
-        "heading_error": float(info.get("heading_error", 0.0)),
+        "lane_offset": lane_offset,
+        "heading_error": heading_error,
         "collision": bool(info.get("collision", False)),
         "offroad": bool(info.get("offroad", False)),
         "stuck": bool(info.get("stuck", False)),
@@ -161,9 +179,15 @@ def _build_log_row(
         "longitudinal_delta_abs": float(longitudinal_delta_abs),
         "action_jitter_l1": float(steer_delta_abs + longitudinal_delta_abs),
         "risk_scalar": _safe_diag(diagnostics, "risk_scalar_mean", "risk_scalar"),
-        "visual_zero_action_l1_mean": float(visual_zero_deltas.get("action_l1", 0.0)),
-        "visual_zero_steer_delta_mean": float(visual_zero_deltas.get("steer", 0.0)),
+        "visual_zero_action_l1_mean": visual_zero_action_l1,
+        "visual_zero_steer_delta_mean": visual_zero_steer_delta,
         "visual_zero_longitudinal_delta_mean": float(visual_zero_deltas.get("longitudinal", 0.0)),
+        "lane_risk_active": bool(lane_risk_active),
+        "failure_window_active": bool(failure_window_active),
+        "corrective_need_active": bool(corrective_need_active),
+        "visual_zero_steer_share": float(visual_zero_steer_share),
+        "visual_zero_corrective_sign": bool(corrective_sign),
+        "visual_zero_corrective_steer_delta": float(corrective_steer_delta),
     }
     for modality in ("rgb", "lidar", "ego", "route"):
         row[f"fusion_{modality}"] = _safe_diag(
@@ -232,6 +256,12 @@ def _build_summary(
     mean_visual_zero_action_l1 = _mean(rows, "visual_zero_action_l1_mean")
     mean_visual_zero_steer_delta = _mean(rows, "visual_zero_steer_delta_mean")
     mean_visual_zero_longitudinal_delta = _mean(rows, "visual_zero_longitudinal_delta_mean")
+    corrective_rows = [row for row in rows if bool(row.get("corrective_need_active", False))]
+    corrective_count = len(corrective_rows)
+    mean_corrective_visual_zero_steer_delta = _mean(corrective_rows, "visual_zero_steer_delta_mean")
+    mean_corrective_visual_zero_steer_share = _mean(corrective_rows, "visual_zero_steer_share")
+    mean_corrective_steer_delta = _mean(corrective_rows, "visual_zero_corrective_steer_delta")
+    corrective_sign_rate = _rate(corrective_rows, "visual_zero_corrective_sign")
 
     pass_reasons: list[str] = []
     fail_reasons: list[str] = []
@@ -297,6 +327,11 @@ def _build_summary(
         "mean_visual_zero_action_l1": float(mean_visual_zero_action_l1),
         "mean_visual_zero_steer_delta": float(mean_visual_zero_steer_delta),
         "mean_visual_zero_longitudinal_delta": float(mean_visual_zero_longitudinal_delta),
+        "corrective_need_count": int(corrective_count),
+        "mean_corrective_visual_zero_steer_delta": float(mean_corrective_visual_zero_steer_delta),
+        "mean_corrective_visual_zero_steer_share": float(mean_corrective_visual_zero_steer_share),
+        "mean_corrective_steer_delta": float(mean_corrective_steer_delta),
+        "corrective_sign_rate": float(corrective_sign_rate),
         "done_reason_counts": dict(done_reasons),
         "pass_status": pass_status,
         "pass_reasons": pass_reasons,
@@ -385,6 +420,7 @@ def main() -> int:
                     visual_zero_diff = (action_t - zero_action_t).detach().abs().cpu().numpy().astype(np.float32)
                     visual_zero_deltas = {
                         "steer": float(visual_zero_diff[0]),
+                        "signed_steer": float((action_t[0] - zero_action_t[0]).detach().cpu().item()),
                         "longitudinal": float(visual_zero_diff[1]),
                         "action_l1": float(visual_zero_diff.sum()),
                     }
