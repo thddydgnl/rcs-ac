@@ -77,6 +77,8 @@ BC_EVAL_FIELDS: tuple[str, ...] = (
     "corrective_need_active",
     "visual_zero_steer_share",
     "visual_zero_signed_steer_delta",
+    "visual_center_corrective_sign",
+    "visual_center_correction_score",
     "visual_zero_corrective_sign",
     "visual_zero_corrective_steer_delta",
 )
@@ -146,6 +148,7 @@ def _build_log_row(
     corrective_route_max: float,
     corrective_abs_lane_offset_min: float,
     corrective_abs_heading_error_min: float,
+    visual_center_error_min: float,
 ) -> dict[str, Any]:
     decoded = decode_stage4_action_v2(action.tolist())
     if previous_action is None:
@@ -166,6 +169,10 @@ def _build_log_row(
     corrective_need_active = lane_risk_active and failure_window_active
     visual_zero_steer_share = visual_zero_steer_delta / max(visual_zero_action_l1, 1.0e-6)
     signed_steer_delta = float(visual_zero_deltas.get("signed_steer", 0.0))
+    visual_center_error = _safe_diag(diagnostics, "visual_lane_center_error_mean")
+    visual_center_active = abs(visual_center_error) >= float(visual_center_error_min)
+    visual_center_corrective_sign = bool(visual_center_active and signed_steer_delta * visual_center_error < 0.0)
+    visual_center_correction_score = float(signed_steer_delta * -visual_center_error)
     corrective_sign = bool(lane_risk_active and signed_steer_delta * (-lane_offset) > 0.0)
     corrective_steer_delta = visual_zero_steer_delta if corrective_sign else 0.0
     row: dict[str, Any] = {
@@ -197,6 +204,8 @@ def _build_log_row(
         "corrective_need_active": bool(corrective_need_active),
         "visual_zero_steer_share": float(visual_zero_steer_share),
         "visual_zero_signed_steer_delta": float(signed_steer_delta),
+        "visual_center_corrective_sign": bool(visual_center_corrective_sign),
+        "visual_center_correction_score": float(visual_center_correction_score),
         "visual_zero_corrective_sign": bool(corrective_sign),
         "visual_zero_corrective_steer_delta": float(corrective_steer_delta),
     }
@@ -277,6 +286,8 @@ def _build_summary(
     mean_corrective_visual_zero_steer_share = _mean(corrective_rows, "visual_zero_steer_share")
     mean_corrective_steer_delta = _mean(corrective_rows, "visual_zero_corrective_steer_delta")
     corrective_sign_rate = _rate(corrective_rows, "visual_zero_corrective_sign")
+    visual_center_correction_rate = _rate(corrective_rows, "visual_center_corrective_sign")
+    mean_visual_center_correction_score = _mean(corrective_rows, "visual_center_correction_score")
     early_offroad_count = sum(
         1 for row in rows if bool(row.get("offroad", False)) and float(row.get("route_progress", 0.0)) < 0.20
     )
@@ -353,6 +364,11 @@ def _build_summary(
         ppo_gate_fail_reasons.append(
             f"corrective_sign_rate {corrective_sign_rate:.6f} < {float(ppo_gate['min_corrective_sign_rate']):.6f}"
         )
+    if visual_center_correction_rate < float(ppo_gate["min_visual_center_correction_rate"]):
+        ppo_gate_fail_reasons.append(
+            "visual_center_correction_rate "
+            f"{visual_center_correction_rate:.6f} < {float(ppo_gate['min_visual_center_correction_rate']):.6f}"
+        )
 
     if not fail_reasons:
         pass_reasons.append("BC clean rollout completed with finite in-range actions and positive route progress")
@@ -389,6 +405,8 @@ def _build_summary(
         "mean_corrective_visual_zero_steer_share": float(mean_corrective_visual_zero_steer_share),
         "mean_corrective_steer_delta": float(mean_corrective_steer_delta),
         "corrective_sign_rate": float(corrective_sign_rate),
+        "visual_center_correction_rate": float(visual_center_correction_rate),
+        "mean_visual_center_correction_score": float(mean_visual_center_correction_score),
         "early_offroad_count": int(early_offroad_count),
         "ppo_gate_status": "PASS" if not ppo_gate_fail_reasons else "BLOCK",
         "ppo_gate_fail_reasons": ppo_gate_fail_reasons,
@@ -410,6 +428,7 @@ def main() -> int:
     corrective_route_max = float(eval_raw.get("corrective_route_max", 0.23))
     corrective_abs_lane_offset_min = float(eval_raw.get("corrective_abs_lane_offset_min", 1.8))
     corrective_abs_heading_error_min = float(eval_raw.get("corrective_abs_heading_error_min", 8.0))
+    visual_center_error_min = float(eval_raw.get("visual_center_error_min", 0.05))
     ppo_gate = {
         "max_offroad": float(eval_raw.get("ppo_gate_max_offroad", 2)),
         "min_max_route": float(eval_raw.get("ppo_gate_min_max_route", 0.230769)),
@@ -422,6 +441,7 @@ def main() -> int:
             eval_raw.get("ppo_gate_min_corrective_visual_zero_steer_delta", 0.004)
         ),
         "min_corrective_sign_rate": float(eval_raw.get("ppo_gate_min_corrective_sign_rate", 0.65)),
+        "min_visual_center_correction_rate": float(eval_raw.get("ppo_gate_min_visual_center_correction_rate", 0.65)),
     }
     device = torch.device(config.train.resolve_device(args.device))
     _set_seed(config.train.seed)
@@ -529,6 +549,7 @@ def main() -> int:
                     corrective_route_max=corrective_route_max,
                     corrective_abs_lane_offset_min=corrective_abs_lane_offset_min,
                     corrective_abs_heading_error_min=corrective_abs_heading_error_min,
+                    visual_center_error_min=visual_center_error_min,
                 )
                 writer.writerow(row)
                 handle.flush()

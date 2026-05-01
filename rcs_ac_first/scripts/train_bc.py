@@ -51,6 +51,12 @@ BC_LOG_FIELDS: tuple[str, ...] = (
     "visual_zero_target_delta_l1",
     "visual_zero_target_delta_sign_rate",
     "target_corrective_delta_mask_rate",
+    "visual_center_corrective_sign_loss",
+    "visual_center_corrective_sign_rate",
+    "visual_center_correction_rate",
+    "visual_center_corrective_mask_rate",
+    "visual_center_error_abs_mean",
+    "visual_center_signed_delta_mean",
     "perception_aux_loss",
     "aux_road_mask_loss",
     "aux_lane_edge_mask_loss",
@@ -465,6 +471,82 @@ def _compute_corrective_delta_losses(
     }
 
 
+def _zero_visual_center_losses(reference: torch.Tensor) -> dict[str, torch.Tensor]:
+    zero = reference.sum() * 0.0
+    return {
+        "visual_center_corrective_sign_loss": zero,
+        "visual_center_corrective_sign_rate": zero,
+        "visual_center_correction_rate": zero,
+        "visual_center_corrective_mask_rate": zero,
+        "visual_center_error_abs_mean": zero,
+        "visual_center_signed_delta_mean": zero,
+    }
+
+
+def _compute_visual_center_corrective_losses(
+    action_mean: torch.Tensor,
+    zero_action_mean: torch.Tensor,
+    outputs: dict[str, torch.Tensor | None],
+    batch: dict[str, torch.Tensor],
+    *,
+    visual_center_error_min: float = 0.0,
+    visual_center_corrective_margin: float = 0.0,
+    valid_mask: torch.Tensor | None = None,
+    sign_epsilon: float = 1.0e-5,
+) -> dict[str, torch.Tensor]:
+    raw_features = outputs.get("rgb_perception_actor_raw_features_sequence")
+    if not isinstance(raw_features, torch.Tensor):
+        raw_features = outputs.get("rgb_perception_actor_raw_features")
+    target_delta = batch.get("target_corrective_delta")
+    available = batch.get("target_corrective_delta_available")
+    if not isinstance(raw_features, torch.Tensor) or target_delta is None or available is None:
+        return _zero_visual_center_losses(action_mean)
+    if int(raw_features.shape[-1]) <= 11:
+        return _zero_visual_center_losses(action_mean)
+    raw_features = raw_features.to(device=action_mean.device, dtype=action_mean.dtype)
+    target_delta = target_delta.to(device=action_mean.device, dtype=action_mean.dtype)
+    mask = available.to(device=action_mean.device, dtype=action_mean.dtype).clamp(0.0, 1.0)
+    if valid_mask is not None:
+        mask = mask * valid_mask.to(device=action_mean.device, dtype=action_mean.dtype).clamp(0.0, 1.0)
+    action_steer = action_mean[..., 0]
+    if tuple(raw_features.shape[:-1]) != tuple(action_steer.shape):
+        raw_features = raw_features.reshape(*action_steer.shape, int(raw_features.shape[-1]))
+    if tuple(target_delta.shape) != tuple(action_steer.shape):
+        target_delta = target_delta.reshape_as(action_steer)
+    if tuple(mask.shape) != tuple(action_steer.shape):
+        mask = mask.reshape_as(action_steer)
+
+    road_x = raw_features[..., 10]
+    lane_x = raw_features[..., 11]
+    visual_center_error = lane_x - road_x
+    target_sign = torch.sign(target_delta)
+    visual_delta = action_steer - zero_action_mean[..., 0]
+    signed_visual_delta = visual_delta * target_sign
+    center_consistent = (-visual_center_error * target_delta) > 0.0
+    sign_active = target_delta.abs() > float(sign_epsilon)
+    center_active = visual_center_error.abs() >= float(visual_center_error_min)
+    corrective_mask = mask * center_consistent.to(action_mean.dtype) * sign_active.to(action_mean.dtype) * center_active.to(action_mean.dtype)
+    denom = corrective_mask.sum().clamp_min(1.0)
+    margin = float(visual_center_corrective_margin)
+    if margin > 0.0:
+        sign_loss_values = F.relu(signed_visual_delta.new_tensor(margin) - signed_visual_delta)
+        sign_loss = (sign_loss_values * corrective_mask).sum() / denom
+    else:
+        sign_loss = signed_visual_delta.new_zeros(())
+    sign_rate = ((signed_visual_delta > 0.0).to(action_mean.dtype) * corrective_mask).sum() / denom
+    correction_rate = ((visual_delta * visual_center_error < 0.0).to(action_mean.dtype) * corrective_mask).sum() / denom
+    error_abs_mean = (visual_center_error.abs() * corrective_mask).sum() / denom
+    signed_delta_mean = (signed_visual_delta * corrective_mask).sum() / denom
+    return {
+        "visual_center_corrective_sign_loss": sign_loss,
+        "visual_center_corrective_sign_rate": sign_rate,
+        "visual_center_correction_rate": correction_rate,
+        "visual_center_corrective_mask_rate": corrective_mask.mean() if corrective_mask.numel() else sign_loss.new_zeros(()),
+        "visual_center_error_abs_mean": error_abs_mean,
+        "visual_center_signed_delta_mean": signed_delta_mean,
+    }
+
+
 def _forward_sequence_outputs(
     model: RCSACFirstModel,
     batch: dict[str, torch.Tensor],
@@ -480,6 +562,7 @@ def _forward_sequence_outputs(
     actions: list[torch.Tensor] = []
     road_logits: list[torch.Tensor] = []
     lane_logits: list[torch.Tensor] = []
+    raw_features: list[torch.Tensor] = []
     last_outputs: dict[str, torch.Tensor | None] | None = None
     sequence_length = int(obs.shape[1])
     for step in range(sequence_length):
@@ -500,6 +583,9 @@ def _forward_sequence_outputs(
         if isinstance(pred_road, torch.Tensor) and isinstance(pred_lane, torch.Tensor):
             road_logits.append(pred_road)
             lane_logits.append(pred_lane)
+        raw = outputs.get("rgb_perception_actor_raw_features")
+        if isinstance(raw, torch.Tensor):
+            raw_features.append(raw)
         next_hidden = outputs["next_hidden_state"]
         hidden = next_hidden if isinstance(next_hidden, torch.Tensor) else None
         last_outputs = outputs
@@ -511,6 +597,8 @@ def _forward_sequence_outputs(
     if len(road_logits) == sequence_length and len(lane_logits) == sequence_length:
         last_outputs["pred_road_mask_logits_sequence"] = torch.stack(road_logits, dim=1)
         last_outputs["pred_lane_edge_mask_logits_sequence"] = torch.stack(lane_logits, dim=1)
+    if len(raw_features) == sequence_length:
+        last_outputs["rgb_perception_actor_raw_features_sequence"] = torch.stack(raw_features, dim=1)
     return action_sequence, last_outputs
 
 
@@ -582,6 +670,24 @@ def _metric_row(
         "target_corrective_delta_mask_rate": float(
             losses.get("target_corrective_delta_mask_rate", fusion.new_zeros(())).detach().cpu().item()
         ),
+        "visual_center_corrective_sign_loss": float(
+            losses.get("visual_center_corrective_sign_loss", fusion.new_zeros(())).detach().cpu().item()
+        ),
+        "visual_center_corrective_sign_rate": float(
+            losses.get("visual_center_corrective_sign_rate", fusion.new_zeros(())).detach().cpu().item()
+        ),
+        "visual_center_correction_rate": float(
+            losses.get("visual_center_correction_rate", fusion.new_zeros(())).detach().cpu().item()
+        ),
+        "visual_center_corrective_mask_rate": float(
+            losses.get("visual_center_corrective_mask_rate", fusion.new_zeros(())).detach().cpu().item()
+        ),
+        "visual_center_error_abs_mean": float(
+            losses.get("visual_center_error_abs_mean", fusion.new_zeros(())).detach().cpu().item()
+        ),
+        "visual_center_signed_delta_mean": float(
+            losses.get("visual_center_signed_delta_mean", fusion.new_zeros(())).detach().cpu().item()
+        ),
         "policy_std": float(model.get_std().detach().mean().cpu().item()),
         "risk_scalar": float(risk_scalar.detach().mean().cpu().item()),
     }
@@ -631,6 +737,8 @@ def _evaluate(
     visual_zero_abs_lane_offset_min: float,
     visual_zero_abs_heading_error_min: float,
     visual_zero_corrective_steer_margin: float,
+    visual_center_error_min: float,
+    visual_center_corrective_margin: float,
 ) -> tuple[dict[str, torch.Tensor], dict[str, torch.Tensor | None]]:
     model.eval()
     totals = {
@@ -653,6 +761,12 @@ def _evaluate(
         "visual_zero_target_delta_l1": 0.0,
         "visual_zero_target_delta_sign_rate": 0.0,
         "target_corrective_delta_mask_rate": 0.0,
+        "visual_center_corrective_sign_loss": 0.0,
+        "visual_center_corrective_sign_rate": 0.0,
+        "visual_center_correction_rate": 0.0,
+        "visual_center_corrective_mask_rate": 0.0,
+        "visual_center_error_abs_mean": 0.0,
+        "visual_center_signed_delta_mean": 0.0,
     }
     totals.update({key: 0.0 for key in PERCEPTION_AUX_METRIC_KEYS})
     count = 0
@@ -717,6 +831,17 @@ def _evaluate(
                         valid_mask=batch.get("valid_mask"),
                     )
                 )
+                losses.update(
+                    _compute_visual_center_corrective_losses(
+                        action_mean,
+                        zero_action_mean,
+                        outputs,
+                        batch,
+                        visual_center_error_min=visual_center_error_min,
+                        visual_center_corrective_margin=visual_center_corrective_margin,
+                        valid_mask=batch.get("valid_mask"),
+                    )
+                )
             else:
                 auxiliary = batch["auxiliary"] if use_auxiliary else None
                 outputs = model.forward_policy_outputs(
@@ -771,6 +896,16 @@ def _evaluate(
                     )
                 )
                 losses.update(_compute_corrective_delta_losses(action_mean, zero_action_mean, batch))
+                losses.update(
+                    _compute_visual_center_corrective_losses(
+                        action_mean,
+                        zero_action_mean,
+                        outputs,
+                        batch,
+                        visual_center_error_min=visual_center_error_min,
+                        visual_center_corrective_margin=visual_center_corrective_margin,
+                    )
+                )
             batch_size = int(batch["obs"].shape[0])
             for key, value in losses.items():
                 if key not in totals:
@@ -918,6 +1053,9 @@ def main() -> int:
     visual_zero_corrective_sign_loss_weight = float(bc_raw.get("visual_zero_corrective_sign_loss_weight", 0.0))
     target_corrective_delta_loss_weight = float(bc_raw.get("target_corrective_delta_loss_weight", 0.0))
     visual_zero_target_delta_loss_weight = float(bc_raw.get("visual_zero_target_delta_loss_weight", 0.0))
+    visual_center_corrective_sign_loss_weight = float(bc_raw.get("visual_center_corrective_sign_loss_weight", 0.0))
+    visual_center_corrective_margin = float(bc_raw.get("visual_center_corrective_margin", 0.0))
+    visual_center_error_min = float(bc_raw.get("visual_center_error_min", 0.0))
     road_mask_weight = float(bc_raw.get("road_mask_weight", config.loss.aux_road_mask_loss_weight))
     lane_edge_weight = float(bc_raw.get("lane_edge_weight", config.loss.aux_lane_edge_mask_loss_weight))
     lane_edge_pos_weight = float(bc_raw.get("lane_edge_pos_weight", config.loss.aux_lane_edge_pos_weight))
@@ -1058,6 +1196,17 @@ def main() -> int:
                             valid_mask=batch.get("valid_mask"),
                         )
                     )
+                    losses.update(
+                        _compute_visual_center_corrective_losses(
+                            action_mean,
+                            zero_action_mean,
+                            outputs,
+                            batch,
+                            visual_center_error_min=visual_center_error_min,
+                            visual_center_corrective_margin=visual_center_corrective_margin,
+                            valid_mask=batch.get("valid_mask"),
+                        )
+                    )
                 else:
                     auxiliary = batch["auxiliary"] if use_auxiliary else None
                     outputs = model.forward_policy_outputs(
@@ -1112,6 +1261,16 @@ def main() -> int:
                         )
                     )
                     losses.update(_compute_corrective_delta_losses(action_mean, zero_action_mean, batch))
+                    losses.update(
+                        _compute_visual_center_corrective_losses(
+                            action_mean,
+                            zero_action_mean,
+                            outputs,
+                            batch,
+                            visual_center_error_min=visual_center_error_min,
+                            visual_center_corrective_margin=visual_center_corrective_margin,
+                        )
+                    )
                 total_loss = losses["bc_loss"] * bc_loss_weight
                 total_loss = total_loss + losses.get("perception_aux_loss", total_loss.new_zeros(())) * perception_aux_loss_weight
                 total_loss = (
@@ -1137,6 +1296,11 @@ def main() -> int:
                     total_loss
                     + losses.get("visual_zero_target_delta_loss", total_loss.new_zeros(()))
                     * visual_zero_target_delta_loss_weight
+                )
+                total_loss = (
+                    total_loss
+                    + losses.get("visual_center_corrective_sign_loss", total_loss.new_zeros(()))
+                    * visual_center_corrective_sign_loss_weight
                 )
                 if not torch.isfinite(total_loss):
                     raise RuntimeError(f"Non-finite BC loss at step {global_step}: {float(total_loss.detach().cpu())}")
@@ -1176,6 +1340,8 @@ def main() -> int:
                 visual_zero_abs_lane_offset_min=visual_zero_abs_lane_offset_min,
                 visual_zero_abs_heading_error_min=visual_zero_abs_heading_error_min,
                 visual_zero_corrective_steer_margin=visual_zero_corrective_steer_margin,
+                visual_center_error_min=visual_center_error_min,
+                visual_center_corrective_margin=visual_center_corrective_margin,
             )
             last_val_loss = float(val_losses["bc_loss"].detach().cpu().item())
             writer.writerow(

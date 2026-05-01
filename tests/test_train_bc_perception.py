@@ -4,6 +4,7 @@ from rcs_ac_first.scripts.train_bc import (
     _compute_corrective_delta_losses,
     _compute_frame_perception_losses,
     _compute_sequence_perception_losses,
+    _compute_visual_center_corrective_losses,
     _compute_visual_zero_losses,
 )
 
@@ -160,3 +161,78 @@ def test_corrective_delta_loss_matches_policy_and_visual_delta_targets() -> None
     assert torch.isclose(losses["visual_zero_target_delta_loss"], torch.tensor(0.02125))
     assert torch.isclose(losses["visual_zero_target_delta_sign_rate"], torch.tensor(0.5))
     assert torch.isclose(losses["target_corrective_delta_mask_rate"], torch.tensor(2.0 / 3.0))
+
+
+def test_visual_center_corrective_loss_aligns_visual_delta_to_target() -> None:
+    action_mean = torch.tensor([[0.20, 0.0], [-0.20, 0.0], [0.10, 0.0]])
+    zero_action_mean = torch.zeros_like(action_mean)
+    outputs = {
+        "rgb_perception_actor_raw_features": torch.tensor(
+            [
+                [0.0] * 10 + [0.0, -0.40, 0.0, 0.0],
+                [0.0] * 10 + [0.0, 0.40, 0.0, 0.0],
+                [0.0] * 10 + [0.0, 0.40, 0.0, 0.0],
+            ],
+            dtype=torch.float32,
+        )
+    }
+    batch = {
+        "target_corrective_delta": torch.tensor([0.20, -0.20, 0.20]),
+        "target_corrective_delta_available": torch.ones((3,), dtype=torch.float32),
+    }
+
+    losses = _compute_visual_center_corrective_losses(
+        action_mean,
+        zero_action_mean,
+        outputs,
+        batch,
+        visual_center_error_min=0.05,
+        visual_center_corrective_margin=0.30,
+    )
+
+    assert torch.isclose(losses["visual_center_corrective_mask_rate"], torch.tensor(2.0 / 3.0))
+    assert torch.isclose(losses["visual_center_corrective_sign_rate"], torch.tensor(1.0))
+    assert torch.isclose(losses["visual_center_correction_rate"], torch.tensor(1.0))
+    assert torch.isclose(losses["visual_center_corrective_sign_loss"], torch.tensor(0.10))
+
+
+def test_visual_center_corrective_loss_respects_sequence_valid_mask() -> None:
+    action_mean = torch.tensor([[[0.20, 0.0], [0.20, 0.0]]])
+    zero_action_mean = torch.zeros_like(action_mean)
+    outputs = {
+        "rgb_perception_actor_raw_features_sequence": torch.tensor(
+            [[[0.0] * 10 + [0.0, -0.40, 0.0, 0.0], [0.0] * 10 + [0.0, -0.40, 0.0, 0.0]]],
+            dtype=torch.float32,
+        )
+    }
+    batch = {
+        "target_corrective_delta": torch.tensor([[0.20, 0.20]]),
+        "target_corrective_delta_available": torch.ones((1, 2), dtype=torch.float32),
+    }
+
+    losses = _compute_visual_center_corrective_losses(
+        action_mean,
+        zero_action_mean,
+        outputs,
+        batch,
+        visual_center_error_min=0.05,
+        visual_center_corrective_margin=0.30,
+        valid_mask=torch.tensor([[1.0, 0.0]], dtype=torch.float32),
+    )
+
+    assert torch.isclose(losses["visual_center_corrective_mask_rate"], torch.tensor(0.5))
+    assert torch.isclose(losses["visual_center_corrective_sign_rate"], torch.tensor(1.0))
+
+
+def test_visual_center_corrective_loss_is_zero_without_raw_features() -> None:
+    action_mean = torch.tensor([[0.20, 0.0]])
+    zero_action_mean = torch.zeros_like(action_mean)
+    batch = {
+        "target_corrective_delta": torch.tensor([0.20]),
+        "target_corrective_delta_available": torch.ones((1,), dtype=torch.float32),
+    }
+
+    losses = _compute_visual_center_corrective_losses(action_mean, zero_action_mean, {}, batch)
+
+    assert torch.isclose(losses["visual_center_corrective_sign_loss"], torch.tensor(0.0))
+    assert torch.isclose(losses["visual_center_corrective_mask_rate"], torch.tensor(0.0))
