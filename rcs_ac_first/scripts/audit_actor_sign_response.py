@@ -100,12 +100,17 @@ def _load_base_tensors(
         sensor_dropout_dim=config.model.sensor_dropout_dim,
     )
     if dataset_path is not None:
-        arrays = load_expert_npz(
-            dataset_path,
-            expected_obs_dim=obs_spec.total_dim,
-            expected_auxiliary_dim=aux_spec.total_dim,
-            expected_action_dim=config.model.action_dim,
-        )
+        arrays = load_expert_npz(dataset_path)
+        if int(arrays["obs_flat"].shape[1]) != int(obs_spec.total_dim):
+            raise ValueError(f"Dataset obs dim {int(arrays['obs_flat'].shape[1])} != config obs dim {obs_spec.total_dim}")
+        if int(arrays["auxiliary"].shape[1]) != int(aux_spec.total_dim):
+            raise ValueError(
+                f"Dataset auxiliary dim {int(arrays['auxiliary'].shape[1])} != config auxiliary dim {aux_spec.total_dim}"
+            )
+        if int(arrays["expert_action"].shape[1]) != int(config.model.action_dim):
+            raise ValueError(
+                f"Dataset action dim {int(arrays['expert_action'].shape[1])} != config action dim {config.model.action_dim}"
+            )
         index = int(np.clip(sample_index, 0, int(arrays["obs_flat"].shape[0]) - 1))
         obs = torch.as_tensor(arrays["obs_flat"][index], dtype=torch.float32, device=device).unsqueeze(0)
         aux = torch.as_tensor(arrays["auxiliary"][index], dtype=torch.float32, device=device).unsqueeze(0)
