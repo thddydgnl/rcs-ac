@@ -369,7 +369,8 @@ def _compute_visual_zero_losses(
             risk_mask = heading_mask if risk_mask is None else (risk_mask | heading_mask)
     if risk_mask is not None:
         corrective_mask = corrective_mask * risk_mask.to(action_mean.dtype)
-    corrective_denom = corrective_mask.sum().clamp_min(1.0)
+    corrective_count = corrective_mask.sum()
+    corrective_denom = corrective_count.clamp_min(1.0)
     signed_steer_delta = action_mean[..., 0] - zero_action_mean[..., 0]
     if lane_tensor is not None:
         desired_sign = -torch.sign(lane_tensor)
@@ -378,11 +379,10 @@ def _compute_visual_zero_losses(
         signed_corrective_delta = signed_steer_delta.abs()
     corrective_steer_delta = (torch.relu(signed_corrective_delta) * corrective_mask).sum() / corrective_denom
     corrective_margin = float(visual_zero_corrective_steer_margin)
-    corrective_sign_loss = (
-        F.relu(corrective_steer_delta.new_tensor(corrective_margin) - corrective_steer_delta)
-        if corrective_margin > 0.0
-        else corrective_steer_delta.new_zeros(())
-    )
+    if corrective_margin > 0.0 and float(corrective_count.detach().cpu().item()) > 0.0:
+        corrective_sign_loss = F.relu(corrective_steer_delta.new_tensor(corrective_margin) - corrective_steer_delta)
+    else:
+        corrective_sign_loss = corrective_steer_delta.new_zeros(())
     corrective_mask_rate = corrective_mask.mean() if corrective_mask.numel() else corrective_steer_delta.new_zeros(())
     return {
         "visual_zero_action_l1": action_l1,
