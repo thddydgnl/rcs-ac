@@ -36,6 +36,10 @@ BC_LOG_FIELDS: tuple[str, ...] = (
     "steer_mse",
     "longitudinal_mse",
     "action_l1",
+    "visual_zero_action_l1",
+    "visual_zero_steer_delta",
+    "visual_zero_longitudinal_delta",
+    "visual_zero_margin_loss",
     "perception_aux_loss",
     "aux_road_mask_loss",
     "aux_lane_edge_mask_loss",
@@ -299,12 +303,46 @@ def _compute_sequence_losses(
     }
 
 
+def _compute_visual_zero_losses(
+    action_mean: torch.Tensor,
+    zero_action_mean: torch.Tensor,
+    *,
+    visual_zero_margin: float = 0.0,
+    valid_mask: torch.Tensor | None = None,
+) -> dict[str, torch.Tensor]:
+    if action_mean.shape != zero_action_mean.shape:
+        raise ValueError(
+            "action_mean and zero_action_mean must have the same shape, "
+            f"got {tuple(action_mean.shape)} and {tuple(zero_action_mean.shape)}"
+        )
+    delta = (action_mean - zero_action_mean).abs()
+    if valid_mask is not None:
+        mask = valid_mask.to(device=action_mean.device, dtype=action_mean.dtype).clamp(0.0, 1.0)
+        denom = mask.sum().clamp_min(1.0)
+        action_l1 = (delta.sum(dim=-1) * mask).sum() / denom
+        steer_delta = (delta[..., 0] * mask).sum() / denom
+        longitudinal_delta = (delta[..., 1] * mask).sum() / denom
+    else:
+        action_l1 = delta.sum(dim=-1).mean()
+        steer_delta = delta[..., 0].mean()
+        longitudinal_delta = delta[..., 1].mean()
+    margin = float(visual_zero_margin)
+    margin_loss = F.relu(action_l1.new_tensor(margin) - action_l1) if margin > 0.0 else action_l1.new_zeros(())
+    return {
+        "visual_zero_action_l1": action_l1,
+        "visual_zero_steer_delta": steer_delta,
+        "visual_zero_longitudinal_delta": longitudinal_delta,
+        "visual_zero_margin_loss": margin_loss,
+    }
+
+
 def _forward_sequence_outputs(
     model: RCSACFirstModel,
     batch: dict[str, torch.Tensor],
     *,
     use_auxiliary: bool,
     track_diagnostics: bool = False,
+    zero_rgb_perception_actor_features: bool = False,
 ) -> tuple[torch.Tensor, dict[str, torch.Tensor | None]]:
     obs = batch["obs"]
     if obs.ndim != 3:
@@ -322,6 +360,7 @@ def _forward_sequence_outputs(
             auxiliary=auxiliary,
             hidden_state=hidden,
             track_diagnostics=track_diagnostics and step == sequence_length - 1,
+            zero_rgb_perception_actor_features=zero_rgb_perception_actor_features,
         )
         action_mean = outputs["action_mean"]
         if not isinstance(action_mean, torch.Tensor):
@@ -371,6 +410,16 @@ def _metric_row(
         "steer_mse": float(losses["steer_mse"].detach().cpu().item()),
         "longitudinal_mse": float(losses["longitudinal_mse"].detach().cpu().item()),
         "action_l1": float(losses["action_l1"].detach().cpu().item()),
+        "visual_zero_action_l1": float(losses.get("visual_zero_action_l1", fusion.new_zeros(())).detach().cpu().item()),
+        "visual_zero_steer_delta": float(
+            losses.get("visual_zero_steer_delta", fusion.new_zeros(())).detach().cpu().item()
+        ),
+        "visual_zero_longitudinal_delta": float(
+            losses.get("visual_zero_longitudinal_delta", fusion.new_zeros(())).detach().cpu().item()
+        ),
+        "visual_zero_margin_loss": float(
+            losses.get("visual_zero_margin_loss", fusion.new_zeros(())).detach().cpu().item()
+        ),
         "policy_std": float(model.get_std().detach().mean().cpu().item()),
         "risk_scalar": float(risk_scalar.detach().mean().cpu().item()),
     }
@@ -410,9 +459,19 @@ def _evaluate(
     road_mask_weight: float,
     lane_edge_weight: float,
     lane_edge_pos_weight: float,
+    visual_zero_margin: float,
 ) -> tuple[dict[str, torch.Tensor], dict[str, torch.Tensor | None]]:
     model.eval()
-    totals = {"bc_loss": 0.0, "steer_mse": 0.0, "longitudinal_mse": 0.0, "action_l1": 0.0}
+    totals = {
+        "bc_loss": 0.0,
+        "steer_mse": 0.0,
+        "longitudinal_mse": 0.0,
+        "action_l1": 0.0,
+        "visual_zero_action_l1": 0.0,
+        "visual_zero_steer_delta": 0.0,
+        "visual_zero_longitudinal_delta": 0.0,
+        "visual_zero_margin_loss": 0.0,
+    }
     totals.update({key: 0.0 for key in PERCEPTION_AUX_METRIC_KEYS})
     count = 0
     last_outputs: dict[str, torch.Tensor | None] | None = None
@@ -444,6 +503,21 @@ def _evaluate(
                         lane_edge_pos_weight=lane_edge_pos_weight,
                     )
                 )
+                zero_action_mean, _ = _forward_sequence_outputs(
+                    model,
+                    batch,
+                    use_auxiliary=use_auxiliary,
+                    track_diagnostics=False,
+                    zero_rgb_perception_actor_features=True,
+                )
+                losses.update(
+                    _compute_visual_zero_losses(
+                        action_mean,
+                        zero_action_mean,
+                        visual_zero_margin=visual_zero_margin,
+                        valid_mask=batch["valid_mask"],
+                    )
+                )
             else:
                 auxiliary = batch["auxiliary"] if use_auxiliary else None
                 outputs = model.forward_policy_outputs(
@@ -469,6 +543,23 @@ def _evaluate(
                         road_mask_weight=road_mask_weight,
                         lane_edge_weight=lane_edge_weight,
                         lane_edge_pos_weight=lane_edge_pos_weight,
+                    )
+                )
+                zero_outputs = model.forward_policy_outputs(
+                    batch["obs"],
+                    auxiliary=auxiliary,
+                    hidden_state=None,
+                    track_diagnostics=False,
+                    zero_rgb_perception_actor_features=True,
+                )
+                zero_action_mean = zero_outputs["action_mean"]
+                if not isinstance(zero_action_mean, torch.Tensor):
+                    raise RuntimeError("Model zero-visual output action_mean is missing.")
+                losses.update(
+                    _compute_visual_zero_losses(
+                        action_mean,
+                        zero_action_mean,
+                        visual_zero_margin=visual_zero_margin,
                     )
                 )
             batch_size = int(batch["obs"].shape[0])
@@ -606,6 +697,8 @@ def main() -> int:
     steer_loss_weight = float(bc_raw.get("steer_loss_weight", 1.0))
     longitudinal_loss_weight = float(bc_raw.get("longitudinal_loss_weight", 1.0))
     perception_aux_loss_weight = float(bc_raw.get("perception_aux_loss_weight", 0.0))
+    visual_zero_margin = float(bc_raw.get("visual_zero_margin", 0.0))
+    visual_zero_margin_loss_weight = float(bc_raw.get("visual_zero_margin_loss_weight", 0.0))
     road_mask_weight = float(bc_raw.get("road_mask_weight", config.loss.aux_road_mask_loss_weight))
     lane_edge_weight = float(bc_raw.get("lane_edge_weight", config.loss.aux_lane_edge_mask_loss_weight))
     lane_edge_pos_weight = float(bc_raw.get("lane_edge_pos_weight", config.loss.aux_lane_edge_pos_weight))
@@ -714,6 +807,21 @@ def main() -> int:
                             lane_edge_pos_weight=lane_edge_pos_weight,
                         )
                     )
+                    zero_action_mean, _ = _forward_sequence_outputs(
+                        model,
+                        batch,
+                        use_auxiliary=use_auxiliary,
+                        track_diagnostics=False,
+                        zero_rgb_perception_actor_features=True,
+                    )
+                    losses.update(
+                        _compute_visual_zero_losses(
+                            action_mean,
+                            zero_action_mean,
+                            visual_zero_margin=visual_zero_margin,
+                            valid_mask=batch["valid_mask"],
+                        )
+                    )
                 else:
                     auxiliary = batch["auxiliary"] if use_auxiliary else None
                     outputs = model.forward_policy_outputs(
@@ -741,8 +849,29 @@ def main() -> int:
                             lane_edge_pos_weight=lane_edge_pos_weight,
                         )
                     )
+                    zero_outputs = model.forward_policy_outputs(
+                        batch["obs"],
+                        auxiliary=auxiliary,
+                        hidden_state=None,
+                        track_diagnostics=False,
+                        zero_rgb_perception_actor_features=True,
+                    )
+                    zero_action_mean = zero_outputs["action_mean"]
+                    if not isinstance(zero_action_mean, torch.Tensor):
+                        raise RuntimeError("Model zero-visual output action_mean is missing.")
+                    losses.update(
+                        _compute_visual_zero_losses(
+                            action_mean,
+                            zero_action_mean,
+                            visual_zero_margin=visual_zero_margin,
+                        )
+                    )
                 total_loss = losses["bc_loss"] * bc_loss_weight
                 total_loss = total_loss + losses.get("perception_aux_loss", total_loss.new_zeros(())) * perception_aux_loss_weight
+                total_loss = (
+                    total_loss
+                    + losses.get("visual_zero_margin_loss", total_loss.new_zeros(())) * visual_zero_margin_loss_weight
+                )
                 if not torch.isfinite(total_loss):
                     raise RuntimeError(f"Non-finite BC loss at step {global_step}: {float(total_loss.detach().cpu())}")
                 total_loss.backward()
@@ -774,6 +903,7 @@ def main() -> int:
                 road_mask_weight=road_mask_weight,
                 lane_edge_weight=lane_edge_weight,
                 lane_edge_pos_weight=lane_edge_pos_weight,
+                visual_zero_margin=visual_zero_margin,
             )
             last_val_loss = float(val_losses["bc_loss"].detach().cpu().item())
             writer.writerow(

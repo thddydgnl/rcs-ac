@@ -1,6 +1,10 @@
 import torch
 
-from rcs_ac_first.scripts.train_bc import _compute_frame_perception_losses, _compute_sequence_perception_losses
+from rcs_ac_first.scripts.train_bc import (
+    _compute_frame_perception_losses,
+    _compute_sequence_perception_losses,
+    _compute_visual_zero_losses,
+)
 
 
 def test_frame_perception_loss_accepts_dataset_lane_target_key() -> None:
@@ -53,3 +57,33 @@ def test_sequence_perception_loss_masks_invalid_timesteps() -> None:
 
     assert float(losses["perception_aux_loss"]) > 0.0
     assert float(losses["aux_mask_available_rate"]) == torch.tensor([1.0, 1.0, 0.0]).mean().item()
+
+
+def test_visual_zero_loss_uses_action_delta_sum_and_margin() -> None:
+    action_mean = torch.tensor([[0.10, 0.20], [0.30, -0.40]])
+    zero_action_mean = torch.tensor([[0.05, 0.10], [0.10, -0.10]])
+
+    losses = _compute_visual_zero_losses(action_mean, zero_action_mean, visual_zero_margin=0.40)
+
+    assert torch.isclose(losses["visual_zero_action_l1"], torch.tensor(0.325))
+    assert torch.isclose(losses["visual_zero_steer_delta"], torch.tensor(0.125))
+    assert torch.isclose(losses["visual_zero_longitudinal_delta"], torch.tensor(0.20))
+    assert torch.isclose(losses["visual_zero_margin_loss"], torch.tensor(0.075))
+
+
+def test_visual_zero_sequence_loss_respects_valid_mask() -> None:
+    action_mean = torch.tensor([[[0.10, 0.20], [0.30, -0.40]]])
+    zero_action_mean = torch.tensor([[[0.00, 0.10], [0.00, 0.00]]])
+    valid_mask = torch.tensor([[1.0, 0.0]])
+
+    losses = _compute_visual_zero_losses(
+        action_mean,
+        zero_action_mean,
+        visual_zero_margin=0.30,
+        valid_mask=valid_mask,
+    )
+
+    assert torch.isclose(losses["visual_zero_action_l1"], torch.tensor(0.20))
+    assert torch.isclose(losses["visual_zero_steer_delta"], torch.tensor(0.10))
+    assert torch.isclose(losses["visual_zero_longitudinal_delta"], torch.tensor(0.10))
+    assert torch.isclose(losses["visual_zero_margin_loss"], torch.tensor(0.10))
