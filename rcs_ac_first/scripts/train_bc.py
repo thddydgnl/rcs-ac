@@ -75,6 +75,15 @@ BC_LOG_FIELDS: tuple[str, ...] = (
     "collision_cluster_route_offset_agreement_negative_sign_rate",
     "collision_cluster_route_offset_agreement_positive_mask_rate",
     "collision_cluster_route_offset_agreement_negative_mask_rate",
+    "early_route_offset_agreement_loss",
+    "early_route_offset_agreement_sign_rate",
+    "early_route_offset_agreement_mask_rate",
+    "early_route_offset_agreement_signed_delta_mean",
+    "early_route_offset_agreement_corrected_delta_mean",
+    "early_route_offset_agreement_positive_sign_rate",
+    "early_route_offset_agreement_negative_sign_rate",
+    "early_route_offset_agreement_positive_mask_rate",
+    "early_route_offset_agreement_negative_mask_rate",
     "route_progress_longitudinal_floor_loss",
     "route_progress_longitudinal_floor_rate",
     "route_progress_longitudinal_mask_rate",
@@ -686,6 +695,23 @@ def _zero_collision_cluster_route_offset_losses(reference: torch.Tensor) -> dict
     }
 
 
+_ROUTE_OFFSET_SOURCE_PREFIX = "collision_cluster_route_offset_agreement"
+_EARLY_ROUTE_OFFSET_PREFIX = "early_route_offset_agreement"
+
+
+def _rename_route_offset_losses(
+    losses: dict[str, torch.Tensor],
+    *,
+    target_prefix: str,
+) -> dict[str, torch.Tensor]:
+    renamed: dict[str, torch.Tensor] = {}
+    for key, value in losses.items():
+        if key.startswith(_ROUTE_OFFSET_SOURCE_PREFIX):
+            suffix = key[len(_ROUTE_OFFSET_SOURCE_PREFIX) :]
+            renamed[f"{target_prefix}{suffix}"] = value
+    return renamed
+
+
 def _compute_collision_cluster_route_offset_losses(
     action_mean: torch.Tensor,
     zero_action_mean: torch.Tensor,
@@ -776,6 +802,40 @@ def _compute_collision_cluster_route_offset_losses(
             negative_mask.mean() if negative_mask.numel() else loss.new_zeros(())
         ),
     }
+
+
+def _compute_early_route_offset_losses(
+    action_mean: torch.Tensor,
+    zero_action_mean: torch.Tensor,
+    *,
+    route_progress: torch.Tensor | None,
+    lane_offset: torch.Tensor | None,
+    heading_error: torch.Tensor | None,
+    route_min: float | None,
+    route_max: float | None,
+    lane_offset_min: float,
+    heading_error_min: float,
+    margin: float,
+    lane_offset_mode: str = "negative",
+    heading_error_mode: str = "positive",
+    valid_mask: torch.Tensor | None = None,
+) -> dict[str, torch.Tensor]:
+    losses = _compute_collision_cluster_route_offset_losses(
+        action_mean,
+        zero_action_mean,
+        route_progress=route_progress,
+        lane_offset=lane_offset,
+        heading_error=heading_error,
+        route_min=route_min,
+        route_max=route_max,
+        lane_offset_min=lane_offset_min,
+        heading_error_max=heading_error_min,
+        margin=margin,
+        lane_offset_mode=lane_offset_mode,
+        heading_error_mode=heading_error_mode,
+        valid_mask=valid_mask,
+    )
+    return _rename_route_offset_losses(losses, target_prefix=_EARLY_ROUTE_OFFSET_PREFIX)
 
 
 def _zero_route_progress_longitudinal_losses(reference: torch.Tensor) -> dict[str, torch.Tensor]:
@@ -1039,6 +1099,33 @@ def _metric_row(
         "collision_cluster_route_offset_agreement_negative_mask_rate": float(
             losses.get("collision_cluster_route_offset_agreement_negative_mask_rate", fusion.new_zeros(())).detach().cpu().item()
         ),
+        "early_route_offset_agreement_loss": float(
+            losses.get("early_route_offset_agreement_loss", fusion.new_zeros(())).detach().cpu().item()
+        ),
+        "early_route_offset_agreement_sign_rate": float(
+            losses.get("early_route_offset_agreement_sign_rate", fusion.new_zeros(())).detach().cpu().item()
+        ),
+        "early_route_offset_agreement_mask_rate": float(
+            losses.get("early_route_offset_agreement_mask_rate", fusion.new_zeros(())).detach().cpu().item()
+        ),
+        "early_route_offset_agreement_signed_delta_mean": float(
+            losses.get("early_route_offset_agreement_signed_delta_mean", fusion.new_zeros(())).detach().cpu().item()
+        ),
+        "early_route_offset_agreement_corrected_delta_mean": float(
+            losses.get("early_route_offset_agreement_corrected_delta_mean", fusion.new_zeros(())).detach().cpu().item()
+        ),
+        "early_route_offset_agreement_positive_sign_rate": float(
+            losses.get("early_route_offset_agreement_positive_sign_rate", fusion.new_zeros(())).detach().cpu().item()
+        ),
+        "early_route_offset_agreement_negative_sign_rate": float(
+            losses.get("early_route_offset_agreement_negative_sign_rate", fusion.new_zeros(())).detach().cpu().item()
+        ),
+        "early_route_offset_agreement_positive_mask_rate": float(
+            losses.get("early_route_offset_agreement_positive_mask_rate", fusion.new_zeros(())).detach().cpu().item()
+        ),
+        "early_route_offset_agreement_negative_mask_rate": float(
+            losses.get("early_route_offset_agreement_negative_mask_rate", fusion.new_zeros(())).detach().cpu().item()
+        ),
         "route_progress_longitudinal_floor_loss": float(
             losses.get("route_progress_longitudinal_floor_loss", fusion.new_zeros(())).detach().cpu().item()
         ),
@@ -1112,6 +1199,13 @@ def _evaluate(
     collision_cluster_route_offset_margin: float,
     collision_cluster_lane_offset_mode: str,
     collision_cluster_heading_error_mode: str,
+    early_route_offset_margin: float,
+    early_route_min: float | None,
+    early_route_max: float | None,
+    early_route_lane_offset_min: float,
+    early_route_heading_error_min: float,
+    early_route_lane_offset_mode: str,
+    early_route_heading_error_mode: str,
     route_progress_longitudinal_floor_route_min: float | None,
     route_progress_longitudinal_floor_route_max: float | None,
     route_progress_longitudinal_floor_speed_max_mps: float | None,
@@ -1162,6 +1256,15 @@ def _evaluate(
         "collision_cluster_route_offset_agreement_negative_sign_rate": 0.0,
         "collision_cluster_route_offset_agreement_positive_mask_rate": 0.0,
         "collision_cluster_route_offset_agreement_negative_mask_rate": 0.0,
+        "early_route_offset_agreement_loss": 0.0,
+        "early_route_offset_agreement_sign_rate": 0.0,
+        "early_route_offset_agreement_mask_rate": 0.0,
+        "early_route_offset_agreement_signed_delta_mean": 0.0,
+        "early_route_offset_agreement_corrected_delta_mean": 0.0,
+        "early_route_offset_agreement_positive_sign_rate": 0.0,
+        "early_route_offset_agreement_negative_sign_rate": 0.0,
+        "early_route_offset_agreement_positive_mask_rate": 0.0,
+        "early_route_offset_agreement_negative_mask_rate": 0.0,
         "route_progress_longitudinal_floor_loss": 0.0,
         "route_progress_longitudinal_floor_rate": 0.0,
         "route_progress_longitudinal_mask_rate": 0.0,
@@ -1272,6 +1375,23 @@ def _evaluate(
                     )
                 )
                 losses.update(
+                    _compute_early_route_offset_losses(
+                        action_mean,
+                        zero_action_mean,
+                        route_progress=batch.get("route_progress"),
+                        lane_offset=batch.get("lane_offset"),
+                        heading_error=batch.get("heading_error"),
+                        route_min=early_route_min,
+                        route_max=early_route_max,
+                        lane_offset_min=early_route_lane_offset_min,
+                        heading_error_min=early_route_heading_error_min,
+                        margin=early_route_offset_margin,
+                        lane_offset_mode=early_route_lane_offset_mode,
+                        heading_error_mode=early_route_heading_error_mode,
+                        valid_mask=batch.get("valid_mask"),
+                    )
+                )
+                losses.update(
                     _compute_route_progress_longitudinal_losses(
                         action_mean,
                         batch,
@@ -1372,6 +1492,22 @@ def _evaluate(
                         margin=collision_cluster_route_offset_margin,
                         lane_offset_mode=collision_cluster_lane_offset_mode,
                         heading_error_mode=collision_cluster_heading_error_mode,
+                    )
+                )
+                losses.update(
+                    _compute_early_route_offset_losses(
+                        action_mean,
+                        zero_action_mean,
+                        route_progress=batch.get("route_progress"),
+                        lane_offset=batch.get("lane_offset"),
+                        heading_error=batch.get("heading_error"),
+                        route_min=early_route_min,
+                        route_max=early_route_max,
+                        lane_offset_min=early_route_lane_offset_min,
+                        heading_error_min=early_route_heading_error_min,
+                        margin=early_route_offset_margin,
+                        lane_offset_mode=early_route_lane_offset_mode,
+                        heading_error_mode=early_route_heading_error_mode,
                     )
                 )
                 losses.update(
@@ -1548,6 +1684,16 @@ def main() -> int:
     collision_cluster_route_offset_margin = float(bc_raw.get("collision_cluster_route_offset_margin", 0.0))
     collision_cluster_lane_offset_mode = str(bc_raw.get("collision_cluster_lane_offset_mode", "positive"))
     collision_cluster_heading_error_mode = str(bc_raw.get("collision_cluster_heading_error_mode", "less_than"))
+    early_route_offset_agreement_loss_weight = float(
+        bc_raw.get("early_route_offset_agreement_loss_weight", 0.0)
+    )
+    early_route_min = bc_raw.get("early_route_min")
+    early_route_max = bc_raw.get("early_route_max")
+    early_route_lane_offset_min = float(bc_raw.get("early_route_lane_offset_min", 0.0))
+    early_route_heading_error_min = float(bc_raw.get("early_route_heading_error_min", 0.0))
+    early_route_offset_margin = float(bc_raw.get("early_route_offset_margin", 0.0))
+    early_route_lane_offset_mode = str(bc_raw.get("early_route_lane_offset_mode", "negative"))
+    early_route_heading_error_mode = str(bc_raw.get("early_route_heading_error_mode", "positive"))
     route_progress_longitudinal_floor_loss_weight = float(
         bc_raw.get("route_progress_longitudinal_floor_loss_weight", 0.0)
     )
@@ -1737,6 +1883,23 @@ def main() -> int:
                         )
                     )
                     losses.update(
+                        _compute_early_route_offset_losses(
+                            action_mean,
+                            zero_action_mean,
+                            route_progress=batch.get("route_progress"),
+                            lane_offset=batch.get("lane_offset"),
+                            heading_error=batch.get("heading_error"),
+                            route_min=early_route_min,
+                            route_max=early_route_max,
+                            lane_offset_min=early_route_lane_offset_min,
+                            heading_error_min=early_route_heading_error_min,
+                            margin=early_route_offset_margin,
+                            lane_offset_mode=early_route_lane_offset_mode,
+                            heading_error_mode=early_route_heading_error_mode,
+                            valid_mask=batch.get("valid_mask"),
+                        )
+                    )
+                    losses.update(
                         _compute_route_progress_longitudinal_losses(
                             action_mean,
                             batch,
@@ -1840,6 +2003,22 @@ def main() -> int:
                         )
                     )
                     losses.update(
+                        _compute_early_route_offset_losses(
+                            action_mean,
+                            zero_action_mean,
+                            route_progress=batch.get("route_progress"),
+                            lane_offset=batch.get("lane_offset"),
+                            heading_error=batch.get("heading_error"),
+                            route_min=early_route_min,
+                            route_max=early_route_max,
+                            lane_offset_min=early_route_lane_offset_min,
+                            heading_error_min=early_route_heading_error_min,
+                            margin=early_route_offset_margin,
+                            lane_offset_mode=early_route_lane_offset_mode,
+                            heading_error_mode=early_route_heading_error_mode,
+                        )
+                    )
+                    losses.update(
                         _compute_route_progress_longitudinal_losses(
                             action_mean,
                             batch,
@@ -1889,6 +2068,11 @@ def main() -> int:
                     total_loss
                     + losses.get("collision_cluster_route_offset_agreement_loss", total_loss.new_zeros(()))
                     * collision_cluster_route_offset_agreement_loss_weight
+                )
+                total_loss = (
+                    total_loss
+                    + losses.get("early_route_offset_agreement_loss", total_loss.new_zeros(()))
+                    * early_route_offset_agreement_loss_weight
                 )
                 total_loss = (
                     total_loss
@@ -1945,6 +2129,13 @@ def main() -> int:
                 collision_cluster_route_offset_margin=collision_cluster_route_offset_margin,
                 collision_cluster_lane_offset_mode=collision_cluster_lane_offset_mode,
                 collision_cluster_heading_error_mode=collision_cluster_heading_error_mode,
+                early_route_offset_margin=early_route_offset_margin,
+                early_route_min=early_route_min,
+                early_route_max=early_route_max,
+                early_route_lane_offset_min=early_route_lane_offset_min,
+                early_route_heading_error_min=early_route_heading_error_min,
+                early_route_lane_offset_mode=early_route_lane_offset_mode,
+                early_route_heading_error_mode=early_route_heading_error_mode,
                 route_progress_longitudinal_floor_route_min=route_progress_longitudinal_floor_route_min,
                 route_progress_longitudinal_floor_route_max=route_progress_longitudinal_floor_route_max,
                 route_progress_longitudinal_floor_speed_max_mps=route_progress_longitudinal_floor_speed_max_mps,
