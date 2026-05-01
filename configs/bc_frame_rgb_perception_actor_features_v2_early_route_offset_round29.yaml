@@ -146,8 +146,8 @@ bc:
   early_route_offset_agreement_loss_weight: 0.25
   early_route_min: 0.025
   early_route_max: 0.085
-  early_route_lane_offset_min: 1.5
-  early_route_heading_error_min: 12.0
+  early_route_lane_offset_min: 0.55
+  early_route_heading_error_min: 3.0
   early_route_offset_margin: 0.012
   early_route_lane_offset_mode: negative
   early_route_heading_error_mode: positive
