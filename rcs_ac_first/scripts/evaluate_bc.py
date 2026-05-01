@@ -79,6 +79,8 @@ BC_EVAL_FIELDS: tuple[str, ...] = (
     "visual_zero_signed_steer_delta",
     "visual_center_corrective_sign",
     "visual_center_correction_score",
+    "route_offset_corrective_sign",
+    "route_visual_center_sign_agreement",
     "visual_zero_corrective_sign",
     "visual_zero_corrective_steer_delta",
 )
@@ -173,8 +175,11 @@ def _build_log_row(
     visual_center_active = abs(visual_center_error) >= float(visual_center_error_min)
     visual_center_corrective_sign = bool(visual_center_active and signed_steer_delta * visual_center_error < 0.0)
     visual_center_correction_score = float(signed_steer_delta * -visual_center_error)
-    corrective_sign = bool(lane_risk_active and signed_steer_delta * (-lane_offset) > 0.0)
-    corrective_steer_delta = visual_zero_steer_delta if corrective_sign else 0.0
+    route_offset_corrective_sign = bool(lane_risk_active and signed_steer_delta * (-lane_offset) > 0.0)
+    route_visual_center_sign_agreement = bool(
+        lane_risk_active and visual_center_active and lane_offset * visual_center_error > 0.0
+    )
+    corrective_steer_delta = visual_zero_steer_delta if route_offset_corrective_sign else 0.0
     row: dict[str, Any] = {
         "step": int(step),
         "episode": int(episode),
@@ -206,7 +211,9 @@ def _build_log_row(
         "visual_zero_signed_steer_delta": float(signed_steer_delta),
         "visual_center_corrective_sign": bool(visual_center_corrective_sign),
         "visual_center_correction_score": float(visual_center_correction_score),
-        "visual_zero_corrective_sign": bool(corrective_sign),
+        "route_offset_corrective_sign": bool(route_offset_corrective_sign),
+        "route_visual_center_sign_agreement": bool(route_visual_center_sign_agreement),
+        "visual_zero_corrective_sign": bool(route_offset_corrective_sign),
         "visual_zero_corrective_steer_delta": float(corrective_steer_delta),
     }
     for modality in ("rgb", "lidar", "ego", "route"):
@@ -285,9 +292,11 @@ def _build_summary(
     mean_corrective_visual_zero_steer_delta = _mean(corrective_rows, "visual_zero_steer_delta_mean")
     mean_corrective_visual_zero_steer_share = _mean(corrective_rows, "visual_zero_steer_share")
     mean_corrective_steer_delta = _mean(corrective_rows, "visual_zero_corrective_steer_delta")
-    corrective_sign_rate = _rate(corrective_rows, "visual_zero_corrective_sign")
+    route_offset_corrective_sign_rate = _rate(corrective_rows, "route_offset_corrective_sign")
+    corrective_sign_rate = route_offset_corrective_sign_rate
     visual_center_correction_rate = _rate(corrective_rows, "visual_center_corrective_sign")
     mean_visual_center_correction_score = _mean(corrective_rows, "visual_center_correction_score")
+    route_visual_center_sign_agreement_rate = _rate(corrective_rows, "route_visual_center_sign_agreement")
     early_offroad_count = sum(
         1 for row in rows if bool(row.get("offroad", False)) and float(row.get("route_progress", 0.0)) < 0.20
     )
@@ -360,11 +369,17 @@ def _build_summary(
             f"mean_corrective_visual_zero_steer_delta {mean_corrective_visual_zero_steer_delta:.6f} < "
             f"{float(ppo_gate['min_corrective_visual_zero_steer_delta']):.6f}"
         )
-    if corrective_sign_rate < float(ppo_gate["min_corrective_sign_rate"]):
+    corrective_sign_source = str(ppo_gate.get("corrective_sign_source", "route_offset")).strip().lower()
+    enforce_route_offset_sign = corrective_sign_source in {"route_offset", "lane_offset", "legacy", "both"}
+    enforce_visual_center_sign = corrective_sign_source in {"visual_center", "rgb_center", "both"}
+    if corrective_sign_source not in {"route_offset", "lane_offset", "legacy", "visual_center", "rgb_center", "both"}:
+        ppo_gate_fail_reasons.append(f"unknown corrective_sign_source {corrective_sign_source!r}")
+    if enforce_route_offset_sign and route_offset_corrective_sign_rate < float(ppo_gate["min_corrective_sign_rate"]):
         ppo_gate_fail_reasons.append(
-            f"corrective_sign_rate {corrective_sign_rate:.6f} < {float(ppo_gate['min_corrective_sign_rate']):.6f}"
+            "route_offset_corrective_sign_rate "
+            f"{route_offset_corrective_sign_rate:.6f} < {float(ppo_gate['min_corrective_sign_rate']):.6f}"
         )
-    if visual_center_correction_rate < float(ppo_gate["min_visual_center_correction_rate"]):
+    if enforce_visual_center_sign and visual_center_correction_rate < float(ppo_gate["min_visual_center_correction_rate"]):
         ppo_gate_fail_reasons.append(
             "visual_center_correction_rate "
             f"{visual_center_correction_rate:.6f} < {float(ppo_gate['min_visual_center_correction_rate']):.6f}"
@@ -405,8 +420,11 @@ def _build_summary(
         "mean_corrective_visual_zero_steer_share": float(mean_corrective_visual_zero_steer_share),
         "mean_corrective_steer_delta": float(mean_corrective_steer_delta),
         "corrective_sign_rate": float(corrective_sign_rate),
+        "corrective_sign_source": corrective_sign_source,
+        "route_offset_corrective_sign_rate": float(route_offset_corrective_sign_rate),
         "visual_center_correction_rate": float(visual_center_correction_rate),
         "mean_visual_center_correction_score": float(mean_visual_center_correction_score),
+        "route_visual_center_sign_agreement_rate": float(route_visual_center_sign_agreement_rate),
         "early_offroad_count": int(early_offroad_count),
         "ppo_gate_status": "PASS" if not ppo_gate_fail_reasons else "BLOCK",
         "ppo_gate_fail_reasons": ppo_gate_fail_reasons,
@@ -442,6 +460,7 @@ def main() -> int:
         ),
         "min_corrective_sign_rate": float(eval_raw.get("ppo_gate_min_corrective_sign_rate", 0.65)),
         "min_visual_center_correction_rate": float(eval_raw.get("ppo_gate_min_visual_center_correction_rate", 0.65)),
+        "corrective_sign_source": str(eval_raw.get("ppo_gate_corrective_sign_source", "route_offset")),
     }
     device = torch.device(config.train.resolve_device(args.device))
     _set_seed(config.train.seed)
