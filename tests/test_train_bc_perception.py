@@ -3,6 +3,7 @@ import torch
 from rcs_ac_first.scripts.train_bc import (
     _compute_corrective_delta_losses,
     _compute_frame_perception_losses,
+    _compute_route_progress_longitudinal_losses,
     _compute_sequence_perception_losses,
     _compute_visual_center_corrective_losses,
     _compute_visual_zero_losses,
@@ -236,3 +237,50 @@ def test_visual_center_corrective_loss_is_zero_without_raw_features() -> None:
 
     assert torch.isclose(losses["visual_center_corrective_sign_loss"], torch.tensor(0.0))
     assert torch.isclose(losses["visual_center_corrective_mask_rate"], torch.tensor(0.0))
+
+
+def test_route_progress_longitudinal_floor_loss_uses_route_and_speed_mask() -> None:
+    action_mean = torch.tensor([[0.20, -0.20], [0.20, 0.10], [0.20, -0.40]])
+    auxiliary = torch.zeros((3, 30), dtype=torch.float32)
+    auxiliary[:, 15] = torch.tensor([2.0, 5.0, 2.0])
+    batch = {
+        "route_progress": torch.tensor([0.20, 0.20, 0.05]),
+        "auxiliary": auxiliary,
+    }
+
+    losses = _compute_route_progress_longitudinal_losses(
+        action_mean,
+        batch,
+        route_min=0.10,
+        route_max=0.32,
+        speed_max_mps=3.5,
+        longitudinal_floor=0.05,
+    )
+
+    assert torch.isclose(losses["route_progress_longitudinal_mask_rate"], torch.tensor(1.0 / 3.0))
+    assert torch.isclose(losses["route_progress_longitudinal_floor_loss"], torch.tensor(0.25))
+    assert torch.isclose(losses["route_progress_longitudinal_floor_rate"], torch.tensor(0.0))
+    assert torch.isclose(losses["route_progress_longitudinal_mean"], torch.tensor(-0.20))
+
+
+def test_route_progress_longitudinal_floor_loss_respects_sequence_valid_mask() -> None:
+    action_mean = torch.tensor([[[0.20, -0.20], [0.20, 0.10]]])
+    auxiliary = torch.zeros((1, 2, 30), dtype=torch.float32)
+    auxiliary[..., 15] = 2.0
+    batch = {
+        "route_progress": torch.tensor([[0.20, 0.20]]),
+        "auxiliary": auxiliary,
+    }
+
+    losses = _compute_route_progress_longitudinal_losses(
+        action_mean,
+        batch,
+        route_min=0.10,
+        route_max=0.32,
+        speed_max_mps=3.5,
+        longitudinal_floor=0.05,
+        valid_mask=torch.tensor([[1.0, 0.0]], dtype=torch.float32),
+    )
+
+    assert torch.isclose(losses["route_progress_longitudinal_mask_rate"], torch.tensor(0.5))
+    assert torch.isclose(losses["route_progress_longitudinal_floor_loss"], torch.tensor(0.25))

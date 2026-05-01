@@ -57,6 +57,10 @@ BC_LOG_FIELDS: tuple[str, ...] = (
     "visual_center_corrective_mask_rate",
     "visual_center_error_abs_mean",
     "visual_center_signed_delta_mean",
+    "route_progress_longitudinal_floor_loss",
+    "route_progress_longitudinal_floor_rate",
+    "route_progress_longitudinal_mask_rate",
+    "route_progress_longitudinal_mean",
     "perception_aux_loss",
     "aux_road_mask_loss",
     "aux_lane_edge_mask_loss",
@@ -547,6 +551,72 @@ def _compute_visual_center_corrective_losses(
     }
 
 
+def _zero_route_progress_longitudinal_losses(reference: torch.Tensor) -> dict[str, torch.Tensor]:
+    zero = reference.sum() * 0.0
+    return {
+        "route_progress_longitudinal_floor_loss": zero,
+        "route_progress_longitudinal_floor_rate": zero,
+        "route_progress_longitudinal_mask_rate": zero,
+        "route_progress_longitudinal_mean": zero,
+    }
+
+
+def _auxiliary_speed_mps(batch: dict[str, torch.Tensor], action_shape: tuple[int, ...]) -> torch.Tensor | None:
+    auxiliary = batch.get("auxiliary")
+    if not isinstance(auxiliary, torch.Tensor) or int(auxiliary.shape[-1]) <= 15:
+        return None
+    speed = auxiliary[..., 15]
+    if tuple(speed.shape) != tuple(action_shape):
+        speed = speed.reshape(action_shape)
+    return speed
+
+
+def _compute_route_progress_longitudinal_losses(
+    action_mean: torch.Tensor,
+    batch: dict[str, torch.Tensor],
+    *,
+    route_min: float | None = None,
+    route_max: float | None = None,
+    speed_max_mps: float | None = None,
+    longitudinal_floor: float = 0.0,
+    valid_mask: torch.Tensor | None = None,
+) -> dict[str, torch.Tensor]:
+    route_progress = batch.get("route_progress")
+    if route_progress is None:
+        return _zero_route_progress_longitudinal_losses(action_mean)
+    longitudinal = action_mean[..., 1]
+    route_tensor = route_progress.to(device=action_mean.device, dtype=action_mean.dtype)
+    if tuple(route_tensor.shape) != tuple(longitudinal.shape):
+        route_tensor = route_tensor.reshape_as(longitudinal)
+    mask = torch.ones_like(longitudinal, dtype=action_mean.dtype)
+    if valid_mask is not None:
+        mask = mask * valid_mask.to(device=action_mean.device, dtype=action_mean.dtype).clamp(0.0, 1.0)
+    if route_min is not None:
+        mask = mask * (route_tensor >= float(route_min)).to(action_mean.dtype)
+    if route_max is not None:
+        mask = mask * (route_tensor <= float(route_max)).to(action_mean.dtype)
+    if speed_max_mps is not None:
+        speed = _auxiliary_speed_mps(batch, tuple(longitudinal.shape))
+        if speed is not None:
+            speed = speed.to(device=action_mean.device, dtype=action_mean.dtype)
+            mask = mask * (speed <= float(speed_max_mps)).to(action_mean.dtype)
+    denom = mask.sum().clamp_min(1.0)
+    floor = float(longitudinal_floor)
+    if floor > -1.0:
+        floor_loss_values = F.relu(longitudinal.new_tensor(floor) - longitudinal)
+        floor_loss = (floor_loss_values * mask).sum() / denom
+    else:
+        floor_loss = longitudinal.new_zeros(())
+    floor_rate = ((longitudinal >= longitudinal.new_tensor(floor)).to(action_mean.dtype) * mask).sum() / denom
+    longitudinal_mean = (longitudinal * mask).sum() / denom
+    return {
+        "route_progress_longitudinal_floor_loss": floor_loss,
+        "route_progress_longitudinal_floor_rate": floor_rate,
+        "route_progress_longitudinal_mask_rate": mask.mean() if mask.numel() else floor_loss.new_zeros(()),
+        "route_progress_longitudinal_mean": longitudinal_mean,
+    }
+
+
 def _forward_sequence_outputs(
     model: RCSACFirstModel,
     batch: dict[str, torch.Tensor],
@@ -688,6 +758,18 @@ def _metric_row(
         "visual_center_signed_delta_mean": float(
             losses.get("visual_center_signed_delta_mean", fusion.new_zeros(())).detach().cpu().item()
         ),
+        "route_progress_longitudinal_floor_loss": float(
+            losses.get("route_progress_longitudinal_floor_loss", fusion.new_zeros(())).detach().cpu().item()
+        ),
+        "route_progress_longitudinal_floor_rate": float(
+            losses.get("route_progress_longitudinal_floor_rate", fusion.new_zeros(())).detach().cpu().item()
+        ),
+        "route_progress_longitudinal_mask_rate": float(
+            losses.get("route_progress_longitudinal_mask_rate", fusion.new_zeros(())).detach().cpu().item()
+        ),
+        "route_progress_longitudinal_mean": float(
+            losses.get("route_progress_longitudinal_mean", fusion.new_zeros(())).detach().cpu().item()
+        ),
         "policy_std": float(model.get_std().detach().mean().cpu().item()),
         "risk_scalar": float(risk_scalar.detach().mean().cpu().item()),
     }
@@ -739,6 +821,10 @@ def _evaluate(
     visual_zero_corrective_steer_margin: float,
     visual_center_error_min: float,
     visual_center_corrective_margin: float,
+    route_progress_longitudinal_floor_route_min: float | None,
+    route_progress_longitudinal_floor_route_max: float | None,
+    route_progress_longitudinal_floor_speed_max_mps: float | None,
+    route_progress_longitudinal_floor: float,
 ) -> tuple[dict[str, torch.Tensor], dict[str, torch.Tensor | None]]:
     model.eval()
     totals = {
@@ -767,6 +853,10 @@ def _evaluate(
         "visual_center_corrective_mask_rate": 0.0,
         "visual_center_error_abs_mean": 0.0,
         "visual_center_signed_delta_mean": 0.0,
+        "route_progress_longitudinal_floor_loss": 0.0,
+        "route_progress_longitudinal_floor_rate": 0.0,
+        "route_progress_longitudinal_mask_rate": 0.0,
+        "route_progress_longitudinal_mean": 0.0,
     }
     totals.update({key: 0.0 for key in PERCEPTION_AUX_METRIC_KEYS})
     count = 0
@@ -842,6 +932,17 @@ def _evaluate(
                         valid_mask=batch.get("valid_mask"),
                     )
                 )
+                losses.update(
+                    _compute_route_progress_longitudinal_losses(
+                        action_mean,
+                        batch,
+                        route_min=route_progress_longitudinal_floor_route_min,
+                        route_max=route_progress_longitudinal_floor_route_max,
+                        speed_max_mps=route_progress_longitudinal_floor_speed_max_mps,
+                        longitudinal_floor=route_progress_longitudinal_floor,
+                        valid_mask=batch.get("valid_mask"),
+                    )
+                )
             else:
                 auxiliary = batch["auxiliary"] if use_auxiliary else None
                 outputs = model.forward_policy_outputs(
@@ -904,6 +1005,16 @@ def _evaluate(
                         batch,
                         visual_center_error_min=visual_center_error_min,
                         visual_center_corrective_margin=visual_center_corrective_margin,
+                    )
+                )
+                losses.update(
+                    _compute_route_progress_longitudinal_losses(
+                        action_mean,
+                        batch,
+                        route_min=route_progress_longitudinal_floor_route_min,
+                        route_max=route_progress_longitudinal_floor_route_max,
+                        speed_max_mps=route_progress_longitudinal_floor_speed_max_mps,
+                        longitudinal_floor=route_progress_longitudinal_floor,
                     )
                 )
             batch_size = int(batch["obs"].shape[0])
@@ -1056,6 +1167,13 @@ def main() -> int:
     visual_center_corrective_sign_loss_weight = float(bc_raw.get("visual_center_corrective_sign_loss_weight", 0.0))
     visual_center_corrective_margin = float(bc_raw.get("visual_center_corrective_margin", 0.0))
     visual_center_error_min = float(bc_raw.get("visual_center_error_min", 0.0))
+    route_progress_longitudinal_floor_loss_weight = float(
+        bc_raw.get("route_progress_longitudinal_floor_loss_weight", 0.0)
+    )
+    route_progress_longitudinal_floor_route_min = bc_raw.get("route_progress_longitudinal_floor_route_min")
+    route_progress_longitudinal_floor_route_max = bc_raw.get("route_progress_longitudinal_floor_route_max")
+    route_progress_longitudinal_floor_speed_max_mps = bc_raw.get("route_progress_longitudinal_floor_speed_max_mps")
+    route_progress_longitudinal_floor = float(bc_raw.get("route_progress_longitudinal_floor", -1.0))
     road_mask_weight = float(bc_raw.get("road_mask_weight", config.loss.aux_road_mask_loss_weight))
     lane_edge_weight = float(bc_raw.get("lane_edge_weight", config.loss.aux_lane_edge_mask_loss_weight))
     lane_edge_pos_weight = float(bc_raw.get("lane_edge_pos_weight", config.loss.aux_lane_edge_pos_weight))
@@ -1207,6 +1325,17 @@ def main() -> int:
                             valid_mask=batch.get("valid_mask"),
                         )
                     )
+                    losses.update(
+                        _compute_route_progress_longitudinal_losses(
+                            action_mean,
+                            batch,
+                            route_min=route_progress_longitudinal_floor_route_min,
+                            route_max=route_progress_longitudinal_floor_route_max,
+                            speed_max_mps=route_progress_longitudinal_floor_speed_max_mps,
+                            longitudinal_floor=route_progress_longitudinal_floor,
+                            valid_mask=batch.get("valid_mask"),
+                        )
+                    )
                 else:
                     auxiliary = batch["auxiliary"] if use_auxiliary else None
                     outputs = model.forward_policy_outputs(
@@ -1271,6 +1400,16 @@ def main() -> int:
                             visual_center_corrective_margin=visual_center_corrective_margin,
                         )
                     )
+                    losses.update(
+                        _compute_route_progress_longitudinal_losses(
+                            action_mean,
+                            batch,
+                            route_min=route_progress_longitudinal_floor_route_min,
+                            route_max=route_progress_longitudinal_floor_route_max,
+                            speed_max_mps=route_progress_longitudinal_floor_speed_max_mps,
+                            longitudinal_floor=route_progress_longitudinal_floor,
+                        )
+                    )
                 total_loss = losses["bc_loss"] * bc_loss_weight
                 total_loss = total_loss + losses.get("perception_aux_loss", total_loss.new_zeros(())) * perception_aux_loss_weight
                 total_loss = (
@@ -1301,6 +1440,11 @@ def main() -> int:
                     total_loss
                     + losses.get("visual_center_corrective_sign_loss", total_loss.new_zeros(()))
                     * visual_center_corrective_sign_loss_weight
+                )
+                total_loss = (
+                    total_loss
+                    + losses.get("route_progress_longitudinal_floor_loss", total_loss.new_zeros(()))
+                    * route_progress_longitudinal_floor_loss_weight
                 )
                 if not torch.isfinite(total_loss):
                     raise RuntimeError(f"Non-finite BC loss at step {global_step}: {float(total_loss.detach().cpu())}")
@@ -1342,6 +1486,10 @@ def main() -> int:
                 visual_zero_corrective_steer_margin=visual_zero_corrective_steer_margin,
                 visual_center_error_min=visual_center_error_min,
                 visual_center_corrective_margin=visual_center_corrective_margin,
+                route_progress_longitudinal_floor_route_min=route_progress_longitudinal_floor_route_min,
+                route_progress_longitudinal_floor_route_max=route_progress_longitudinal_floor_route_max,
+                route_progress_longitudinal_floor_speed_max_mps=route_progress_longitudinal_floor_speed_max_mps,
+                route_progress_longitudinal_floor=route_progress_longitudinal_floor,
             )
             last_val_loss = float(val_losses["bc_loss"].detach().cpu().item())
             writer.writerow(
