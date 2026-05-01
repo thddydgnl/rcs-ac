@@ -1,0 +1,43 @@
+{
+  "action_dim": 2,
+  "aux_mask_available_rate": 1.0,
+  "auxiliary_dim": 30,
+  "bad_transition_count": 0,
+  "done_count": 0,
+  "num_transitions": 704,
+  "obs_dim": 47311,
+  "parts": [
+    {
+      "aux_mask_available_rate": 1.0,
+      "bad_transition_count": 0,
+      "label": "clean_early",
+      "route_progress_max": 0.20512820780277252,
+      "route_progress_mean": 0.10637020319700241,
+      "route_progress_min": 0.025641025975346565,
+      "selected_count": 384
+    },
+    {
+      "aux_mask_available_rate": 1.0,
+      "bad_transition_count": 0,
+      "label": "drift_window",
+      "route_progress_max": 0.20512820780277252,
+      "route_progress_mean": 0.17828528583049774,
+      "route_progress_min": 0.1538461595773697,
+      "selected_count": 192
+    },
+    {
+      "aux_mask_available_rate": 1.0,
+      "bad_transition_count": 0,
+      "label": "recovery",
+      "route_progress_max": 0.3589743673801422,
+      "route_progress_mean": 0.29587340354919434,
+      "route_progress_min": 0.25641027092933655,
+      "selected_count": 128
+    }
+  ],
+  "route_progress_max": 0.3589743673801422,
+  "route_progress_mean": 0.16043852269649506,
+  "route_progress_min": 0.025641025975346565,
+  "seed": 17,
+  "shuffle_output": true
+}
