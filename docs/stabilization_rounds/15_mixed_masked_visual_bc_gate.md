@@ -89,4 +89,141 @@ deterministic eval safety clean
 
 ## Result
 
-Pending.
+Completed on Windows via `song@100.87.219.58`.
+
+Local validation before Windows execution:
+
+```text
+python -m compileall -q rcs_ac_first tests
+PYTHONDONTWRITEBYTECODE=1 pytest -p no:cacheprovider tests -q
+python -m rcs_ac_first.scripts.smoke_check --config configs/bc_frame_rgb_perception_actor_features_v2_pretrain_smoke.yaml --device cpu
+python -m rcs_ac_first.scripts.smoke_check --config configs/phase3_bc_clean_recovery_imitation_v2_lateral_target_smoke.yaml --device cpu
+```
+
+Validation passed:
+
+```text
+tests: 13 passed
+RGB pretrain smoke: passed, Shapley subset_count 6
+lateral target smoke: passed, Shapley subset_count 6
+```
+
+Code changes before the run:
+
+```text
+Shapley subset selection now keeps pair-complete singleton evidence instead of biased early binary masks.
+Skipped Shapley updates no longer train alignment against the default contribution proxy.
+BC eval now logs lane_offset, heading_error, and visual-zero action deltas.
+Added rcs_ac_first.scripts.mix_expert_datasets for reproducible mixed NPZ construction.
+```
+
+Windows sync:
+
+```text
+commit: 3264c86 Stabilize masked visual BC workflow
+Windows git pull --ff-only: success
+```
+
+Dataset collection:
+
+```text
+run: rgb_perception_actor_features_v2_masked_clean_384_round15
+file: data/expert/rgb_perception_actor_features_v2_masked_clean_384_round15.npz
+num_transitions: 384
+bad_transition_count: 0
+route_progress: min 0.0256, mean 0.1064, max 0.2051
+attempted_transitions: 386
+```
+
+Mixed dataset:
+
+```text
+file: data/expert/rgb_perception_actor_features_v2_masked_mix_512_round15.npz
+num_transitions: 512
+bad_transition_count: 0
+aux_mask_available_rate: 1.0
+route_progress: min 0.0256, mean 0.1549, max 0.3590
+
+parts:
+  clean_early: 384 rows, route 0.0256-0.2051, mask availability 1.0
+  recovery: 128 rows, route 0.2564-0.3590, mask availability 1.0
+```
+
+BC pretrain:
+
+```text
+run: rgb_perception_actor_features_v2_masked_mix_pretrain_bc_round15
+checkpoint: checkpoints/rgb_perception_actor_features_v2_masked_mix_pretrain_bc_round15/last.pt
+epoch 3 val bc_loss: 0.021231
+epoch 3 val perception_aux_loss: 0.325867
+epoch 3 val aux_mask_available_rate: 1.0
+epoch 3 val aux_road_mask_iou: 0.606665
+epoch 3 val aux_lane_edge_mask_iou: 0.0
+epoch 3 val visual_actor_delta_l1_mean: 0.055377
+```
+
+No-lateral eval:
+
+```text
+run: rgb_perception_actor_features_v2_masked_mix_pretrain_eval_512_round15_retry_20260501T112000
+completed_steps: 512
+done_reason_counts: offroad 3
+collision_rate: 0.0
+stuck_rate: 0.0
+max_route_progress: 0.179487
+mean_route_progress: 0.083033
+final_route_progress: 0.025641
+mean_action_jitter_l1: 0.054720
+mean_visual_zero_action_l1: 0.004148
+mean_visual_zero_steer_delta: 0.000719
+mean_visual_zero_longitudinal_delta: 0.003429
+```
+
+Eval offroad rows:
+
+```text
+step 158: route 0.1795, lane_offset -2.6012, heading_error 11.5909
+step 318: route 0.1795, lane_offset -2.5785, heading_error 11.4589
+step 477: route 0.1795, lane_offset -2.5870, heading_error 11.6606
+```
+
+Pulled logs:
+
+```text
+/Users/song-yonghwi/code/windows_results/rcs-ac-first/experiments/rgb_perception_actor_features_v2_masked_mix_round15
+```
+
+## Judgment
+
+Status: **WARN / do not run PPO 2048 yet**.
+
+The mixed dataset fixed the Round 14 recovery-only collapse. The eval returned to the Round 13 masked-clean level:
+
+```text
+Round 13 max route: 0.1795
+Round 14 recovery-only max route: 0.0769
+Round 15 mixed max route: 0.1795
+```
+
+However, it did not beat the Round 13 gate, and the new visual-zero action metric shows weak camera-derived action causality:
+
+```text
+mean_visual_zero_action_l1: 0.004148
+preferred gate: >= 0.01
+stop-risk threshold from mechanism verifier: < 0.005
+```
+
+Therefore PPO was intentionally not launched. Running PPO from this checkpoint would likely repeat the Round 13 plateau rather than test a stronger mechanism.
+
+## Next Action
+
+Do not tune reward/control yet.
+
+The next smallest useful change is to strengthen actor-facing visual causality before PPO:
+
+```text
+1. Keep the mixed dataset.
+2. Add/try a stronger BC action-effect gate, such as visual-zero consistency or adapter-only stronger initialization/training.
+3. Keep road mask supervision; lane-edge IoU remains 0.0, so do not claim lane-edge learning yet.
+4. Re-run BC/eval and require mean_visual_zero_action_l1 >= 0.01 and max_route_progress > 0.1795 before PPO.
+```
