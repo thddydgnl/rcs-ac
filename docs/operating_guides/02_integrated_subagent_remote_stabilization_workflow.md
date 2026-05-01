@@ -256,6 +256,28 @@ If the Mac/Codex environment lacks system Tailscale routing, start userspace Tai
 -o 'ProxyCommand=nc -x localhost:1055 %h %p'
 ```
 
+Before the first Windows command in every stabilization round, perform the Mac-side remote tunnel preflight from `01_remote_mac_windows_stabilization_workflow.md`:
+
+```bash
+TS_SOCKET="$HOME/.local/run/tailscaled-codex.sock"
+
+lsof -nP -iTCP:1055 -sTCP:LISTEN || true
+tailscale --socket="$TS_SOCKET" status
+rcswinssh song@100.87.219.58 'hostname'
+```
+
+Required tunnel behavior:
+
+```text
+1. Reuse `$HOME/.local/run/tailscaled-codex.sock`.
+2. Reuse `$HOME/.local/share/tailscale-codex`.
+3. Use SSH keepalive/ControlPersist wrappers for long Windows commands.
+4. Do not create a fresh `/tmp` Tailscale state during a round.
+5. If Tailscale reports `Logged out` or `NeedsLogin`, fix the Mac tunnel before debugging Windows SSH, git, CARLA, or Python.
+```
+
+The previous `Connection closed by UNKNOWN port 65535` failure was caused by the Mac-side userspace SOCKS/Tailscale session disappearing or restarting with fresh state. It was not a CARLA or RCS-AC model failure. Future rounds should classify this as remote-tunnel infrastructure and recover before starting or judging experiments.
+
 The Windows working tree may contain untracked generated artifacts such as dataset summaries. These are acceptable if `git pull --ff-only` still succeeds.
 
 ## 8. CARLA Readiness Guard
@@ -436,10 +458,11 @@ Main Agent:
   4. Integrate findings.
   5. Write Experiment Brief.
   6. Edit/validate/commit/push.
-  7. Windows pull.
-  8. Run ensure_carla_ready.ps1 before every CARLA command.
-  9. Pull complete text/table logs.
-  10. Document regression-first result and push.
+  7. Run Mac-side Tailscale/SSH tunnel preflight.
+  8. Windows pull.
+  9. Run ensure_carla_ready.ps1 before every CARLA command.
+  10. Pull complete text/table logs.
+  11. Document regression-first result and push.
 ```
 
 ## 14. Non-Negotiable Rules
@@ -449,8 +472,9 @@ Main Agent:
 2. Experiment Brief comes before file edits.
 3. Mac does analysis and edits; Windows runs CARLA.
 4. Never run two CARLA jobs in parallel.
-5. Run CARLA readiness guard before every CARLA-dependent command.
-6. Never promote a checkpoint without baseline comparison.
-7. Never claim RCS-AC algorithm superiority from controller-assisted results unless assist parity or assist-off ablation supports it.
-8. Always document failed experiments.
+5. Run Mac-side Tailscale/SSH tunnel preflight before the first Windows command.
+6. Run CARLA readiness guard before every CARLA-dependent command.
+7. Never promote a checkpoint without baseline comparison.
+8. Never claim RCS-AC algorithm superiority from controller-assisted results unless assist parity or assist-off ablation supports it.
+9. Always document failed experiments.
 ```

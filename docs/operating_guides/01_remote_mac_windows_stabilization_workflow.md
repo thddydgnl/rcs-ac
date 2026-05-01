@@ -155,6 +155,7 @@ Use Tailscale address when not on the same LAN:
 If the Mac/Codex environment does not have a system Tailscale route, run userspace Tailscale and connect through its SOCKS proxy:
 
 ```bash
+mkdir -p "$HOME/.local/run" "$HOME/.local/share/tailscale-codex"
 /opt/homebrew/opt/tailscale/bin/tailscaled \
   --tun=userspace-networking \
   --socks5-server=localhost:1055 \
@@ -169,6 +170,59 @@ rcswinssh() { ssh -o 'ProxyCommand=nc -x localhost:1055 %h %p' "$@"; }
 rcswinscp() { scp -o 'ProxyCommand=nc -x localhost:1055 %h %p' "$@"; }
 rcswinssh song@100.87.219.58 'hostname'
 ```
+
+Important:
+
+```text
+Always reuse the same socket and statedir above.
+Do not use `/tmp` for Tailscale state during stabilization rounds unless a fresh login is acceptable.
+If a fresh or empty state directory is used, Tailscale treats it as a new machine/session and asks for a browser auth URL.
+```
+
+Before every stabilization round, run this Mac-side tunnel preflight:
+
+```bash
+TS_SOCKET="$HOME/.local/run/tailscaled-codex.sock"
+
+pgrep -af 'tailscaled.*tailscale-codex' || true
+lsof -nP -iTCP:1055 -sTCP:LISTEN || true
+tailscale --socket="$TS_SOCKET" status
+ssh -o 'ServerAliveInterval=30' \
+  -o 'ServerAliveCountMax=6' \
+  -o 'ControlMaster=auto' \
+  -o 'ControlPersist=8h' \
+  -o 'ControlPath=~/.ssh/rcs-win-%r@%h:%p' \
+  -o 'ProxyCommand=nc -x localhost:1055 %h %p' \
+  song@100.87.219.58 'hostname'
+```
+
+Use these keepalive wrappers for long remote rounds:
+
+```bash
+rcswinssh() {
+  ssh \
+    -o 'ServerAliveInterval=30' \
+    -o 'ServerAliveCountMax=6' \
+    -o 'ControlMaster=auto' \
+    -o 'ControlPersist=8h' \
+    -o 'ControlPath=~/.ssh/rcs-win-%r@%h:%p' \
+    -o 'ProxyCommand=nc -x localhost:1055 %h %p' \
+    "$@"
+}
+
+rcswinscp() {
+  scp \
+    -o 'ServerAliveInterval=30' \
+    -o 'ServerAliveCountMax=6' \
+    -o 'ControlMaster=auto' \
+    -o 'ControlPersist=8h' \
+    -o 'ControlPath=~/.ssh/rcs-win-%r@%h:%p' \
+    -o 'ProxyCommand=nc -x localhost:1055 %h %p' \
+    "$@"
+}
+```
+
+The SSH keepalive options keep long commands from being closed silently and make broken links fail clearly. They do not replace the Tailscale daemon; `tailscaled` must remain running and authenticated.
 
 ### 3.2 Mac Clone
 
@@ -644,6 +698,48 @@ If SSH fails:
 ```bash
 rcswinssh -v song@100.87.219.58 'hostname'
 ```
+
+If SSH fails with `Connection closed by UNKNOWN port 65535`, or if `nc -x localhost:1055` closes immediately:
+
+```bash
+TS_SOCKET="$HOME/.local/run/tailscaled-codex.sock"
+
+lsof -nP -iTCP:1055 -sTCP:LISTEN || true
+pgrep -af 'tailscaled.*tailscale-codex' || true
+tailscale --socket="$TS_SOCKET" status
+```
+
+Interpretation:
+
+```text
+1. No listener on `localhost:1055` means the userspace SOCKS daemon is not running.
+2. `Logged out` or `NeedsLogin` means the daemon is running but not authenticated.
+3. A different or temporary state directory usually means a new Tailscale machine/session was created.
+4. Windows SSH should not be debugged until the Mac-side SOCKS listener and Tailscale auth state are healthy.
+```
+
+Recovery:
+
+```bash
+mkdir -p "$HOME/.local/run" "$HOME/.local/share/tailscale-codex"
+
+/opt/homebrew/opt/tailscale/bin/tailscaled \
+  --tun=userspace-networking \
+  --socks5-server=localhost:1055 \
+  --socket="$HOME/.local/run/tailscaled-codex.sock" \
+  --statedir="$HOME/.local/share/tailscale-codex"
+
+tailscale --socket="$HOME/.local/run/tailscaled-codex.sock" status
+```
+
+If the status prints a login URL, open it and approve the same session. After approval:
+
+```bash
+tailscale --socket="$HOME/.local/run/tailscaled-codex.sock" status
+rcswinssh song@100.87.219.58 'hostname'
+```
+
+Do not start a second daemon with a `/tmp` state path while another round is in progress. That is the failure mode that caused the previous round to require a new auth URL before Windows SSH could continue.
 
 If Git pull fails on Windows:
 
