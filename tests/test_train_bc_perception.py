@@ -389,6 +389,42 @@ def test_collision_cluster_route_offset_loss_uses_exact_signed_mask() -> None:
     assert torch.isclose(losses["collision_cluster_route_offset_agreement_loss"], torch.tensor(0.015))
 
 
+def test_collision_cluster_route_offset_loss_can_use_symmetric_lane_and_heading_mask() -> None:
+    action_mean = torch.tensor([[0.02, 0.0], [-0.02, 0.0], [-0.02, 0.0], [0.02, 0.0]])
+    zero_action_mean = torch.zeros_like(action_mean)
+
+    losses = _compute_collision_cluster_route_offset_losses(
+        action_mean,
+        zero_action_mean,
+        route_progress=torch.tensor([0.18, 0.18, 0.18, 0.22]),
+        lane_offset=torch.tensor([-1.7, -1.7, 1.7, -1.7]),
+        heading_error=torch.tensor([16.0, 16.0, -16.0, 16.0]),
+        route_min=0.16,
+        route_max=0.20,
+        lane_offset_min=1.5,
+        heading_error_max=-8.0,
+        margin=0.01,
+        lane_offset_mode="abs",
+        heading_error_mode="abs",
+    )
+
+    assert torch.isclose(losses["collision_cluster_route_offset_agreement_mask_rate"], torch.tensor(0.75))
+    assert torch.isclose(losses["collision_cluster_route_offset_agreement_sign_rate"], torch.tensor(2.0 / 3.0))
+    assert torch.isclose(
+        losses["collision_cluster_route_offset_agreement_signed_delta_mean"],
+        torch.tensor(-0.02 / 3.0),
+    )
+    assert torch.isclose(
+        losses["collision_cluster_route_offset_agreement_corrected_delta_mean"],
+        torch.tensor(0.02 / 3.0),
+    )
+    assert torch.isclose(losses["collision_cluster_route_offset_agreement_positive_sign_rate"], torch.tensor(1.0))
+    assert torch.isclose(losses["collision_cluster_route_offset_agreement_negative_sign_rate"], torch.tensor(0.5))
+    assert torch.isclose(losses["collision_cluster_route_offset_agreement_positive_mask_rate"], torch.tensor(0.25))
+    assert torch.isclose(losses["collision_cluster_route_offset_agreement_negative_mask_rate"], torch.tensor(0.5))
+    assert torch.isclose(losses["collision_cluster_route_offset_agreement_loss"], torch.tensor(0.01))
+
+
 def test_collision_cluster_route_offset_loss_respects_sequence_valid_mask() -> None:
     action_mean = torch.tensor([[[0.02, 0.0], [-0.02, 0.0]]])
     zero_action_mean = torch.zeros_like(action_mean)

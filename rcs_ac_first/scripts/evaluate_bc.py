@@ -408,6 +408,19 @@ def _build_summary(
     early_offroad_count = sum(
         1 for row in rows if bool(row.get("offroad", False)) and float(row.get("route_progress", 0.0)) < 0.20
     )
+    early_offroad_route_max = float(ppo_gate.get("early_offroad_route_max", 0.08))
+    severe_early_offroad_count = sum(
+        1
+        for row in rows
+        if bool(row.get("offroad", False)) and float(row.get("route_progress", 0.0)) <= early_offroad_route_max
+    )
+    severe_early_terminal_offroad_count = sum(
+        1
+        for row in rows
+        if bool(row.get("done", False))
+        and str(row.get("done_reason", "")) == "offroad"
+        and float(row.get("route_progress", 0.0)) <= early_offroad_route_max
+    )
 
     pass_reasons: list[str] = []
     fail_reasons: list[str] = []
@@ -448,6 +461,16 @@ def _build_summary(
         ppo_gate_fail_reasons.append(f"offroad_count {offroad_count} > {int(ppo_gate['max_offroad'])}")
     if early_offroad_count > 0:
         ppo_gate_fail_reasons.append(f"early_offroad_count {early_offroad_count} > 0")
+    if severe_early_offroad_count > 0:
+        ppo_gate_fail_reasons.append(
+            f"severe_early_offroad_count {severe_early_offroad_count} > 0 at route_progress <= "
+            f"{early_offroad_route_max:.6f}"
+        )
+    if severe_early_terminal_offroad_count > 0:
+        ppo_gate_fail_reasons.append(
+            f"severe_early_terminal_offroad_count {severe_early_terminal_offroad_count} > 0 at "
+            f"route_progress <= {early_offroad_route_max:.6f}"
+        )
     if max(route_values, default=0.0) < float(ppo_gate["min_max_route"]):
         ppo_gate_fail_reasons.append(
             f"max_route_progress {max(route_values, default=0.0):.6f} < {float(ppo_gate['min_max_route']):.6f}"
@@ -551,6 +574,9 @@ def _build_summary(
         "mean_visual_center_correction_score": float(mean_visual_center_correction_score),
         "route_visual_center_sign_agreement_rate": float(route_visual_center_sign_agreement_rate),
         "early_offroad_count": int(early_offroad_count),
+        "early_offroad_route_max": float(early_offroad_route_max),
+        "severe_early_offroad_count": int(severe_early_offroad_count),
+        "severe_early_terminal_offroad_count": int(severe_early_terminal_offroad_count),
         "ppo_gate_status": "PASS" if not ppo_gate_fail_reasons else "BLOCK",
         "ppo_gate_fail_reasons": ppo_gate_fail_reasons,
         "done_reason_counts": dict(done_reasons),
@@ -586,6 +612,7 @@ def main() -> int:
         "min_corrective_sign_rate": float(eval_raw.get("ppo_gate_min_corrective_sign_rate", 0.65)),
         "min_visual_center_correction_rate": float(eval_raw.get("ppo_gate_min_visual_center_correction_rate", 0.65)),
         "corrective_sign_source": str(eval_raw.get("ppo_gate_corrective_sign_source", "route_offset")),
+        "early_offroad_route_max": float(eval_raw.get("ppo_gate_early_offroad_route_max", 0.08)),
     }
     device = torch.device(config.train.resolve_device(args.device))
     _set_seed(config.train.seed)

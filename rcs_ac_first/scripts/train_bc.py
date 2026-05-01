@@ -70,6 +70,11 @@ BC_LOG_FIELDS: tuple[str, ...] = (
     "collision_cluster_route_offset_agreement_sign_rate",
     "collision_cluster_route_offset_agreement_mask_rate",
     "collision_cluster_route_offset_agreement_signed_delta_mean",
+    "collision_cluster_route_offset_agreement_corrected_delta_mean",
+    "collision_cluster_route_offset_agreement_positive_sign_rate",
+    "collision_cluster_route_offset_agreement_negative_sign_rate",
+    "collision_cluster_route_offset_agreement_positive_mask_rate",
+    "collision_cluster_route_offset_agreement_negative_mask_rate",
     "route_progress_longitudinal_floor_loss",
     "route_progress_longitudinal_floor_rate",
     "route_progress_longitudinal_mask_rate",
@@ -673,6 +678,11 @@ def _zero_collision_cluster_route_offset_losses(reference: torch.Tensor) -> dict
         "collision_cluster_route_offset_agreement_sign_rate": zero,
         "collision_cluster_route_offset_agreement_mask_rate": zero,
         "collision_cluster_route_offset_agreement_signed_delta_mean": zero,
+        "collision_cluster_route_offset_agreement_corrected_delta_mean": zero,
+        "collision_cluster_route_offset_agreement_positive_sign_rate": zero,
+        "collision_cluster_route_offset_agreement_negative_sign_rate": zero,
+        "collision_cluster_route_offset_agreement_positive_mask_rate": zero,
+        "collision_cluster_route_offset_agreement_negative_mask_rate": zero,
     }
 
 
@@ -688,6 +698,8 @@ def _compute_collision_cluster_route_offset_losses(
     lane_offset_min: float,
     heading_error_max: float,
     margin: float,
+    lane_offset_mode: str = "positive",
+    heading_error_mode: str = "less_than",
     valid_mask: torch.Tensor | None = None,
 ) -> dict[str, torch.Tensor]:
     if route_progress is None or lane_offset is None or heading_error is None:
@@ -711,21 +723,58 @@ def _compute_collision_cluster_route_offset_losses(
         mask = mask * (route_tensor >= float(route_min)).to(action_mean.dtype)
     if route_max is not None:
         mask = mask * (route_tensor <= float(route_max)).to(action_mean.dtype)
-    mask = mask * (lane_tensor > float(lane_offset_min)).to(action_mean.dtype)
-    mask = mask * (heading_tensor < float(heading_error_max)).to(action_mean.dtype)
+
+    lane_mode = str(lane_offset_mode).strip().lower()
+    if lane_mode in {"positive", "pos", "right"}:
+        lane_active = lane_tensor > float(lane_offset_min)
+    elif lane_mode in {"negative", "neg", "left"}:
+        lane_active = lane_tensor < -float(lane_offset_min)
+    elif lane_mode in {"abs", "absolute", "symmetric", "both"}:
+        lane_active = lane_tensor.abs() > float(lane_offset_min)
+    else:
+        raise ValueError(f"Unsupported collision_cluster_lane_offset_mode: {lane_offset_mode!r}")
+
+    heading_mode = str(heading_error_mode).strip().lower()
+    if heading_mode in {"less_than", "negative", "neg"}:
+        heading_active = heading_tensor < float(heading_error_max)
+    elif heading_mode in {"greater_than", "positive", "pos"}:
+        heading_active = heading_tensor > abs(float(heading_error_max))
+    elif heading_mode in {"abs", "absolute", "symmetric", "both"}:
+        heading_active = heading_tensor.abs() > abs(float(heading_error_max))
+    else:
+        raise ValueError(f"Unsupported collision_cluster_heading_error_mode: {heading_error_mode!r}")
+
+    mask = mask * lane_active.to(action_mean.dtype)
+    mask = mask * heading_active.to(action_mean.dtype)
 
     signed_steer_delta = action_steer - zero_steer
-    desired_sign = -torch.ones_like(lane_tensor)
+    desired_sign = -torch.sign(lane_tensor).clamp(min=-1.0, max=1.0)
     signed_corrective_delta = signed_steer_delta * desired_sign
     denom = mask.sum().clamp_min(1.0)
     loss = (F.relu(signed_corrective_delta.new_tensor(float(margin)) - signed_corrective_delta) * mask).sum() / denom
     sign_rate = ((signed_corrective_delta > 0.0).to(action_mean.dtype) * mask).sum() / denom
     signed_delta_mean = (signed_steer_delta * mask).sum() / denom
+    corrected_delta_mean = (signed_corrective_delta * mask).sum() / denom
+    positive_mask = mask * (lane_tensor > 0.0).to(action_mean.dtype)
+    negative_mask = mask * (lane_tensor < 0.0).to(action_mean.dtype)
+    positive_denom = positive_mask.sum().clamp_min(1.0)
+    negative_denom = negative_mask.sum().clamp_min(1.0)
+    positive_sign_rate = ((signed_corrective_delta > 0.0).to(action_mean.dtype) * positive_mask).sum() / positive_denom
+    negative_sign_rate = ((signed_corrective_delta > 0.0).to(action_mean.dtype) * negative_mask).sum() / negative_denom
     return {
         "collision_cluster_route_offset_agreement_loss": loss,
         "collision_cluster_route_offset_agreement_sign_rate": sign_rate,
         "collision_cluster_route_offset_agreement_mask_rate": mask.mean() if mask.numel() else loss.new_zeros(()),
         "collision_cluster_route_offset_agreement_signed_delta_mean": signed_delta_mean,
+        "collision_cluster_route_offset_agreement_corrected_delta_mean": corrected_delta_mean,
+        "collision_cluster_route_offset_agreement_positive_sign_rate": positive_sign_rate,
+        "collision_cluster_route_offset_agreement_negative_sign_rate": negative_sign_rate,
+        "collision_cluster_route_offset_agreement_positive_mask_rate": (
+            positive_mask.mean() if positive_mask.numel() else loss.new_zeros(())
+        ),
+        "collision_cluster_route_offset_agreement_negative_mask_rate": (
+            negative_mask.mean() if negative_mask.numel() else loss.new_zeros(())
+        ),
     }
 
 
@@ -975,6 +1024,21 @@ def _metric_row(
         "collision_cluster_route_offset_agreement_signed_delta_mean": float(
             losses.get("collision_cluster_route_offset_agreement_signed_delta_mean", fusion.new_zeros(())).detach().cpu().item()
         ),
+        "collision_cluster_route_offset_agreement_corrected_delta_mean": float(
+            losses.get("collision_cluster_route_offset_agreement_corrected_delta_mean", fusion.new_zeros(())).detach().cpu().item()
+        ),
+        "collision_cluster_route_offset_agreement_positive_sign_rate": float(
+            losses.get("collision_cluster_route_offset_agreement_positive_sign_rate", fusion.new_zeros(())).detach().cpu().item()
+        ),
+        "collision_cluster_route_offset_agreement_negative_sign_rate": float(
+            losses.get("collision_cluster_route_offset_agreement_negative_sign_rate", fusion.new_zeros(())).detach().cpu().item()
+        ),
+        "collision_cluster_route_offset_agreement_positive_mask_rate": float(
+            losses.get("collision_cluster_route_offset_agreement_positive_mask_rate", fusion.new_zeros(())).detach().cpu().item()
+        ),
+        "collision_cluster_route_offset_agreement_negative_mask_rate": float(
+            losses.get("collision_cluster_route_offset_agreement_negative_mask_rate", fusion.new_zeros(())).detach().cpu().item()
+        ),
         "route_progress_longitudinal_floor_loss": float(
             losses.get("route_progress_longitudinal_floor_loss", fusion.new_zeros(())).detach().cpu().item()
         ),
@@ -1046,6 +1110,8 @@ def _evaluate(
     collision_cluster_lane_offset_min: float,
     collision_cluster_heading_error_max: float,
     collision_cluster_route_offset_margin: float,
+    collision_cluster_lane_offset_mode: str,
+    collision_cluster_heading_error_mode: str,
     route_progress_longitudinal_floor_route_min: float | None,
     route_progress_longitudinal_floor_route_max: float | None,
     route_progress_longitudinal_floor_speed_max_mps: float | None,
@@ -1091,6 +1157,11 @@ def _evaluate(
         "collision_cluster_route_offset_agreement_sign_rate": 0.0,
         "collision_cluster_route_offset_agreement_mask_rate": 0.0,
         "collision_cluster_route_offset_agreement_signed_delta_mean": 0.0,
+        "collision_cluster_route_offset_agreement_corrected_delta_mean": 0.0,
+        "collision_cluster_route_offset_agreement_positive_sign_rate": 0.0,
+        "collision_cluster_route_offset_agreement_negative_sign_rate": 0.0,
+        "collision_cluster_route_offset_agreement_positive_mask_rate": 0.0,
+        "collision_cluster_route_offset_agreement_negative_mask_rate": 0.0,
         "route_progress_longitudinal_floor_loss": 0.0,
         "route_progress_longitudinal_floor_rate": 0.0,
         "route_progress_longitudinal_mask_rate": 0.0,
@@ -1195,6 +1266,8 @@ def _evaluate(
                         lane_offset_min=collision_cluster_lane_offset_min,
                         heading_error_max=collision_cluster_heading_error_max,
                         margin=collision_cluster_route_offset_margin,
+                        lane_offset_mode=collision_cluster_lane_offset_mode,
+                        heading_error_mode=collision_cluster_heading_error_mode,
                         valid_mask=batch.get("valid_mask"),
                     )
                 )
@@ -1297,6 +1370,8 @@ def _evaluate(
                         lane_offset_min=collision_cluster_lane_offset_min,
                         heading_error_max=collision_cluster_heading_error_max,
                         margin=collision_cluster_route_offset_margin,
+                        lane_offset_mode=collision_cluster_lane_offset_mode,
+                        heading_error_mode=collision_cluster_heading_error_mode,
                     )
                 )
                 losses.update(
@@ -1471,6 +1546,8 @@ def main() -> int:
     collision_cluster_lane_offset_min = float(bc_raw.get("collision_cluster_lane_offset_min", 0.0))
     collision_cluster_heading_error_max = float(bc_raw.get("collision_cluster_heading_error_max", 0.0))
     collision_cluster_route_offset_margin = float(bc_raw.get("collision_cluster_route_offset_margin", 0.0))
+    collision_cluster_lane_offset_mode = str(bc_raw.get("collision_cluster_lane_offset_mode", "positive"))
+    collision_cluster_heading_error_mode = str(bc_raw.get("collision_cluster_heading_error_mode", "less_than"))
     route_progress_longitudinal_floor_loss_weight = float(
         bc_raw.get("route_progress_longitudinal_floor_loss_weight", 0.0)
     )
@@ -1654,6 +1731,8 @@ def main() -> int:
                             lane_offset_min=collision_cluster_lane_offset_min,
                             heading_error_max=collision_cluster_heading_error_max,
                             margin=collision_cluster_route_offset_margin,
+                            lane_offset_mode=collision_cluster_lane_offset_mode,
+                            heading_error_mode=collision_cluster_heading_error_mode,
                             valid_mask=batch.get("valid_mask"),
                         )
                     )
@@ -1756,6 +1835,8 @@ def main() -> int:
                             lane_offset_min=collision_cluster_lane_offset_min,
                             heading_error_max=collision_cluster_heading_error_max,
                             margin=collision_cluster_route_offset_margin,
+                            lane_offset_mode=collision_cluster_lane_offset_mode,
+                            heading_error_mode=collision_cluster_heading_error_mode,
                         )
                     )
                     losses.update(
@@ -1862,6 +1943,8 @@ def main() -> int:
                 collision_cluster_lane_offset_min=collision_cluster_lane_offset_min,
                 collision_cluster_heading_error_max=collision_cluster_heading_error_max,
                 collision_cluster_route_offset_margin=collision_cluster_route_offset_margin,
+                collision_cluster_lane_offset_mode=collision_cluster_lane_offset_mode,
+                collision_cluster_heading_error_mode=collision_cluster_heading_error_mode,
                 route_progress_longitudinal_floor_route_min=route_progress_longitudinal_floor_route_min,
                 route_progress_longitudinal_floor_route_max=route_progress_longitudinal_floor_route_max,
                 route_progress_longitudinal_floor_speed_max_mps=route_progress_longitudinal_floor_speed_max_mps,

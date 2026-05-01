@@ -141,6 +141,8 @@ bc:
   collision_cluster_lane_offset_min: 0.75
   collision_cluster_heading_error_max: -3.0
   collision_cluster_route_offset_margin: 0.018
+  collision_cluster_lane_offset_mode: abs
+  collision_cluster_heading_error_mode: abs
   road_mask_weight: 0.25
   lane_edge_weight: 1.0
   lane_edge_pos_weight: 3.0
@@ -221,3 +223,4 @@ bc_eval:
   visual_center_error_min: 0.05
   ppo_gate_min_visual_center_correction_rate: 0.70
   ppo_gate_corrective_sign_source: visual_center
+  ppo_gate_early_offroad_route_max: 0.08
