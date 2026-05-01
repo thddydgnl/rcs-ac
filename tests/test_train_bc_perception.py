@@ -4,6 +4,7 @@ from rcs_ac_first.scripts.train_bc import (
     _compute_corrective_delta_losses,
     _compute_frame_perception_losses,
     _compute_route_progress_longitudinal_losses,
+    _compute_route_aware_visual_center_losses,
     _compute_sequence_perception_losses,
     _compute_visual_center_corrective_losses,
     _compute_visual_zero_losses,
@@ -237,6 +238,73 @@ def test_visual_center_corrective_loss_is_zero_without_raw_features() -> None:
 
     assert torch.isclose(losses["visual_center_corrective_sign_loss"], torch.tensor(0.0))
     assert torch.isclose(losses["visual_center_corrective_mask_rate"], torch.tensor(0.0))
+
+
+def test_route_aware_visual_center_loss_uses_route_window() -> None:
+    action_mean = torch.tensor([[0.20, 0.0], [0.20, 0.0], [0.20, 0.0]])
+    zero_action_mean = torch.zeros_like(action_mean)
+    outputs = {
+        "rgb_perception_actor_raw_features": torch.tensor(
+            [
+                [0.0] * 10 + [0.0, -0.40, 0.0, 0.0],
+                [0.0] * 10 + [0.0, -0.40, 0.0, 0.0],
+                [0.0] * 10 + [0.0, -0.40, 0.0, 0.0],
+            ],
+            dtype=torch.float32,
+        )
+    }
+    batch = {
+        "route_progress": torch.tensor([0.24, 0.10, 0.40]),
+        "target_corrective_delta": torch.tensor([0.20, 0.20, 0.20]),
+        "target_corrective_delta_available": torch.ones((3,), dtype=torch.float32),
+    }
+
+    losses = _compute_route_aware_visual_center_losses(
+        action_mean,
+        zero_action_mean,
+        outputs,
+        batch,
+        route_min=0.205,
+        route_max=0.36,
+        visual_center_error_min=0.05,
+        margin=0.30,
+    )
+
+    assert torch.isclose(losses["route_aware_visual_center_mask_rate"], torch.tensor(1.0 / 3.0))
+    assert torch.isclose(losses["route_aware_visual_center_sign_rate"], torch.tensor(1.0))
+    assert torch.isclose(losses["route_aware_visual_center_correction_rate"], torch.tensor(1.0))
+    assert torch.isclose(losses["route_aware_visual_center_loss"], torch.tensor(0.10))
+
+
+def test_route_aware_visual_center_loss_respects_sequence_valid_mask() -> None:
+    action_mean = torch.tensor([[[0.20, 0.0], [0.20, 0.0]]])
+    zero_action_mean = torch.zeros_like(action_mean)
+    outputs = {
+        "rgb_perception_actor_raw_features_sequence": torch.tensor(
+            [[[0.0] * 10 + [0.0, -0.40, 0.0, 0.0], [0.0] * 10 + [0.0, -0.40, 0.0, 0.0]]],
+            dtype=torch.float32,
+        )
+    }
+    batch = {
+        "route_progress": torch.tensor([[0.24, 0.24]]),
+        "target_corrective_delta": torch.tensor([[0.20, 0.20]]),
+        "target_corrective_delta_available": torch.ones((1, 2), dtype=torch.float32),
+    }
+
+    losses = _compute_route_aware_visual_center_losses(
+        action_mean,
+        zero_action_mean,
+        outputs,
+        batch,
+        route_min=0.205,
+        route_max=0.36,
+        visual_center_error_min=0.05,
+        margin=0.30,
+        valid_mask=torch.tensor([[1.0, 0.0]], dtype=torch.float32),
+    )
+
+    assert torch.isclose(losses["route_aware_visual_center_mask_rate"], torch.tensor(0.5))
+    assert torch.isclose(losses["route_aware_visual_center_loss"], torch.tensor(0.10))
 
 
 def test_route_progress_longitudinal_floor_loss_uses_route_and_speed_mask() -> None:

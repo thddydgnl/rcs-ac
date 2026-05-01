@@ -57,6 +57,11 @@ BC_LOG_FIELDS: tuple[str, ...] = (
     "visual_center_corrective_mask_rate",
     "visual_center_error_abs_mean",
     "visual_center_signed_delta_mean",
+    "route_aware_visual_center_loss",
+    "route_aware_visual_center_sign_rate",
+    "route_aware_visual_center_correction_rate",
+    "route_aware_visual_center_mask_rate",
+    "route_aware_visual_center_signed_delta_mean",
     "route_progress_longitudinal_floor_loss",
     "route_progress_longitudinal_floor_rate",
     "route_progress_longitudinal_mask_rate",
@@ -551,6 +556,88 @@ def _compute_visual_center_corrective_losses(
     }
 
 
+def _zero_route_aware_visual_center_losses(reference: torch.Tensor) -> dict[str, torch.Tensor]:
+    zero = reference.sum() * 0.0
+    return {
+        "route_aware_visual_center_loss": zero,
+        "route_aware_visual_center_sign_rate": zero,
+        "route_aware_visual_center_correction_rate": zero,
+        "route_aware_visual_center_mask_rate": zero,
+        "route_aware_visual_center_signed_delta_mean": zero,
+    }
+
+
+def _compute_route_aware_visual_center_losses(
+    action_mean: torch.Tensor,
+    zero_action_mean: torch.Tensor,
+    outputs: dict[str, torch.Tensor | None],
+    batch: dict[str, torch.Tensor],
+    *,
+    route_min: float | None = None,
+    route_max: float | None = None,
+    visual_center_error_min: float = 0.0,
+    margin: float = 0.0,
+    valid_mask: torch.Tensor | None = None,
+    sign_epsilon: float = 1.0e-5,
+) -> dict[str, torch.Tensor]:
+    raw_features = outputs.get("rgb_perception_actor_raw_features_sequence")
+    if not isinstance(raw_features, torch.Tensor):
+        raw_features = outputs.get("rgb_perception_actor_raw_features")
+    target_delta = batch.get("target_corrective_delta")
+    available = batch.get("target_corrective_delta_available")
+    route_progress = batch.get("route_progress")
+    if not isinstance(raw_features, torch.Tensor) or target_delta is None or available is None or route_progress is None:
+        return _zero_route_aware_visual_center_losses(action_mean)
+    if int(raw_features.shape[-1]) <= 11:
+        return _zero_route_aware_visual_center_losses(action_mean)
+    raw_features = raw_features.to(device=action_mean.device, dtype=action_mean.dtype)
+    target_delta = target_delta.to(device=action_mean.device, dtype=action_mean.dtype)
+    route_tensor = route_progress.to(device=action_mean.device, dtype=action_mean.dtype)
+    mask = available.to(device=action_mean.device, dtype=action_mean.dtype).clamp(0.0, 1.0)
+    if valid_mask is not None:
+        mask = mask * valid_mask.to(device=action_mean.device, dtype=action_mean.dtype).clamp(0.0, 1.0)
+    action_steer = action_mean[..., 0]
+    if tuple(raw_features.shape[:-1]) != tuple(action_steer.shape):
+        raw_features = raw_features.reshape(*action_steer.shape, int(raw_features.shape[-1]))
+    if tuple(target_delta.shape) != tuple(action_steer.shape):
+        target_delta = target_delta.reshape_as(action_steer)
+    if tuple(route_tensor.shape) != tuple(action_steer.shape):
+        route_tensor = route_tensor.reshape_as(action_steer)
+    if tuple(mask.shape) != tuple(action_steer.shape):
+        mask = mask.reshape_as(action_steer)
+
+    if route_min is not None:
+        mask = mask * (route_tensor >= float(route_min)).to(action_mean.dtype)
+    if route_max is not None:
+        mask = mask * (route_tensor <= float(route_max)).to(action_mean.dtype)
+    road_x = raw_features[..., 10]
+    lane_x = raw_features[..., 11]
+    visual_center_error = lane_x - road_x
+    visual_delta = action_steer - zero_action_mean[..., 0]
+    target_sign = torch.sign(target_delta)
+    signed_visual_delta = visual_delta * target_sign
+    center_consistent = (-visual_center_error * target_delta) > 0.0
+    sign_active = target_delta.abs() > float(sign_epsilon)
+    center_active = visual_center_error.abs() >= float(visual_center_error_min)
+    route_mask = mask * center_consistent.to(action_mean.dtype) * sign_active.to(action_mean.dtype) * center_active.to(action_mean.dtype)
+    denom = route_mask.sum().clamp_min(1.0)
+    if float(margin) > 0.0:
+        loss_values = F.relu(signed_visual_delta.new_tensor(float(margin)) - signed_visual_delta)
+        loss = (loss_values * route_mask).sum() / denom
+    else:
+        loss = signed_visual_delta.new_zeros(())
+    sign_rate = ((signed_visual_delta > 0.0).to(action_mean.dtype) * route_mask).sum() / denom
+    correction_rate = ((visual_delta * visual_center_error < 0.0).to(action_mean.dtype) * route_mask).sum() / denom
+    signed_delta_mean = (signed_visual_delta * route_mask).sum() / denom
+    return {
+        "route_aware_visual_center_loss": loss,
+        "route_aware_visual_center_sign_rate": sign_rate,
+        "route_aware_visual_center_correction_rate": correction_rate,
+        "route_aware_visual_center_mask_rate": route_mask.mean() if route_mask.numel() else loss.new_zeros(()),
+        "route_aware_visual_center_signed_delta_mean": signed_delta_mean,
+    }
+
+
 def _zero_route_progress_longitudinal_losses(reference: torch.Tensor) -> dict[str, torch.Tensor]:
     zero = reference.sum() * 0.0
     return {
@@ -758,6 +845,21 @@ def _metric_row(
         "visual_center_signed_delta_mean": float(
             losses.get("visual_center_signed_delta_mean", fusion.new_zeros(())).detach().cpu().item()
         ),
+        "route_aware_visual_center_loss": float(
+            losses.get("route_aware_visual_center_loss", fusion.new_zeros(())).detach().cpu().item()
+        ),
+        "route_aware_visual_center_sign_rate": float(
+            losses.get("route_aware_visual_center_sign_rate", fusion.new_zeros(())).detach().cpu().item()
+        ),
+        "route_aware_visual_center_correction_rate": float(
+            losses.get("route_aware_visual_center_correction_rate", fusion.new_zeros(())).detach().cpu().item()
+        ),
+        "route_aware_visual_center_mask_rate": float(
+            losses.get("route_aware_visual_center_mask_rate", fusion.new_zeros(())).detach().cpu().item()
+        ),
+        "route_aware_visual_center_signed_delta_mean": float(
+            losses.get("route_aware_visual_center_signed_delta_mean", fusion.new_zeros(())).detach().cpu().item()
+        ),
         "route_progress_longitudinal_floor_loss": float(
             losses.get("route_progress_longitudinal_floor_loss", fusion.new_zeros(())).detach().cpu().item()
         ),
@@ -821,6 +923,9 @@ def _evaluate(
     visual_zero_corrective_steer_margin: float,
     visual_center_error_min: float,
     visual_center_corrective_margin: float,
+    route_aware_visual_center_route_min: float | None,
+    route_aware_visual_center_route_max: float | None,
+    route_aware_visual_center_margin: float,
     route_progress_longitudinal_floor_route_min: float | None,
     route_progress_longitudinal_floor_route_max: float | None,
     route_progress_longitudinal_floor_speed_max_mps: float | None,
@@ -853,6 +958,11 @@ def _evaluate(
         "visual_center_corrective_mask_rate": 0.0,
         "visual_center_error_abs_mean": 0.0,
         "visual_center_signed_delta_mean": 0.0,
+        "route_aware_visual_center_loss": 0.0,
+        "route_aware_visual_center_sign_rate": 0.0,
+        "route_aware_visual_center_correction_rate": 0.0,
+        "route_aware_visual_center_mask_rate": 0.0,
+        "route_aware_visual_center_signed_delta_mean": 0.0,
         "route_progress_longitudinal_floor_loss": 0.0,
         "route_progress_longitudinal_floor_rate": 0.0,
         "route_progress_longitudinal_mask_rate": 0.0,
@@ -933,6 +1043,19 @@ def _evaluate(
                     )
                 )
                 losses.update(
+                    _compute_route_aware_visual_center_losses(
+                        action_mean,
+                        zero_action_mean,
+                        outputs,
+                        batch,
+                        route_min=route_aware_visual_center_route_min,
+                        route_max=route_aware_visual_center_route_max,
+                        visual_center_error_min=visual_center_error_min,
+                        margin=route_aware_visual_center_margin,
+                        valid_mask=batch.get("valid_mask"),
+                    )
+                )
+                losses.update(
                     _compute_route_progress_longitudinal_losses(
                         action_mean,
                         batch,
@@ -1005,6 +1128,18 @@ def _evaluate(
                         batch,
                         visual_center_error_min=visual_center_error_min,
                         visual_center_corrective_margin=visual_center_corrective_margin,
+                    )
+                )
+                losses.update(
+                    _compute_route_aware_visual_center_losses(
+                        action_mean,
+                        zero_action_mean,
+                        outputs,
+                        batch,
+                        route_min=route_aware_visual_center_route_min,
+                        route_max=route_aware_visual_center_route_max,
+                        visual_center_error_min=visual_center_error_min,
+                        margin=route_aware_visual_center_margin,
                     )
                 )
                 losses.update(
@@ -1167,6 +1302,10 @@ def main() -> int:
     visual_center_corrective_sign_loss_weight = float(bc_raw.get("visual_center_corrective_sign_loss_weight", 0.0))
     visual_center_corrective_margin = float(bc_raw.get("visual_center_corrective_margin", 0.0))
     visual_center_error_min = float(bc_raw.get("visual_center_error_min", 0.0))
+    route_aware_visual_center_loss_weight = float(bc_raw.get("route_aware_visual_center_loss_weight", 0.0))
+    route_aware_visual_center_route_min = bc_raw.get("route_aware_visual_center_route_min")
+    route_aware_visual_center_route_max = bc_raw.get("route_aware_visual_center_route_max")
+    route_aware_visual_center_margin = float(bc_raw.get("route_aware_visual_center_margin", 0.0))
     route_progress_longitudinal_floor_loss_weight = float(
         bc_raw.get("route_progress_longitudinal_floor_loss_weight", 0.0)
     )
@@ -1326,6 +1465,19 @@ def main() -> int:
                         )
                     )
                     losses.update(
+                        _compute_route_aware_visual_center_losses(
+                            action_mean,
+                            zero_action_mean,
+                            outputs,
+                            batch,
+                            route_min=route_aware_visual_center_route_min,
+                            route_max=route_aware_visual_center_route_max,
+                            visual_center_error_min=visual_center_error_min,
+                            margin=route_aware_visual_center_margin,
+                            valid_mask=batch.get("valid_mask"),
+                        )
+                    )
+                    losses.update(
                         _compute_route_progress_longitudinal_losses(
                             action_mean,
                             batch,
@@ -1401,6 +1553,18 @@ def main() -> int:
                         )
                     )
                     losses.update(
+                        _compute_route_aware_visual_center_losses(
+                            action_mean,
+                            zero_action_mean,
+                            outputs,
+                            batch,
+                            route_min=route_aware_visual_center_route_min,
+                            route_max=route_aware_visual_center_route_max,
+                            visual_center_error_min=visual_center_error_min,
+                            margin=route_aware_visual_center_margin,
+                        )
+                    )
+                    losses.update(
                         _compute_route_progress_longitudinal_losses(
                             action_mean,
                             batch,
@@ -1440,6 +1604,11 @@ def main() -> int:
                     total_loss
                     + losses.get("visual_center_corrective_sign_loss", total_loss.new_zeros(()))
                     * visual_center_corrective_sign_loss_weight
+                )
+                total_loss = (
+                    total_loss
+                    + losses.get("route_aware_visual_center_loss", total_loss.new_zeros(()))
+                    * route_aware_visual_center_loss_weight
                 )
                 total_loss = (
                     total_loss
@@ -1486,6 +1655,9 @@ def main() -> int:
                 visual_zero_corrective_steer_margin=visual_zero_corrective_steer_margin,
                 visual_center_error_min=visual_center_error_min,
                 visual_center_corrective_margin=visual_center_corrective_margin,
+                route_aware_visual_center_route_min=route_aware_visual_center_route_min,
+                route_aware_visual_center_route_max=route_aware_visual_center_route_max,
+                route_aware_visual_center_margin=route_aware_visual_center_margin,
                 route_progress_longitudinal_floor_route_min=route_progress_longitudinal_floor_route_min,
                 route_progress_longitudinal_floor_route_max=route_progress_longitudinal_floor_route_max,
                 route_progress_longitudinal_floor_speed_max_mps=route_progress_longitudinal_floor_speed_max_mps,
