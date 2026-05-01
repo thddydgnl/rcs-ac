@@ -8,6 +8,7 @@ from rcs_ac_first.scripts.evaluate_bc import _build_log_row, _build_summary
 def test_log_row_splits_route_offset_and_visual_center_signs() -> None:
     row = _build_log_row(
         step=0,
+        episode_step=0,
         episode=0,
         action=np.array([0.1, 0.0], dtype=np.float32),
         previous_action=None,
@@ -34,6 +35,7 @@ def test_summary_can_gate_on_visual_center_without_route_offset_sign() -> None:
     rows = [
         _build_log_row(
             step=step,
+            episode_step=step,
             episode=0,
             action=np.array([0.1, 0.0], dtype=np.float32),
             previous_action=np.array([0.09, 0.0], dtype=np.float32),
@@ -87,6 +89,7 @@ def test_summary_records_collision_context_window() -> None:
         rows.append(
             _build_log_row(
                 step=step,
+                episode_step=step,
                 episode=0,
                 action=action,
                 previous_action=previous_action,
@@ -153,6 +156,7 @@ def test_summary_blocks_severe_early_offroad_route_cluster() -> None:
     rows = [
         _build_log_row(
             step=0,
+            episode_step=0,
             episode=0,
             action=np.array([0.1, 0.0], dtype=np.float32),
             previous_action=None,
@@ -204,3 +208,63 @@ def test_summary_blocks_severe_early_offroad_route_cluster() -> None:
     assert summary["ppo_gate_status"] == "BLOCK"
     assert any("severe_early_offroad_count" in reason for reason in summary["ppo_gate_fail_reasons"])
     assert any("severe_early_terminal_offroad_count" in reason for reason in summary["ppo_gate_fail_reasons"])
+
+
+def test_summary_records_initial_audit_window() -> None:
+    rows = [
+        _build_log_row(
+            step=step,
+            episode_step=step,
+            episode=0,
+            action=np.array([-0.2 if step < 3 else 0.1, 0.1], dtype=np.float32),
+            previous_action=None,
+            reward=0.0,
+            done=False,
+            info={
+                "route_progress": 0.02,
+                "lane_offset": -0.1 * step,
+                "heading_error": 1.5 * step,
+                "yaw_delta": -0.5,
+                "route_target_heading": -12.0,
+                "maneuver_command": "straight",
+            },
+            diagnostics={"visual_lane_center_error_mean": 0.2},
+            visual_zero_deltas={"action_l1": 0.02, "steer": 0.006, "signed_steer": -0.006, "longitudinal": 0.0},
+            corrective_route_min=0.20,
+            corrective_route_max=0.32,
+            corrective_abs_lane_offset_min=1.8,
+            corrective_abs_heading_error_min=6.0,
+            visual_center_error_min=0.05,
+        )
+        for step in range(5)
+    ]
+    ppo_gate = {
+        "max_offroad": 2,
+        "min_max_route": 0.0,
+        "min_mean_route": 0.0,
+        "max_action_jitter": 0.07,
+        "min_visual_zero_action_l1": 0.0,
+        "min_visual_zero_steer_delta": 0.0,
+        "min_corrective_count": 0,
+        "min_corrective_visual_zero_steer_delta": 0.0,
+        "min_corrective_sign_rate": 0.0,
+        "min_visual_center_correction_rate": 0.0,
+        "corrective_sign_source": "visual_center",
+        "early_offroad_route_max": 0.08,
+    }
+
+    summary = _build_summary(
+        run_name="unit",
+        checkpoint_path=Path("checkpoint.pt"),
+        num_steps=5,
+        rows=rows,
+        output_csv=Path("eval.csv"),
+        ppo_gate=ppo_gate,
+    )
+
+    audit = summary["initial_audit"]
+    assert audit["row_count"] == 5
+    assert audit["left_steer_rate"] == 0.6
+    assert audit["right_steer_rate"] == 0.4
+    assert audit["final_lane_offset"] == -0.4
+    assert audit["maneuver_command_counts"] == {"straight": 5}

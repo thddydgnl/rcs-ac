@@ -34,11 +34,19 @@ COLLISION_CONTEXT_WINDOW_STEPS = 32
 
 BC_EVAL_FIELDS: tuple[str, ...] = (
     "step",
+    "episode_step",
     "episode",
     "steer",
+    "raw_steer",
+    "applied_steer",
+    "smoothed_steer",
     "longitudinal",
+    "raw_longitudinal",
+    "applied_longitudinal",
     "throttle",
+    "applied_throttle",
     "brake",
+    "applied_brake",
     "reward",
     "done",
     "done_reason",
@@ -46,6 +54,13 @@ BC_EVAL_FIELDS: tuple[str, ...] = (
     "speed_kmh",
     "lane_offset",
     "heading_error",
+    "vehicle_yaw",
+    "yaw_delta",
+    "route_target_heading",
+    "route_heading_error",
+    "route_target_x",
+    "route_target_y",
+    "maneuver_command",
     "collision",
     "collision_count_event",
     "collision_route_delta_0179487",
@@ -96,6 +111,8 @@ BC_EVAL_FIELDS: tuple[str, ...] = (
     "visual_zero_corrective_sign",
     "visual_zero_corrective_steer_delta",
 )
+
+INITIAL_AUDIT_STEPS = 80
 
 
 def parse_args() -> argparse.Namespace:
@@ -162,9 +179,31 @@ def _safe_diag(diagnostics: dict[str, float], *names: str, default: float = 0.0)
     return default
 
 
+def _safe_info_float(info: dict[str, Any], *names: str, default: float = 0.0) -> float:
+    for name in names:
+        if name not in info:
+            continue
+        try:
+            value = float(info[name])
+        except (TypeError, ValueError):
+            continue
+        return value if math.isfinite(value) else default
+    return default
+
+
+def _safe_info_str(info: dict[str, Any], *names: str, default: str = "") -> str:
+    for name in names:
+        value = info.get(name)
+        if value is None:
+            continue
+        return str(value)
+    return default
+
+
 def _build_log_row(
     *,
     step: int,
+    episode_step: int,
     episode: int,
     action: np.ndarray,
     previous_action: np.ndarray | None,
@@ -211,11 +250,48 @@ def _build_log_row(
     corrective_steer_delta = visual_zero_steer_delta if route_offset_corrective_sign else 0.0
     row: dict[str, Any] = {
         "step": int(step),
+        "episode_step": int(episode_step),
         "episode": int(episode),
         "steer": float(decoded["steer"]),
+        "raw_steer": _safe_info_float(info, "raw_steer", "policy_steer", "action_steer", default=float(decoded["steer"])),
+        "applied_steer": _safe_info_float(
+            info,
+            "applied_steer",
+            "control_steer",
+            "carla_steer",
+            default=float(decoded["steer"]),
+        ),
+        "smoothed_steer": _safe_info_float(info, "smoothed_steer", "filtered_steer", default=float(decoded["steer"])),
         "longitudinal": float(decoded["longitudinal"]),
+        "raw_longitudinal": _safe_info_float(
+            info,
+            "raw_longitudinal",
+            "policy_longitudinal",
+            "action_longitudinal",
+            default=float(decoded["longitudinal"]),
+        ),
+        "applied_longitudinal": _safe_info_float(
+            info,
+            "applied_longitudinal",
+            "control_longitudinal",
+            default=float(decoded["longitudinal"]),
+        ),
         "throttle": float(decoded["throttle"]),
+        "applied_throttle": _safe_info_float(
+            info,
+            "applied_throttle",
+            "control_throttle",
+            "throttle",
+            default=float(decoded["throttle"]),
+        ),
         "brake": float(decoded["brake"]),
+        "applied_brake": _safe_info_float(
+            info,
+            "applied_brake",
+            "control_brake",
+            "brake",
+            default=float(decoded["brake"]),
+        ),
         "reward": float(reward),
         "done": bool(done),
         "done_reason": str(info.get("done_reason", "running")),
@@ -223,6 +299,23 @@ def _build_log_row(
         "speed_kmh": float(info.get("speed_kmh", info.get("speed", 0.0))),
         "lane_offset": lane_offset,
         "heading_error": heading_error,
+        "vehicle_yaw": _safe_info_float(info, "vehicle_yaw", "yaw", "ego_yaw"),
+        "yaw_delta": _safe_info_float(info, "yaw_delta", "vehicle_yaw_delta", "ego_yaw_delta"),
+        "route_target_heading": _safe_info_float(
+            info,
+            "route_target_heading",
+            "target_heading",
+            "route_heading",
+        ),
+        "route_heading_error": _safe_info_float(
+            info,
+            "route_heading_error",
+            "route_heading_mismatch",
+            "target_heading_error",
+        ),
+        "route_target_x": _safe_info_float(info, "route_target_x", "target_x", "route_target_local_x"),
+        "route_target_y": _safe_info_float(info, "route_target_y", "target_y", "route_target_local_y"),
+        "maneuver_command": _safe_info_str(info, "maneuver_command", "maneuver", "command", default=""),
         "collision": bool(info.get("collision", False)),
         "collision_count_event": bool(info.get("collision", False) and done),
         "collision_route_delta_0179487": float(collision_cluster_deltas["0179487"]),
@@ -364,6 +457,40 @@ def _collision_context_events(rows: list[dict[str, Any]], *, window_steps: int) 
 def _collision_cluster_counts(events: list[dict[str, Any]]) -> dict[str, int]:
     counts: Counter[str] = Counter(str(event.get("cluster", "other")) for event in events)
     return dict(counts)
+
+
+def _initial_audit_summary(rows: list[dict[str, Any]], *, max_episode_step: int = INITIAL_AUDIT_STEPS) -> dict[str, Any]:
+    audit_rows = [row for row in rows if int(row.get("episode_step", row.get("step", 0))) < int(max_episode_step)]
+    if not audit_rows:
+        return {
+            "row_count": 0,
+            "left_steer_rate": 0.0,
+            "right_steer_rate": 0.0,
+            "mean_steer": 0.0,
+            "mean_applied_steer": 0.0,
+            "mean_lane_offset": 0.0,
+            "final_lane_offset": 0.0,
+            "mean_heading_error": 0.0,
+            "final_heading_error": 0.0,
+            "mean_yaw_delta": 0.0,
+            "mean_route_target_heading": 0.0,
+            "maneuver_command_counts": {},
+        }
+    maneuvers: Counter[str] = Counter(str(row.get("maneuver_command", "")) for row in audit_rows)
+    return {
+        "row_count": int(len(audit_rows)),
+        "left_steer_rate": float(sum(1 for row in audit_rows if float(row.get("steer", 0.0)) < -1.0e-4) / len(audit_rows)),
+        "right_steer_rate": float(sum(1 for row in audit_rows if float(row.get("steer", 0.0)) > 1.0e-4) / len(audit_rows)),
+        "mean_steer": _mean(audit_rows, "steer"),
+        "mean_applied_steer": _mean(audit_rows, "applied_steer"),
+        "mean_lane_offset": _mean(audit_rows, "lane_offset"),
+        "final_lane_offset": float(audit_rows[-1].get("lane_offset", 0.0)),
+        "mean_heading_error": _mean(audit_rows, "heading_error"),
+        "final_heading_error": float(audit_rows[-1].get("heading_error", 0.0)),
+        "mean_yaw_delta": _mean(audit_rows, "yaw_delta"),
+        "mean_route_target_heading": _mean(audit_rows, "route_target_heading"),
+        "maneuver_command_counts": dict(maneuvers),
+    }
 
 
 def _build_summary(
@@ -542,6 +669,8 @@ def _build_summary(
         "collision_context_window_steps": int(COLLISION_CONTEXT_WINDOW_STEPS),
         "collision_cluster_counts": _collision_cluster_counts(collision_events),
         "collision_events": collision_events,
+        "initial_audit_steps": int(INITIAL_AUDIT_STEPS),
+        "initial_audit": _initial_audit_summary(rows, max_episode_step=INITIAL_AUDIT_STEPS),
         "near_collision_cluster_row_count": int(len(collision_window_rows)),
         "near_collision_cluster_route_offset_corrective_sign_rate": _rate(
             collision_window_rows,
@@ -656,6 +785,7 @@ def main() -> int:
         hidden_state: torch.Tensor | None = None
         previous_action: np.ndarray | None = None
         episode = 0
+        episode_step = 0
 
         with log_path.open("w", encoding="utf-8", newline="") as handle:
             writer = csv.DictWriter(handle, fieldnames=BC_EVAL_FIELDS)
@@ -708,6 +838,7 @@ def main() -> int:
                 done = bool(result["done"])
                 row = _build_log_row(
                     step=step,
+                    episode_step=episode_step,
                     episode=episode,
                     action=action,
                     previous_action=previous_action,
@@ -731,11 +862,14 @@ def main() -> int:
                 auxiliary = flatten_auxiliary_observation_dict(result["obs"], aux_spec)
                 if done and step + 1 < int(args.num_steps):
                     episode += 1
+                    episode_step = 0
                     hidden_state = None
                     previous_action = None
                     reset = env.reset()
                     observation = flatten_observation_dict(reset["obs"], obs_spec)
                     auxiliary = flatten_auxiliary_observation_dict(reset["obs"], aux_spec)
+                else:
+                    episode_step += 1
 
         summary = _build_summary(
             run_name=run_name,
