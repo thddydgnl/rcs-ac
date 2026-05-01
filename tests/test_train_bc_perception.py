@@ -2,6 +2,7 @@ import torch
 
 from rcs_ac_first.models.perception_aux import RGBPerceptionActorFeatureExtractor
 from rcs_ac_first.scripts.train_bc import (
+    _compute_collision_cluster_route_offset_losses,
     _compute_corrective_delta_losses,
     _compute_frame_perception_losses,
     _compute_route_progress_longitudinal_losses,
@@ -360,6 +361,77 @@ def test_route_aware_visual_center_loss_reports_inconsistent_target_mask() -> No
     assert torch.isclose(losses["route_aware_visual_center_target_consistency_mask_rate"], torch.tensor(1.0))
     assert torch.isclose(losses["route_aware_visual_center_mask_rate"], torch.tensor(0.0))
     assert torch.isclose(losses["route_aware_visual_center_loss"], torch.tensor(0.0))
+
+
+def test_collision_cluster_route_offset_loss_uses_exact_signed_mask() -> None:
+    action_mean = torch.tensor([[0.02, 0.0], [-0.02, 0.0], [-0.03, 0.0], [0.02, 0.0]])
+    zero_action_mean = torch.zeros_like(action_mean)
+    route_progress = torch.tensor([0.18, 0.18, 0.22, 0.18])
+    lane_offset = torch.tensor([1.7, 1.7, 1.7, -1.7])
+    heading_error = torch.tensor([-16.0, -16.0, -16.0, -16.0])
+
+    losses = _compute_collision_cluster_route_offset_losses(
+        action_mean,
+        zero_action_mean,
+        route_progress=route_progress,
+        lane_offset=lane_offset,
+        heading_error=heading_error,
+        route_min=0.16,
+        route_max=0.20,
+        lane_offset_min=1.5,
+        heading_error_max=-8.0,
+        margin=0.01,
+    )
+
+    assert torch.isclose(losses["collision_cluster_route_offset_agreement_mask_rate"], torch.tensor(0.5))
+    assert torch.isclose(losses["collision_cluster_route_offset_agreement_sign_rate"], torch.tensor(0.5))
+    assert torch.isclose(losses["collision_cluster_route_offset_agreement_signed_delta_mean"], torch.tensor(0.0))
+    assert torch.isclose(losses["collision_cluster_route_offset_agreement_loss"], torch.tensor(0.015))
+
+
+def test_collision_cluster_route_offset_loss_respects_sequence_valid_mask() -> None:
+    action_mean = torch.tensor([[[0.02, 0.0], [-0.02, 0.0]]])
+    zero_action_mean = torch.zeros_like(action_mean)
+
+    losses = _compute_collision_cluster_route_offset_losses(
+        action_mean,
+        zero_action_mean,
+        route_progress=torch.tensor([[0.18, 0.18]]),
+        lane_offset=torch.tensor([[1.7, 1.7]]),
+        heading_error=torch.tensor([[-16.0, -16.0]]),
+        route_min=0.16,
+        route_max=0.20,
+        lane_offset_min=1.5,
+        heading_error_max=-8.0,
+        margin=0.01,
+        valid_mask=torch.tensor([[1.0, 0.0]]),
+    )
+
+    assert torch.isclose(losses["collision_cluster_route_offset_agreement_mask_rate"], torch.tensor(0.5))
+    assert torch.isclose(losses["collision_cluster_route_offset_agreement_sign_rate"], torch.tensor(0.0))
+    assert torch.isclose(losses["collision_cluster_route_offset_agreement_signed_delta_mean"], torch.tensor(0.02))
+    assert torch.isclose(losses["collision_cluster_route_offset_agreement_loss"], torch.tensor(0.03))
+
+
+def test_collision_cluster_route_offset_loss_is_zero_without_fields() -> None:
+    action_mean = torch.tensor([[0.02, 0.0]])
+    zero_action_mean = torch.zeros_like(action_mean)
+
+    losses = _compute_collision_cluster_route_offset_losses(
+        action_mean,
+        zero_action_mean,
+        route_progress=None,
+        lane_offset=torch.tensor([1.7]),
+        heading_error=torch.tensor([-16.0]),
+        route_min=0.16,
+        route_max=0.20,
+        lane_offset_min=1.5,
+        heading_error_max=-8.0,
+        margin=0.01,
+    )
+
+    assert torch.isclose(losses["collision_cluster_route_offset_agreement_loss"], torch.tensor(0.0))
+    assert torch.isclose(losses["collision_cluster_route_offset_agreement_mask_rate"], torch.tensor(0.0))
 
 
 def test_route_progress_longitudinal_floor_loss_uses_route_and_speed_mask() -> None:
