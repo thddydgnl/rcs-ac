@@ -57,6 +57,69 @@ failed to connect to local Tailscale service; is Tailscale running?
 
 Direct Tailscale SSH and documented LAN SSH both timed out. This is classified as remote-tunnel infrastructure, not a CARLA/model failure.
 
+## Resume Update - 2026-05-02
+
+Mac-side Tailscale was recovered by keeping `tailscaled` alive in a foreground session with the persistent socket/state paths. Windows SSH then worked and `git pull --ff-only` fast-forwarded to `4ff2ca7`.
+
+Round27 exact-cluster BC training completed on Windows:
+
+- Dataset: `data/expert/rgb_perception_actor_features_v2_corrective_delta_mix_928_round19.npz`
+- Checkpoint init: `checkpoints/rgb_perception_actor_features_v2_route_offset_agreement_bc_round24/last.pt`
+- Run: `rgb_perception_actor_features_v2_collision_cluster_route_offset_bc_round27`
+- Final val loss: `0.005251`
+
+However, the exact-cluster loss did not activate:
+
+- `collision_cluster_route_offset_agreement_mask_rate = 0.0`
+- Dataset scan showed `lane_offset > 1.5` count was `0`
+- Therefore the exact cluster had no trainable rows in the Round19 dataset
+
+Windows dataset scan found no exact cluster rows in any available expert npz. A near-cluster fallback was used:
+
+- New config: `configs/bc_frame_rgb_perception_actor_features_v2_near_cluster_route_offset_round27b.yaml`
+- Mixed dataset: `data/expert/rgb_perception_actor_features_v2_near_cluster_mix_3744_round27b.npz`
+- Inputs: Round19 corrective mix plus available recovery datasets
+- Near mask: `0.10 <= route_progress <= 0.32`, `lane_offset > 0.75`, `heading_error < -3`
+- Near-mask rows: `218 / 3744` (`0.058226`)
+
+Round27b training result:
+
+- Run: `rgb_perception_actor_features_v2_near_cluster_route_offset_bc_round27b`
+- Final val loss: `0.010155`
+- Near-cluster sign rate: `0.614973`
+- Near-cluster signed delta mean: `-0.007567`
+
+Round27c stronger loss result:
+
+- Config: `configs/bc_frame_rgb_perception_actor_features_v2_near_cluster_route_offset_round27c.yaml`
+- Loss weight: `0.60`
+- Margin: `0.018`
+- Run: `rgb_perception_actor_features_v2_near_cluster_route_offset_bc_round27c`
+- Final val loss: `0.011121`
+- Near-cluster sign rate: `0.636364`
+- Near-cluster signed delta mean: `-0.013691`
+
+CARLA was force-restarted successfully before the 512-step eval:
+
+```text
+CARLA_HEALTH=OK
+CARLA_READY=True
+```
+
+The 512-step eval command for Round27c then lost SSH with exit `255` and produced no command output. Immediately afterward, Windows was unreachable:
+
+```text
+tailscale ping 100.87.219.58 timed out
+nc: connection failed, SOCKS error 1
+Connection closed by UNKNOWN port 65535
+```
+
+Tailscale status reported the Windows peer offline/last seen around the eval interruption. LAN SSH to `192.168.0.13` also timed out. This second interruption is classified as Windows-side offline/crash/sleep/network loss during eval, not a Mac SOCKS daemon failure.
+
+## Current Interpretation
+
+The original exact-cluster idea was valid but blocked by missing training data. Available datasets do not contain the `lane_offset > 1.5` exact collision state. Near-cluster training did make the average RGB steer correction negative, but sign consistency remained below the desired `0.80` threshold. The next useful step is to recover Windows, inspect whether the interrupted 512 eval wrote partial logs, and if not rerun the 512 eval from the Round27c checkpoint after a forced CARLA restart.
+
 ## Resume Commands
 
 After Mac-side Tailscale/SSH is healthy, run on Windows:
