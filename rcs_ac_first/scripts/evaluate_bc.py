@@ -25,6 +25,12 @@ from rcs_ac_first.runtime.config import load_phase1_config
 from rcs_ac_first.runtime.observation import build_policy_observation_spec, flatten_observation_dict
 from rcs_ac_first.scripts.train import _build_env, _project_path, _resolve_config_path, _set_seed, _timestamp
 
+COLLISION_CLUSTER_ROUTES: tuple[tuple[str, float], ...] = (
+    ("0179487", 0.1794871794871795),
+    ("0743590", 0.7435897435897436),
+)
+COLLISION_CLUSTER_TOLERANCE = 0.02
+COLLISION_CONTEXT_WINDOW_STEPS = 32
 
 BC_EVAL_FIELDS: tuple[str, ...] = (
     "step",
@@ -41,6 +47,12 @@ BC_EVAL_FIELDS: tuple[str, ...] = (
     "lane_offset",
     "heading_error",
     "collision",
+    "collision_count_event",
+    "collision_route_delta_0179487",
+    "collision_route_delta_0743590",
+    "collision_window_0179487",
+    "collision_window_0743590",
+    "near_collision_cluster",
     "offroad",
     "stuck",
     "steer_delta_abs",
@@ -127,6 +139,21 @@ def _rate(rows: list[dict[str, Any]], key: str) -> float:
     return float(count / len(rows))
 
 
+def _route_cluster_deltas(route_progress: float) -> dict[str, float]:
+    return {
+        label: abs(float(route_progress) - float(cluster_route))
+        for label, cluster_route in COLLISION_CLUSTER_ROUTES
+    }
+
+
+def _nearest_route_cluster(route_progress: float, *, tolerance: float = COLLISION_CLUSTER_TOLERANCE) -> str | None:
+    deltas = _route_cluster_deltas(route_progress)
+    if not deltas:
+        return None
+    label, delta = min(deltas.items(), key=lambda item: item[1])
+    return label if delta <= float(tolerance) else None
+
+
 def _safe_diag(diagnostics: dict[str, float], *names: str, default: float = 0.0) -> float:
     for name in names:
         if name in diagnostics:
@@ -160,6 +187,8 @@ def _build_log_row(
         steer_delta_abs = abs(float(action[0]) - float(previous_action[0]))
         longitudinal_delta_abs = abs(float(action[1]) - float(previous_action[1]))
     route_progress = float(info.get("route_progress", 0.0))
+    collision_cluster_deltas = _route_cluster_deltas(route_progress)
+    nearest_collision_cluster = _nearest_route_cluster(route_progress)
     lane_offset = float(info.get("lane_offset", 0.0))
     heading_error = float(info.get("heading_error", 0.0))
     visual_zero_action_l1 = float(visual_zero_deltas.get("action_l1", 0.0))
@@ -195,6 +224,12 @@ def _build_log_row(
         "lane_offset": lane_offset,
         "heading_error": heading_error,
         "collision": bool(info.get("collision", False)),
+        "collision_count_event": bool(info.get("collision", False) and done),
+        "collision_route_delta_0179487": float(collision_cluster_deltas["0179487"]),
+        "collision_route_delta_0743590": float(collision_cluster_deltas["0743590"]),
+        "collision_window_0179487": bool(nearest_collision_cluster == "0179487"),
+        "collision_window_0743590": bool(nearest_collision_cluster == "0743590"),
+        "near_collision_cluster": bool(nearest_collision_cluster is not None),
         "offroad": bool(info.get("offroad", False)),
         "stuck": bool(info.get("stuck", False)),
         "steer_delta_abs": float(steer_delta_abs),
@@ -263,6 +298,74 @@ def _finite_rows(rows: list[dict[str, Any]]) -> bool:
     return True
 
 
+def _mean_abs(rows: list[dict[str, Any]], key: str) -> float:
+    if not rows:
+        return 0.0
+    values = [abs(float(row.get(key, 0.0))) for row in rows]
+    return float(sum(values) / len(values))
+
+
+def _max_abs(rows: list[dict[str, Any]], key: str) -> float:
+    if not rows:
+        return 0.0
+    return float(max(abs(float(row.get(key, 0.0))) for row in rows))
+
+
+def _collision_context_events(rows: list[dict[str, Any]], *, window_steps: int) -> list[dict[str, Any]]:
+    events: list[dict[str, Any]] = []
+    for row in rows:
+        if not bool(row.get("collision_count_event", False)):
+            continue
+        episode = int(row["episode"])
+        step = int(row["step"])
+        window_start = step - int(window_steps) + 1
+        window_rows = [
+            candidate
+            for candidate in rows
+            if int(candidate["episode"]) == episode and window_start <= int(candidate["step"]) <= step
+        ]
+        route_progress = float(row["route_progress"])
+        nearest_cluster = _nearest_route_cluster(route_progress) or "other"
+        events.append(
+            {
+                "step": step,
+                "episode": episode,
+                "cluster": nearest_cluster,
+                "route_progress": route_progress,
+                "speed_kmh": float(row["speed_kmh"]),
+                "lane_offset": float(row["lane_offset"]),
+                "heading_error": float(row["heading_error"]),
+                "steer": float(row["steer"]),
+                "longitudinal": float(row["longitudinal"]),
+                "risk_scalar": float(row.get("risk_scalar", 0.0)),
+                "visual_zero_signed_steer_delta": float(row.get("visual_zero_signed_steer_delta", 0.0)),
+                "visual_center_corrective_sign": bool(row.get("visual_center_corrective_sign", False)),
+                "route_offset_corrective_sign": bool(row.get("route_offset_corrective_sign", False)),
+                "route_visual_center_sign_agreement": bool(row.get("route_visual_center_sign_agreement", False)),
+                "window_step_count": int(len(window_rows)),
+                "window_mean_speed_kmh": _mean(window_rows, "speed_kmh"),
+                "window_mean_abs_lane_offset": _mean_abs(window_rows, "lane_offset"),
+                "window_max_abs_lane_offset": _max_abs(window_rows, "lane_offset"),
+                "window_mean_abs_heading_error": _mean_abs(window_rows, "heading_error"),
+                "window_max_abs_heading_error": _max_abs(window_rows, "heading_error"),
+                "window_mean_action_jitter_l1": _mean(window_rows, "action_jitter_l1"),
+                "window_mean_visual_zero_steer_delta": _mean(window_rows, "visual_zero_steer_delta_mean"),
+                "window_visual_center_correction_rate": _rate(window_rows, "visual_center_corrective_sign"),
+                "window_route_offset_corrective_sign_rate": _rate(window_rows, "route_offset_corrective_sign"),
+                "window_route_visual_center_sign_agreement_rate": _rate(
+                    window_rows,
+                    "route_visual_center_sign_agreement",
+                ),
+            }
+        )
+    return events
+
+
+def _collision_cluster_counts(events: list[dict[str, Any]]) -> dict[str, int]:
+    counts: Counter[str] = Counter(str(event.get("cluster", "other")) for event in events)
+    return dict(counts)
+
+
 def _build_summary(
     *,
     run_name: str,
@@ -279,6 +382,11 @@ def _build_summary(
     finite_ok = _finite_rows(rows)
     mean_route_progress = _mean(rows, "route_progress")
     collision_rate = _rate(rows, "collision")
+    collision_events = _collision_context_events(rows, window_steps=COLLISION_CONTEXT_WINDOW_STEPS)
+    collision_count = len(collision_events)
+    collision_window_rows = [
+        row for row in rows if bool(row.get("near_collision_cluster", False))
+    ]
     offroad_rate = _rate(rows, "offroad")
     stuck_rate = _rate(rows, "stuck")
     mean_steer_jitter = _mean(rows, "steer_delta_abs")
@@ -407,6 +515,23 @@ def _build_summary(
         "mean_route_progress": float(mean_route_progress),
         "max_route_progress": float(max(route_values, default=0.0)),
         "collision_rate": float(collision_rate),
+        "collision_count": int(collision_count),
+        "collision_context_window_steps": int(COLLISION_CONTEXT_WINDOW_STEPS),
+        "collision_cluster_counts": _collision_cluster_counts(collision_events),
+        "collision_events": collision_events,
+        "near_collision_cluster_row_count": int(len(collision_window_rows)),
+        "near_collision_cluster_route_offset_corrective_sign_rate": _rate(
+            collision_window_rows,
+            "route_offset_corrective_sign",
+        ),
+        "near_collision_cluster_visual_center_correction_rate": _rate(
+            collision_window_rows,
+            "visual_center_corrective_sign",
+        ),
+        "near_collision_cluster_route_visual_agreement_rate": _rate(
+            collision_window_rows,
+            "route_visual_center_sign_agreement",
+        ),
         "offroad_rate": float(offroad_rate),
         "stuck_rate": float(stuck_rate),
         "mean_steer_jitter": float(mean_steer_jitter),
