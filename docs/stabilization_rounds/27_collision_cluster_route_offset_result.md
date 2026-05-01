@@ -120,6 +120,55 @@ Tailscale status reported the Windows peer offline/last seen around the eval int
 
 The original exact-cluster idea was valid but blocked by missing training data. Available datasets do not contain the `lane_offset > 1.5` exact collision state. Near-cluster training did make the average RGB steer correction negative, but sign consistency remained below the desired `0.80` threshold. The next useful step is to recover Windows, inspect whether the interrupted 512 eval wrote partial logs, and if not rerun the 512 eval from the Round27c checkpoint after a forced CARLA restart.
 
+## 512 Retry Result - 2026-05-02
+
+Windows came back online and Mac-side Tailscale/SSH was restored. The interrupted Round27c eval was confirmed partial:
+
+- Run: `rgb_perception_actor_features_v2_near_cluster_route_offset_eval_512_round27c_20260502T010125`
+- Last `bc_eval_log.csv` step: `78`
+- No summary JSON
+
+After another `ensure_carla_ready.ps1 -ForceRestart`, the 512-step retry completed:
+
+- Run: `rgb_perception_actor_features_v2_near_cluster_route_offset_eval_512_retry_round27c_20260502T020912`
+- Completed steps: `512`
+- `pass_status`: `PASS`
+- `ppo_gate_status`: `BLOCK`
+- `collision_count`: `0`
+- `done_reason_counts`: `{"offroad": 7}`
+- `early_offroad_count`: `7`
+- `max_route_progress`: `0.076923`
+- `mean_route_progress`: `0.036058`
+- `mean_action_jitter_l1`: `0.071855`
+- `near_collision_cluster_row_count`: `0`
+
+PPO gate fail reasons:
+
+- `offroad_count 7 > 2`
+- `early_offroad_count 7 > 0`
+- `max_route_progress 0.076923 < 0.282051`
+- `mean_route_progress 0.036058 < 0.132762`
+- `mean_action_jitter_l1 0.071855 > 0.070000`
+- `corrective_need_count 0 < 32`
+- `mean_corrective_visual_zero_steer_delta 0.000000 < 0.004000`
+- `visual_center_correction_rate 0.000000 < 0.700000`
+
+Terminal offroad rows were consistent across episodes:
+
+- Route progress at terminal: `0.076923`
+- Lane offset: roughly `-2.93` to `-3.14`
+- Heading error: roughly `+21` to `+27` degrees
+- Collision: `False`
+
+Interpretation: Round27c removed the observed collision failure in this 512 retry, but it regressed into repeated early offroad before the previous collision cluster. The near-cluster signed correction is too broad or biased for early route behavior. Do not run 2048 or PPO from Round27c.
+
+Recommended next direction:
+
+1. Do not keep broad near-cluster loss as-is.
+2. Collect or synthesize exact-cluster recovery rows for `lane_offset > +1.5`, `heading_error < -8`, `route_progress 0.16-0.20`.
+3. Add a symmetric guard so positive-lane-offset correction does not destroy negative-lane-offset / early-route behavior.
+4. Add a 512 gate that explicitly blocks if terminal offroad rows cluster at `route_progress <= 0.08`.
+
 ## Resume Commands
 
 After Mac-side Tailscale/SSH is healthy, run on Windows:
