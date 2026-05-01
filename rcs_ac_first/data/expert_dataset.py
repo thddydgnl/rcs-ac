@@ -169,6 +169,13 @@ def _optional_mask_item(arrays: dict[str, np.ndarray], row: int) -> dict[str, to
     }
 
 
+def _optional_scalar_item(arrays: dict[str, np.ndarray], key: str, row: int) -> torch.Tensor:
+    value = arrays.get(key)
+    if value is None:
+        return torch.tensor(0.0, dtype=torch.float32)
+    return torch.tensor(float(np.asarray(value).reshape(-1)[row]), dtype=torch.float32)
+
+
 def summarize_expert_arrays(arrays: dict[str, Any]) -> ExpertDatasetSummary:
     validated = validate_expert_arrays(arrays)
     route_progress = validated["route_progress"]
@@ -256,6 +263,8 @@ class ExpertDataset(Dataset[dict[str, torch.Tensor]]):
             "auxiliary": torch.from_numpy(self.arrays["auxiliary"][row].astype(np.float32, copy=False)),
             "expert_action": torch.from_numpy(self.arrays["expert_action"][row].astype(np.float32, copy=False)),
             "route_progress": torch.tensor(float(self.arrays["route_progress"][row]), dtype=torch.float32),
+            "lane_offset": _optional_scalar_item(self.arrays, "lane_offset", row),
+            "heading_error": _optional_scalar_item(self.arrays, "heading_error", row),
             "done": torch.tensor(bool(self.arrays["done"][row]), dtype=torch.bool),
             "bad_transition": torch.tensor(bool(self.arrays["bad_transition_mask"][row]), dtype=torch.bool),
         }
@@ -350,6 +359,8 @@ class SequenceExpertDataset(Dataset[dict[str, torch.Tensor]]):
         auxiliary = np.zeros((length, aux_dim), dtype=np.float32)
         expert_action = np.zeros((length, action_dim), dtype=np.float32)
         route_progress = np.zeros((length,), dtype=np.float32)
+        lane_offset = np.zeros((length,), dtype=np.float32)
+        heading_error = np.zeros((length,), dtype=np.float32)
         done = np.zeros((length,), dtype=np.bool_)
         bad = np.zeros((length,), dtype=np.bool_)
         valid = np.zeros((length,), dtype=np.float32)
@@ -372,6 +383,8 @@ class SequenceExpertDataset(Dataset[dict[str, torch.Tensor]]):
             auxiliary[step] = self.arrays["auxiliary"][row].astype(np.float32, copy=False)
             expert_action[step] = self.arrays["expert_action"][row].astype(np.float32, copy=False)
             route_progress[step] = float(self.arrays["route_progress"][row])
+            lane_offset[step] = float(_optional_scalar_item(self.arrays, "lane_offset", row).item())
+            heading_error[step] = float(_optional_scalar_item(self.arrays, "heading_error", row).item())
             done[step] = bool(self.arrays["done"][row])
             bad[step] = bool(self.arrays["bad_transition_mask"][row])
             valid[step] = 1.0
@@ -387,6 +400,8 @@ class SequenceExpertDataset(Dataset[dict[str, torch.Tensor]]):
             "auxiliary": torch.from_numpy(auxiliary),
             "expert_action": torch.from_numpy(expert_action),
             "route_progress": torch.from_numpy(route_progress),
+            "lane_offset": torch.from_numpy(lane_offset),
+            "heading_error": torch.from_numpy(heading_error),
             "done": torch.from_numpy(done),
             "bad_transition": torch.from_numpy(bad),
             "valid_mask": torch.from_numpy(valid),

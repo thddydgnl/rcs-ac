@@ -138,6 +138,10 @@ def _build_log_row(
     info: dict[str, Any],
     diagnostics: dict[str, float],
     visual_zero_deltas: dict[str, float],
+    corrective_route_min: float,
+    corrective_route_max: float,
+    corrective_abs_lane_offset_min: float,
+    corrective_abs_heading_error_min: float,
 ) -> dict[str, Any]:
     decoded = decode_stage4_action_v2(action.tolist())
     if previous_action is None:
@@ -151,8 +155,10 @@ def _build_log_row(
     heading_error = float(info.get("heading_error", 0.0))
     visual_zero_action_l1 = float(visual_zero_deltas.get("action_l1", 0.0))
     visual_zero_steer_delta = float(visual_zero_deltas.get("steer", 0.0))
-    lane_risk_active = abs(lane_offset) >= 1.8 or abs(heading_error) >= 8.0
-    failure_window_active = 0.12 <= route_progress <= 0.23
+    lane_risk_active = abs(lane_offset) >= float(corrective_abs_lane_offset_min) or abs(heading_error) >= float(
+        corrective_abs_heading_error_min
+    )
+    failure_window_active = float(corrective_route_min) <= route_progress <= float(corrective_route_max)
     corrective_need_active = lane_risk_active and failure_window_active
     visual_zero_steer_share = visual_zero_steer_delta / max(visual_zero_action_l1, 1.0e-6)
     signed_steer_delta = float(visual_zero_deltas.get("signed_steer", 0.0))
@@ -240,6 +246,7 @@ def _build_summary(
     num_steps: int,
     rows: list[dict[str, Any]],
     output_csv: Path,
+    ppo_gate: dict[str, float],
 ) -> dict[str, Any]:
     completed_steps = len(rows)
     route_values = [float(row["route_progress"]) for row in rows]
@@ -262,10 +269,14 @@ def _build_summary(
     mean_corrective_visual_zero_steer_share = _mean(corrective_rows, "visual_zero_steer_share")
     mean_corrective_steer_delta = _mean(corrective_rows, "visual_zero_corrective_steer_delta")
     corrective_sign_rate = _rate(corrective_rows, "visual_zero_corrective_sign")
+    early_offroad_count = sum(
+        1 for row in rows if bool(row.get("offroad", False)) and float(row.get("route_progress", 0.0)) < 0.20
+    )
 
     pass_reasons: list[str] = []
     fail_reasons: list[str] = []
     warn_reasons: list[str] = []
+    ppo_gate_fail_reasons: list[str] = []
 
     if completed_steps <= 0:
         fail_reasons.append("no rollout steps were completed")
@@ -295,6 +306,44 @@ def _build_summary(
     if mean_longitudinal_jitter > 0.35:
         warn_reasons.append(
             f"mean_longitudinal_jitter {mean_longitudinal_jitter:.3f} exceeds recommendation 0.35"
+        )
+    offroad_count = int(done_reasons.get("offroad", 0))
+    if offroad_count > int(ppo_gate["max_offroad"]):
+        ppo_gate_fail_reasons.append(f"offroad_count {offroad_count} > {int(ppo_gate['max_offroad'])}")
+    if early_offroad_count > 0:
+        ppo_gate_fail_reasons.append(f"early_offroad_count {early_offroad_count} > 0")
+    if max(route_values, default=0.0) < float(ppo_gate["min_max_route"]):
+        ppo_gate_fail_reasons.append(
+            f"max_route_progress {max(route_values, default=0.0):.6f} < {float(ppo_gate['min_max_route']):.6f}"
+        )
+    if mean_route_progress < float(ppo_gate["min_mean_route"]):
+        ppo_gate_fail_reasons.append(
+            f"mean_route_progress {mean_route_progress:.6f} < {float(ppo_gate['min_mean_route']):.6f}"
+        )
+    if mean_action_jitter_l1 > float(ppo_gate["max_action_jitter"]):
+        ppo_gate_fail_reasons.append(
+            f"mean_action_jitter_l1 {mean_action_jitter_l1:.6f} > {float(ppo_gate['max_action_jitter']):.6f}"
+        )
+    if mean_visual_zero_action_l1 < float(ppo_gate["min_visual_zero_action_l1"]):
+        ppo_gate_fail_reasons.append(
+            f"mean_visual_zero_action_l1 {mean_visual_zero_action_l1:.6f} < "
+            f"{float(ppo_gate['min_visual_zero_action_l1']):.6f}"
+        )
+    if mean_visual_zero_steer_delta < float(ppo_gate["min_visual_zero_steer_delta"]):
+        ppo_gate_fail_reasons.append(
+            f"mean_visual_zero_steer_delta {mean_visual_zero_steer_delta:.6f} < "
+            f"{float(ppo_gate['min_visual_zero_steer_delta']):.6f}"
+        )
+    if corrective_count < int(ppo_gate["min_corrective_count"]):
+        ppo_gate_fail_reasons.append(f"corrective_need_count {corrective_count} < {int(ppo_gate['min_corrective_count'])}")
+    if mean_corrective_visual_zero_steer_delta < float(ppo_gate["min_corrective_visual_zero_steer_delta"]):
+        ppo_gate_fail_reasons.append(
+            f"mean_corrective_visual_zero_steer_delta {mean_corrective_visual_zero_steer_delta:.6f} < "
+            f"{float(ppo_gate['min_corrective_visual_zero_steer_delta']):.6f}"
+        )
+    if corrective_sign_rate < float(ppo_gate["min_corrective_sign_rate"]):
+        ppo_gate_fail_reasons.append(
+            f"corrective_sign_rate {corrective_sign_rate:.6f} < {float(ppo_gate['min_corrective_sign_rate']):.6f}"
         )
 
     if not fail_reasons:
@@ -332,6 +381,9 @@ def _build_summary(
         "mean_corrective_visual_zero_steer_share": float(mean_corrective_visual_zero_steer_share),
         "mean_corrective_steer_delta": float(mean_corrective_steer_delta),
         "corrective_sign_rate": float(corrective_sign_rate),
+        "early_offroad_count": int(early_offroad_count),
+        "ppo_gate_status": "PASS" if not ppo_gate_fail_reasons else "BLOCK",
+        "ppo_gate_fail_reasons": ppo_gate_fail_reasons,
         "done_reason_counts": dict(done_reasons),
         "pass_status": pass_status,
         "pass_reasons": pass_reasons,
@@ -343,6 +395,26 @@ def main() -> int:
     args = parse_args()
     config_path = _resolve_config_path(str(args.config))
     config = load_phase1_config(config_path)
+    eval_raw = config.raw.get("bc_eval") or config.raw.get("eval") or {}
+    if not isinstance(eval_raw, dict):
+        eval_raw = {}
+    corrective_route_min = float(eval_raw.get("corrective_route_min", 0.12))
+    corrective_route_max = float(eval_raw.get("corrective_route_max", 0.23))
+    corrective_abs_lane_offset_min = float(eval_raw.get("corrective_abs_lane_offset_min", 1.8))
+    corrective_abs_heading_error_min = float(eval_raw.get("corrective_abs_heading_error_min", 8.0))
+    ppo_gate = {
+        "max_offroad": float(eval_raw.get("ppo_gate_max_offroad", 2)),
+        "min_max_route": float(eval_raw.get("ppo_gate_min_max_route", 0.230769)),
+        "min_mean_route": float(eval_raw.get("ppo_gate_min_mean_route", 0.0)),
+        "max_action_jitter": float(eval_raw.get("ppo_gate_max_action_jitter", 0.07)),
+        "min_visual_zero_action_l1": float(eval_raw.get("ppo_gate_min_visual_zero_action_l1", 0.012)),
+        "min_visual_zero_steer_delta": float(eval_raw.get("ppo_gate_min_visual_zero_steer_delta", 0.003)),
+        "min_corrective_count": float(eval_raw.get("ppo_gate_min_corrective_count", 1)),
+        "min_corrective_visual_zero_steer_delta": float(
+            eval_raw.get("ppo_gate_min_corrective_visual_zero_steer_delta", 0.004)
+        ),
+        "min_corrective_sign_rate": float(eval_raw.get("ppo_gate_min_corrective_sign_rate", 0.65)),
+    }
     device = torch.device(config.train.resolve_device(args.device))
     _set_seed(config.train.seed)
 
@@ -445,6 +517,10 @@ def main() -> int:
                     info=info,
                     diagnostics=diagnostics,
                     visual_zero_deltas=visual_zero_deltas,
+                    corrective_route_min=corrective_route_min,
+                    corrective_route_max=corrective_route_max,
+                    corrective_abs_lane_offset_min=corrective_abs_lane_offset_min,
+                    corrective_abs_heading_error_min=corrective_abs_heading_error_min,
                 )
                 writer.writerow(row)
                 handle.flush()
@@ -467,6 +543,7 @@ def main() -> int:
             num_steps=int(args.num_steps),
             rows=rows,
             output_csv=log_path,
+            ppo_gate=ppo_gate,
         )
         summary_path.write_text(json.dumps(summary, indent=2, sort_keys=True), encoding="utf-8")
         print(json.dumps(summary, indent=2, sort_keys=True))

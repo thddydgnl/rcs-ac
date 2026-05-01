@@ -90,3 +90,28 @@ def test_visual_zero_sequence_loss_respects_valid_mask() -> None:
     assert torch.isclose(losses["visual_zero_longitudinal_delta"], torch.tensor(0.10))
     assert torch.isclose(losses["visual_zero_margin_loss"], torch.tensor(0.10))
     assert torch.isclose(losses["visual_zero_steer_margin_loss"], torch.tensor(0.10))
+
+
+def test_visual_zero_corrective_loss_uses_signed_window_mask() -> None:
+    action_mean = torch.tensor([[0.40, 0.00], [-0.20, 0.00], [0.50, 0.00]])
+    zero_action_mean = torch.zeros_like(action_mean)
+    route_progress = torch.tensor([0.24, 0.24, 0.10])
+    lane_offset = torch.tensor([-2.0, -2.0, -2.0])
+    heading_error = torch.tensor([7.0, 7.0, 7.0])
+
+    losses = _compute_visual_zero_losses(
+        action_mean,
+        zero_action_mean,
+        visual_zero_route_min=0.20,
+        visual_zero_route_max=0.30,
+        visual_zero_abs_lane_offset_min=1.8,
+        visual_zero_abs_heading_error_min=6.0,
+        visual_zero_corrective_steer_margin=0.30,
+        route_progress=route_progress,
+        lane_offset=lane_offset,
+        heading_error=heading_error,
+    )
+
+    assert torch.isclose(losses["visual_zero_corrective_mask_rate"], torch.tensor(2.0 / 3.0))
+    assert torch.isclose(losses["visual_zero_corrective_steer_delta"], torch.tensor(0.20))
+    assert torch.isclose(losses["visual_zero_corrective_sign_loss"], torch.tensor(0.10))

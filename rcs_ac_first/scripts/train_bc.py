@@ -41,6 +41,9 @@ BC_LOG_FIELDS: tuple[str, ...] = (
     "visual_zero_longitudinal_delta",
     "visual_zero_margin_loss",
     "visual_zero_steer_margin_loss",
+    "visual_zero_corrective_steer_delta",
+    "visual_zero_corrective_sign_loss",
+    "visual_zero_corrective_mask_rate",
     "perception_aux_loss",
     "aux_road_mask_loss",
     "aux_lane_edge_mask_loss",
@@ -310,6 +313,14 @@ def _compute_visual_zero_losses(
     *,
     visual_zero_margin: float = 0.0,
     visual_zero_steer_margin: float = 0.0,
+    visual_zero_route_min: float | None = None,
+    visual_zero_route_max: float | None = None,
+    visual_zero_abs_lane_offset_min: float = 0.0,
+    visual_zero_abs_heading_error_min: float = 0.0,
+    visual_zero_corrective_steer_margin: float = 0.0,
+    route_progress: torch.Tensor | None = None,
+    lane_offset: torch.Tensor | None = None,
+    heading_error: torch.Tensor | None = None,
     valid_mask: torch.Tensor | None = None,
 ) -> dict[str, torch.Tensor]:
     if action_mean.shape != zero_action_mean.shape:
@@ -334,12 +345,54 @@ def _compute_visual_zero_losses(
     steer_margin_loss = (
         F.relu(steer_delta.new_tensor(steer_margin) - steer_delta) if steer_margin > 0.0 else steer_delta.new_zeros(())
     )
+    corrective_mask = torch.ones_like(delta[..., 0], dtype=action_mean.dtype)
+    if valid_mask is not None:
+        corrective_mask = corrective_mask * valid_mask.to(device=action_mean.device, dtype=action_mean.dtype).clamp(0.0, 1.0)
+    if route_progress is not None:
+        route_tensor = route_progress.to(device=action_mean.device, dtype=action_mean.dtype)
+        if visual_zero_route_min is not None:
+            corrective_mask = corrective_mask * (route_tensor >= float(visual_zero_route_min)).to(action_mean.dtype)
+        if visual_zero_route_max is not None:
+            corrective_mask = corrective_mask * (route_tensor <= float(visual_zero_route_max)).to(action_mean.dtype)
+    risk_mask: torch.Tensor | None = None
+    lane_tensor: torch.Tensor | None = None
+    if lane_offset is not None:
+        lane_tensor = lane_offset.to(device=action_mean.device, dtype=action_mean.dtype)
+        lane_threshold = float(visual_zero_abs_lane_offset_min)
+        if lane_threshold > 0.0:
+            risk_mask = lane_tensor.abs() >= lane_threshold
+    if heading_error is not None:
+        heading_tensor = heading_error.to(device=action_mean.device, dtype=action_mean.dtype)
+        heading_threshold = float(visual_zero_abs_heading_error_min)
+        if heading_threshold > 0.0:
+            heading_mask = heading_tensor.abs() >= heading_threshold
+            risk_mask = heading_mask if risk_mask is None else (risk_mask | heading_mask)
+    if risk_mask is not None:
+        corrective_mask = corrective_mask * risk_mask.to(action_mean.dtype)
+    corrective_denom = corrective_mask.sum().clamp_min(1.0)
+    signed_steer_delta = action_mean[..., 0] - zero_action_mean[..., 0]
+    if lane_tensor is not None:
+        desired_sign = -torch.sign(lane_tensor)
+        signed_corrective_delta = signed_steer_delta * desired_sign
+    else:
+        signed_corrective_delta = signed_steer_delta.abs()
+    corrective_steer_delta = (torch.relu(signed_corrective_delta) * corrective_mask).sum() / corrective_denom
+    corrective_margin = float(visual_zero_corrective_steer_margin)
+    corrective_sign_loss = (
+        F.relu(corrective_steer_delta.new_tensor(corrective_margin) - corrective_steer_delta)
+        if corrective_margin > 0.0
+        else corrective_steer_delta.new_zeros(())
+    )
+    corrective_mask_rate = corrective_mask.mean() if corrective_mask.numel() else corrective_steer_delta.new_zeros(())
     return {
         "visual_zero_action_l1": action_l1,
         "visual_zero_steer_delta": steer_delta,
         "visual_zero_longitudinal_delta": longitudinal_delta,
         "visual_zero_margin_loss": margin_loss,
         "visual_zero_steer_margin_loss": steer_margin_loss,
+        "visual_zero_corrective_steer_delta": corrective_steer_delta,
+        "visual_zero_corrective_sign_loss": corrective_sign_loss,
+        "visual_zero_corrective_mask_rate": corrective_mask_rate,
     }
 
 
@@ -430,6 +483,15 @@ def _metric_row(
         "visual_zero_steer_margin_loss": float(
             losses.get("visual_zero_steer_margin_loss", fusion.new_zeros(())).detach().cpu().item()
         ),
+        "visual_zero_corrective_steer_delta": float(
+            losses.get("visual_zero_corrective_steer_delta", fusion.new_zeros(())).detach().cpu().item()
+        ),
+        "visual_zero_corrective_sign_loss": float(
+            losses.get("visual_zero_corrective_sign_loss", fusion.new_zeros(())).detach().cpu().item()
+        ),
+        "visual_zero_corrective_mask_rate": float(
+            losses.get("visual_zero_corrective_mask_rate", fusion.new_zeros(())).detach().cpu().item()
+        ),
         "policy_std": float(model.get_std().detach().mean().cpu().item()),
         "risk_scalar": float(risk_scalar.detach().mean().cpu().item()),
     }
@@ -471,6 +533,11 @@ def _evaluate(
     lane_edge_pos_weight: float,
     visual_zero_margin: float,
     visual_zero_steer_margin: float,
+    visual_zero_route_min: float | None,
+    visual_zero_route_max: float | None,
+    visual_zero_abs_lane_offset_min: float,
+    visual_zero_abs_heading_error_min: float,
+    visual_zero_corrective_steer_margin: float,
 ) -> tuple[dict[str, torch.Tensor], dict[str, torch.Tensor | None]]:
     model.eval()
     totals = {
@@ -483,6 +550,9 @@ def _evaluate(
         "visual_zero_longitudinal_delta": 0.0,
         "visual_zero_margin_loss": 0.0,
         "visual_zero_steer_margin_loss": 0.0,
+        "visual_zero_corrective_steer_delta": 0.0,
+        "visual_zero_corrective_sign_loss": 0.0,
+        "visual_zero_corrective_mask_rate": 0.0,
     }
     totals.update({key: 0.0 for key in PERCEPTION_AUX_METRIC_KEYS})
     count = 0
@@ -528,6 +598,14 @@ def _evaluate(
                         zero_action_mean,
                         visual_zero_margin=visual_zero_margin,
                         visual_zero_steer_margin=visual_zero_steer_margin,
+                        visual_zero_route_min=visual_zero_route_min,
+                        visual_zero_route_max=visual_zero_route_max,
+                        visual_zero_abs_lane_offset_min=visual_zero_abs_lane_offset_min,
+                        visual_zero_abs_heading_error_min=visual_zero_abs_heading_error_min,
+                        visual_zero_corrective_steer_margin=visual_zero_corrective_steer_margin,
+                        route_progress=batch.get("route_progress"),
+                        lane_offset=batch.get("lane_offset"),
+                        heading_error=batch.get("heading_error"),
                         valid_mask=batch["valid_mask"],
                     )
                 )
@@ -574,6 +652,14 @@ def _evaluate(
                         zero_action_mean,
                         visual_zero_margin=visual_zero_margin,
                         visual_zero_steer_margin=visual_zero_steer_margin,
+                        visual_zero_route_min=visual_zero_route_min,
+                        visual_zero_route_max=visual_zero_route_max,
+                        visual_zero_abs_lane_offset_min=visual_zero_abs_lane_offset_min,
+                        visual_zero_abs_heading_error_min=visual_zero_abs_heading_error_min,
+                        visual_zero_corrective_steer_margin=visual_zero_corrective_steer_margin,
+                        route_progress=batch.get("route_progress"),
+                        lane_offset=batch.get("lane_offset"),
+                        heading_error=batch.get("heading_error"),
                     )
                 )
             batch_size = int(batch["obs"].shape[0])
@@ -715,6 +801,12 @@ def main() -> int:
     visual_zero_margin_loss_weight = float(bc_raw.get("visual_zero_margin_loss_weight", 0.0))
     visual_zero_steer_margin = float(bc_raw.get("visual_zero_steer_margin", 0.0))
     visual_zero_steer_margin_loss_weight = float(bc_raw.get("visual_zero_steer_margin_loss_weight", 0.0))
+    visual_zero_route_min = bc_raw.get("visual_zero_route_min")
+    visual_zero_route_max = bc_raw.get("visual_zero_route_max")
+    visual_zero_abs_lane_offset_min = float(bc_raw.get("visual_zero_abs_lane_offset_min", 0.0))
+    visual_zero_abs_heading_error_min = float(bc_raw.get("visual_zero_abs_heading_error_min", 0.0))
+    visual_zero_corrective_steer_margin = float(bc_raw.get("visual_zero_corrective_steer_margin", 0.0))
+    visual_zero_corrective_sign_loss_weight = float(bc_raw.get("visual_zero_corrective_sign_loss_weight", 0.0))
     road_mask_weight = float(bc_raw.get("road_mask_weight", config.loss.aux_road_mask_loss_weight))
     lane_edge_weight = float(bc_raw.get("lane_edge_weight", config.loss.aux_lane_edge_mask_loss_weight))
     lane_edge_pos_weight = float(bc_raw.get("lane_edge_pos_weight", config.loss.aux_lane_edge_pos_weight))
@@ -836,6 +928,14 @@ def main() -> int:
                             zero_action_mean,
                             visual_zero_margin=visual_zero_margin,
                             visual_zero_steer_margin=visual_zero_steer_margin,
+                            visual_zero_route_min=visual_zero_route_min,
+                            visual_zero_route_max=visual_zero_route_max,
+                            visual_zero_abs_lane_offset_min=visual_zero_abs_lane_offset_min,
+                            visual_zero_abs_heading_error_min=visual_zero_abs_heading_error_min,
+                            visual_zero_corrective_steer_margin=visual_zero_corrective_steer_margin,
+                            route_progress=batch.get("route_progress"),
+                            lane_offset=batch.get("lane_offset"),
+                            heading_error=batch.get("heading_error"),
                             valid_mask=batch["valid_mask"],
                         )
                     )
@@ -882,6 +982,14 @@ def main() -> int:
                             zero_action_mean,
                             visual_zero_margin=visual_zero_margin,
                             visual_zero_steer_margin=visual_zero_steer_margin,
+                            visual_zero_route_min=visual_zero_route_min,
+                            visual_zero_route_max=visual_zero_route_max,
+                            visual_zero_abs_lane_offset_min=visual_zero_abs_lane_offset_min,
+                            visual_zero_abs_heading_error_min=visual_zero_abs_heading_error_min,
+                            visual_zero_corrective_steer_margin=visual_zero_corrective_steer_margin,
+                            route_progress=batch.get("route_progress"),
+                            lane_offset=batch.get("lane_offset"),
+                            heading_error=batch.get("heading_error"),
                         )
                     )
                 total_loss = losses["bc_loss"] * bc_loss_weight
@@ -894,6 +1002,11 @@ def main() -> int:
                     total_loss
                     + losses.get("visual_zero_steer_margin_loss", total_loss.new_zeros(()))
                     * visual_zero_steer_margin_loss_weight
+                )
+                total_loss = (
+                    total_loss
+                    + losses.get("visual_zero_corrective_sign_loss", total_loss.new_zeros(()))
+                    * visual_zero_corrective_sign_loss_weight
                 )
                 if not torch.isfinite(total_loss):
                     raise RuntimeError(f"Non-finite BC loss at step {global_step}: {float(total_loss.detach().cpu())}")
@@ -928,6 +1041,11 @@ def main() -> int:
                 lane_edge_pos_weight=lane_edge_pos_weight,
                 visual_zero_margin=visual_zero_margin,
                 visual_zero_steer_margin=visual_zero_steer_margin,
+                visual_zero_route_min=visual_zero_route_min,
+                visual_zero_route_max=visual_zero_route_max,
+                visual_zero_abs_lane_offset_min=visual_zero_abs_lane_offset_min,
+                visual_zero_abs_heading_error_min=visual_zero_abs_heading_error_min,
+                visual_zero_corrective_steer_margin=visual_zero_corrective_steer_margin,
             )
             last_val_loss = float(val_losses["bc_loss"].detach().cpu().item())
             writer.writerow(
