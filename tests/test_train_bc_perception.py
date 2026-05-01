@@ -1,5 +1,6 @@
 import torch
 
+from rcs_ac_first.models.perception_aux import RGBPerceptionActorFeatureExtractor
 from rcs_ac_first.scripts.train_bc import (
     _compute_corrective_delta_losses,
     _compute_frame_perception_losses,
@@ -61,6 +62,20 @@ def test_sequence_perception_loss_masks_invalid_timesteps() -> None:
 
     assert float(losses["perception_aux_loss"]) > 0.0
     assert float(losses["aux_mask_available_rate"]) == torch.tensor([1.0, 1.0, 0.0]).mean().item()
+
+
+def test_rgb_perception_raw_feature_indices_track_road_and_lane_x() -> None:
+    extractor = RGBPerceptionActorFeatureExtractor()
+    road_logits = torch.full((1, 1, 4, 5), -20.0)
+    lane_logits = torch.full((1, 1, 4, 5), -20.0)
+    road_logits[:, :, 2:, 0] = 20.0
+    lane_logits[:, :, 2:, 4] = 20.0
+
+    raw = extractor._build_raw_features(road_logits, lane_logits)
+
+    assert raw.shape == (1, 14)
+    assert raw[0, 10] < -0.99
+    assert raw[0, 11] > 0.99
 
 
 def test_visual_zero_loss_uses_action_delta_sum_and_margin() -> None:
@@ -193,6 +208,8 @@ def test_visual_center_corrective_loss_aligns_visual_delta_to_target() -> None:
     )
 
     assert torch.isclose(losses["visual_center_corrective_mask_rate"], torch.tensor(2.0 / 3.0))
+    assert torch.isclose(losses["visual_center_target_consistency_rate"], torch.tensor(2.0 / 3.0))
+    assert torch.isclose(losses["visual_center_target_consistency_mask_rate"], torch.tensor(1.0))
     assert torch.isclose(losses["visual_center_corrective_sign_rate"], torch.tensor(1.0))
     assert torch.isclose(losses["visual_center_correction_rate"], torch.tensor(1.0))
     assert torch.isclose(losses["visual_center_corrective_sign_loss"], torch.tensor(0.10))
@@ -223,6 +240,8 @@ def test_visual_center_corrective_loss_respects_sequence_valid_mask() -> None:
     )
 
     assert torch.isclose(losses["visual_center_corrective_mask_rate"], torch.tensor(0.5))
+    assert torch.isclose(losses["visual_center_target_consistency_rate"], torch.tensor(1.0))
+    assert torch.isclose(losses["visual_center_target_consistency_mask_rate"], torch.tensor(0.5))
     assert torch.isclose(losses["visual_center_corrective_sign_rate"], torch.tensor(1.0))
 
 
@@ -271,6 +290,8 @@ def test_route_aware_visual_center_loss_uses_route_window() -> None:
     )
 
     assert torch.isclose(losses["route_aware_visual_center_mask_rate"], torch.tensor(1.0 / 3.0))
+    assert torch.isclose(losses["route_aware_visual_center_target_consistency_rate"], torch.tensor(1.0))
+    assert torch.isclose(losses["route_aware_visual_center_target_consistency_mask_rate"], torch.tensor(1.0 / 3.0))
     assert torch.isclose(losses["route_aware_visual_center_sign_rate"], torch.tensor(1.0))
     assert torch.isclose(losses["route_aware_visual_center_correction_rate"], torch.tensor(1.0))
     assert torch.isclose(losses["route_aware_visual_center_loss"], torch.tensor(0.10))
@@ -304,7 +325,41 @@ def test_route_aware_visual_center_loss_respects_sequence_valid_mask() -> None:
     )
 
     assert torch.isclose(losses["route_aware_visual_center_mask_rate"], torch.tensor(0.5))
+    assert torch.isclose(losses["route_aware_visual_center_target_consistency_rate"], torch.tensor(1.0))
+    assert torch.isclose(losses["route_aware_visual_center_target_consistency_mask_rate"], torch.tensor(0.5))
     assert torch.isclose(losses["route_aware_visual_center_loss"], torch.tensor(0.10))
+
+
+def test_route_aware_visual_center_loss_reports_inconsistent_target_mask() -> None:
+    action_mean = torch.tensor([[0.20, 0.0]])
+    zero_action_mean = torch.zeros_like(action_mean)
+    outputs = {
+        "rgb_perception_actor_raw_features": torch.tensor(
+            [[0.0] * 10 + [0.0, -0.40, 0.0, 0.0]],
+            dtype=torch.float32,
+        )
+    }
+    batch = {
+        "route_progress": torch.tensor([0.18]),
+        "target_corrective_delta": torch.tensor([-0.20]),
+        "target_corrective_delta_available": torch.ones((1,), dtype=torch.float32),
+    }
+
+    losses = _compute_route_aware_visual_center_losses(
+        action_mean,
+        zero_action_mean,
+        outputs,
+        batch,
+        route_min=0.16,
+        route_max=0.20,
+        visual_center_error_min=0.05,
+        margin=0.30,
+    )
+
+    assert torch.isclose(losses["route_aware_visual_center_target_consistency_rate"], torch.tensor(0.0))
+    assert torch.isclose(losses["route_aware_visual_center_target_consistency_mask_rate"], torch.tensor(1.0))
+    assert torch.isclose(losses["route_aware_visual_center_mask_rate"], torch.tensor(0.0))
+    assert torch.isclose(losses["route_aware_visual_center_loss"], torch.tensor(0.0))
 
 
 def test_route_progress_longitudinal_floor_loss_uses_route_and_speed_mask() -> None:

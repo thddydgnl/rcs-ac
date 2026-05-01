@@ -55,12 +55,16 @@ BC_LOG_FIELDS: tuple[str, ...] = (
     "visual_center_corrective_sign_rate",
     "visual_center_correction_rate",
     "visual_center_corrective_mask_rate",
+    "visual_center_target_consistency_rate",
+    "visual_center_target_consistency_mask_rate",
     "visual_center_error_abs_mean",
     "visual_center_signed_delta_mean",
     "route_aware_visual_center_loss",
     "route_aware_visual_center_sign_rate",
     "route_aware_visual_center_correction_rate",
     "route_aware_visual_center_mask_rate",
+    "route_aware_visual_center_target_consistency_rate",
+    "route_aware_visual_center_target_consistency_mask_rate",
     "route_aware_visual_center_signed_delta_mean",
     "route_progress_longitudinal_floor_loss",
     "route_progress_longitudinal_floor_rate",
@@ -534,7 +538,12 @@ def _compute_visual_center_corrective_losses(
     center_consistent = (-visual_center_error * target_delta) > 0.0
     sign_active = target_delta.abs() > float(sign_epsilon)
     center_active = visual_center_error.abs() >= float(visual_center_error_min)
-    corrective_mask = mask * center_consistent.to(action_mean.dtype) * sign_active.to(action_mean.dtype) * center_active.to(action_mean.dtype)
+    pre_consistency_mask = mask * sign_active.to(action_mean.dtype) * center_active.to(action_mean.dtype)
+    pre_consistency_denom = pre_consistency_mask.sum().clamp_min(1.0)
+    target_consistency_rate = (
+        center_consistent.to(action_mean.dtype) * pre_consistency_mask
+    ).sum() / pre_consistency_denom
+    corrective_mask = pre_consistency_mask * center_consistent.to(action_mean.dtype)
     denom = corrective_mask.sum().clamp_min(1.0)
     margin = float(visual_center_corrective_margin)
     if margin > 0.0:
@@ -551,6 +560,10 @@ def _compute_visual_center_corrective_losses(
         "visual_center_corrective_sign_rate": sign_rate,
         "visual_center_correction_rate": correction_rate,
         "visual_center_corrective_mask_rate": corrective_mask.mean() if corrective_mask.numel() else sign_loss.new_zeros(()),
+        "visual_center_target_consistency_rate": target_consistency_rate,
+        "visual_center_target_consistency_mask_rate": (
+            pre_consistency_mask.mean() if pre_consistency_mask.numel() else sign_loss.new_zeros(())
+        ),
         "visual_center_error_abs_mean": error_abs_mean,
         "visual_center_signed_delta_mean": signed_delta_mean,
     }
@@ -563,6 +576,8 @@ def _zero_route_aware_visual_center_losses(reference: torch.Tensor) -> dict[str,
         "route_aware_visual_center_sign_rate": zero,
         "route_aware_visual_center_correction_rate": zero,
         "route_aware_visual_center_mask_rate": zero,
+        "route_aware_visual_center_target_consistency_rate": zero,
+        "route_aware_visual_center_target_consistency_mask_rate": zero,
         "route_aware_visual_center_signed_delta_mean": zero,
     }
 
@@ -619,7 +634,12 @@ def _compute_route_aware_visual_center_losses(
     center_consistent = (-visual_center_error * target_delta) > 0.0
     sign_active = target_delta.abs() > float(sign_epsilon)
     center_active = visual_center_error.abs() >= float(visual_center_error_min)
-    route_mask = mask * center_consistent.to(action_mean.dtype) * sign_active.to(action_mean.dtype) * center_active.to(action_mean.dtype)
+    pre_consistency_mask = mask * sign_active.to(action_mean.dtype) * center_active.to(action_mean.dtype)
+    pre_consistency_denom = pre_consistency_mask.sum().clamp_min(1.0)
+    target_consistency_rate = (
+        center_consistent.to(action_mean.dtype) * pre_consistency_mask
+    ).sum() / pre_consistency_denom
+    route_mask = pre_consistency_mask * center_consistent.to(action_mean.dtype)
     denom = route_mask.sum().clamp_min(1.0)
     if float(margin) > 0.0:
         loss_values = F.relu(signed_visual_delta.new_tensor(float(margin)) - signed_visual_delta)
@@ -634,6 +654,10 @@ def _compute_route_aware_visual_center_losses(
         "route_aware_visual_center_sign_rate": sign_rate,
         "route_aware_visual_center_correction_rate": correction_rate,
         "route_aware_visual_center_mask_rate": route_mask.mean() if route_mask.numel() else loss.new_zeros(()),
+        "route_aware_visual_center_target_consistency_rate": target_consistency_rate,
+        "route_aware_visual_center_target_consistency_mask_rate": (
+            pre_consistency_mask.mean() if pre_consistency_mask.numel() else loss.new_zeros(())
+        ),
         "route_aware_visual_center_signed_delta_mean": signed_delta_mean,
     }
 
@@ -839,6 +863,12 @@ def _metric_row(
         "visual_center_corrective_mask_rate": float(
             losses.get("visual_center_corrective_mask_rate", fusion.new_zeros(())).detach().cpu().item()
         ),
+        "visual_center_target_consistency_rate": float(
+            losses.get("visual_center_target_consistency_rate", fusion.new_zeros(())).detach().cpu().item()
+        ),
+        "visual_center_target_consistency_mask_rate": float(
+            losses.get("visual_center_target_consistency_mask_rate", fusion.new_zeros(())).detach().cpu().item()
+        ),
         "visual_center_error_abs_mean": float(
             losses.get("visual_center_error_abs_mean", fusion.new_zeros(())).detach().cpu().item()
         ),
@@ -856,6 +886,12 @@ def _metric_row(
         ),
         "route_aware_visual_center_mask_rate": float(
             losses.get("route_aware_visual_center_mask_rate", fusion.new_zeros(())).detach().cpu().item()
+        ),
+        "route_aware_visual_center_target_consistency_rate": float(
+            losses.get("route_aware_visual_center_target_consistency_rate", fusion.new_zeros(())).detach().cpu().item()
+        ),
+        "route_aware_visual_center_target_consistency_mask_rate": float(
+            losses.get("route_aware_visual_center_target_consistency_mask_rate", fusion.new_zeros(())).detach().cpu().item()
         ),
         "route_aware_visual_center_signed_delta_mean": float(
             losses.get("route_aware_visual_center_signed_delta_mean", fusion.new_zeros(())).detach().cpu().item()
@@ -956,12 +992,16 @@ def _evaluate(
         "visual_center_corrective_sign_rate": 0.0,
         "visual_center_correction_rate": 0.0,
         "visual_center_corrective_mask_rate": 0.0,
+        "visual_center_target_consistency_rate": 0.0,
+        "visual_center_target_consistency_mask_rate": 0.0,
         "visual_center_error_abs_mean": 0.0,
         "visual_center_signed_delta_mean": 0.0,
         "route_aware_visual_center_loss": 0.0,
         "route_aware_visual_center_sign_rate": 0.0,
         "route_aware_visual_center_correction_rate": 0.0,
         "route_aware_visual_center_mask_rate": 0.0,
+        "route_aware_visual_center_target_consistency_rate": 0.0,
+        "route_aware_visual_center_target_consistency_mask_rate": 0.0,
         "route_aware_visual_center_signed_delta_mean": 0.0,
         "route_progress_longitudinal_floor_loss": 0.0,
         "route_progress_longitudinal_floor_rate": 0.0,
