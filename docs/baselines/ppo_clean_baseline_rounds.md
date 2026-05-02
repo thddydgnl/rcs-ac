@@ -2036,3 +2036,40 @@ Current blocker after Attempt 32:
 
 - The best pure PPO candidate is now seed9 16k `update_0011.pt`, but it remains one offroad event away from the hard 512 safety gate.
 - Additional seed search may still find a lucky zero-offroad checkpoint, but the repeated corrective-sign failure suggests the policy is not learning the recovery behavior the benchmark needs.
+
+## PPO Baseline Attempt 33: Seed9 16k Adjacent Checkpoint 512 Audit
+
+Config: `configs/baselines/ppo_clean_same_env_sensor_action_seed9_midstd_rollout512_mb256.yaml`
+
+Source run: `ppo_clean_same_env_sensor_action_seed9_midstd_rollout512_mb256_16384_20260503T052512`
+
+Status: **failed 512 clean gate**
+
+Purpose:
+
+- Audit checkpoints adjacent to the closest seed9 `update_0011.pt` candidate.
+- This changes checkpoint selection only; environment, route, sensors, action wrapper, reward, and PPO fairness constraints remain unchanged.
+
+Planned checkpoints:
+
+- `update_0010.pt`
+- `update_0012.pt`
+
+512 clean eval results:
+
+| Checkpoint | Collision | Offroad | Early offroad | Severe early offroad | Stuck | Max route progress | Mean action jitter L1 | PPO gate |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |
+| `update_0010.pt` | `0` | `1` | `0` | `0` | `0` | `0.538462` | `0.000766` | `BLOCK` |
+| `update_0012.pt` | `0` | `1` | `0` | `0` | `0` | `0.512821` | `0.000809` | `BLOCK` |
+
+Failure diagnosis:
+
+- Adjacent checkpoints confirm a stable near-pass band around seed9 updates 10-12.
+- The actor can reach `0.51` to `0.54` route progress without collision, severe early offroad, or stuck, but still leaves one offroad event.
+- Corrective route-offset sign rate remains `0.0`.
+- Because both adjacent checkpoints failed the 512 zero-offroad gate, no 2048 eval was run.
+
+Current blocker after Attempt 33:
+
+- Seed9 updates 10-12 are the strongest pure PPO candidates, but all repeat the same offroad `1` failure.
+- Further pure PPO search is now mostly a lottery over seeds/checkpoints unless a shared reward/action contract change is introduced and fairly revalidated.
