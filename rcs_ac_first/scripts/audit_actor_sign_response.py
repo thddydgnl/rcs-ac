@@ -37,6 +37,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--dataset", default=None)
     parser.add_argument("--sample-index", type=int, default=0)
     parser.add_argument("--sample-selector", default="index", choices=["index", "early_left", "early_any"])
+    parser.add_argument("--max-samples", type=int, default=1)
     parser.add_argument("--early-route-max", type=float, default=0.08)
     parser.add_argument("--early-left-lane-max", type=float, default=-0.5)
     parser.add_argument("--device", default="auto", choices=["auto", "cpu", "cuda"])
@@ -165,7 +166,8 @@ def _select_sample_index(arrays: dict[str, np.ndarray], *, sample_index: int, ar
             f"No samples matched selector={args.sample_selector!r} "
             f"early_route_max={float(args.early_route_max)} early_left_lane_max={float(args.early_left_lane_max)}"
         )
-    return int(candidates[0])
+    offset = int(np.clip(sample_index, 0, int(candidates.size) - 1))
+    return int(candidates[offset])
 
 
 def _forward(model: RCSACFirstModel, obs: torch.Tensor, aux: torch.Tensor) -> dict[str, float]:
@@ -327,41 +329,67 @@ def main() -> int:
     config = load_phase1_config(config_path)
     device = _resolve_device(config, args.device)
     model = _load_model(config=config, checkpoint_path=checkpoint_path, device=device)
-    base_obs, base_aux, source_meta = _load_base_tensors(
-        config=config,
-        dataset_path=dataset_path,
-        sample_index=int(args.sample_index),
-        device=device,
-        args=args,
-    )
     values = _parse_probe_values(str(args.probe_values))
     axes = ("lane_offset", "heading_error", "route_target_y")
     rows: list[dict[str, Any]] = []
-    for axis in axes:
-        for value in values:
-            obs, aux, actual = _make_probe(
-                config=config,
-                base_obs=base_obs,
-                base_aux=base_aux,
-                axis=axis,
-                value=float(value),
-                args=args,
-            )
-            metrics = _forward(model, obs, aux)
-            rows.append(
-                {
+    sample_summaries: list[dict[str, Any]] = []
+    max_samples = max(1, int(args.max_samples))
+    for sample_offset in range(max_samples):
+        base_obs, base_aux, source_meta = _load_base_tensors(
+            config=config,
+            dataset_path=dataset_path,
+            sample_index=int(args.sample_index) + int(sample_offset),
+            device=device,
+            args=args,
+        )
+        sample_rows: list[dict[str, Any]] = []
+        for axis in axes:
+            for value in values:
+                obs, aux, actual = _make_probe(
+                    config=config,
+                    base_obs=base_obs,
+                    base_aux=base_aux,
+                    axis=axis,
+                    value=float(value),
+                    args=args,
+                )
+                metrics = _forward(model, obs, aux)
+                row = {
+                    "audit_sample_offset": int(sample_offset),
+                    "source_sample_index": int(source_meta.get("sample_index", -1)),
                     "axis": axis,
                     "probe_value": float(value),
                     "actual_value": float(actual),
                     **metrics,
                 }
-            )
+                sample_rows.append(row)
+                rows.append(row)
+        sample_axis_summary = _axis_summary(
+            sample_rows,
+            min_delta=float(args.min_delta),
+            sign_convention=str(args.sign_convention),
+        )
+        sample_gate = _gate_status(
+            sample_axis_summary,
+            min_delta=float(args.min_delta),
+            max_zero_bias=float(args.max_zero_bias),
+        )
+        sample_summaries.append(
+            {
+                "audit_sample_offset": int(sample_offset),
+                "source": source_meta,
+                "axis_summary": sample_axis_summary,
+                **sample_gate,
+            }
+        )
 
     output_dir = _project_path(args.output_dir) / str(args.run_name)
     output_dir.mkdir(parents=True, exist_ok=True)
     csv_path = output_dir / "actor_sign_audit.csv"
     summary_path = output_dir / "summary.json"
     fieldnames = [
+        "audit_sample_offset",
+        "source_sample_index",
         "axis",
         "probe_value",
         "actual_value",
@@ -380,24 +408,54 @@ def main() -> int:
         for row in rows:
             writer.writerow(row)
 
-    axis_summary = _axis_summary(
-        rows,
-        min_delta=float(args.min_delta),
-        sign_convention=str(args.sign_convention),
-    )
     max_zero_bias = float(args.max_zero_bias)
-    gate = _gate_status(axis_summary, min_delta=float(args.min_delta), max_zero_bias=max_zero_bias)
+    sample_pass_rate = sum(1 for item in sample_summaries if item["pass_status"] == "PASS") / max(1, len(sample_summaries))
+    min_all_axes_rate = min(
+        (float(item["actor_sign_response_all_axes_rate"]) for item in sample_summaries),
+        default=0.0,
+    )
+    min_monotonic_rate = min(
+        (float(item["actor_sign_response_monotonic_rate"]) for item in sample_summaries),
+        default=0.0,
+    )
+    min_abs_delta = min(
+        (float(item["actor_sign_response_min_abs_delta"]) for item in sample_summaries),
+        default=0.0,
+    )
+    max_abs_zero_steer = max(
+        (float(item["actor_sign_response_max_abs_zero_steer"]) for item in sample_summaries),
+        default=0.0,
+    )
+    min_left_bias_at_zero = min(
+        (float(item["actor_sign_response_left_bias_at_zero"]) for item in sample_summaries),
+        default=0.0,
+    )
+    aggregate_pass = (
+        sample_pass_rate >= 0.999
+        and min_all_axes_rate >= 0.999
+        and min_monotonic_rate >= 0.999
+        and min_abs_delta >= float(args.min_delta)
+        and max_abs_zero_steer <= max_zero_bias
+    )
     summary = {
         "config": str(config_path),
         "checkpoint": str(checkpoint_path),
         "device": str(device),
-        "source": source_meta,
+        "sample_selector": str(args.sample_selector),
+        "sample_index_start": int(args.sample_index),
+        "max_samples": int(max_samples),
         "route_y_index": int(args.route_y_index),
         "sign_convention": str(args.sign_convention),
         "min_delta": float(args.min_delta),
         "max_zero_bias": float(max_zero_bias),
-        "axis_summary": axis_summary,
-        **gate,
+        "sample_summaries": sample_summaries,
+        "actor_sign_response_sample_pass_rate": float(sample_pass_rate),
+        "actor_sign_response_all_axes_rate": float(min_all_axes_rate),
+        "actor_sign_response_monotonic_rate": float(min_monotonic_rate),
+        "actor_sign_response_min_abs_delta": float(min_abs_delta),
+        "actor_sign_response_left_bias_at_zero": float(min_left_bias_at_zero),
+        "actor_sign_response_max_abs_zero_steer": float(max_abs_zero_steer),
+        "pass_status": "PASS" if aggregate_pass else "BLOCK",
         "csv": str(csv_path),
     }
     with summary_path.open("w", encoding="utf-8") as handle:
