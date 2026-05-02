@@ -1996,3 +1996,43 @@ Current blocker after Attempt 31:
 - Three 16k seeds have failed the 512 clean gate.
 - Seed7 and seed9 are the closest pure PPO candidates, both blocked by offroad `2`; seed10 regresses to offroad `3` and lower route progress.
 - Further pure PPO seed search is possible but no longer targeted; the documented evidence points toward missing corrective steering supervision/reward rather than insufficient sampling alone.
+
+## PPO Baseline Attempt 32: Seed9 16k Mid-Checkpoint 512 Audit
+
+Config: `configs/baselines/ppo_clean_same_env_sensor_action_seed9_midstd_rollout512_mb256.yaml`
+
+Source run: `ppo_clean_same_env_sensor_action_seed9_midstd_rollout512_mb256_16384_20260503T052512`
+
+Status: **failed 512 clean gate**
+
+Purpose:
+
+- Check whether seed9 16k has a mid-training checkpoint that satisfies the 512 clean safety gate.
+- This changes checkpoint selection only; environment, route, sensors, action wrapper, reward, and PPO fairness constraints remain unchanged.
+
+Planned checkpoints:
+
+- `update_0004.pt`: near training route progress `0.589744`, collision termination.
+- `update_0011.pt`: near training route progress `0.538462`, offroad termination.
+- `update_0023.pt`: near training route progress `0.564103`, collision termination.
+
+512 clean eval results:
+
+| Checkpoint | Collision | Offroad | Early offroad | Severe early offroad | Stuck | Max route progress | Mean action jitter L1 | PPO gate |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |
+| `update_0004.pt` | `0` | `2` | `0` | `0` | `0` | `0.307692` | `0.000814` | `BLOCK` |
+| `update_0011.pt` | `0` | `1` | `0` | `0` | `0` | `0.538462` | `0.000787` | `BLOCK` |
+| `update_0011.pt` repeat | `0` | `1` | `0` | `0` | `0` | `0.538462` | `0.000774` | `BLOCK` |
+| `update_0023.pt` | `0` | `2` | `0` | `0` | `0` | `0.384615` | `0.001209` | `BLOCK` |
+
+Failure diagnosis:
+
+- `update_0011.pt` is the closest PPO checkpoint so far: collision `0`, severe early offroad `0`, stuck `0`, max route progress `0.538462`, but offroad `1`.
+- The repeat eval reproduced the same offroad `1`, so the failure is not just a one-off CARLA blip.
+- All audited seed9 mid-checkpoints keep corrective route-offset sign rate at `0.0`.
+- Because no checkpoint passed the 512 zero-offroad gate, no 2048 eval was run.
+
+Current blocker after Attempt 32:
+
+- The best pure PPO candidate is now seed9 16k `update_0011.pt`, but it remains one offroad event away from the hard 512 safety gate.
+- Additional seed search may still find a lucky zero-offroad checkpoint, but the repeated corrective-sign failure suggests the policy is not learning the recovery behavior the benchmark needs.
