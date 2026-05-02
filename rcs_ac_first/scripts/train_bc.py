@@ -37,6 +37,9 @@ BC_LOG_FIELDS: tuple[str, ...] = (
     "steer_mse",
     "longitudinal_mse",
     "action_l1",
+    "bc_sample_weight_mean",
+    "bc_sample_weight_min",
+    "bc_sample_weight_late_mask_rate",
     "visual_zero_action_l1",
     "visual_zero_steer_delta",
     "visual_zero_longitudinal_delta",
@@ -221,13 +224,24 @@ def _compute_losses(
     *,
     steer_loss_weight: float = 1.0,
     longitudinal_loss_weight: float = 1.0,
+    sample_weight: torch.Tensor | None = None,
 ) -> dict[str, torch.Tensor]:
     squared = (action_mean - expert_action).pow(2)
-    bc_loss = _weighted_action_loss(
+    per_sample_loss = _weighted_action_loss(
         squared,
         steer_loss_weight=steer_loss_weight,
         longitudinal_loss_weight=longitudinal_loss_weight,
-    ).mean()
+    )
+    if sample_weight is not None:
+        weights = sample_weight.to(device=action_mean.device, dtype=action_mean.dtype).reshape_as(per_sample_loss)
+        weights = weights.clamp_min(0.0)
+        bc_loss = (per_sample_loss * weights).sum() / weights.sum().clamp_min(1.0)
+        weight_mean = weights.mean()
+        weight_min = weights.min() if weights.numel() else action_mean.new_ones(())
+    else:
+        bc_loss = per_sample_loss.mean()
+        weight_mean = action_mean.new_ones(())
+        weight_min = action_mean.new_ones(())
     steer_mse = F.mse_loss(action_mean[:, 0], expert_action[:, 0])
     longitudinal_mse = F.mse_loss(action_mean[:, 1], expert_action[:, 1])
     action_l1 = torch.mean(torch.abs(action_mean - expert_action))
@@ -236,6 +250,9 @@ def _compute_losses(
         "steer_mse": steer_mse,
         "longitudinal_mse": longitudinal_mse,
         "action_l1": action_l1,
+        "bc_sample_weight_mean": weight_mean,
+        "bc_sample_weight_min": weight_min,
+        "bc_sample_weight_late_mask_rate": action_mean.new_zeros(()),
     }
 
 
@@ -347,6 +364,7 @@ def _compute_sequence_losses(
     action_smooth_loss_weight: float = 0.0,
     steer_loss_weight: float = 1.0,
     longitudinal_loss_weight: float = 1.0,
+    sample_weight: torch.Tensor | None = None,
 ) -> dict[str, torch.Tensor]:
     if action_mean.ndim != 3:
         raise ValueError(f"action_mean must have shape [B, L, A], got {tuple(action_mean.shape)}")
@@ -360,7 +378,14 @@ def _compute_sequence_losses(
         steer_loss_weight=steer_loss_weight,
         longitudinal_loss_weight=longitudinal_loss_weight,
     )
-    bc_loss = (weighted_squared * mask).sum() / denom
+    if sample_weight is not None:
+        weights = sample_weight.to(device=action_mean.device, dtype=action_mean.dtype).reshape_as(mask).clamp_min(0.0)
+        weighted_mask = mask * weights
+    else:
+        weights = torch.ones_like(mask)
+        weighted_mask = mask
+    weighted_denom = weighted_mask.sum().clamp_min(1.0)
+    bc_loss = (weighted_squared * weighted_mask).sum() / weighted_denom
     steer_mse = (squared[..., 0] * mask).sum() / denom
     longitudinal_mse = (squared[..., 1] * mask).sum() / denom
     action_l1 = (abs_diff.sum(dim=-1) * mask).sum() / (denom * float(action_mean.shape[-1]))
@@ -376,6 +401,9 @@ def _compute_sequence_losses(
         "steer_mse": steer_mse,
         "longitudinal_mse": longitudinal_mse,
         "action_l1": action_l1,
+        "bc_sample_weight_mean": (weights * mask).sum() / denom,
+        "bc_sample_weight_min": torch.where(mask > 0.0, weights, torch.ones_like(weights)).min(),
+        "bc_sample_weight_late_mask_rate": action_mean.new_zeros(()),
         "action_smooth_loss": smooth_loss,
     }
 
@@ -1329,6 +1357,45 @@ def _compute_late_recovery_absolute_steer_losses(
     }
 
 
+def _late_recovery_bc_sample_weight(
+    action_mean: torch.Tensor,
+    batch: dict[str, torch.Tensor],
+    *,
+    route_progress: torch.Tensor | None,
+    lane_offset: torch.Tensor | None,
+    heading_error: torch.Tensor | None,
+    route_min: float | None,
+    route_max: float | None,
+    abs_lane_offset_min: float,
+    abs_heading_error_min: float,
+    scale: float,
+    alignment_mode: str,
+    valid_mask: torch.Tensor | None = None,
+) -> tuple[torch.Tensor | None, torch.Tensor, torch.Tensor]:
+    zero = action_mean.sum() * 0.0
+    if float(scale) >= 0.999:
+        return None, action_mean.new_ones(()), zero
+    mask_result = _early_severe_recovery_mask(
+        action_reference=action_mean,
+        batch=batch,
+        route_progress=route_progress,
+        lane_offset=lane_offset,
+        heading_error=heading_error,
+        route_min=route_min,
+        route_max=route_max,
+        abs_lane_offset_min=abs_lane_offset_min,
+        abs_heading_error_min=abs_heading_error_min,
+        alignment_mode=alignment_mode,
+        valid_mask=valid_mask,
+    )
+    if mask_result is None:
+        return None, action_mean.new_ones(()), zero
+    mask, _, _ = mask_result
+    clamped_scale = max(0.0, min(1.0, float(scale)))
+    weights = torch.ones_like(mask) - mask.clamp(0.0, 1.0) * (1.0 - clamped_scale)
+    return weights, weights.mean(), mask.mean() if mask.numel() else zero
+
+
 def _zero_early_center_zero_steer_losses(reference: torch.Tensor) -> dict[str, torch.Tensor]:
     zero = reference.sum() * 0.0
     return {
@@ -1535,6 +1602,15 @@ def _metric_row(
         "steer_mse": float(losses["steer_mse"].detach().cpu().item()),
         "longitudinal_mse": float(losses["longitudinal_mse"].detach().cpu().item()),
         "action_l1": float(losses["action_l1"].detach().cpu().item()),
+        "bc_sample_weight_mean": float(
+            losses.get("bc_sample_weight_mean", fusion.new_ones(())).detach().cpu().item()
+        ),
+        "bc_sample_weight_min": float(
+            losses.get("bc_sample_weight_min", fusion.new_ones(())).detach().cpu().item()
+        ),
+        "bc_sample_weight_late_mask_rate": float(
+            losses.get("bc_sample_weight_late_mask_rate", fusion.new_zeros(())).detach().cpu().item()
+        ),
         "visual_zero_action_l1": float(losses.get("visual_zero_action_l1", fusion.new_zeros(())).detach().cpu().item()),
         "visual_zero_steer_delta": float(
             losses.get("visual_zero_steer_delta", fusion.new_zeros(())).detach().cpu().item()
@@ -1848,6 +1924,7 @@ def _evaluate(
     late_recovery_abs_lane_offset_min: float,
     late_recovery_abs_heading_error_min: float,
     late_recovery_absolute_steer_margin: float,
+    late_recovery_bc_loss_scale: float,
     early_center_zero_steer_route_min: float | None,
     early_center_zero_steer_route_max: float | None,
     early_center_zero_steer_abs_lane_offset_max: float,
@@ -1865,6 +1942,9 @@ def _evaluate(
         "steer_mse": 0.0,
         "longitudinal_mse": 0.0,
         "action_l1": 0.0,
+        "bc_sample_weight_mean": 0.0,
+        "bc_sample_weight_min": 0.0,
+        "bc_sample_weight_late_mask_rate": 0.0,
         "visual_zero_action_l1": 0.0,
         "visual_zero_steer_delta": 0.0,
         "visual_zero_longitudinal_delta": 0.0,
@@ -1962,7 +2042,37 @@ def _evaluate(
                     batch["valid_mask"],
                     steer_loss_weight=steer_loss_weight,
                     longitudinal_loss_weight=longitudinal_loss_weight,
+                    sample_weight=_late_recovery_bc_sample_weight(
+                        action_mean,
+                        batch,
+                        route_progress=batch.get("route_progress"),
+                        lane_offset=batch.get("lane_offset"),
+                        heading_error=batch.get("heading_error"),
+                        route_min=late_recovery_route_min,
+                        route_max=late_recovery_route_max,
+                        abs_lane_offset_min=late_recovery_abs_lane_offset_min,
+                        abs_heading_error_min=late_recovery_abs_heading_error_min,
+                        scale=late_recovery_bc_loss_scale,
+                        alignment_mode=early_severe_alignment_mode,
+                        valid_mask=batch.get("valid_mask"),
+                    )[0],
                 )
+                _, bc_weight_mean, bc_weight_late_mask_rate = _late_recovery_bc_sample_weight(
+                    action_mean,
+                    batch,
+                    route_progress=batch.get("route_progress"),
+                    lane_offset=batch.get("lane_offset"),
+                    heading_error=batch.get("heading_error"),
+                    route_min=late_recovery_route_min,
+                    route_max=late_recovery_route_max,
+                    abs_lane_offset_min=late_recovery_abs_lane_offset_min,
+                    abs_heading_error_min=late_recovery_abs_heading_error_min,
+                    scale=late_recovery_bc_loss_scale,
+                    alignment_mode=early_severe_alignment_mode,
+                    valid_mask=batch.get("valid_mask"),
+                )
+                losses["bc_sample_weight_mean"] = bc_weight_mean
+                losses["bc_sample_weight_late_mask_rate"] = bc_weight_late_mask_rate
                 losses.update(
                     _compute_sequence_perception_losses(
                         outputs=outputs,
@@ -2071,8 +2181,8 @@ def _evaluate(
                         route_progress=batch.get("route_progress"),
                         lane_offset=batch.get("lane_offset"),
                         heading_error=batch.get("heading_error"),
-                        route_min=early_severe_longitudinal_ceiling_route_min,
-                        route_max=early_severe_longitudinal_ceiling_route_max,
+                        route_min=early_severe_route_min,
+                        route_max=early_severe_route_max,
                         abs_lane_offset_min=early_severe_abs_lane_offset_min,
                         abs_heading_error_min=early_severe_abs_heading_error_min,
                         margin=early_severe_steer_margin,
@@ -2169,12 +2279,28 @@ def _evaluate(
                 action_mean = outputs["action_mean"]
                 if not isinstance(action_mean, torch.Tensor):
                     raise RuntimeError("Model output action_mean is missing.")
+                bc_weights, bc_weight_mean, bc_weight_late_mask_rate = _late_recovery_bc_sample_weight(
+                    action_mean,
+                    batch,
+                    route_progress=batch.get("route_progress"),
+                    lane_offset=batch.get("lane_offset"),
+                    heading_error=batch.get("heading_error"),
+                    route_min=late_recovery_route_min,
+                    route_max=late_recovery_route_max,
+                    abs_lane_offset_min=late_recovery_abs_lane_offset_min,
+                    abs_heading_error_min=late_recovery_abs_heading_error_min,
+                    scale=late_recovery_bc_loss_scale,
+                    alignment_mode=early_severe_alignment_mode,
+                )
                 losses = _compute_losses(
                     action_mean,
                     batch["expert_action"],
                     steer_loss_weight=steer_loss_weight,
                     longitudinal_loss_weight=longitudinal_loss_weight,
+                    sample_weight=bc_weights,
                 )
+                losses["bc_sample_weight_mean"] = bc_weight_mean
+                losses["bc_sample_weight_late_mask_rate"] = bc_weight_late_mask_rate
                 losses.update(
                     _compute_frame_perception_losses(
                         outputs=outputs,
@@ -2273,8 +2399,8 @@ def _evaluate(
                         route_progress=batch.get("route_progress"),
                         lane_offset=batch.get("lane_offset"),
                         heading_error=batch.get("heading_error"),
-                        route_min=early_severe_longitudinal_ceiling_route_min,
-                        route_max=early_severe_longitudinal_ceiling_route_max,
+                        route_min=early_severe_route_min,
+                        route_max=early_severe_route_max,
                         abs_lane_offset_min=early_severe_abs_lane_offset_min,
                         abs_heading_error_min=early_severe_abs_heading_error_min,
                         margin=early_severe_steer_margin,
@@ -2307,8 +2433,8 @@ def _evaluate(
                         route_progress=batch.get("route_progress"),
                         lane_offset=batch.get("lane_offset"),
                         heading_error=batch.get("heading_error"),
-                        route_min=early_severe_route_min,
-                        route_max=early_severe_route_max,
+                        route_min=early_severe_longitudinal_ceiling_route_min,
+                        route_max=early_severe_longitudinal_ceiling_route_max,
                         abs_lane_offset_min=early_severe_abs_lane_offset_min,
                         abs_heading_error_min=early_severe_abs_heading_error_min,
                         longitudinal_ceiling=early_severe_longitudinal_ceiling,
@@ -2572,6 +2698,7 @@ def main() -> int:
         bc_raw.get("late_recovery_abs_heading_error_min", early_severe_abs_heading_error_min)
     )
     late_recovery_absolute_steer_margin = float(bc_raw.get("late_recovery_absolute_steer_margin", 0.0))
+    late_recovery_bc_loss_scale = float(bc_raw.get("late_recovery_bc_loss_scale", 1.0))
     early_center_zero_steer_loss_weight = float(bc_raw.get("early_center_zero_steer_loss_weight", 0.0))
     early_center_zero_steer_route_min = bc_raw.get("early_center_zero_steer_route_min", early_route_min)
     early_center_zero_steer_route_max = bc_raw.get("early_center_zero_steer_route_max", early_route_max)
@@ -2679,6 +2806,20 @@ def main() -> int:
                         use_auxiliary=use_auxiliary,
                         track_diagnostics=True,
                     )
+                    bc_weights, bc_weight_mean, bc_weight_late_mask_rate = _late_recovery_bc_sample_weight(
+                        action_mean,
+                        batch,
+                        route_progress=batch.get("route_progress"),
+                        lane_offset=batch.get("lane_offset"),
+                        heading_error=batch.get("heading_error"),
+                        route_min=late_recovery_route_min,
+                        route_max=late_recovery_route_max,
+                        abs_lane_offset_min=late_recovery_abs_lane_offset_min,
+                        abs_heading_error_min=late_recovery_abs_heading_error_min,
+                        scale=late_recovery_bc_loss_scale,
+                        alignment_mode=early_severe_alignment_mode,
+                        valid_mask=batch.get("valid_mask"),
+                    )
                     losses = _compute_sequence_losses(
                         action_mean,
                         batch["expert_action"],
@@ -2686,7 +2827,10 @@ def main() -> int:
                         action_smooth_loss_weight=action_smooth_loss_weight,
                         steer_loss_weight=steer_loss_weight,
                         longitudinal_loss_weight=longitudinal_loss_weight,
+                        sample_weight=bc_weights,
                     )
+                    losses["bc_sample_weight_mean"] = bc_weight_mean
+                    losses["bc_sample_weight_late_mask_rate"] = bc_weight_late_mask_rate
                     losses.update(
                         _compute_sequence_perception_losses(
                             outputs=outputs,
@@ -2897,12 +3041,28 @@ def main() -> int:
                     action_mean = outputs["action_mean"]
                     if not isinstance(action_mean, torch.Tensor):
                         raise RuntimeError("Model output action_mean is missing.")
+                    bc_weights, bc_weight_mean, bc_weight_late_mask_rate = _late_recovery_bc_sample_weight(
+                        action_mean,
+                        batch,
+                        route_progress=batch.get("route_progress"),
+                        lane_offset=batch.get("lane_offset"),
+                        heading_error=batch.get("heading_error"),
+                        route_min=late_recovery_route_min,
+                        route_max=late_recovery_route_max,
+                        abs_lane_offset_min=late_recovery_abs_lane_offset_min,
+                        abs_heading_error_min=late_recovery_abs_heading_error_min,
+                        scale=late_recovery_bc_loss_scale,
+                        alignment_mode=early_severe_alignment_mode,
+                    )
                     losses = _compute_losses(
                         action_mean,
                         batch["expert_action"],
                         steer_loss_weight=steer_loss_weight,
                         longitudinal_loss_weight=longitudinal_loss_weight,
+                        sample_weight=bc_weights,
                     )
+                    losses["bc_sample_weight_mean"] = bc_weight_mean
+                    losses["bc_sample_weight_late_mask_rate"] = bc_weight_late_mask_rate
                     losses.update(
                         _compute_frame_perception_losses(
                             outputs=outputs,
@@ -3245,6 +3405,7 @@ def main() -> int:
                 late_recovery_abs_lane_offset_min=late_recovery_abs_lane_offset_min,
                 late_recovery_abs_heading_error_min=late_recovery_abs_heading_error_min,
                 late_recovery_absolute_steer_margin=late_recovery_absolute_steer_margin,
+                late_recovery_bc_loss_scale=late_recovery_bc_loss_scale,
                 early_center_zero_steer_route_min=early_center_zero_steer_route_min,
                 early_center_zero_steer_route_max=early_center_zero_steer_route_max,
                 early_center_zero_steer_abs_lane_offset_max=early_center_zero_steer_abs_lane_offset_max,
