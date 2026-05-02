@@ -595,3 +595,472 @@ Next action:
 
 - Continue from the rollout512/mid-std family.
 - Prefer tuning exploration/learning stability around Attempt 8 rather than returning to high-std or epochs4 settings.
+
+## PPO Baseline Attempt 10: Seed7 Mid-Std Rollout512 Epochs2 4k
+
+Config: `configs/baselines/ppo_clean_same_env_sensor_action_seed7_midstd_rollout512_epochs2.yaml`
+
+Run name: `ppo_clean_same_env_sensor_action_seed7_midstd_rollout512_epochs2_4096_20260503T002256`
+
+Checkpoint: `checkpoints/ppo_clean_same_env_sensor_action_seed7_midstd_rollout512_epochs2_4096_20260503T002256/last.pt`
+
+Pulled logs:
+
+- `remote_runs/ppo_baseline_seed7_midstd_rollout512_epochs2_4096_20260503T002256/training_log.csv`
+- `remote_runs/ppo_baseline_seed7_midstd_rollout512_epochs2_4096_20260503T002256/ppo_clean_same_env_sensor_action_seed7_midstd_rollout512_epochs2_4096_eval_512_last.csv`
+
+Status: **512 clean gate BLOCK**
+
+Allowed tuning changed from Attempt 8:
+
+- `update_epochs: 2`
+
+Unchanged fairness constraints:
+
+- Same environment, route, sensors, action wrapper, reward, and termination contract as Attempt 1/Round90.
+- No PPO-only lateral recovery assist.
+- No privileged inference input.
+- No lane-offset runtime steering override.
+- No deterministic rollout.
+
+Training summary:
+
+- Timesteps: `4096`
+- Episodes: `21`
+- Done reasons: collision `3`, offroad `18`
+- Best training route progress: `0.435897`
+
+512 clean eval, last checkpoint:
+
+- Collision: `0`
+- Offroad: `2`
+- Early offroad: `0`
+- Severe early offroad: `0`
+- Stuck: `0`
+- Max route progress: `0.256410`
+- PPO gate: `BLOCK`
+
+Failure diagnosis:
+
+- `update_epochs: 2` also over-strengthened the update and collapsed into a left-steer bias.
+- Initial audit reported `left_steer_rate = 1.0`, so this direction is worse than Attempt 8.
+
+Next action:
+
+- Return to Attempt 8 update strength and tune `clip_coef` moderately instead of increasing update epochs.
+
+## PPO Baseline Attempt 11: Seed7 Mid-Std Rollout512 Clip0.15 4k
+
+Config: `configs/baselines/ppo_clean_same_env_sensor_action_seed7_midstd_rollout512_clip015.yaml`
+
+Run name: `ppo_clean_same_env_sensor_action_seed7_midstd_rollout512_clip015_4096_20260503T003454`
+
+Checkpoint: `checkpoints/ppo_clean_same_env_sensor_action_seed7_midstd_rollout512_clip015_4096_20260503T003454/last.pt`
+
+Pulled logs:
+
+- `remote_runs/ppo_baseline_seed7_midstd_rollout512_clip015_4096_20260503T003454/training_log.csv`
+- `remote_runs/ppo_baseline_seed7_midstd_rollout512_clip015_4096_20260503T003454/ppo_clean_same_env_sensor_action_seed7_midstd_rollout512_clip015_4096_eval_512_last.csv`
+
+Status: **512 clean gate BLOCK**
+
+Allowed tuning changed from Attempt 8:
+
+- `clip_coef: 0.15`
+
+Unchanged fairness constraints:
+
+- Same environment, route, sensors, action wrapper, reward, and termination contract as Attempt 1/Round90.
+- No PPO-only lateral recovery assist.
+- No privileged inference input.
+- No lane-offset runtime steering override.
+- No deterministic rollout.
+
+Training summary:
+
+- Timesteps: `4096`
+- Episodes: `20`
+- Done reasons: collision `1`, offroad `19`
+- Best training route progress: `0.564103`
+
+512 clean eval, last checkpoint:
+
+- Collision: `0`
+- Offroad: `2`
+- Early offroad: `0`
+- Severe early offroad: `0`
+- Stuck: `0`
+- Max route progress: `0.461538`
+- PPO gate: `BLOCK`
+
+Failure diagnosis:
+
+- Relaxing clip to `0.15` made eval worse than Attempt 8 and produced a left-steer bias.
+- Initial audit reported `left_steer_rate = 1.0`.
+
+Next action:
+
+- Return to Attempt 8 clip/update settings and reduce only the maximum action std slightly.
+
+## PPO Baseline Attempt 12: Seed7 Std0.26 Rollout512 4k
+
+Config: `configs/baselines/ppo_clean_same_env_sensor_action_seed7_std026_rollout512.yaml`
+
+Run name: `ppo_clean_same_env_sensor_action_seed7_std026_rollout512_4096_20260503T004714`
+
+Checkpoint: `checkpoints/ppo_clean_same_env_sensor_action_seed7_std026_rollout512_4096_20260503T004714/last.pt`
+
+Pulled logs:
+
+- `remote_runs/ppo_baseline_seed7_std026_rollout512_4096_20260503T004714/training_log.csv`
+- `remote_runs/ppo_baseline_seed7_std026_rollout512_4096_20260503T004714/ppo_clean_same_env_sensor_action_seed7_std026_rollout512_4096_eval_512_last.csv`
+
+Status: **512 clean gate BLOCK**
+
+Allowed tuning changed from Attempt 8:
+
+- `log_std_init_by_dim: [-1.35, -1.35]`
+- `max_std_by_dim: [0.30, 0.35]`
+
+Unchanged fairness constraints:
+
+- Same environment, route, sensors, action wrapper, reward, and termination contract as Attempt 1/Round90.
+- No PPO-only lateral recovery assist.
+- No privileged inference input.
+- No lane-offset runtime steering override.
+- No deterministic rollout.
+
+Training summary:
+
+- Timesteps: `4096`
+- Episodes: `21`
+- Done reasons: collision `2`, offroad `19`
+- Best training route progress: `0.358974`
+
+512 clean eval, last checkpoint:
+
+- Collision: `1`
+- Offroad: `0`
+- Early offroad: `0`
+- Severe early offroad: `0`
+- Stuck: `0`
+- Max route progress: `0.564103`
+- PPO gate: `BLOCK`
+
+Failure diagnosis:
+
+- Reducing both action std dimensions did not clear the late collision.
+- The failure remained a late collision near route progress `0.564103`, with weak steering.
+
+Next action:
+
+- Try asymmetric action std: keep steering exploration moderately high while reducing longitudinal exploration.
+
+## PPO Baseline Attempt 13: Seed7 Asymmetric-Std Rollout512 4k
+
+Config: `configs/baselines/ppo_clean_same_env_sensor_action_seed7_asymstd_rollout512.yaml`
+
+Run name: `ppo_clean_same_env_sensor_action_seed7_asymstd_rollout512_4096_20260503T010024`
+
+Checkpoint: `checkpoints/ppo_clean_same_env_sensor_action_seed7_asymstd_rollout512_4096_20260503T010024/last.pt`
+
+Pulled logs:
+
+- `remote_runs/ppo_baseline_seed7_asymstd_rollout512_4096_20260503T010024/training_log.csv`
+- `remote_runs/ppo_baseline_seed7_asymstd_rollout512_4096_20260503T010024/ppo_clean_same_env_sensor_action_seed7_asymstd_rollout512_4096_eval_512_last.csv`
+
+Status: **512 clean gate BLOCK**
+
+Allowed tuning changed from Attempt 8:
+
+- `log_std_init_by_dim: [-1.10, -1.50]`
+- `max_std_by_dim: [0.45, 0.30]`
+
+Unchanged fairness constraints:
+
+- Same environment, route, sensors, action wrapper, reward, and termination contract as Attempt 1/Round90.
+- No PPO-only lateral recovery assist.
+- No privileged inference input.
+- No lane-offset runtime steering override.
+- No deterministic rollout.
+
+Training summary:
+
+- Timesteps: `4096`
+- Episodes: `21`
+- Done reasons: collision `3`, offroad `18`
+- Best training route progress: `0.461538`
+
+512 clean eval, last checkpoint:
+
+- Collision: `1`
+- Offroad: `0`
+- Early offroad: `0`
+- Severe early offroad: `0`
+- Stuck: `0`
+- Max route progress: `0.564103`
+- PPO gate: `BLOCK`
+
+Failure diagnosis:
+
+- Asymmetric exploration did not fix the late route 0.56 collision.
+- Near collision, steer remained almost zero despite lane offset around `1.43 m` and heading error around `-12.2 deg`.
+- The attempt confirms the main blocker is weak deterministic mean-policy lateral correction, not early episode instability.
+
+Next action:
+
+- Return to Attempt 8 family and reduce train/eval mismatch through allowed std tuning, without deterministic rollout.
+
+## PPO Baseline Attempt 14: Seed7 Midstd Rollout512 6144
+
+Config: `configs/baselines/ppo_clean_same_env_sensor_action_seed7_midstd_rollout512.yaml`
+
+Run name: `ppo_clean_same_env_sensor_action_seed7_midstd_rollout512_6144_20260503T011205`
+
+Checkpoint: `checkpoints/ppo_clean_same_env_sensor_action_seed7_midstd_rollout512_6144_20260503T011205/last.pt`
+
+Pulled logs:
+
+- `remote_runs/ppo_baseline_seed7_midstd_rollout512_6144_20260503T011205/training_log.csv`
+- `remote_runs/ppo_baseline_seed7_midstd_rollout512_6144_20260503T011205/ppo_clean_same_env_sensor_action_seed7_midstd_rollout512_6144_eval_512_last.csv`
+
+Status: **512 clean gate BLOCK**
+
+Allowed tuning changed from Attempt 8:
+
+- `total_timesteps: 6144`
+
+Unchanged fairness constraints:
+
+- Same environment, route, sensors, action wrapper, reward, and termination contract as Attempt 1/Round90.
+- No PPO-only lateral recovery assist.
+- No privileged inference input.
+- No lane-offset runtime steering override.
+- No deterministic rollout.
+
+Training summary:
+
+- Timesteps: `6144`
+- Episodes: `32`
+- Done reasons: collision `3`, offroad `29`
+- Best training route progress: `0.538462`
+
+512 clean eval, last checkpoint:
+
+- Collision: `1`
+- Offroad: nonzero rate reported because collision step also flagged offroad context.
+- Early offroad: `0`
+- Severe early offroad: `0`
+- Stuck: `0`
+- Max route progress: `0.564103`
+- PPO gate: `BLOCK`
+
+Failure diagnosis:
+
+- Increasing budget alone did not resolve the late route 0.56 collision.
+- Mean policy still produced near-zero/incorrect steering when lane offset exceeded `2.0 m`.
+
+Next action:
+
+- Use a lower-std rollout512 configuration so stochastic training trajectories rely less on action noise and force the deterministic mean policy to carry more of the driving behavior.
+
+## PPO Baseline Attempt 15: Seed7 Lowstd Rollout512 Stable 4k
+
+Config: `configs/baselines/ppo_clean_same_env_sensor_action_seed7_lowstd_rollout512_stable.yaml`
+
+Run name: `ppo_clean_same_env_sensor_action_seed7_lowstd_rollout512_stable_4096_20260503T012748`
+
+Checkpoint: `checkpoints/ppo_clean_same_env_sensor_action_seed7_lowstd_rollout512_stable_4096_20260503T012748/last.pt`
+
+Pulled logs:
+
+- `remote_runs/ppo_baseline_seed7_lowstd_rollout512_stable_4096_20260503T012748/training_log.csv`
+- `remote_runs/ppo_baseline_seed7_lowstd_rollout512_stable_4096_20260503T012748/ppo_clean_same_env_sensor_action_seed7_lowstd_rollout512_stable_4096_eval_512_last.csv`
+- `remote_runs/ppo_baseline_seed7_lowstd_rollout512_stable_4096_20260503T012748/ppo_clean_same_env_sensor_action_seed7_lowstd_rollout512_stable_4096_eval_512_update0004.csv`
+
+Status: **512 clean gate BLOCK**
+
+Allowed tuning changed from Attempt 8:
+
+- `log_std_init_by_dim: [-2.0, -2.0]`
+- `max_std_by_dim: [0.20, 0.25]`
+
+Unchanged from Attempt 8:
+
+- `rollout_steps: 512`
+- `learning_rate: 0.00003`
+- `clip_coef: 0.1`
+- `update_epochs: 1`
+- `minibatch_size: 128`
+
+Unchanged fairness constraints:
+
+- Same environment, route, sensors, action wrapper, reward, and termination contract as Attempt 1/Round90.
+- No PPO-only lateral recovery assist.
+- No privileged inference input.
+- No lane-offset runtime steering override.
+- No deterministic rollout.
+
+Training summary:
+
+- Timesteps: `4096`
+- Episodes: `17`
+- Done reasons: collision `2`, offroad `15`
+- Best training route progress: `0.666667`
+
+512 clean eval, last checkpoint:
+
+- Collision: `0`
+- Offroad: `2`
+- Early offroad: `0`
+- Severe early offroad: `0`
+- Stuck: `0`
+- Max route progress: `0.384615`
+- PPO gate: `BLOCK`
+
+512 clean eval, update 0004:
+
+- Collision: `1`
+- Offroad: `0`
+- Early offroad: `0`
+- Severe early offroad: `0`
+- Stuck: `0`
+- Max route progress: `0.666667`
+- PPO gate: `BLOCK`
+
+Failure diagnosis:
+
+- Lower std reduced late collision for the last checkpoint but induced a hard left steering bias and offroad failures.
+- The update 0004 checkpoint reached the farthest route progress so far (`0.666667`) but still collided with wrong/weak steering.
+
+Next action:
+
+- Keep longitudinal std low while reopening steering std to avoid locking the mean policy into a one-sided left bias.
+
+## PPO Baseline Attempt 16: Seed7 SteerStd0.20 LongLow Rollout512 4k
+
+Config: `configs/baselines/ppo_clean_same_env_sensor_action_seed7_steerstd020_longlow_rollout512.yaml`
+
+Run name: `ppo_clean_same_env_sensor_action_seed7_steerstd020_longlow_rollout512_4096_20260503T014157`
+
+Checkpoint: `checkpoints/ppo_clean_same_env_sensor_action_seed7_steerstd020_longlow_rollout512_4096_20260503T014157/last.pt`
+
+Pulled logs:
+
+- `remote_runs/ppo_baseline_seed7_steerstd020_longlow_rollout512_4096_20260503T014157/training_log.csv`
+- `remote_runs/ppo_baseline_seed7_steerstd020_longlow_rollout512_4096_20260503T014157/ppo_clean_same_env_sensor_action_seed7_steerstd020_longlow_rollout512_4096_eval_512_last.csv`
+
+Status: **512 clean gate BLOCK**
+
+Allowed tuning changed from Attempt 8:
+
+- `log_std_init_by_dim: [-1.60, -2.0]`
+- `max_std_by_dim: [0.30, 0.25]`
+
+Unchanged from Attempt 8:
+
+- `rollout_steps: 512`
+- `learning_rate: 0.00003`
+- `clip_coef: 0.1`
+- `update_epochs: 1`
+- `minibatch_size: 128`
+
+Unchanged fairness constraints:
+
+- Same environment, route, sensors, action wrapper, reward, and termination contract as Attempt 1/Round90.
+- No PPO-only lateral recovery assist.
+- No privileged inference input.
+- No lane-offset runtime steering override.
+- No deterministic rollout.
+
+Training summary:
+
+- Timesteps: `4096`
+- Episodes: `21`
+- Done reasons: collision `2`, offroad `19`
+- Best training route progress: `0.564103`
+
+512 clean eval, last checkpoint:
+
+- Collision: `1`
+- Offroad: `1`
+- Early offroad: `0`
+- Severe early offroad: `0`
+- Stuck: `0`
+- Max route progress: `0.435897`
+- PPO gate: `BLOCK`
+
+Failure diagnosis:
+
+- Reopening steering std removed the hard left-only bias but created a right-steer bias and reduced max eval progress.
+- The std bridge did not solve the deterministic corrective sign problem.
+
+Next action:
+
+- Try a low-std setting with a slightly higher learning rate so the mean policy can move more aggressively while train/eval action noise remains constrained.
+
+## PPO Baseline Attempt 17: Seed7 Lowstd Rollout512 LR6e-5 4k
+
+Config: `configs/baselines/ppo_clean_same_env_sensor_action_seed7_lowstd_rollout512_lr6e5.yaml`
+
+Run name: `ppo_clean_same_env_sensor_action_seed7_lowstd_rollout512_lr6e5_4096_20260503T015334`
+
+Checkpoint: `checkpoints/ppo_clean_same_env_sensor_action_seed7_lowstd_rollout512_lr6e5_4096_20260503T015334/last.pt`
+
+Pulled logs:
+
+- `remote_runs/ppo_baseline_seed7_lowstd_rollout512_lr6e5_4096_20260503T015334/training_log.csv`
+- `remote_runs/ppo_baseline_seed7_lowstd_rollout512_lr6e5_4096_20260503T015334/ppo_clean_same_env_sensor_action_seed7_lowstd_rollout512_lr6e5_4096_eval_512_last.csv`
+
+Status: **512 clean gate BLOCK**
+
+Allowed tuning changed from Attempt 15:
+
+- `learning_rate: 0.00006`
+
+Unchanged from Attempt 15:
+
+- `log_std_init_by_dim: [-2.0, -2.0]`
+- `max_std_by_dim: [0.20, 0.25]`
+- `rollout_steps: 512`
+- `clip_coef: 0.1`
+- `update_epochs: 1`
+- `minibatch_size: 128`
+
+Unchanged fairness constraints:
+
+- Same environment, route, sensors, action wrapper, reward, and termination contract as Attempt 1/Round90.
+- No PPO-only lateral recovery assist.
+- No privileged inference input.
+- No lane-offset runtime steering override.
+- No deterministic rollout.
+
+Training summary:
+
+- Timesteps: `4096`
+- Episodes: `17`
+- Done reasons: collision `2`, offroad `15`
+- Best training route progress: `0.666667`
+
+512 clean eval, last checkpoint:
+
+- Collision: `0`
+- Offroad: `2`
+- Early offroad: `0`
+- Severe early offroad: `0`
+- Stuck: `0`
+- Max route progress: `0.256410`
+- PPO gate: `BLOCK`
+
+Failure diagnosis:
+
+- Higher learning rate did not improve deterministic clean eval.
+- The eval mean policy locked into a stronger left-steer bias (`left_steer_rate = 1.0`) and failed max route sanity.
+
+Current PPO baseline stabilization readout:
+
+- Best 512 safety/progress tradeoff remains Attempt 8 / Attempt 12 family: max route progress `0.564103`, but with one late collision.
+- Best route progress observed is Attempt 15 update 0004: max route progress `0.666667`, but with one collision.
+- Low std can reduce collision in the last checkpoint but tends to create left-biased offroad failures.
+- Mid std preserves progress but deterministic mean steering is too weak near late lateral error.
+- The blocker is not early severe offroad anymore; it is deterministic mean-policy corrective steering under late lane/heading error.
