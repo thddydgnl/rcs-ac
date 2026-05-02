@@ -1,4 +1,4 @@
-# Rounds 93-97 Sequence Smooth And Longitudinal Jitter Probes
+# Rounds 93-98 Sequence Smooth And Longitudinal Jitter Probes
 
 ## Goal
 
@@ -137,6 +137,34 @@ Result:
 
 Decision: no 2048 promotion. It matched Round90 route at 512 but increased overall jitter.
 
+## Round98
+
+Config: `configs/bc_frame_rgb_perception_actor_features_v2_longitudinal_gentle_imitation_round98.yaml`
+
+Change:
+
+- Returned to frame BC.
+- Trained only actor output row `[1]`.
+- Kept Round90 steering fixed.
+- Removed the extra early-severe longitudinal ceiling loss and used low-LR longitudinal imitation only.
+
+Result:
+
+- BC completed: `train_loss=0.355920`, `val_loss=0.352616`.
+- Offline `early_any` audit: PASS.
+  - all axes rate: `1.0`
+  - min abs delta: `0.030364`
+  - max abs zero steer: `0.024747`
+- 512 clean eval: PASS safety, but not an upgrade.
+  - collision/offroad/severe early offroad/stuck: `0/0/0/0`
+  - max/final route: `0.435897`
+  - mean action jitter L1: `0.146477`
+  - steer jitter: `0.085022`
+  - longitudinal jitter: `0.061455`
+  - PPO gate: BLOCK
+
+Decision: no 2048 promotion. It matched Round90 route at 512 but increased longitudinal jitter.
+
 ## Comparison To Round90
 
 Round90 is still the clean-safety baseline:
@@ -153,6 +181,7 @@ Rounds 94-97 all preserved 512 safety, but none improved both route progress and
 | 95 | 0.333333 | 0.164354 | 0.090065 | 0.074289 | blocked |
 | 96 | 0.410256 | 0.139629 | 0.087802 | 0.051826 | blocked |
 | 97 | 0.435897 | 0.147085 | 0.081393 | 0.065692 | blocked |
+| 98 | 0.435897 | 0.146477 | 0.085022 | 0.061455 | blocked |
 
 ## Interpretation
 
