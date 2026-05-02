@@ -530,6 +530,38 @@ def test_early_severe_steer_loss_respects_sequence_valid_mask() -> None:
     assert torch.isclose(losses["early_severe_steer_delta_l1"], torch.tensor(0.1))
 
 
+def test_early_severe_steer_loss_semantic_mode_keeps_heading_dominant_rows() -> None:
+    action_mean = torch.tensor([[-0.04, 0.0], [-0.04, 0.0], [0.04, 0.0]])
+    batch = {
+        "policy_action_steer": torch.zeros((3,), dtype=torch.float32),
+        "target_corrective_delta": torch.tensor([-0.08, -0.08, 0.08]),
+        "target_corrective_delta_available": torch.ones((3,), dtype=torch.float32),
+    }
+    kwargs = {
+        "route_progress": torch.tensor([0.05, 0.05, 0.05]),
+        "lane_offset": torch.tensor([-0.20, -0.20, 0.20]),
+        "heading_error": torch.tensor([-8.0, -8.0, 8.0]),
+        "route_min": 0.025,
+        "route_max": 0.10,
+        "abs_lane_offset_min": 0.55,
+        "abs_heading_error_min": 3.0,
+        "margin": 0.02,
+    }
+
+    lane_losses = _compute_early_severe_steer_losses(action_mean, batch, **kwargs)
+    semantic_losses = _compute_early_severe_steer_losses(
+        action_mean,
+        batch,
+        alignment_mode="semantic",
+        **kwargs,
+    )
+
+    assert torch.isclose(lane_losses["early_severe_steer_mask_rate"], torch.tensor(0.0))
+    assert torch.isclose(semantic_losses["early_severe_steer_mask_rate"], torch.tensor(1.0))
+    assert torch.isclose(semantic_losses["early_severe_steer_sign_rate"], torch.tensor(1.0))
+    assert torch.isclose(semantic_losses["early_severe_steer_delta_l1"], torch.tensor(0.04))
+
+
 def test_early_route_offset_loss_targets_left_drift_right_correction() -> None:
     action_mean = torch.tensor([[0.02, 0.0], [-0.02, 0.0], [0.02, 0.0], [0.02, 0.0]])
     zero_action_mean = torch.zeros_like(action_mean)

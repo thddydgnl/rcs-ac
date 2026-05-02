@@ -42,6 +42,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--min-abs-delta-p10", type=float, default=0.010)
     parser.add_argument("--max-target-steer-saturation-rate", type=float, default=0.05)
     parser.add_argument("--max-target-steer-consistency-mae", type=float, default=1.0e-5)
+    parser.add_argument("--max-heading-aware-ambiguous-rate", type=float, default=0.10)
     parser.add_argument("--max-wrong-sign-rows", type=int, default=500)
     return parser.parse_args()
 
@@ -236,6 +237,12 @@ def _heading_aware_summary(
     target_delta: np.ndarray,
     abs_lane_offset_min: float,
     abs_heading_error_min: float,
+    min_severe_count: int,
+    min_side_count: int,
+    min_sign_rate: float,
+    min_abs_delta_mean: float,
+    min_abs_delta_p10: float,
+    max_ambiguous_rate: float,
 ) -> dict[str, Any]:
     lane_dominant_mask = base_mask & (np.abs(lane_offset) >= float(abs_lane_offset_min))
     heading_dominant_mask = (
@@ -295,16 +302,29 @@ def _heading_aware_summary(
         "heading_aware_ambiguous_count": int(np.sum(ambiguous_mask)),
         "heading_aware_ambiguous_rate": float(np.sum(ambiguous_mask) / max(1, eligible_count)),
     }
-    pass_conditions = [
-        eligible_count >= 200,
-        _masked_stat(target_delta, base_mask, "abs_mean") >= 0.035,
-        _masked_stat(target_delta, base_mask, "p10_abs") >= 0.010,
-        lane_count < 40 or summary["heading_aware_lane_dominant_alignment_rate"] >= 0.98,
-        heading_count < 40 or summary["heading_aware_heading_dominant_alignment_rate"] >= 0.98,
-        conflict_count < 20 or summary["heading_aware_conflict_alignment_vs_heading_rate"] >= 0.98,
-        summary["heading_aware_ambiguous_rate"] <= 0.10,
-    ]
-    summary["heading_aware_gate_status"] = "PASS" if all(bool(item) for item in pass_conditions) else "BLOCK"
+    gate_failures: list[str] = []
+    if eligible_count < int(min_severe_count):
+        gate_failures.append("heading_aware_eligible_count")
+    if _masked_stat(target_delta, base_mask, "abs_mean") < float(min_abs_delta_mean):
+        gate_failures.append("heading_aware_target_delta_abs_mean")
+    if _masked_stat(target_delta, base_mask, "p10_abs") < float(min_abs_delta_p10):
+        gate_failures.append("heading_aware_target_delta_abs_p10")
+    if lane_count >= int(min_side_count) and summary["heading_aware_lane_dominant_alignment_rate"] < float(
+        min_sign_rate
+    ):
+        gate_failures.append("heading_aware_lane_dominant_alignment_rate")
+    if heading_count >= int(min_side_count) and summary[
+        "heading_aware_heading_dominant_alignment_rate"
+    ] < float(min_sign_rate):
+        gate_failures.append("heading_aware_heading_dominant_alignment_rate")
+    if conflict_count >= max(1, int(min_side_count) // 2) and summary[
+        "heading_aware_conflict_alignment_vs_heading_rate"
+    ] < float(min_sign_rate):
+        gate_failures.append("heading_aware_conflict_alignment_vs_heading_rate")
+    if summary["heading_aware_ambiguous_rate"] > float(max_ambiguous_rate):
+        gate_failures.append("heading_aware_ambiguous_rate")
+    summary["heading_aware_gate_failures"] = gate_failures
+    summary["heading_aware_gate_status"] = "PASS" if not gate_failures else "BLOCK"
     return summary
 
 
@@ -323,6 +343,7 @@ def audit_arrays(
     min_abs_delta_p10: float,
     max_target_steer_saturation_rate: float,
     max_target_steer_consistency_mae: float,
+    max_heading_aware_ambiguous_rate: float = 0.10,
     max_wrong_sign_rows: int = 500,
 ) -> dict[str, Any]:
     route_progress = _as_float_array(arrays, "route_progress")
@@ -371,11 +392,11 @@ def audit_arrays(
     if int(np.sum(right_mask)) < int(min_side_count):
         gate_failures.append("right_count")
     if sign_rate < float(min_sign_rate):
-        gate_failures.append("sign_rate")
+        gate_failures.append("strict_lane_sign_rate")
     if left_sign_rate < float(min_side_sign_rate):
-        gate_failures.append("left_sign_rate")
+        gate_failures.append("strict_lane_left_sign_rate")
     if right_sign_rate < float(min_side_sign_rate):
-        gate_failures.append("right_sign_rate")
+        gate_failures.append("strict_lane_right_sign_rate")
     if target_abs_mean < float(min_abs_delta_mean):
         gate_failures.append("target_delta_abs_mean")
     if target_abs_p10 < float(min_abs_delta_p10):
@@ -477,6 +498,11 @@ def audit_arrays(
         "eligible_severe_rate": _safe_rate(eligible_mask),
         "aligned_count": int(np.sum(aligned_mask)),
         "aligned_rate_in_eligible": sign_rate,
+        "strict_lane_gate_status": "PASS" if not gate_failures else "BLOCK",
+        "strict_lane_gate_failures": gate_failures,
+        "strict_lane_aligned_rate_in_eligible": sign_rate,
+        "strict_lane_left_sign_rate_vs_neg_lane": left_sign_rate,
+        "strict_lane_right_sign_rate_vs_neg_lane": right_sign_rate,
         "wrong_sign_rate_in_eligible": 1.0 - sign_rate if int(np.sum(eligible_mask)) else 0.0,
         "wrong_sign_count": int(np.sum(wrong_sign_mask)),
         "wrong_sign_left_count": int(np.sum(wrong_sign_left_mask)),
@@ -511,8 +537,6 @@ def audit_arrays(
         "target_steer_saturation_rate": target_steer_saturation_rate,
         "target_steer_consistency_mae": target_steer_consistency_mae,
         "route_bins": route_bins,
-        "gate_status": "PASS" if not gate_failures else "BLOCK",
-        "gate_failures": gate_failures,
     }
     summary.update(
         _side_summary(
@@ -534,16 +558,34 @@ def audit_arrays(
             expert_steer=expert_steer,
         )
     )
-    summary.update(
-        _heading_aware_summary(
-            base_mask=base_mask,
-            lane_offset=lane_offset,
-            heading_error=heading_error,
-            target_delta=target_delta,
-            abs_lane_offset_min=float(abs_lane_offset_min),
-            abs_heading_error_min=float(abs_heading_error_min),
-        )
+    heading_aware_summary = _heading_aware_summary(
+        base_mask=base_mask,
+        lane_offset=lane_offset,
+        heading_error=heading_error,
+        target_delta=target_delta,
+        abs_lane_offset_min=float(abs_lane_offset_min),
+        abs_heading_error_min=float(abs_heading_error_min),
+        min_severe_count=int(min_severe_count),
+        min_side_count=int(min_side_count),
+        min_sign_rate=float(min_sign_rate),
+        min_abs_delta_mean=float(min_abs_delta_mean),
+        min_abs_delta_p10=float(min_abs_delta_p10),
+        max_ambiguous_rate=float(max_heading_aware_ambiguous_rate),
     )
+    summary.update(heading_aware_summary)
+    semantic_gate_failures: list[str] = []
+    if bool(missing_source_metadata):
+        semantic_gate_failures.append("source_metadata")
+    for failure in summary["heading_aware_gate_failures"]:
+        semantic_gate_failures.append(str(failure).replace("heading_aware_", "semantic_", 1))
+    if target_steer_saturation_rate > float(max_target_steer_saturation_rate):
+        semantic_gate_failures.append("target_steer_saturation_rate")
+    if target_steer_consistency_mae > float(max_target_steer_consistency_mae):
+        semantic_gate_failures.append("target_steer_consistency_mae")
+    summary["semantic_gate_failures"] = semantic_gate_failures
+    summary["semantic_gate_status"] = "PASS" if not semantic_gate_failures else "BLOCK"
+    summary["gate_failures"] = semantic_gate_failures
+    summary["gate_status"] = summary["semantic_gate_status"]
     return summary
 
 
@@ -565,6 +607,7 @@ def main() -> int:
         min_abs_delta_p10=float(args.min_abs_delta_p10),
         max_target_steer_saturation_rate=float(args.max_target_steer_saturation_rate),
         max_target_steer_consistency_mae=float(args.max_target_steer_consistency_mae),
+        max_heading_aware_ambiguous_rate=float(args.max_heading_aware_ambiguous_rate),
         max_wrong_sign_rows=int(args.max_wrong_sign_rows),
     )
     summary["dataset"] = str(dataset_path)

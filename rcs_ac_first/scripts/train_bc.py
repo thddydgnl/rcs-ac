@@ -899,6 +899,7 @@ def _compute_early_severe_steer_losses(
     abs_heading_error_min: float,
     margin: float,
     side_balanced: bool = True,
+    alignment_mode: str = "lane",
     valid_mask: torch.Tensor | None = None,
     sign_epsilon: float = 1.0e-5,
 ) -> dict[str, torch.Tensor]:
@@ -953,11 +954,21 @@ def _compute_early_severe_steer_losses(
         mask = mask * (route_tensor <= float(route_max)).to(action_mean.dtype)
     lane_active = lane_tensor.abs() >= float(abs_lane_offset_min)
     heading_active = heading_tensor.abs() >= float(abs_heading_error_min)
+    heading_dominant = (~lane_active) & heading_active
     sign_active = target_tensor.abs() > float(sign_epsilon)
-    correction_aligned = (target_tensor * (-lane_tensor)) > 0.0
+    if str(alignment_mode) == "semantic":
+        lane_aligned = (target_tensor * (-torch.sign(lane_tensor))) > 0.0
+        heading_aligned = (target_tensor * torch.sign(heading_tensor)) > 0.0
+        correction_aligned = (lane_active & lane_aligned) | (heading_dominant & heading_aligned)
+        severe_active = lane_active | heading_dominant
+    elif str(alignment_mode) == "lane":
+        correction_aligned = (target_tensor * (-lane_tensor)) > 0.0
+        severe_active = lane_active | heading_active
+    else:
+        raise ValueError("early severe alignment_mode must be one of: lane, semantic")
     mask = (
         mask
-        * (lane_active | heading_active).to(action_mean.dtype)
+        * severe_active.to(action_mean.dtype)
         * sign_active.to(action_mean.dtype)
         * correction_aligned.to(action_mean.dtype)
     )
@@ -1412,6 +1423,7 @@ def _evaluate(
     early_severe_abs_heading_error_min: float,
     early_severe_steer_margin: float,
     early_severe_side_balanced: bool,
+    early_severe_alignment_mode: str,
     route_progress_longitudinal_floor_route_min: float | None,
     route_progress_longitudinal_floor_route_max: float | None,
     route_progress_longitudinal_floor_speed_max_mps: float | None,
@@ -1622,6 +1634,7 @@ def _evaluate(
                         abs_heading_error_min=early_severe_abs_heading_error_min,
                         margin=early_severe_steer_margin,
                         side_balanced=early_severe_side_balanced,
+                        alignment_mode=early_severe_alignment_mode,
                         valid_mask=batch.get("valid_mask"),
                     )
                 )
@@ -1757,6 +1770,7 @@ def _evaluate(
                         abs_heading_error_min=early_severe_abs_heading_error_min,
                         margin=early_severe_steer_margin,
                         side_balanced=early_severe_side_balanced,
+                        alignment_mode=early_severe_alignment_mode,
                     )
                 )
                 losses.update(
@@ -1951,6 +1965,7 @@ def main() -> int:
     early_severe_abs_heading_error_min = float(bc_raw.get("early_severe_abs_heading_error_min", 3.0))
     early_severe_steer_margin = float(bc_raw.get("early_severe_steer_margin", 0.005))
     early_severe_side_balanced = bool(bc_raw.get("early_severe_side_balanced", True))
+    early_severe_alignment_mode = str(bc_raw.get("early_severe_alignment_mode", "lane"))
     route_progress_longitudinal_floor_loss_weight = float(
         bc_raw.get("route_progress_longitudinal_floor_loss_weight", 0.0)
     )
@@ -2169,6 +2184,7 @@ def main() -> int:
                             abs_heading_error_min=early_severe_abs_heading_error_min,
                             margin=early_severe_steer_margin,
                             side_balanced=early_severe_side_balanced,
+                            alignment_mode=early_severe_alignment_mode,
                             valid_mask=batch.get("valid_mask"),
                         )
                     )
@@ -2304,6 +2320,7 @@ def main() -> int:
                             abs_heading_error_min=early_severe_abs_heading_error_min,
                             margin=early_severe_steer_margin,
                             side_balanced=early_severe_side_balanced,
+                            alignment_mode=early_severe_alignment_mode,
                         )
                     )
                     losses.update(
@@ -2440,6 +2457,7 @@ def main() -> int:
                 early_severe_abs_heading_error_min=early_severe_abs_heading_error_min,
                 early_severe_steer_margin=early_severe_steer_margin,
                 early_severe_side_balanced=early_severe_side_balanced,
+                early_severe_alignment_mode=early_severe_alignment_mode,
                 route_progress_longitudinal_floor_route_min=route_progress_longitudinal_floor_route_min,
                 route_progress_longitudinal_floor_route_max=route_progress_longitudinal_floor_route_max,
                 route_progress_longitudinal_floor_speed_max_mps=route_progress_longitudinal_floor_speed_max_mps,

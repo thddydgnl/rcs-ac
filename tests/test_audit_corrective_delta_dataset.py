@@ -63,10 +63,23 @@ def _audit(arrays: dict[str, np.ndarray]) -> dict[str, object]:
     )
 
 
+def _with_source_metadata(arrays: dict[str, np.ndarray]) -> dict[str, np.ndarray]:
+    n = int(arrays["obs_flat"].shape[0])
+    arrays["source_label"] = np.full((n,), "synthetic")
+    arrays["source_dataset"] = np.full((n,), "synthetic.npz")
+    arrays["source_dataset_index"] = np.zeros((n,), dtype=np.int32)
+    arrays["source_row_index"] = np.arange(n, dtype=np.int32)
+    arrays["source_episode_id"] = arrays["episode_id"].astype(np.int32, copy=True)
+    arrays["source_step_in_episode"] = arrays["step_in_episode"].astype(np.int32, copy=True)
+    return arrays
+
+
 def test_corrective_delta_dataset_audit_passes_clean_balanced_targets() -> None:
-    summary = _audit(_base_arrays())
+    summary = _audit(_with_source_metadata(_base_arrays()))
 
     assert summary["gate_status"] == "PASS"
+    assert summary["semantic_gate_status"] == "PASS"
+    assert summary["strict_lane_gate_status"] == "PASS"
     assert summary["eligible_severe_count"] == 260
     assert summary["left_count"] == 130
     assert summary["right_count"] == 130
@@ -77,16 +90,30 @@ def test_corrective_delta_dataset_audit_passes_clean_balanced_targets() -> None:
     assert len(summary["route_bins"]) == 3
     assert summary["wrong_sign_left_count"] == 0
     assert summary["wrong_sign_left_rows"] == []
-    assert summary["missing_source_metadata"] is True
+    assert summary["missing_source_metadata"] is False
 
 
 def test_corrective_delta_dataset_audit_blocks_wrong_side_targets() -> None:
-    summary = _audit(_base_arrays(wrong_right_sign=True))
+    summary = _audit(_with_source_metadata(_base_arrays(wrong_right_sign=True)))
 
     assert summary["gate_status"] == "BLOCK"
-    assert "sign_rate" in summary["gate_failures"]
-    assert "right_sign_rate" in summary["gate_failures"]
+    assert summary["semantic_gate_status"] == "BLOCK"
+    assert summary["strict_lane_gate_status"] == "BLOCK"
+    assert "semantic_lane_dominant_alignment_rate" in summary["gate_failures"]
+    assert "strict_lane_sign_rate" in summary["strict_lane_gate_failures"]
+    assert "strict_lane_right_sign_rate" in summary["strict_lane_gate_failures"]
     assert summary["right_sign_rate_vs_neg_lane"] == 0.0
+
+
+def test_corrective_delta_dataset_semantic_gate_requires_source_metadata() -> None:
+    summary = _audit(_base_arrays())
+
+    assert summary["strict_lane_gate_status"] == "PASS"
+    assert summary["heading_aware_gate_status"] == "PASS"
+    assert summary["semantic_gate_status"] == "BLOCK"
+    assert summary["gate_status"] == "BLOCK"
+    assert summary["gate_failures"] == ["source_metadata"]
+    assert summary["missing_source_metadata"] is True
 
 
 def test_corrective_delta_dataset_audit_exports_wrong_left_rows() -> None:
@@ -103,7 +130,7 @@ def test_corrective_delta_dataset_audit_exports_wrong_left_rows() -> None:
 
     summary = _audit(arrays)
 
-    assert summary["gate_status"] == "BLOCK"
+    assert summary["strict_lane_gate_status"] == "BLOCK"
     assert summary["wrong_sign_left_count"] == 3
     assert np.isclose(float(summary["wrong_sign_left_rate_in_left"]), 3 / 130)
     rows = summary["wrong_sign_left_rows"]
@@ -123,7 +150,7 @@ def test_corrective_delta_dataset_audit_exports_wrong_left_rows() -> None:
 
 
 def test_corrective_delta_dataset_audit_reports_heading_dominant_alignment() -> None:
-    arrays = _base_arrays()
+    arrays = _with_source_metadata(_base_arrays())
     lane_offset = np.concatenate(
         [
             np.full(130, -0.2, dtype=np.float32),
@@ -145,7 +172,10 @@ def test_corrective_delta_dataset_audit_reports_heading_dominant_alignment() -> 
 
     summary = _audit(arrays)
 
-    assert summary["gate_status"] == "BLOCK"
+    assert summary["gate_status"] == "PASS"
+    assert summary["semantic_gate_status"] == "PASS"
+    assert summary["strict_lane_gate_status"] == "BLOCK"
+    assert "strict_lane_sign_rate" in summary["strict_lane_gate_failures"]
     assert summary["heading_aware_gate_status"] == "PASS"
     assert summary["heading_aware_lane_dominant_count"] == 0
     assert summary["heading_aware_heading_dominant_count"] == 260
@@ -156,12 +186,15 @@ def test_corrective_delta_dataset_audit_reports_heading_dominant_alignment() -> 
 
 
 def test_corrective_delta_dataset_audit_reports_ambiguous_heading_rows() -> None:
-    arrays = _base_arrays()
+    arrays = _with_source_metadata(_base_arrays())
     arrays["lane_offset"][:] = 0.2
     arrays["heading_error"][:] = 1.0
 
     summary = _audit(arrays)
 
+    assert summary["gate_status"] == "BLOCK"
+    assert summary["semantic_gate_status"] == "BLOCK"
+    assert "semantic_ambiguous_rate" in summary["semantic_gate_failures"]
     assert summary["heading_aware_gate_status"] == "BLOCK"
     assert summary["heading_aware_ambiguous_count"] == 260
     assert summary["heading_aware_ambiguous_rate"] == 1.0
