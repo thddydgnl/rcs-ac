@@ -1064,3 +1064,354 @@ Current PPO baseline stabilization readout:
 - Low std can reduce collision in the last checkpoint but tends to create left-biased offroad failures.
 - Mid std preserves progress but deterministic mean steering is too weak near late lateral error.
 - The blocker is not early severe offroad anymore; it is deterministic mean-policy corrective steering under late lane/heading error.
+
+Additional checkpoint audit:
+
+- Attempt 17 update 0006: collision `0`, offroad `2`, max route progress `0.358974`, PPO gate `BLOCK`.
+- Attempt 17 update 0007: collision `0`, offroad `2`, max route progress `0.307692`, PPO gate `BLOCK`.
+- Mid-run checkpoints do not rescue Attempt 17; the left-biased offroad pattern persists.
+
+## PPO Baseline Attempt 18: Seed7 Midstd Rollout512 Entropy0 4k
+
+Config: `configs/baselines/ppo_clean_same_env_sensor_action_seed7_midstd_rollout512_entropy0.yaml`
+
+Run name: `ppo_clean_same_env_sensor_action_seed7_midstd_rollout512_entropy0_4096_20260503T021058`
+
+Checkpoint: `checkpoints/ppo_clean_same_env_sensor_action_seed7_midstd_rollout512_entropy0_4096_20260503T021058/last.pt`
+
+Pulled logs:
+
+- `remote_runs/ppo_baseline_seed7_midstd_rollout512_entropy0_4096_20260503T021058/training_log.csv`
+- `remote_runs/ppo_baseline_seed7_midstd_rollout512_entropy0_4096_20260503T021058/ppo_clean_same_env_sensor_action_seed7_midstd_rollout512_entropy0_4096_eval_512_last.csv`
+
+Status: **512 clean gate BLOCK**
+
+Allowed tuning changed from Attempt 8:
+
+- `entropy_loss_weight: 0.0`
+
+Unchanged from Attempt 8:
+
+- `log_std_init_by_dim: [-1.2, -1.2]`
+- `max_std_by_dim: [0.35, 0.40]`
+- `rollout_steps: 512`
+- `learning_rate: 0.00003`
+- `clip_coef: 0.1`
+- `update_epochs: 1`
+- `minibatch_size: 128`
+
+Unchanged fairness constraints:
+
+- Same environment, route, sensors, action wrapper, reward, and termination contract as Attempt 1/Round90.
+- No PPO-only lateral recovery assist.
+- No privileged inference input.
+- No lane-offset runtime steering override.
+- No deterministic rollout.
+
+Training summary:
+
+- Timesteps: `4096`
+- Episodes: `22`
+- Done reasons: collision `1`, offroad `21`
+- Best training route progress: `0.307692`
+
+512 clean eval, last checkpoint:
+
+- Collision: `0`
+- Offroad: `2`
+- Early offroad: `0`
+- Severe early offroad: `0`
+- Stuck: `0`
+- Max route progress: `0.410256`
+- PPO gate: `BLOCK`
+
+Failure diagnosis:
+
+- Removing entropy pressure did not improve the mean-policy corrective problem.
+- Training progress collapsed relative to Attempt 8, while eval still produced offroad failures.
+
+Next action:
+
+- Move away from entropy/std-only tuning. The next fair baseline attempt should improve PPO update signal without changing reward, observations, action wrapper, or adding assists.
+
+## PPO Baseline Attempt 19: Seed7 Midstd Rollout512 Minibatch256 4k
+
+Config: `configs/baselines/ppo_clean_same_env_sensor_action_seed7_midstd_rollout512_mb256.yaml`
+
+Run name: `ppo_clean_same_env_sensor_action_seed7_midstd_rollout512_mb256_4096_20260503T022258`
+
+Checkpoint: `checkpoints/ppo_clean_same_env_sensor_action_seed7_midstd_rollout512_mb256_4096_20260503T022258/last.pt`
+
+Pulled logs:
+
+- `remote_runs/ppo_baseline_seed7_midstd_rollout512_mb256_4096_20260503T022258/training_log.csv`
+- `remote_runs/ppo_baseline_seed7_midstd_rollout512_mb256_4096_20260503T022258/ppo_clean_same_env_sensor_action_seed7_midstd_rollout512_mb256_4096_eval_512_last.csv`
+- `remote_runs/ppo_baseline_seed7_midstd_rollout512_mb256_4096_20260503T022258/ppo_clean_same_env_sensor_action_seed7_midstd_rollout512_mb256_4096_eval_512_update0006.csv`
+- `remote_runs/ppo_baseline_seed7_midstd_rollout512_mb256_4096_20260503T022258/ppo_clean_same_env_sensor_action_seed7_midstd_rollout512_mb256_4096_eval_512_update0007.csv`
+
+Status: **512 clean gate BLOCK**
+
+Allowed tuning changed from Attempt 8:
+
+- `minibatch_size: 256`
+
+Unchanged from Attempt 8:
+
+- `log_std_init_by_dim: [-1.2, -1.2]`
+- `max_std_by_dim: [0.35, 0.40]`
+- `rollout_steps: 512`
+- `learning_rate: 0.00003`
+- `entropy_loss_weight: 0.001`
+- `clip_coef: 0.1`
+- `update_epochs: 1`
+
+Unchanged fairness constraints:
+
+- Same environment, route, sensors, action wrapper, reward, and termination contract as Attempt 1/Round90.
+- No PPO-only lateral recovery assist.
+- No privileged inference input.
+- No lane-offset runtime steering override.
+- No deterministic rollout.
+
+Training summary:
+
+- Timesteps: `4096`
+- Episodes: `21`
+- Done reasons: collision `2`, offroad `19`
+- Best training route progress: `0.538462`
+
+512 clean eval, last checkpoint:
+
+- Collision: `0`
+- Offroad: `1`
+- Early offroad: `0`
+- Severe early offroad: `0`
+- Stuck: `0`
+- Max route progress: `0.538462`
+- PPO gate: `BLOCK`
+
+512 clean eval, update 0006:
+
+- Collision: `0`
+- Offroad: `1`
+- Max route progress: `0.564103`
+- PPO gate: `BLOCK`
+
+512 clean eval, update 0007:
+
+- Collision: `0`
+- Offroad: `1`
+- Max route progress: `0.538462`
+- PPO gate: `BLOCK`
+
+Failure diagnosis:
+
+- Minibatch256 is the closest family so far: it removes collision but leaves one late offroad.
+- The late offroad appears around route `0.54-0.56`, lane offset about `2.1 m`, heading error about `-12 deg`, with near-zero or weak wrong-sign steering.
+- Speed near the failure remains about `13.8 km/h`, so reducing longitudinal exploration while keeping steering exploration may help without changing the action wrapper.
+
+Next action:
+
+- Keep minibatch256 and mid steering std, but lower longitudinal std.
+
+## PPO Baseline Attempt 20: Seed7 Midstd MB256 LongLow 4k
+
+Config: `configs/baselines/ppo_clean_same_env_sensor_action_seed7_midstd_mb256_longlow.yaml`
+
+Run name: `ppo_clean_same_env_sensor_action_seed7_midstd_mb256_longlow_4096_20260503T023947`
+
+Checkpoint: `checkpoints/ppo_clean_same_env_sensor_action_seed7_midstd_mb256_longlow_4096_20260503T023947/last.pt`
+
+Pulled logs:
+
+- `remote_runs/ppo_baseline_seed7_midstd_mb256_longlow_4096_20260503T023947/training_log.csv`
+- `remote_runs/ppo_baseline_seed7_midstd_mb256_longlow_4096_20260503T023947/ppo_clean_same_env_sensor_action_seed7_midstd_mb256_longlow_4096_eval_512_last.csv`
+
+Status: **512 clean gate BLOCK**
+
+Allowed tuning changed from Attempt 19:
+
+- `log_std_init_by_dim: [-1.2, -2.0]`
+- `max_std_by_dim: [0.35, 0.25]`
+
+Unchanged from Attempt 19:
+
+- `rollout_steps: 512`
+- `learning_rate: 0.00003`
+- `entropy_loss_weight: 0.001`
+- `clip_coef: 0.1`
+- `update_epochs: 1`
+- `minibatch_size: 256`
+
+Unchanged fairness constraints:
+
+- Same environment, route, sensors, action wrapper, reward, and termination contract as Attempt 1/Round90.
+- No PPO-only lateral recovery assist.
+- No privileged inference input.
+- No lane-offset runtime steering override.
+- No deterministic rollout.
+
+Training summary:
+
+- Timesteps: `4096`
+- Episodes: `21`
+- Done reasons: collision `2`, offroad `19`
+- Best training route progress: `0.487179`
+
+512 clean eval, last checkpoint:
+
+- Collision: `1`
+- Offroad: `0`
+- Early offroad: `0`
+- Severe early offroad: `0`
+- Stuck: `0`
+- Max route progress: `0.564103`
+- PPO gate: `BLOCK`
+
+Failure diagnosis:
+
+- Lowering longitudinal std did not fix the late failure; it converted the near-pass offroad pattern into a late collision.
+- The near-failure speed window remains high enough that longitudinal std alone is not the right lever.
+
+Next action:
+
+- Return to Attempt 19 and loosen gradient clipping from `0.5` to `1.0`, because logged update grad norms are consistently above the clipping threshold.
+
+## PPO Baseline Attempt 21: Seed7 Midstd MB256 Grad1 4k
+
+Config: `configs/baselines/ppo_clean_same_env_sensor_action_seed7_midstd_mb256_grad1.yaml`
+
+Run name: `ppo_clean_same_env_sensor_action_seed7_midstd_mb256_grad1_4096_20260503T025139`
+
+Checkpoint: `checkpoints/ppo_clean_same_env_sensor_action_seed7_midstd_mb256_grad1_4096_20260503T025139/last.pt`
+
+Pulled logs:
+
+- `remote_runs/ppo_baseline_seed7_midstd_mb256_grad1_4096_20260503T025139/training_log.csv`
+- `remote_runs/ppo_baseline_seed7_midstd_mb256_grad1_4096_20260503T025139/ppo_clean_same_env_sensor_action_seed7_midstd_mb256_grad1_4096_eval_512_last.csv`
+
+Status: **512 clean gate BLOCK**
+
+Allowed tuning changed from Attempt 19:
+
+- `max_grad_norm: 1.0`
+
+Unchanged from Attempt 19:
+
+- `log_std_init_by_dim: [-1.2, -1.2]`
+- `max_std_by_dim: [0.35, 0.40]`
+- `rollout_steps: 512`
+- `learning_rate: 0.00003`
+- `entropy_loss_weight: 0.001`
+- `clip_coef: 0.1`
+- `update_epochs: 1`
+- `minibatch_size: 256`
+
+Unchanged fairness constraints:
+
+- Same environment, route, sensors, action wrapper, reward, and termination contract as Attempt 1/Round90.
+- No PPO-only lateral recovery assist.
+- No privileged inference input.
+- No lane-offset runtime steering override.
+- No deterministic rollout.
+
+Training summary:
+
+- Timesteps: `4096`
+- Episodes: `21`
+- Done reasons: collision `3`, offroad `18`
+- Best training route progress: `0.435897`
+
+512 clean eval, last checkpoint:
+
+- Collision: `0`
+- Offroad: `1`
+- Early offroad: `0`
+- Severe early offroad: `0`
+- Stuck: `0`
+- Max route progress: `0.564103`
+- PPO gate: `BLOCK`
+
+Failure diagnosis:
+
+- Loosening gradient clipping increased training collisions and did not remove the one late eval offroad.
+- The best family remains Attempt 19, not Grad1.
+
+Next action:
+
+- Extend Attempt 19's minibatch256 family to `6144` timesteps, because it is the closest setup and may need more updates without changing update strength.
+
+## PPO Baseline Attempt 22: Seed7 Midstd Rollout512 Minibatch256 6144
+
+Config: `configs/baselines/ppo_clean_same_env_sensor_action_seed7_midstd_rollout512_mb256.yaml`
+
+Run name: `ppo_clean_same_env_sensor_action_seed7_midstd_rollout512_mb256_6144_20260503T030254`
+
+Checkpoint: `checkpoints/ppo_clean_same_env_sensor_action_seed7_midstd_rollout512_mb256_6144_20260503T030254/last.pt`
+
+Pulled logs:
+
+- `remote_runs/ppo_baseline_seed7_midstd_rollout512_mb256_6144_20260503T030254/training_log.csv`
+- `remote_runs/ppo_baseline_seed7_midstd_rollout512_mb256_6144_20260503T030254/ppo_clean_same_env_sensor_action_seed7_midstd_rollout512_mb256_6144_eval_512_last.csv`
+- `remote_runs/ppo_baseline_seed7_midstd_rollout512_mb256_6144_20260503T030254/ppo_clean_same_env_sensor_action_seed7_midstd_rollout512_mb256_6144_eval_512_update0011.csv`
+
+Status: **512 clean gate BLOCK**
+
+Allowed tuning changed from Attempt 19:
+
+- `total_timesteps: 6144`
+
+Unchanged from Attempt 19:
+
+- `log_std_init_by_dim: [-1.2, -1.2]`
+- `max_std_by_dim: [0.35, 0.40]`
+- `rollout_steps: 512`
+- `learning_rate: 0.00003`
+- `entropy_loss_weight: 0.001`
+- `clip_coef: 0.1`
+- `update_epochs: 1`
+- `minibatch_size: 256`
+- `max_grad_norm: 0.5`
+
+Unchanged fairness constraints:
+
+- Same environment, route, sensors, action wrapper, reward, and termination contract as Attempt 1/Round90.
+- No PPO-only lateral recovery assist.
+- No privileged inference input.
+- No lane-offset runtime steering override.
+- No deterministic rollout.
+
+Training summary:
+
+- Timesteps: `6144`
+- Episodes: `31`
+- Done reasons: collision `2`, offroad `29`
+- Best training route progress: `0.641026`
+
+512 clean eval, last checkpoint:
+
+- Collision: `1`
+- Offroad: `0`
+- Early offroad: `0`
+- Severe early offroad: `0`
+- Stuck: `0`
+- Max route progress: `0.641026`
+- PPO gate: `BLOCK`
+
+512 clean eval, update 0011:
+
+- Collision: `1`
+- Offroad: `0`
+- Max route progress: `0.641026`
+- PPO gate: `BLOCK`
+
+Failure diagnosis:
+
+- Extending the minibatch256 family improves route progress but turns the near-pass offroad into a late collision.
+- The failure remains deterministic mean-policy corrective steering: lane offset around `1.8-1.9 m`, heading error around `-19.7 deg`, and steer around `-0.0036` to `-0.0039`.
+
+Current best after Attempt 22:
+
+- Closest 512 safety gate: Attempt 19 update 0006/0007 and Attempt 21 last, all collision `0`, severe early offroad `0`, stuck `0`, max route progress `0.538-0.564`, but offroad `1`.
+- Best route progress: Attempt 22 last/update0011, max route progress `0.641`, but collision `1`.
+- No checkpoint has reached 512 clean gate PASS; 2048 eval and accepted manifest are still blocked.
