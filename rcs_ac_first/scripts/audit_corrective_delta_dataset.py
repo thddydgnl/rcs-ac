@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import csv
 import json
 import sys
 from pathlib import Path
@@ -41,6 +42,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--min-abs-delta-p10", type=float, default=0.010)
     parser.add_argument("--max-target-steer-saturation-rate", type=float, default=0.05)
     parser.add_argument("--max-target-steer-consistency-mae", type=float, default=1.0e-5)
+    parser.add_argument("--max-wrong-sign-rows", type=int, default=500)
     return parser.parse_args()
 
 
@@ -115,6 +117,109 @@ def _side_summary(
     }
 
 
+def _optional_array(
+    arrays: dict[str, np.ndarray],
+    key: str,
+    *,
+    n: int,
+    default: Any,
+) -> np.ndarray:
+    if key in arrays and np.asarray(arrays[key]).shape[:1] == (int(n),):
+        return np.asarray(arrays[key])
+    return np.asarray([default] * int(n))
+
+
+def _route_bin(value: float) -> str:
+    if value < 0.05:
+        return "0.025-0.050"
+    if value < 0.075:
+        return "0.050-0.075"
+    if value <= 0.10:
+        return "0.075-0.100"
+    return "outside"
+
+
+def _rows_from_mask(
+    arrays: dict[str, np.ndarray],
+    *,
+    mask: np.ndarray,
+    expected_signed: np.ndarray,
+    target_steer: np.ndarray,
+    max_rows: int,
+) -> list[dict[str, Any]]:
+    n = int(np.asarray(arrays["route_progress"]).reshape(-1).shape[0])
+    expert_action = np.asarray(arrays["expert_action"], dtype=np.float32)
+    episode_id = _optional_array(arrays, "episode_id", n=n, default=-1).reshape(-1)
+    step_in_episode = _optional_array(arrays, "step_in_episode", n=n, default=-1).reshape(-1)
+    route_progress = _optional_array(arrays, "route_progress", n=n, default=0.0).astype(np.float32).reshape(-1)
+    lane_offset = _optional_array(arrays, "lane_offset", n=n, default=0.0).astype(np.float32).reshape(-1)
+    heading_error = _optional_array(arrays, "heading_error", n=n, default=0.0).astype(np.float32).reshape(-1)
+    available = _optional_array(arrays, "target_corrective_delta_available", n=n, default=0.0).astype(np.float32).reshape(-1)
+    target_delta = _optional_array(arrays, "target_corrective_delta", n=n, default=0.0).astype(np.float32).reshape(-1)
+    policy_steer = _optional_array(arrays, "policy_action_steer", n=n, default=0.0).astype(np.float32).reshape(-1)
+    target_corrected = _optional_array(arrays, "target_corrected_steer", n=n, default=0.0).astype(np.float32).reshape(-1)
+    source_label = _optional_array(arrays, "source_label", n=n, default="").reshape(-1)
+    source_dataset = _optional_array(arrays, "source_dataset", n=n, default="").reshape(-1)
+    source_row_index = _optional_array(arrays, "source_row_index", n=n, default=-1).reshape(-1)
+    lateral_active = _optional_array(arrays, "lateral_recovery_active", n=n, default=False).reshape(-1)
+    lateral_branch = _optional_array(arrays, "lateral_recovery_branch_active", n=n, default=False).reshape(-1)
+    lateral_correction = _optional_array(arrays, "lateral_recovery_correction", n=n, default=0.0).astype(np.float32).reshape(-1)
+    lateral_raw = _optional_array(arrays, "lateral_recovery_raw_steer", n=n, default=0.0).astype(np.float32).reshape(-1)
+    turn_boost = _optional_array(arrays, "lateral_recovery_turn_boost_active", n=n, default=False).reshape(-1)
+    speed_gate = _optional_array(arrays, "lateral_recovery_speed_gate_active", n=n, default=False).reshape(-1)
+    speed_kmh = _optional_array(arrays, "speed_kmh", n=n, default=0.0).astype(np.float32).reshape(-1)
+
+    indices = np.flatnonzero(mask)
+    order = sorted(
+        indices.tolist(),
+        key=lambda idx: (float(route_progress[idx]), int(episode_id[idx]), int(step_in_episode[idx]), int(idx)),
+    )
+    rows: list[dict[str, Any]] = []
+    for idx in order[: max(0, int(max_rows))]:
+        rows.append(
+            {
+                "row_index": int(idx),
+                "source_label": str(source_label[idx]),
+                "source_dataset": str(source_dataset[idx]),
+                "source_row_index": int(source_row_index[idx]) if str(source_row_index[idx]).lstrip("-").isdigit() else str(source_row_index[idx]),
+                "episode_id": int(episode_id[idx]),
+                "step_in_episode": int(step_in_episode[idx]),
+                "route_progress": float(route_progress[idx]),
+                "route_bin": _route_bin(float(route_progress[idx])),
+                "lane_offset": float(lane_offset[idx]),
+                "heading_error": float(heading_error[idx]),
+                "speed_kmh": float(speed_kmh[idx]),
+                "target_corrective_delta_available": float(available[idx]),
+                "target_corrective_delta": float(target_delta[idx]),
+                "expected_signed": float(expected_signed[idx]),
+                "policy_action_steer": float(policy_steer[idx]),
+                "target_corrected_steer": float(target_corrected[idx]),
+                "target_steer": float(target_steer[idx]),
+                "expert_steer": float(expert_action[idx, 0]),
+                "lateral_recovery_active": bool(lateral_active[idx]),
+                "lateral_recovery_branch_active": bool(lateral_branch[idx]),
+                "lateral_recovery_correction": float(lateral_correction[idx]),
+                "lateral_recovery_raw_steer": float(lateral_raw[idx]),
+                "lateral_recovery_turn_boost_active": bool(turn_boost[idx]),
+                "lateral_recovery_speed_gate_active": bool(speed_gate[idx]),
+                "classification": "unresolved",
+            }
+        )
+    return rows
+
+
+def _group_counts(values: np.ndarray, mask: np.ndarray, *, top_k: int = 20) -> list[dict[str, Any]]:
+    selected = np.asarray(values).reshape(-1)[mask]
+    if int(selected.size) == 0:
+        return []
+    unique, counts = np.unique(selected, return_counts=True)
+    order = np.argsort(-counts)
+    return [
+        {"value": str(unique[index]), "count": int(counts[index])}
+        for index in order[: int(top_k)]
+    ]
+
+
 def audit_arrays(
     arrays: dict[str, np.ndarray],
     *,
@@ -130,6 +235,7 @@ def audit_arrays(
     min_abs_delta_p10: float,
     max_target_steer_saturation_rate: float,
     max_target_steer_consistency_mae: float,
+    max_wrong_sign_rows: int = 500,
 ) -> dict[str, Any]:
     route_progress = _as_float_array(arrays, "route_progress")
     lane_offset = _as_float_array(arrays, "lane_offset", default=np.zeros_like(route_progress))
@@ -156,6 +262,8 @@ def audit_arrays(
     right_mask = eligible_mask & (lane_offset > 0.0)
     expected_signed = target_delta * (-lane_offset)
     aligned_mask = eligible_mask & (expected_signed > 0.0)
+    wrong_sign_mask = eligible_mask & (expected_signed <= 0.0)
+    wrong_sign_left_mask = left_mask & (expected_signed <= 0.0)
 
     sign_rate = _safe_rate((expected_signed > 0.0)[eligible_mask])
     left_sign_rate = _safe_rate((expected_signed > 0.0)[left_mask])
@@ -205,6 +313,14 @@ def audit_arrays(
             }
         )
 
+    source_keys = (
+        "source_label",
+        "source_dataset",
+        "source_dataset_index",
+        "source_row_index",
+        "source_episode_id",
+        "source_step_in_episode",
+    )
     schema = {
         key: {
             "present": bool(key in arrays),
@@ -221,8 +337,26 @@ def audit_arrays(
             "lane_offset",
             "heading_error",
             "route_progress",
+            *source_keys,
+            "lateral_recovery_active",
+            "lateral_recovery_branch_active",
+            "lateral_recovery_correction",
+            "lateral_recovery_raw_steer",
+            "lateral_recovery_turn_boost_active",
+            "lateral_recovery_speed_gate_active",
+            "speed_kmh",
         )
     }
+    missing_source_metadata = not all(bool(schema[key]["present"]) for key in source_keys)
+    episode_ids = _optional_array(arrays, "episode_id", n=route_progress.shape[0], default=-1).reshape(-1)
+    route_bin_values = np.asarray([_route_bin(float(value)) for value in route_progress])
+    wrong_sign_rows = _rows_from_mask(
+        arrays,
+        mask=wrong_sign_left_mask,
+        expected_signed=expected_signed,
+        target_steer=target_steer,
+        max_rows=int(max_wrong_sign_rows),
+    )
 
     summary: dict[str, Any] = {
         "schema": schema,
@@ -240,6 +374,16 @@ def audit_arrays(
         "aligned_count": int(np.sum(aligned_mask)),
         "aligned_rate_in_eligible": sign_rate,
         "wrong_sign_rate_in_eligible": 1.0 - sign_rate if int(np.sum(eligible_mask)) else 0.0,
+        "wrong_sign_count": int(np.sum(wrong_sign_mask)),
+        "wrong_sign_left_count": int(np.sum(wrong_sign_left_mask)),
+        "wrong_sign_left_rate_in_left": _safe_rate(wrong_sign_left_mask[left_mask]),
+        "missing_source_metadata": bool(missing_source_metadata),
+        "source_metadata_present": {key: bool(schema[key]["present"]) for key in source_keys},
+        "reconstructable_from_summary": "none" if bool(missing_source_metadata) else "row_metadata",
+        "wrong_sign_left_by_episode_top": _group_counts(episode_ids, wrong_sign_left_mask),
+        "wrong_sign_left_by_route_bin": _group_counts(route_bin_values, wrong_sign_left_mask),
+        "wrong_sign_left_rows": wrong_sign_rows,
+        "wrong_sign_left_rows_truncated": int(np.sum(wrong_sign_left_mask)) > int(max_wrong_sign_rows),
         "zero_delta_rate_in_route_severe": _safe_rate((~nonzero_target_mask)[available_mask & route_mask & severe_mask]),
         "target_delta_abs_mean": target_abs_mean,
         "target_delta_abs_p10": target_abs_p10,
@@ -304,16 +448,28 @@ def main() -> int:
         min_abs_delta_p10=float(args.min_abs_delta_p10),
         max_target_steer_saturation_rate=float(args.max_target_steer_saturation_rate),
         max_target_steer_consistency_mae=float(args.max_target_steer_consistency_mae),
+        max_wrong_sign_rows=int(args.max_wrong_sign_rows),
     )
     summary["dataset"] = str(dataset_path)
 
     output_dir = _project_path(args.output_dir) / str(args.run_name)
     output_dir.mkdir(parents=True, exist_ok=True)
     summary_path = output_dir / "summary.json"
+    wrong_rows_path = output_dir / "wrong_sign_left_rows.csv"
     with summary_path.open("w", encoding="utf-8") as handle:
         json.dump(summary, handle, indent=2, sort_keys=True)
         handle.write("\n")
+    rows = list(summary.get("wrong_sign_left_rows", []))
+    if rows:
+        with wrong_rows_path.open("w", newline="", encoding="utf-8") as handle:
+            writer = csv.DictWriter(handle, fieldnames=list(rows[0].keys()))
+            writer.writeheader()
+            for row in rows:
+                writer.writerow(row)
+    else:
+        wrong_rows_path.write_text("", encoding="utf-8")
     summary["summary_json"] = str(summary_path)
+    summary["wrong_sign_left_rows_csv"] = str(wrong_rows_path)
     print(json.dumps(summary, indent=2, sort_keys=True))
     return 0
 

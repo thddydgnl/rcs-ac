@@ -59,6 +59,7 @@ def _audit(arrays: dict[str, np.ndarray]) -> dict[str, object]:
         min_abs_delta_p10=0.010,
         max_target_steer_saturation_rate=0.05,
         max_target_steer_consistency_mae=1.0e-5,
+        max_wrong_sign_rows=500,
     )
 
 
@@ -74,6 +75,9 @@ def test_corrective_delta_dataset_audit_passes_clean_balanced_targets() -> None:
     assert summary["right_sign_rate_vs_neg_lane"] == 1.0
     assert np.isclose(float(summary["target_delta_abs_mean"]), 0.05)
     assert len(summary["route_bins"]) == 3
+    assert summary["wrong_sign_left_count"] == 0
+    assert summary["wrong_sign_left_rows"] == []
+    assert summary["missing_source_metadata"] is True
 
 
 def test_corrective_delta_dataset_audit_blocks_wrong_side_targets() -> None:
@@ -83,3 +87,21 @@ def test_corrective_delta_dataset_audit_blocks_wrong_side_targets() -> None:
     assert "sign_rate" in summary["gate_failures"]
     assert "right_sign_rate" in summary["gate_failures"]
     assert summary["right_sign_rate_vs_neg_lane"] == 0.0
+
+
+def test_corrective_delta_dataset_audit_exports_wrong_left_rows() -> None:
+    arrays = _base_arrays()
+    left_indices = np.flatnonzero(arrays["lane_offset"] < 0.0)
+    arrays["target_corrective_delta"][left_indices[:3]] = -0.05
+    arrays["target_corrected_steer"] = arrays["policy_action_steer"] + arrays["target_corrective_delta"]
+
+    summary = _audit(arrays)
+
+    assert summary["gate_status"] == "BLOCK"
+    assert summary["wrong_sign_left_count"] == 3
+    assert np.isclose(float(summary["wrong_sign_left_rate_in_left"]), 3 / 130)
+    rows = summary["wrong_sign_left_rows"]
+    assert len(rows) == 3
+    assert rows[0]["classification"] == "unresolved"
+    assert rows[0]["episode_id"] == 0
+    assert rows[0]["route_bin"] == "0.025-0.050"
