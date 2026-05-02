@@ -1481,3 +1481,70 @@ Current best after Attempt 23:
 - Closest 512 clean gate: Attempt 19 update0006, collision `0`, offroad `1`, severe early offroad `0`, stuck `0`, max route progress `0.564103`.
 - Best route progress: Attempt 22 last/update0011, max route progress `0.641026`, but collision `1`.
 - No checkpoint has satisfied the 512 clean safety gate, so 2048 eval and PPO clean baseline manifest remain blocked.
+
+## PPO Baseline Attempt 24: Seed7 Midstd Rollout1024 Minibatch256 4k
+
+Config: `configs/baselines/ppo_clean_same_env_sensor_action_seed7_midstd_rollout1024_mb256.yaml`
+
+Run name: `ppo_clean_same_env_sensor_action_seed7_midstd_rollout1024_mb256_4096_20260503T033347`
+
+Checkpoint: `checkpoints/ppo_clean_same_env_sensor_action_seed7_midstd_rollout1024_mb256_4096_20260503T033347/last.pt`
+
+Pulled logs:
+
+- `remote_runs/ppo_baseline_seed7_midstd_rollout1024_mb256_4096_20260503T033347/training_log.csv`
+- `remote_runs/ppo_baseline_seed7_midstd_rollout1024_mb256_4096_20260503T033347/ppo_clean_same_env_sensor_action_seed7_midstd_rollout1024_mb256_4096_eval_512_last.csv`
+
+Status: **512 clean gate BLOCK**
+
+Allowed tuning changed from Attempt 19:
+
+- `rollout_steps: 1024`
+
+Unchanged from Attempt 19:
+
+- `log_std_init_by_dim: [-1.2, -1.2]`
+- `max_std_by_dim: [0.35, 0.40]`
+- `learning_rate: 0.00003`
+- `entropy_loss_weight: 0.001`
+- `clip_coef: 0.1`
+- `update_epochs: 1`
+- `minibatch_size: 256`
+- `max_grad_norm: 0.5`
+
+Unchanged fairness constraints:
+
+- Same environment, route, sensors, action wrapper, reward, and termination contract as Attempt 1/Round90.
+- No PPO-only lateral recovery assist.
+- No privileged inference input.
+- No lane-offset runtime steering override.
+- No deterministic rollout.
+
+Training summary:
+
+- Timesteps: `4096`
+- Episodes: `21`
+- Done reasons: collision `1`, offroad `20`
+- Best training route progress: `0.410256`
+
+512 clean eval, last checkpoint:
+
+- Collision: `1`
+- Offroad: `0`
+- Early offroad: `0`
+- Severe early offroad: `0`
+- Stuck: `0`
+- Max route progress: `0.564103`
+- PPO gate: `BLOCK`
+
+Failure diagnosis:
+
+- Longer rollout did not solve the late corrective steering problem.
+- It produced the same late route `0.564` failure as a collision rather than the Attempt 19 offroad.
+- Rollout512/minibatch256 remains the closest clean safety tradeoff.
+
+Current blocker after Attempt 24:
+
+- All allowed PPO-only knobs tried so far still fail at least one 512 safety condition.
+- The closest PPO candidate remains one failure away: collision `0`, offroad `1`, no severe early/stuck.
+- Further progress likely requires either a new allowed baseline definition, shared reward/action-wrapper change with RCS-AC revalidation, or an accepted warm-start rule that is explicitly documented as fair.
