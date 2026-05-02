@@ -2229,3 +2229,30 @@ Current blocker after Attempt 35:
 
 - Seed9 still defines the strongest PPO clean band, but both direct checkpoint selection and low-LR continuation remain one safety event short of the required 512 gate.
 - Further PPO-only tuning is possible, but the evidence keeps pointing to missing recovery behavior rather than action jitter or gross training instability.
+
+## PPO Baseline Gate Alignment: Safety Gate vs RCS Diagnostics
+
+Status: **implemented for PPO baseline configs**
+
+Reason:
+
+- The PPO clean baseline objective requires collision/offroad/severe early offroad/stuck `0`, finite in-range action, action jitter recording, and recommended route sanity.
+- Existing PPO baseline configs only set `ppo_gate_min_visual_zero_action_l1: 0.0`.
+- Other evaluator defaults still enforced RCS diagnostic thresholds such as `mean_visual_zero_steer_delta`, `corrective_need_count`, `mean_corrective_visual_zero_steer_delta`, and `route_offset_corrective_sign_rate`.
+- Those metrics are useful diagnostics, but they should not hard-block a plain PPO clean baseline that is explicitly forbidden from using RCS-AC auxiliary/corrective policy features.
+
+Change:
+
+- Updated `configs/baselines/ppo_clean_same_env_sensor_action_*.yaml` to keep the hard PPO baseline gate focused on safety, finite action, jitter, and route sanity.
+- Added the following explicit PPO config values:
+  - `ppo_gate_min_visual_zero_steer_delta: 0.0`
+  - `ppo_gate_min_corrective_count: 0`
+  - `ppo_gate_min_corrective_visual_zero_steer_delta: 0.0`
+  - `ppo_gate_min_corrective_sign_rate: 0.0`
+  - `ppo_gate_min_visual_center_correction_rate: 0.0`
+
+Interpretation:
+
+- Future PPO eval summaries should still record visual-zero/corrective metrics.
+- These diagnostics no longer decide PPO clean baseline acceptance unless the config explicitly opts back into them.
+- A checkpoint still cannot become a PPO clean baseline candidate unless the 512 and 2048 clean evals both satisfy the hard safety criteria.

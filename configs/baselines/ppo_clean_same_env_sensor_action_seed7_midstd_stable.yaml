@@ -253,3 +253,8 @@ bc_eval:
   ppo_gate_min_mean_route: 0.0
   ppo_gate_max_action_jitter: 0.20
   ppo_gate_min_visual_zero_action_l1: 0.0
+  ppo_gate_min_visual_zero_steer_delta: 0.0
+  ppo_gate_min_corrective_count: 0
+  ppo_gate_min_corrective_visual_zero_steer_delta: 0.0
+  ppo_gate_min_corrective_sign_rate: 0.0
+  ppo_gate_min_visual_center_correction_rate: 0.0
