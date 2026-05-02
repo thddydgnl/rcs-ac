@@ -2327,3 +2327,41 @@ Current blocker after Attempt 36:
 
 - The strongest PPO baseline candidate remains seed9 update 10-12, especially `update_0011.pt`, with collision `0`, offroad `1`, and route progress `0.538462`.
 - Seed12 does not justify replacing seed9 as the working clean PPO candidate.
+
+## PPO Baseline Attempt 37: Seed9 Wider Adjacent Checkpoint Audit With Aligned Gate
+
+Config: `configs/baselines/ppo_clean_same_env_sensor_action_seed9_midstd_rollout512_mb256.yaml`
+
+Source run: `ppo_clean_same_env_sensor_action_seed9_midstd_rollout512_mb256_16384_20260503T052512`
+
+Status: **failed 512 clean gate**
+
+Purpose:
+
+- Extend the seed9 near-pass checkpoint audit beyond updates 10-12.
+- Check whether the zero-safety checkpoint lies just outside the previously audited band.
+- Use the aligned PPO safety gate, where RCS diagnostics are recorded but do not hard-block the PPO clean baseline.
+
+Pulled logs:
+
+- `remote_runs/ppo_baseline_seed9_adjacent_aligned_eval_20260503T081930/`
+
+512 clean eval results:
+
+| Checkpoint | Collision | Offroad | Early offroad | Severe early offroad | Stuck | Max route progress | Mean action jitter L1 | Gate fail reason |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |
+| `update_0008.pt` | `0` | `1` | `0` | `0` | `0` | `0.512821` | `0.000728` | `offroad_count 1 > 0` |
+| `update_0009.pt` | `1` | `0` | `0` | `0` | `0` | `0.564103` | `0.000759` | `collision_count 1 > 0` |
+| `update_0013.pt` | `0` | `1` | `0` | `0` | `0` | `0.512821` | `0.000808` | `offroad_count 1 > 0` |
+| `update_0014.pt` | `0` | `1` | `0` | `0` | `0` | `0.512821` | `0.000847` | `offroad_count 1 > 0` |
+
+Failure diagnosis:
+
+- The wider seed9 audit did not find a 512-safe checkpoint.
+- Updates 8, 10, 11, 12, 13, and 14 form a consistent near-pass band with route progress above `0.50` but one safety event.
+- Update 9 shifts from offroad to collision at slightly higher route progress (`0.564103`), matching the same lateral recovery failure in a different terminal form.
+
+Current blocker after Attempt 37:
+
+- Seed9 remains the best PPO family, but the clean 512 gate is still one event short.
+- The next productive PPO-only direction is no longer checkpoint selection; it should tune the seed9 family training dynamics or exploration around the recovery band.
