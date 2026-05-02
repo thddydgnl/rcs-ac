@@ -161,6 +161,8 @@ def _rows_from_mask(
     source_label = _optional_array(arrays, "source_label", n=n, default="").reshape(-1)
     source_dataset = _optional_array(arrays, "source_dataset", n=n, default="").reshape(-1)
     source_row_index = _optional_array(arrays, "source_row_index", n=n, default=-1).reshape(-1)
+    source_episode_id = _optional_array(arrays, "source_episode_id", n=n, default=-1).reshape(-1)
+    source_step_in_episode = _optional_array(arrays, "source_step_in_episode", n=n, default=-1).reshape(-1)
     lateral_active = _optional_array(arrays, "lateral_recovery_active", n=n, default=False).reshape(-1)
     lateral_branch = _optional_array(arrays, "lateral_recovery_branch_active", n=n, default=False).reshape(-1)
     lateral_correction = _optional_array(arrays, "lateral_recovery_correction", n=n, default=0.0).astype(np.float32).reshape(-1)
@@ -182,6 +184,12 @@ def _rows_from_mask(
                 "source_label": str(source_label[idx]),
                 "source_dataset": str(source_dataset[idx]),
                 "source_row_index": int(source_row_index[idx]) if str(source_row_index[idx]).lstrip("-").isdigit() else str(source_row_index[idx]),
+                "source_episode_id": int(source_episode_id[idx])
+                if str(source_episode_id[idx]).lstrip("-").isdigit()
+                else str(source_episode_id[idx]),
+                "source_step_in_episode": int(source_step_in_episode[idx])
+                if str(source_step_in_episode[idx]).lstrip("-").isdigit()
+                else str(source_step_in_episode[idx]),
                 "episode_id": int(episode_id[idx]),
                 "step_in_episode": int(step_in_episode[idx]),
                 "route_progress": float(route_progress[idx]),
@@ -442,6 +450,9 @@ def audit_arrays(
     }
     missing_source_metadata = not all(bool(schema[key]["present"]) for key in source_keys)
     episode_ids = _optional_array(arrays, "episode_id", n=route_progress.shape[0], default=-1).reshape(-1)
+    source_labels = _optional_array(arrays, "source_label", n=route_progress.shape[0], default="").reshape(-1)
+    source_datasets = _optional_array(arrays, "source_dataset", n=route_progress.shape[0], default="").reshape(-1)
+    source_episode_ids = _optional_array(arrays, "source_episode_id", n=route_progress.shape[0], default=-1).reshape(-1)
     route_bin_values = np.asarray([_route_bin(float(value)) for value in route_progress])
     wrong_sign_rows = _rows_from_mask(
         arrays,
@@ -474,6 +485,9 @@ def audit_arrays(
         "source_metadata_present": {key: bool(schema[key]["present"]) for key in source_keys},
         "reconstructable_from_summary": "none" if bool(missing_source_metadata) else "row_metadata",
         "wrong_sign_left_by_episode_top": _group_counts(episode_ids, wrong_sign_left_mask),
+        "wrong_sign_left_by_source_label_top": _group_counts(source_labels, wrong_sign_left_mask),
+        "wrong_sign_left_by_source_dataset_top": _group_counts(source_datasets, wrong_sign_left_mask),
+        "wrong_sign_left_by_source_episode_top": _group_counts(source_episode_ids, wrong_sign_left_mask),
         "wrong_sign_left_by_route_bin": _group_counts(route_bin_values, wrong_sign_left_mask),
         "wrong_sign_left_rows": wrong_sign_rows,
         "wrong_sign_left_rows_truncated": int(np.sum(wrong_sign_left_mask)) > int(max_wrong_sign_rows),

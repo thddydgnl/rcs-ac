@@ -94,6 +94,12 @@ def test_corrective_delta_dataset_audit_exports_wrong_left_rows() -> None:
     left_indices = np.flatnonzero(arrays["lane_offset"] < 0.0)
     arrays["target_corrective_delta"][left_indices[:3]] = -0.05
     arrays["target_corrected_steer"] = arrays["policy_action_steer"] + arrays["target_corrective_delta"]
+    arrays["source_label"] = np.full((arrays["obs_flat"].shape[0],), "round29_failure")
+    arrays["source_dataset"] = np.full((arrays["obs_flat"].shape[0],), "failure.npz")
+    arrays["source_dataset_index"] = np.ones((arrays["obs_flat"].shape[0],), dtype=np.int32)
+    arrays["source_row_index"] = np.arange(arrays["obs_flat"].shape[0], dtype=np.int32) + 100
+    arrays["source_episode_id"] = np.full((arrays["obs_flat"].shape[0],), 12, dtype=np.int32)
+    arrays["source_step_in_episode"] = np.arange(arrays["obs_flat"].shape[0], dtype=np.int32) + 50
 
     summary = _audit(arrays)
 
@@ -104,7 +110,16 @@ def test_corrective_delta_dataset_audit_exports_wrong_left_rows() -> None:
     assert len(rows) == 3
     assert rows[0]["classification"] == "unresolved"
     assert rows[0]["episode_id"] == 0
+    assert rows[0]["source_label"] == "round29_failure"
+    assert rows[0]["source_dataset"] == "failure.npz"
+    assert rows[0]["source_row_index"] == 100
+    assert rows[0]["source_episode_id"] == 12
+    assert rows[0]["source_step_in_episode"] == 50
     assert rows[0]["route_bin"] == "0.025-0.050"
+    assert summary["missing_source_metadata"] is False
+    assert summary["wrong_sign_left_by_source_label_top"] == [{"value": "round29_failure", "count": 3}]
+    assert summary["wrong_sign_left_by_source_dataset_top"] == [{"value": "failure.npz", "count": 3}]
+    assert summary["wrong_sign_left_by_source_episode_top"] == [{"value": "12", "count": 3}]
 
 
 def test_corrective_delta_dataset_audit_reports_heading_dominant_alignment() -> None:
