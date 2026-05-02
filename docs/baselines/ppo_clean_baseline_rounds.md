@@ -1723,3 +1723,70 @@ Current blocker after Attempt 27:
 - The best PPO candidate family can reach useful route progress but fails late collision/offroad depending on checkpoint.
 - Seed repeats can be substantially worse, producing repeated early offroad.
 - The remaining fair paths are limited: longer-budget training with the same shared contract, more seed searches, or an explicitly documented fair baseline change that is also applied/revalidated for RCS-AC where needed.
+
+## PPO Baseline Attempt 28: Attempt19 Family 8k Budget
+
+Config: `configs/baselines/ppo_clean_same_env_sensor_action_seed7_midstd_rollout512_mb256.yaml`
+
+Run name: `ppo_clean_same_env_sensor_action_seed7_midstd_rollout512_mb256_8192`
+
+Status: **failed 512 clean gate**
+
+Allowed tuning changed from Attempt 19:
+
+- Training budget: `4096` -> `8192` timesteps via command-line override.
+
+Unchanged from Attempt 19:
+
+- `seed: 7`
+- `env.traffic_seed: 7`
+- `log_std_init_by_dim: [-1.2, -1.2]`
+- `max_std_by_dim: [0.35, 0.40]`
+- `rollout_steps: 512`
+- `learning_rate: 0.00003`
+- `entropy_loss_weight: 0.001`
+- `clip_coef: 0.1`
+- `update_epochs: 1`
+- `minibatch_size: 256`
+- `max_grad_norm: 0.5`
+
+Unchanged fairness constraints:
+
+- Same environment, route, sensors, action wrapper, reward, and termination contract as Attempt 1/Round90.
+- No PPO-only lateral recovery assist.
+- No privileged inference input.
+- No lane-offset runtime steering override.
+- No deterministic rollout.
+
+Training summary:
+
+- Timesteps: `8192`
+- Episodes: `42`
+- Done reasons: offroad `38`, collision `4`
+- Best training route progress: `0.487179`
+- Last update: `16`
+- Last actor loss: `-0.000004`
+- Last critic loss: `15.639952`
+
+512 clean eval results:
+
+| Checkpoint | Collision | Offroad | Early offroad | Severe early offroad | Stuck | Max route progress | Mean action jitter L1 | PPO gate |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |
+| `last.pt` | `1` | `0` | `0` | `0` | `0` | `0.564103` | `0.000991` | `BLOCK` |
+| `update_0007.pt` | `1` | `0` | `0` | `0` | `0` | `0.564103` | `0.000789` | `BLOCK` |
+| `update_0011.pt` | `1` | `0` | `0` | `0` | `0` | `0.564103` | `0.000794` | `BLOCK` |
+| `update_0012.pt` | `1` | `0` | `0` | `0` | `0` | `0.564103` | `0.000840` | `BLOCK` |
+
+Failure diagnosis:
+
+- Doubling the training budget improved training-time max route progress to `0.487179`, but it did not produce a 512-safe checkpoint.
+- All audited checkpoints fail by late collision at route progress `0.564103` with offroad/early/stuck all zero.
+- The collision windows again show route-offset corrective sign rate `0.0`, weak near-zero steer, and large lane/heading error before impact.
+- This confirms that the best plain PPO family is learning enough longitudinal/route progress to reach the late hazard, but not the corrective steering response needed to avoid it.
+- Because no checkpoint passed the 512 collision/offroad/severe/stuck zero gate, no 2048 eval was run.
+
+Current blocker after Attempt 28:
+
+- Within the fixed clean contract and allowed PPO-only knobs, the recurring blocker is late lateral/heading recovery rather than CARLA instability.
+- Longer budget, seed repeats, and mid-checkpoint selection have not yielded a clean PPO baseline candidate.
+- Continuing with pure PPO is still possible, but the next fair option should be chosen explicitly: more budget/seed search, or a shared reward/action-wrapper change that requires RCS-AC revalidation too.
