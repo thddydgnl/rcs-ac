@@ -1415,3 +1415,69 @@ Current best after Attempt 22:
 - Closest 512 safety gate: Attempt 19 update 0006/0007 and Attempt 21 last, all collision `0`, severe early offroad `0`, stuck `0`, max route progress `0.538-0.564`, but offroad `1`.
 - Best route progress: Attempt 22 last/update0011, max route progress `0.641`, but collision `1`.
 - No checkpoint has reached 512 clean gate PASS; 2048 eval and accepted manifest are still blocked.
+
+## PPO Baseline Attempt 23: Seed7 Midstd Rollout512 Minibatch512 4k
+
+Config: `configs/baselines/ppo_clean_same_env_sensor_action_seed7_midstd_rollout512_mb512.yaml`
+
+Run name: `ppo_clean_same_env_sensor_action_seed7_midstd_rollout512_mb512_4096_20260503T032153`
+
+Checkpoint: `checkpoints/ppo_clean_same_env_sensor_action_seed7_midstd_rollout512_mb512_4096_20260503T032153/last.pt`
+
+Pulled logs:
+
+- `remote_runs/ppo_baseline_seed7_midstd_rollout512_mb512_4096_20260503T032153/training_log.csv`
+- `remote_runs/ppo_baseline_seed7_midstd_rollout512_mb512_4096_20260503T032153/ppo_clean_same_env_sensor_action_seed7_midstd_rollout512_mb512_4096_eval_512_last.csv`
+
+Status: **512 clean gate BLOCK**
+
+Allowed tuning changed from Attempt 19:
+
+- `minibatch_size: 512`
+
+Unchanged from Attempt 19:
+
+- `log_std_init_by_dim: [-1.2, -1.2]`
+- `max_std_by_dim: [0.35, 0.40]`
+- `rollout_steps: 512`
+- `learning_rate: 0.00003`
+- `entropy_loss_weight: 0.001`
+- `clip_coef: 0.1`
+- `update_epochs: 1`
+- `max_grad_norm: 0.5`
+
+Unchanged fairness constraints:
+
+- Same environment, route, sensors, action wrapper, reward, and termination contract as Attempt 1/Round90.
+- No PPO-only lateral recovery assist.
+- No privileged inference input.
+- No lane-offset runtime steering override.
+- No deterministic rollout.
+
+Training summary:
+
+- Timesteps: `4096`
+- Episodes: `21`
+- Done reasons: collision `2`, offroad `19`
+- Best training route progress: `0.410256`
+
+512 clean eval, last checkpoint:
+
+- Collision: `0`
+- Offroad: `1`
+- Early offroad: `0`
+- Severe early offroad: `0`
+- Stuck: `0`
+- Max route progress: `0.512821`
+- PPO gate: `BLOCK`
+
+Failure diagnosis:
+
+- Full-rollout minibatch reduced eval progress compared with minibatch256 and did not remove the single late offroad.
+- Minibatch256 remains the best update-noise setting.
+
+Current best after Attempt 23:
+
+- Closest 512 clean gate: Attempt 19 update0006, collision `0`, offroad `1`, severe early offroad `0`, stuck `0`, max route progress `0.564103`.
+- Best route progress: Attempt 22 last/update0011, max route progress `0.641026`, but collision `1`.
+- No checkpoint has satisfied the 512 clean safety gate, so 2048 eval and PPO clean baseline manifest remain blocked.
