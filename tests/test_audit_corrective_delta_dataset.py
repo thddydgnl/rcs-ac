@@ -105,3 +105,48 @@ def test_corrective_delta_dataset_audit_exports_wrong_left_rows() -> None:
     assert rows[0]["classification"] == "unresolved"
     assert rows[0]["episode_id"] == 0
     assert rows[0]["route_bin"] == "0.025-0.050"
+
+
+def test_corrective_delta_dataset_audit_reports_heading_dominant_alignment() -> None:
+    arrays = _base_arrays()
+    lane_offset = np.concatenate(
+        [
+            np.full(130, -0.2, dtype=np.float32),
+            np.full(130, 0.2, dtype=np.float32),
+        ]
+    )
+    heading_error = np.concatenate(
+        [
+            np.full(130, -8.0, dtype=np.float32),
+            np.full(130, 8.0, dtype=np.float32),
+        ]
+    )
+    target_delta = np.where(heading_error < 0.0, -0.05, 0.05).astype(np.float32)
+    arrays["lane_offset"] = lane_offset
+    arrays["heading_error"] = heading_error
+    arrays["target_corrective_delta"] = target_delta
+    arrays["target_corrected_steer"] = arrays["policy_action_steer"] + target_delta
+    arrays["expert_action"][:, 0] = target_delta
+
+    summary = _audit(arrays)
+
+    assert summary["gate_status"] == "BLOCK"
+    assert summary["heading_aware_gate_status"] == "PASS"
+    assert summary["heading_aware_lane_dominant_count"] == 0
+    assert summary["heading_aware_heading_dominant_count"] == 260
+    assert summary["heading_aware_heading_dominant_alignment_rate"] == 1.0
+    assert summary["heading_aware_lane_heading_conflict_count"] == 260
+    assert summary["heading_aware_conflict_alignment_vs_heading_rate"] == 1.0
+    assert summary["heading_aware_conflict_alignment_vs_lane_rate"] == 0.0
+
+
+def test_corrective_delta_dataset_audit_reports_ambiguous_heading_rows() -> None:
+    arrays = _base_arrays()
+    arrays["lane_offset"][:] = 0.2
+    arrays["heading_error"][:] = 1.0
+
+    summary = _audit(arrays)
+
+    assert summary["heading_aware_gate_status"] == "BLOCK"
+    assert summary["heading_aware_ambiguous_count"] == 260
+    assert summary["heading_aware_ambiguous_rate"] == 1.0

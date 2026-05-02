@@ -220,6 +220,86 @@ def _group_counts(values: np.ndarray, mask: np.ndarray, *, top_k: int = 20) -> l
     ]
 
 
+def _heading_aware_summary(
+    *,
+    base_mask: np.ndarray,
+    lane_offset: np.ndarray,
+    heading_error: np.ndarray,
+    target_delta: np.ndarray,
+    abs_lane_offset_min: float,
+    abs_heading_error_min: float,
+) -> dict[str, Any]:
+    lane_dominant_mask = base_mask & (np.abs(lane_offset) >= float(abs_lane_offset_min))
+    heading_dominant_mask = (
+        base_mask
+        & (np.abs(lane_offset) < float(abs_lane_offset_min))
+        & (np.abs(heading_error) >= float(abs_heading_error_min))
+    )
+    ambiguous_mask = (
+        base_mask
+        & (np.abs(lane_offset) < float(abs_lane_offset_min))
+        & (np.abs(heading_error) < float(abs_heading_error_min))
+    )
+    lane_signed = target_delta * (-np.sign(lane_offset))
+    heading_signed = target_delta * np.sign(heading_error)
+    lane_expected_sign = -np.sign(lane_offset)
+    heading_expected_sign = np.sign(heading_error)
+    lane_heading_conflict_mask = heading_dominant_mask & (lane_expected_sign != 0.0) & (
+        heading_expected_sign != 0.0
+    ) & (lane_expected_sign != heading_expected_sign)
+    eligible_count = int(np.sum(base_mask))
+    lane_count = int(np.sum(lane_dominant_mask))
+    heading_count = int(np.sum(heading_dominant_mask))
+    conflict_count = int(np.sum(lane_heading_conflict_mask))
+    summary: dict[str, Any] = {
+        "heading_aware_eligible_count": eligible_count,
+        "heading_aware_lane_dominant_count": lane_count,
+        "heading_aware_lane_dominant_left_count": int(np.sum(lane_dominant_mask & (lane_offset < 0.0))),
+        "heading_aware_lane_dominant_right_count": int(np.sum(lane_dominant_mask & (lane_offset > 0.0))),
+        "heading_aware_lane_dominant_alignment_rate": _safe_rate((lane_signed > 0.0)[lane_dominant_mask]),
+        "heading_aware_heading_dominant_count": heading_count,
+        "heading_aware_heading_dominant_negative_count": int(
+            np.sum(heading_dominant_mask & (heading_error < 0.0))
+        ),
+        "heading_aware_heading_dominant_positive_count": int(
+            np.sum(heading_dominant_mask & (heading_error > 0.0))
+        ),
+        "heading_aware_heading_dominant_alignment_rate": _safe_rate(
+            (heading_signed > 0.0)[heading_dominant_mask]
+        ),
+        "heading_aware_heading_dominant_abs_delta_mean": _masked_stat(
+            target_delta,
+            heading_dominant_mask,
+            "abs_mean",
+        ),
+        "heading_aware_heading_dominant_abs_delta_p10": _masked_stat(
+            target_delta,
+            heading_dominant_mask,
+            "p10_abs",
+        ),
+        "heading_aware_lane_heading_conflict_count": conflict_count,
+        "heading_aware_conflict_alignment_vs_heading_rate": _safe_rate(
+            (heading_signed > 0.0)[lane_heading_conflict_mask]
+        ),
+        "heading_aware_conflict_alignment_vs_lane_rate": _safe_rate(
+            (lane_signed > 0.0)[lane_heading_conflict_mask]
+        ),
+        "heading_aware_ambiguous_count": int(np.sum(ambiguous_mask)),
+        "heading_aware_ambiguous_rate": float(np.sum(ambiguous_mask) / max(1, eligible_count)),
+    }
+    pass_conditions = [
+        eligible_count >= 200,
+        _masked_stat(target_delta, base_mask, "abs_mean") >= 0.035,
+        _masked_stat(target_delta, base_mask, "p10_abs") >= 0.010,
+        lane_count < 40 or summary["heading_aware_lane_dominant_alignment_rate"] >= 0.98,
+        heading_count < 40 or summary["heading_aware_heading_dominant_alignment_rate"] >= 0.98,
+        conflict_count < 20 or summary["heading_aware_conflict_alignment_vs_heading_rate"] >= 0.98,
+        summary["heading_aware_ambiguous_rate"] <= 0.10,
+    ]
+    summary["heading_aware_gate_status"] = "PASS" if all(bool(item) for item in pass_conditions) else "BLOCK"
+    return summary
+
+
 def audit_arrays(
     arrays: dict[str, np.ndarray],
     *,
@@ -253,6 +333,7 @@ def audit_arrays(
 
     available_mask = available > 0.5
     route_mask = (route_progress >= float(route_min)) & (route_progress <= float(route_max))
+    base_mask = available_mask & route_mask & (np.abs(target_delta) > 1.0e-5)
     severe_mask = (np.abs(lane_offset) >= float(abs_lane_offset_min)) | (
         np.abs(heading_error) >= float(abs_heading_error_min)
     )
@@ -300,6 +381,15 @@ def audit_arrays(
     for start, end in ((0.025, 0.05), (0.05, 0.075), (0.075, 0.10)):
         upper = route_progress <= end if end >= 0.10 else route_progress < end
         bin_mask = available_mask & (route_progress >= start) & upper & severe_mask & nonzero_target_mask
+        bin_heading_mask = (
+            available_mask
+            & (route_progress >= start)
+            & upper
+            & (np.abs(lane_offset) < float(abs_lane_offset_min))
+            & (np.abs(heading_error) >= float(abs_heading_error_min))
+            & nonzero_target_mask
+        )
+        bin_heading_signed = target_delta * np.sign(heading_error)
         bin_left = bin_mask & (lane_offset < 0.0)
         bin_right = bin_mask & (lane_offset > 0.0)
         route_bins.append(
@@ -310,6 +400,9 @@ def audit_arrays(
                 "right_count": int(np.sum(bin_right)),
                 "aligned_rate": _safe_rate((expected_signed > 0.0)[bin_mask]),
                 "target_delta_abs_mean": _masked_stat(target_delta, bin_mask, "abs_mean"),
+                "heading_dominant_count": int(np.sum(bin_heading_mask)),
+                "heading_dominant_alignment_rate": _safe_rate((bin_heading_signed > 0.0)[bin_heading_mask]),
+                "heading_dominant_target_delta_abs_mean": _masked_stat(target_delta, bin_heading_mask, "abs_mean"),
             }
         )
 
@@ -425,6 +518,16 @@ def audit_arrays(
             lane_offset=lane_offset,
             policy_steer=policy_steer,
             expert_steer=expert_steer,
+        )
+    )
+    summary.update(
+        _heading_aware_summary(
+            base_mask=base_mask,
+            lane_offset=lane_offset,
+            heading_error=heading_error,
+            target_delta=target_delta,
+            abs_lane_offset_min=float(abs_lane_offset_min),
+            abs_heading_error_min=float(abs_heading_error_min),
         )
     )
     return summary
