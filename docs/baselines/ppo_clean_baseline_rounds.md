@@ -2073,3 +2073,74 @@ Current blocker after Attempt 33:
 
 - Seed9 updates 10-12 are the strongest pure PPO candidates, but all repeat the same offroad `1` failure.
 - Further pure PPO search is now mostly a lottery over seeds/checkpoints unless a shared reward/action contract change is introduced and fairly revalidated.
+
+## PPO Baseline Attempt 34: Seed11 Attempt19 Family 16k Budget
+
+Config: `configs/baselines/ppo_clean_same_env_sensor_action_seed11_midstd_rollout512_mb256.yaml`
+
+Run name: `ppo_clean_same_env_sensor_action_seed11_midstd_rollout512_mb256_16384`
+
+Status: **failed 512 clean gate**
+
+Allowed tuning changed from Attempt 30/31:
+
+- `seed: 11`
+
+Unchanged:
+
+- Training budget: `16384` timesteps via command-line override.
+- `env.traffic_seed: 7`
+- `log_std_init_by_dim: [-1.2, -1.2]`
+- `max_std_by_dim: [0.35, 0.40]`
+- `rollout_steps: 512`
+- `learning_rate: 0.00003`
+- `entropy_loss_weight: 0.001`
+- `clip_coef: 0.1`
+- `update_epochs: 1`
+- `minibatch_size: 256`
+- `max_grad_norm: 0.5`
+
+Unchanged fairness constraints:
+
+- Same environment, route, sensors, action wrapper, reward, and termination contract as Attempt 1/Round90.
+- No PPO-only lateral recovery assist.
+- No privileged inference input.
+- No lane-offset runtime steering override.
+- No deterministic rollout.
+
+Training summary:
+
+- Timesteps: `16384`
+- Episodes: `87`
+- Done reasons: offroad `85`, collision `2`
+- Best training route progress: `0.461538`
+- Last update: `32`
+- Last actor loss: `-0.000072`
+- Last critic loss: `20.020093`
+
+512 clean eval, last checkpoint:
+
+- Checkpoint: `checkpoints/ppo_clean_same_env_sensor_action_seed11_midstd_rollout512_mb256_16384_20260503T064823/last.pt`
+- Eval run: `ppo_clean_same_env_sensor_action_seed11_midstd_rollout512_mb256_16384_eval_512_20260503T071815`
+- Collision: `1`
+- Offroad: `0`
+- Early offroad: `0`
+- Severe early offroad: `0`
+- Stuck: `0`
+- Max route progress: `0.435897`
+- Mean action jitter L1: `0.000918`
+- PPO gate: `BLOCK`
+
+Failure diagnosis:
+
+- Seed11 is weaker than seed9 and fails the hard collision-zero requirement.
+- Training route progress is lower (`0.461538`) and mostly offroad terminations.
+- The 512 eval shows no offroad, but a collision at route progress `0.435897`; this still blocks 2048 promotion.
+- Corrective route-offset sign rate remains `0.0`.
+- Note: the evaluator's `ppo_gate_fail_reasons` did not list collision here, but the objective and manifest gate require collision `0`; this run is therefore a hard fail.
+
+Current blocker after Attempt 34:
+
+- Seeds 10 and 11 do not improve on seed9's near-pass band.
+- The best pure PPO evidence remains seed9 updates 10-12 with offroad `1`.
+- Additional seed search is possible but increasingly untargeted.
