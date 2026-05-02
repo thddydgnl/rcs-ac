@@ -13,7 +13,12 @@ from rcs_ac_first.models.recurrent_actor_critic import (
     RecurrentActorCriticConfig,
 )
 from rcs_ac_first.models.risk_context import RiskContextConfig, RiskContextHead
-from rcs_ac_first.runtime.auxiliary import build_auxiliary_observation_spec, default_flat_auxiliary
+from rcs_ac_first.runtime.auxiliary import (
+    RISK_STATS_FIELDS,
+    build_auxiliary_observation_spec,
+    default_flat_auxiliary,
+    split_flat_auxiliary_observation,
+)
 from rcs_ac_first.runtime.config import RCSACFirstFusionConfig, RCSACFirstModelConfig
 from rcs_ac_first.runtime.modality_mask import validate_modality_mask
 from rcs_ac_first.runtime.observation import build_policy_observation_spec, split_flat_observation
@@ -110,6 +115,13 @@ class RCSACFirstModel(nn.Module):
         )
         if self.actor_input_adapter is not None:
             self._initialize_actor_input_adapter()
+        self.scalar_actor_adapter = (
+            nn.Linear(int(self.config.scalar_actor_feature_dim), int(self.config.fusion_dim), bias=False)
+            if self.config.use_scalar_actor_features
+            else None
+        )
+        if self.scalar_actor_adapter is not None:
+            self._initialize_scalar_actor_adapter()
         self.reliability_module = (
             RCSACReliabilityModule(
                 ReliabilityConfig(
@@ -204,6 +216,8 @@ class RCSACFirstModel(nn.Module):
         actor_input = self._build_actor_input(
             fusion_output.fused,
             perception_actor["compact_features"],
+            auxiliary_tensor=auxiliary_tensor,
+            route_input=split["route"],
         )
         ac_output = self.recurrent_actor_critic(actor_input, hidden_state=hidden_state)
         aux = self.aux_head(fusion_output.fused)
@@ -314,6 +328,8 @@ class RCSACFirstModel(nn.Module):
             modules.append(self.rgb_perception_actor_features)
         if self.actor_input_adapter is not None:
             modules.append(self.actor_input_adapter)
+        if self.scalar_actor_adapter is not None:
+            modules.append(self.scalar_actor_adapter)
         if self.reliability_module is not None:
             modules.append(self.reliability_module)
         if self.risk_context_head is not None:
@@ -425,6 +441,9 @@ class RCSACFirstModel(nn.Module):
             "visual_lane_center_error_mean": 0.0,
             "compact_visual_actor_input_l1_mean": 0.0,
             "visual_actor_delta_l1_mean": 0.0,
+            "scalar_actor_features_enabled": 0.0,
+            "scalar_actor_feature_l1_mean": 0.0,
+            "scalar_actor_delta_l1_mean": 0.0,
             "recurrent_hidden_l1_mean": 0.0,
         }
 
@@ -442,6 +461,15 @@ class RCSACFirstModel(nn.Module):
                     mean=0.0,
                     std=float(self.config.rgb_perception_actor_adapter_init_std),
                 )
+
+    def _initialize_scalar_actor_adapter(self) -> None:
+        if self.scalar_actor_adapter is None:
+            return
+        with torch.no_grad():
+            self.scalar_actor_adapter.weight.normal_(
+                mean=0.0,
+                std=float(self.config.scalar_actor_adapter_init_std),
+            )
 
     def _prepare_auxiliary(
         self,
@@ -560,20 +588,52 @@ class RCSACFirstModel(nn.Module):
         self,
         fused_feature: torch.Tensor,
         perception_actor_features: torch.Tensor,
+        *,
+        auxiliary_tensor: torch.Tensor,
+        route_input: torch.Tensor,
     ) -> torch.Tensor:
         if self.actor_input_adapter is None:
-            return fused_feature
-        if tuple(perception_actor_features.shape) != (
-            int(fused_feature.shape[0]),
-            int(self.config.rgb_perception_actor_feature_dim),
-        ):
-            raise ValueError(
-                "RGB perception actor feature shape mismatch: "
-                f"expected {(int(fused_feature.shape[0]), int(self.config.rgb_perception_actor_feature_dim))}, "
-                f"got {tuple(perception_actor_features.shape)}"
-            )
-        actor_input = torch.cat([fused_feature, perception_actor_features.to(dtype=fused_feature.dtype)], dim=-1)
-        return self.actor_input_adapter(actor_input)
+            actor_input = fused_feature
+        else:
+            if tuple(perception_actor_features.shape) != (
+                int(fused_feature.shape[0]),
+                int(self.config.rgb_perception_actor_feature_dim),
+            ):
+                raise ValueError(
+                    "RGB perception actor feature shape mismatch: "
+                    f"expected {(int(fused_feature.shape[0]), int(self.config.rgb_perception_actor_feature_dim))}, "
+                    f"got {tuple(perception_actor_features.shape)}"
+                )
+            adapted_input = torch.cat([fused_feature, perception_actor_features.to(dtype=fused_feature.dtype)], dim=-1)
+            actor_input = self.actor_input_adapter(adapted_input)
+        if self.scalar_actor_adapter is None:
+            return actor_input
+        scalar_features = self._scalar_actor_features(
+            auxiliary_tensor,
+            route_input=route_input,
+            reference=actor_input,
+        )
+        return actor_input + self.scalar_actor_adapter(scalar_features)
+
+    def _scalar_actor_features(
+        self,
+        auxiliary_tensor: torch.Tensor,
+        *,
+        route_input: torch.Tensor,
+        reference: torch.Tensor,
+    ) -> torch.Tensor:
+        split = split_flat_auxiliary_observation(auxiliary_tensor, self.aux_spec)
+        risk = split["risk_stats"].to(device=reference.device, dtype=reference.dtype)
+        route = route_input.to(device=reference.device, dtype=reference.dtype)
+        lane_index = RISK_STATS_FIELDS.index("lane_offset")
+        heading_index = RISK_STATS_FIELDS.index("heading_error")
+        lane_offset = risk[:, lane_index] / float(self.config.scalar_actor_lane_offset_scale)
+        heading_error = risk[:, heading_index] / float(self.config.scalar_actor_heading_error_scale)
+        if int(route.shape[-1]) > 1:
+            route_y = route[:, 1] / float(self.config.scalar_actor_route_y_scale)
+        else:
+            route_y = route.new_zeros((int(route.shape[0]),))
+        return torch.stack([lane_offset, heading_error, route_y], dim=-1).clamp(-5.0, 5.0)
 
     def _build_diagnostics(
         self,
@@ -613,4 +673,9 @@ class RCSACFirstModel(nn.Module):
         diagnostics["visual_actor_delta_l1_mean"] = float(
             (actor_input.detach() - fused_feature.detach()).abs().mean().cpu().item()
         )
+        diagnostics["scalar_actor_features_enabled"] = float(self.config.use_scalar_actor_features)
+        if self.scalar_actor_adapter is not None:
+            diagnostics["scalar_actor_delta_l1_mean"] = float(
+                self.scalar_actor_adapter.weight.detach().abs().mean().cpu().item()
+            )
         return diagnostics

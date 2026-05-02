@@ -47,6 +47,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--heading-error-scale", type=float, default=10.0)
     parser.add_argument("--route-y-index", type=int, default=1)
     parser.add_argument("--route-y-scale", type=float, default=1.0)
+    parser.add_argument("--sign-convention", default="legacy", choices=["legacy", "semantic"])
     parser.add_argument("--min-delta", type=float, default=0.005)
     return parser.parse_args()
 
@@ -240,7 +241,18 @@ def _make_probe(
     return obs, aux, actual
 
 
-def _axis_summary(rows: list[dict[str, Any]], *, min_delta: float) -> dict[str, Any]:
+def _axis_direction(axis: str, *, sign_convention: str) -> int:
+    if sign_convention == "legacy":
+        return -1
+    if sign_convention == "semantic":
+        if axis == "lane_offset":
+            return -1
+        if axis in {"heading_error", "route_target_y"}:
+            return 1
+    raise ValueError(f"Unsupported sign convention {sign_convention!r} for axis {axis!r}")
+
+
+def _axis_summary(rows: list[dict[str, Any]], *, min_delta: float, sign_convention: str) -> dict[str, Any]:
     by_axis: dict[str, list[dict[str, Any]]] = {}
     for row in rows:
         by_axis.setdefault(str(row["axis"]), []).append(row)
@@ -253,16 +265,29 @@ def _axis_summary(rows: list[dict[str, Any]], *, min_delta: float) -> dict[str, 
         monotonic_pass = False
         min_abs_delta = 0.0
         symmetry_error = 0.0
+        direction = _axis_direction(axis, sign_convention=sign_convention)
         if neg is not None and pos is not None:
-            neg_delta = float(neg["steer"]) - float(zero["steer"])
-            pos_delta = float(zero["steer"]) - float(pos["steer"])
+            if direction < 0:
+                neg_delta = float(neg["steer"]) - float(zero["steer"])
+                pos_delta = float(zero["steer"]) - float(pos["steer"])
+            else:
+                neg_delta = float(zero["steer"]) - float(neg["steer"])
+                pos_delta = float(pos["steer"]) - float(zero["steer"])
             min_abs_delta = min(abs(neg_delta), abs(pos_delta))
             sign_pass = neg_delta > float(min_delta) and pos_delta > float(min_delta)
             ordered = sorted(axis_rows, key=lambda row: float(row["probe_value"]))
-            monotonic_pass = all(float(left["steer"]) >= float(right["steer"]) for left, right in zip(ordered, ordered[1:]))
+            if direction < 0:
+                monotonic_pass = all(
+                    float(left["steer"]) >= float(right["steer"]) for left, right in zip(ordered, ordered[1:])
+                )
+            else:
+                monotonic_pass = all(
+                    float(left["steer"]) <= float(right["steer"]) for left, right in zip(ordered, ordered[1:])
+                )
             symmetry_error = abs((float(neg["steer"]) + float(pos["steer"])) / 2.0 - float(zero["steer"]))
         result[axis] = {
             "zero_steer": float(zero["steer"]),
+            "expected_direction": int(direction),
             "sign_pass": bool(sign_pass),
             "monotonic_pass": bool(monotonic_pass),
             "min_abs_delta": float(min_abs_delta),
@@ -332,7 +357,11 @@ def main() -> int:
         for row in rows:
             writer.writerow(row)
 
-    axis_summary = _axis_summary(rows, min_delta=float(args.min_delta))
+    axis_summary = _axis_summary(
+        rows,
+        min_delta=float(args.min_delta),
+        sign_convention=str(args.sign_convention),
+    )
     sign_pass_rate = sum(1 for item in axis_summary.values() if item["sign_pass"]) / max(1, len(axis_summary))
     monotonic_rate = sum(1 for item in axis_summary.values() if item["monotonic_pass"]) / max(1, len(axis_summary))
     min_abs_delta = min((float(item["min_abs_delta"]) for item in axis_summary.values()), default=0.0)
@@ -343,6 +372,7 @@ def main() -> int:
         "device": str(device),
         "source": source_meta,
         "route_y_index": int(args.route_y_index),
+        "sign_convention": str(args.sign_convention),
         "min_delta": float(args.min_delta),
         "axis_summary": axis_summary,
         "actor_sign_response_all_axes_rate": float(sign_pass_rate),

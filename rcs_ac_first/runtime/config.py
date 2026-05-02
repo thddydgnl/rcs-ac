@@ -59,6 +59,12 @@ class RCSACFirstModelConfig:
     use_rgb_perception_actor_features: bool = False
     rgb_perception_actor_feature_dim: int = 16
     rgb_perception_actor_adapter_init_std: float = 0.005
+    use_scalar_actor_features: bool = False
+    scalar_actor_feature_dim: int = 3
+    scalar_actor_adapter_init_std: float = 0.0
+    scalar_actor_lane_offset_scale: float = 1.0
+    scalar_actor_heading_error_scale: float = 10.0
+    scalar_actor_route_y_scale: float = 1.0
     auxiliary_dim: int = DEFAULT_AUXILIARY_DIM
     quality_stats_dim: int = DEFAULT_QUALITY_STATS_DIM
     risk_stats_dim: int = DEFAULT_RISK_STATS_DIM
@@ -99,6 +105,12 @@ class RCSACFirstModelConfig:
         self.use_rgb_perception_actor_features = bool(self.use_rgb_perception_actor_features)
         self.rgb_perception_actor_feature_dim = int(self.rgb_perception_actor_feature_dim)
         self.rgb_perception_actor_adapter_init_std = float(self.rgb_perception_actor_adapter_init_std)
+        self.use_scalar_actor_features = bool(self.use_scalar_actor_features)
+        self.scalar_actor_feature_dim = int(self.scalar_actor_feature_dim)
+        self.scalar_actor_adapter_init_std = float(self.scalar_actor_adapter_init_std)
+        self.scalar_actor_lane_offset_scale = float(self.scalar_actor_lane_offset_scale)
+        self.scalar_actor_heading_error_scale = float(self.scalar_actor_heading_error_scale)
+        self.scalar_actor_route_y_scale = float(self.scalar_actor_route_y_scale)
         self.auxiliary_dim = int(self.auxiliary_dim)
         self.quality_stats_dim = int(self.quality_stats_dim)
         self.risk_stats_dim = int(self.risk_stats_dim)
@@ -123,6 +135,7 @@ class RCSACFirstModelConfig:
             "aux_mask_width",
             "aux_perception_hidden_channels",
             "rgb_perception_actor_feature_dim",
+            "scalar_actor_feature_dim",
             "auxiliary_dim",
             "quality_stats_dim",
             "risk_stats_dim",
@@ -136,6 +149,16 @@ class RCSACFirstModelConfig:
                 raise ValueError(f"{name} must be > 0, got {getattr(self, name)!r}")
         if self.rgb_perception_actor_adapter_init_std < 0.0:
             raise ValueError("rgb_perception_actor_adapter_init_std must be >= 0")
+        if self.scalar_actor_adapter_init_std < 0.0:
+            raise ValueError("scalar_actor_adapter_init_std must be >= 0")
+        if self.scalar_actor_feature_dim != 3:
+            raise ValueError("scalar_actor_feature_dim must be 3 for lane/heading/route-y features")
+        if self.scalar_actor_lane_offset_scale <= 0.0:
+            raise ValueError("scalar_actor_lane_offset_scale must be > 0")
+        if self.scalar_actor_heading_error_scale <= 0.0:
+            raise ValueError("scalar_actor_heading_error_scale must be > 0")
+        if self.scalar_actor_route_y_scale <= 0.0:
+            raise ValueError("scalar_actor_route_y_scale must be > 0")
         expected_auxiliary_dim = (
             self.quality_stats_dim
             + self.risk_stats_dim
