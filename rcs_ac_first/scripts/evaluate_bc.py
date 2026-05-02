@@ -586,6 +586,9 @@ def _build_summary(
         warn_reasons.append(
             f"mean_longitudinal_jitter {mean_longitudinal_jitter:.3f} exceeds recommendation 0.35"
         )
+    max_collision = int(ppo_gate.get("max_collision", 0))
+    if collision_count > max_collision:
+        ppo_gate_fail_reasons.append(f"collision_count {collision_count} > {max_collision}")
     offroad_count = int(done_reasons.get("offroad", 0))
     if offroad_count > int(ppo_gate["max_offroad"]):
         ppo_gate_fail_reasons.append(f"offroad_count {offroad_count} > {int(ppo_gate['max_offroad'])}")
@@ -731,6 +734,7 @@ def main() -> int:
     corrective_abs_heading_error_min = float(eval_raw.get("corrective_abs_heading_error_min", 8.0))
     visual_center_error_min = float(eval_raw.get("visual_center_error_min", 0.05))
     ppo_gate = {
+        "max_collision": float(eval_raw.get("ppo_gate_max_collision", 0)),
         "max_offroad": float(eval_raw.get("ppo_gate_max_offroad", 2)),
         "min_max_route": float(eval_raw.get("ppo_gate_min_max_route", 0.230769)),
         "min_mean_route": float(eval_raw.get("ppo_gate_min_mean_route", 0.0)),

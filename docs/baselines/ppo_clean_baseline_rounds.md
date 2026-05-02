@@ -2144,3 +2144,30 @@ Current blocker after Attempt 34:
 - Seeds 10 and 11 do not improve on seed9's near-pass band.
 - The best pure PPO evidence remains seed9 updates 10-12 with offroad `1`.
 - Additional seed search is possible but increasingly untargeted.
+
+## PPO Evaluator Gate Fix: Collision Fail Reason
+
+File: `rcs_ac_first/scripts/evaluate_bc.py`
+
+Status: **implemented and Windows-verified**
+
+Reason:
+
+- Attempt 34 showed `collision_count: 1` and `ppo_gate_status: BLOCK`, but `ppo_gate_fail_reasons` did not include a collision-specific reason.
+- The objective requires collision `0` for both 512 and 2048 clean evals, so the gate output must make collision failures explicit.
+
+Change:
+
+- Added `ppo_gate_max_collision`, default `0`.
+- Added a `collision_count N > max_collision` fail reason to the PPO gate.
+
+Verification:
+
+- Local syntax check passed: `python -m py_compile rcs_ac_first/scripts/evaluate_bc.py`
+- Local synthetic `_build_summary()` check passed: a rollout with one collision returns `ppo_gate_status: BLOCK` and `ppo_gate_fail_reasons: ['collision_count 1 > 0']`.
+- Windows CARLA verification run:
+  - Run: `ppo_clean_same_env_sensor_action_seed11_midstd_rollout512_mb256_16384_eval_512_gatefix_20260503T072513`
+  - Pulled logs: `remote_runs/ppo_baseline_gatefix_seed11_eval_20260503T072513/`
+  - Result: `collision_count: 1`, `offroad_rate: 0.0`, `severe_early_offroad_count: 0`, `stuck_rate: 0.0`, `max_route_progress: 0.435897`
+  - Gate: `ppo_gate_status: BLOCK`
+  - Confirmed fail reason: `collision_count 1 > 0`
