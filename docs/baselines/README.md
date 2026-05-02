@@ -17,3 +17,4 @@ Round90 is fixed as the current RCS-AC clean baseline for weather, corruption, a
 
 - PPO same-env/sensor/action seed7 config: `configs/baselines/ppo_clean_same_env_sensor_action_seed7.yaml`
 - Implementation record: `docs/baselines/ppo_clean_same_env_sensor_action_seed7_implementation.md`
+- PPO clean baseline rounds: `docs/baselines/ppo_clean_baseline_rounds.md`
