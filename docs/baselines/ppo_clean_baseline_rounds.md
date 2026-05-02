@@ -1689,3 +1689,37 @@ Current blocker after Attempt 26:
 - Seed repetition within the closest allowed hyperparameter family has produced both left-biased and right-biased early offroad failures.
 - The accepted clean PPO baseline is still absent; Attempt 19/21 remain the best near-pass references but still violate the zero-offroad requirement.
 - The next productive branch is either a longer-budget repeat of the best family or a formally documented baseline-definition change that remains fair to RCS-AC, rather than adding PPO-only assist or privileged inference inputs.
+
+## PPO Baseline Attempt 27: Attempt19 Mid-Checkpoint 512 Audit
+
+Config: `configs/baselines/ppo_clean_same_env_sensor_action_seed7_midstd_rollout512_mb256.yaml`
+
+Source run: `ppo_clean_same_env_sensor_action_seed7_midstd_rollout512_mb256_4096_20260503T022258`
+
+Status: **failed 512 clean gate**
+
+Purpose:
+
+- Check whether the closest Attempt 19 family has an intermediate checkpoint that satisfies the 512 clean safety gate.
+- This changes checkpoint selection only; environment, route, sensors, action wrapper, reward, and PPO fairness constraints remain unchanged.
+
+512 clean eval results:
+
+| Checkpoint | Collision | Offroad | Early offroad | Severe early offroad | Stuck | Max route progress | Mean action jitter L1 | PPO gate |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |
+| `update_0003.pt` | `1` | `0` | `0` | `0` | `0` | `0.589744` | `0.000756` | `BLOCK` |
+| `update_0004.pt` | `1` | `0` | `0` | `0` | `0` | `0.564103` | `0.000783` | `BLOCK` |
+| `update_0005.pt` | `1` | `0` | `0` | `0` | `0` | `0.564103` | `0.000746` | `BLOCK` |
+
+Failure diagnosis:
+
+- Intermediate checkpoints remove early/offroad failures but still fail the hard collision-zero requirement.
+- All three collisions occur late around route progress `0.56` to `0.59`, with route-offset corrective sign rate `0.0`.
+- The failure mode is therefore not checkpoint overtraining alone; the plain PPO actor still lacks a usable corrective steering response at the late lateral/heading recovery point.
+- Because no audited checkpoint passed 512 collision/offroad/severe/stuck zero, no 2048 eval was run.
+
+Current blocker after Attempt 27:
+
+- The best PPO candidate family can reach useful route progress but fails late collision/offroad depending on checkpoint.
+- Seed repeats can be substantially worse, producing repeated early offroad.
+- The remaining fair paths are limited: longer-budget training with the same shared contract, more seed searches, or an explicitly documented fair baseline change that is also applied/revalidated for RCS-AC where needed.
