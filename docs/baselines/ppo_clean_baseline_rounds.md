@@ -2171,3 +2171,61 @@ Verification:
   - Result: `collision_count: 1`, `offroad_rate: 0.0`, `severe_early_offroad_count: 0`, `stuck_rate: 0.0`, `max_route_progress: 0.435897`
   - Gate: `ppo_gate_status: BLOCK`
   - Confirmed fail reason: `collision_count 1 > 0`
+
+## PPO Baseline Attempt 35: Seed9 Update0011 Low-LR Continuation
+
+Config: `configs/baselines/ppo_clean_same_env_sensor_action_seed9_update0011_continue_lr1e5_entropy0.yaml`
+
+Source checkpoint: `checkpoints/ppo_clean_same_env_sensor_action_seed9_midstd_rollout512_mb256_16384_20260503T052512/update_0011.pt`
+
+Run name: `ppo_clean_seed9_update0011_continue_lr1e5_entropy0_4096`
+
+Status: **failed 512 clean gate**
+
+Purpose:
+
+- Continue from the strongest PPO near-pass checkpoint (`seed9 update_0011`) instead of launching another broad seed sweep.
+- Keep the same clean environment, observation keys, action wrapper, reward, and termination contract.
+- Avoid PPO-only assist, privileged inference inputs, lane-offset runtime steering override, or deterministic rollout changes.
+
+Allowed tuning changed from Attempt 33:
+
+- Initialized from `seed9 update_0011.pt`.
+- `learning_rate: 0.00001`.
+- `entropy_loss_weight: 0.0`.
+- Continuation budget: `4096` timesteps.
+
+Training summary:
+
+- Timesteps: `4096`
+- Episodes: `20`
+- Done reasons: offroad `16`, collision `4`
+- Best training route progress: `0.666667`
+- Last update: `8`
+- Last actor loss: `-0.000074`
+- Last critic loss: `26.424067`
+
+Pulled logs:
+
+- `remote_runs/ppo_baseline_seed9_update0011_continue_lr1e5_entropy0_4096_20260503T072917/train/training_log.csv`
+- `remote_runs/ppo_baseline_seed9_update0011_continue_lr1e5_entropy0_4096_20260503T072917/eval_last/`
+- `remote_runs/ppo_baseline_seed9_update0011_continue_lr1e5_entropy0_4096_20260503T072917/eval_update0001/`
+
+512 clean eval results:
+
+| Checkpoint | Collision | Offroad | Early offroad | Severe early offroad | Stuck | Max route progress | Mean action jitter L1 | PPO gate |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |
+| `last.pt` | `1` | `0` | `0` | `0` | `0` | `0.564103` | `0.000728` | `BLOCK` |
+| `update_0001.pt` | `0` | `1` | `0` | `0` | `0` | `0.538462` | `0.000805` | `BLOCK` |
+
+Failure diagnosis:
+
+- The low-LR continuation did not produce a 512-safe PPO checkpoint.
+- The final checkpoint shifted the original seed9 failure mode from one offroad event to one collision event while preserving good route progress.
+- `update_0001.pt` stayed close to the source checkpoint and repeated the prior near-pass pattern: collision `0`, offroad `1`, route progress `0.538462`.
+- Corrective route-offset sign rate and visual-zero deltas remain `0.0`, so this attempt did not create an explicit lateral recovery response.
+
+Current blocker after Attempt 35:
+
+- Seed9 still defines the strongest PPO clean band, but both direct checkpoint selection and low-LR continuation remain one safety event short of the required 512 gate.
+- Further PPO-only tuning is possible, but the evidence keeps pointing to missing recovery behavior rather than action jitter or gross training instability.
