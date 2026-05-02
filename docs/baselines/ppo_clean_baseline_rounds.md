@@ -1926,3 +1926,73 @@ Current blocker after Attempt 30:
 - Two 16k seeds now reach the recommended route sanity threshold without collision, severe early offroad, or stuck, but both fail on offroad `2`.
 - Continuing pure PPO would be an increasingly broad seed sweep with no targeted mechanism for corrective steering.
 - A fair shared-contract change may now be more productive than more PPO-only hyperparameter search, but it must be applied/revalidated for RCS-AC before robustness comparison.
+
+## PPO Baseline Attempt 31: Seed10 Attempt19 Family 16k Budget
+
+Config: `configs/baselines/ppo_clean_same_env_sensor_action_seed10_midstd_rollout512_mb256.yaml`
+
+Run name: `ppo_clean_same_env_sensor_action_seed10_midstd_rollout512_mb256_16384`
+
+Status: **failed 512 clean gate**
+
+Allowed tuning changed from Attempt 30:
+
+- `seed: 10`
+
+Unchanged from Attempt 30:
+
+- Training budget: `16384` timesteps via command-line override.
+- `env.traffic_seed: 7`
+- `log_std_init_by_dim: [-1.2, -1.2]`
+- `max_std_by_dim: [0.35, 0.40]`
+- `rollout_steps: 512`
+- `learning_rate: 0.00003`
+- `entropy_loss_weight: 0.001`
+- `clip_coef: 0.1`
+- `update_epochs: 1`
+- `minibatch_size: 256`
+- `max_grad_norm: 0.5`
+
+Unchanged fairness constraints:
+
+- Same environment, route, sensors, action wrapper, reward, and termination contract as Attempt 1/Round90.
+- No PPO-only lateral recovery assist.
+- No privileged inference input.
+- No lane-offset runtime steering override.
+- No deterministic rollout.
+
+Training summary:
+
+- Timesteps: `16384`
+- Episodes: `103`
+- Done reasons: offroad `102`, collision `1`
+- Best training route progress: `0.538462`
+- Last update: `32`
+- Last actor loss: `-0.000091`
+- Last critic loss: `12.351433`
+
+512 clean eval, last checkpoint:
+
+- Checkpoint: `checkpoints/ppo_clean_same_env_sensor_action_seed10_midstd_rollout512_mb256_16384_20260503T055907/last.pt`
+- Eval run: `ppo_clean_same_env_sensor_action_seed10_midstd_rollout512_mb256_16384_eval_512_20260503T062901`
+- Collision: `0`
+- Offroad: `3`
+- Early offroad: `0`
+- Severe early offroad: `0`
+- Stuck: `0`
+- Max route progress: `0.230769`
+- Mean action jitter L1: `0.000699`
+- PPO gate: `BLOCK`
+
+Failure diagnosis:
+
+- Seed10 is worse than seed7/seed9 at 16k: it avoids collision but fails with offroad `3` and does not meet the recommended route sanity threshold.
+- Training is also weaker, with offroad `102` of `103` episodes and best route progress `0.538462`.
+- Corrective route-offset sign rate remains `0.0`.
+- Because the 512 zero-offroad and route-sanity gates failed, no 2048 eval was run.
+
+Current blocker after Attempt 31:
+
+- Three 16k seeds have failed the 512 clean gate.
+- Seed7 and seed9 are the closest pure PPO candidates, both blocked by offroad `2`; seed10 regresses to offroad `3` and lower route progress.
+- Further pure PPO seed search is possible but no longer targeted; the documented evidence points toward missing corrective steering supervision/reward rather than insufficient sampling alone.
