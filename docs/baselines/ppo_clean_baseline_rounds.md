@@ -1618,3 +1618,74 @@ Current blocker after Attempt 25:
 - The pure PPO baseline has not produced a checkpoint that satisfies the 512 safety gate under the fixed Round90 clean conditions.
 - The strongest remaining evidence is still Attempt 19/21 style near-pass behavior: collision `0`, severe early offroad `0`, stuck `0`, but offroad `1`.
 - Further progress should avoid hidden assists and either continue documented seed repeats on the near-pass family or explicitly open a new fair baseline rule, such as shared reward/action-wrapper revalidation or a clearly labeled warm-start baseline.
+
+## PPO Baseline Attempt 26: Seed6 Midstd Rollout512 Minibatch256 4k
+
+Config: `configs/baselines/ppo_clean_same_env_sensor_action_seed6_midstd_rollout512_mb256.yaml`
+
+Run name: `ppo_clean_same_env_sensor_action_seed6_midstd_rollout512_mb256_4096`
+
+Status: **failed 512 clean gate**
+
+Allowed tuning changed from Attempt 19:
+
+- `seed: 6`
+
+Unchanged from Attempt 19:
+
+- `env.traffic_seed: 7`
+- `log_std_init_by_dim: [-1.2, -1.2]`
+- `max_std_by_dim: [0.35, 0.40]`
+- `rollout_steps: 512`
+- `learning_rate: 0.00003`
+- `entropy_loss_weight: 0.001`
+- `clip_coef: 0.1`
+- `update_epochs: 1`
+- `minibatch_size: 256`
+- `max_grad_norm: 0.5`
+
+Unchanged fairness constraints:
+
+- Same environment, route, sensors, action wrapper, reward, and termination contract as Attempt 1/Round90.
+- No PPO-only lateral recovery assist.
+- No privileged inference input.
+- No lane-offset runtime steering override.
+- No deterministic rollout.
+
+Training summary:
+
+- Timesteps: `4096`
+- Episodes: `40`
+- Done reasons: offroad `32`, collision `8`
+- Best training route progress: `0.179487`
+- Last update: `8`
+- Last actor loss: `-0.000135`
+- Last critic loss: `18.612991`
+
+512 clean eval, last checkpoint:
+
+- Checkpoint: `checkpoints/ppo_clean_same_env_sensor_action_seed6_midstd_rollout512_mb256_4096_20260503T040030/last.pt`
+- Eval run: `ppo_clean_same_env_sensor_action_seed6_midstd_rollout512_mb256_4096_eval_512_20260503T040852`
+- Collision: `0`
+- Offroad: `5`
+- Early offroad: `5`
+- Severe early offroad: `0`
+- Stuck: `0`
+- Max route progress: `0.102564`
+- Mean action jitter L1: `0.000945`
+- Mean steer jitter: `0.000517`
+- Mean longitudinal jitter: `0.000428`
+- PPO gate: `BLOCK`
+
+Failure diagnosis:
+
+- A second seed repeat on the Attempt 19 family also regressed to repeated early offroad.
+- Unlike seed8's left-only initial steering, seed6 produced right-only initial steering (`right_steer_rate: 1.0`, `mean_steer: 0.085176`) and still failed route-offset corrective response (`route_offset_corrective_sign_rate: 0.0`).
+- This strengthens the diagnosis that plain PPO under the fixed 4k budget is not learning reliable early lateral recovery from the shared reward alone.
+- Because the 512 gate failed on offroad and early offroad, no 2048 eval was run for this checkpoint.
+
+Current blocker after Attempt 26:
+
+- Seed repetition within the closest allowed hyperparameter family has produced both left-biased and right-biased early offroad failures.
+- The accepted clean PPO baseline is still absent; Attempt 19/21 remain the best near-pass references but still violate the zero-offroad requirement.
+- The next productive branch is either a longer-budget repeat of the best family or a formally documented baseline-definition change that remains fair to RCS-AC, rather than adding PPO-only assist or privileged inference inputs.
