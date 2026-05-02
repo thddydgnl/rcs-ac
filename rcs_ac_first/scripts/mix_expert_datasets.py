@@ -64,6 +64,8 @@ def _slice_part(
     indices: np.ndarray,
     *,
     label: str,
+    dataset_index: int,
+    dataset_path: str,
     episode_offset: int,
 ) -> tuple[dict[str, np.ndarray], dict[str, Any], int]:
     part = {
@@ -71,6 +73,12 @@ def _slice_part(
         for key, value in arrays.items()
         if value.shape[:1] == (int(arrays["obs_flat"].shape[0]),)
     }
+    part["source_label"] = np.full((int(indices.shape[0]),), str(label), dtype="<U128")
+    part["source_dataset"] = np.full((int(indices.shape[0]),), str(dataset_path), dtype="<U512")
+    part["source_dataset_index"] = np.full((int(indices.shape[0]),), int(dataset_index), dtype=np.int32)
+    part["source_row_index"] = indices.astype(np.int32, copy=True)
+    part["source_episode_id"] = part["episode_id"].astype(np.int32, copy=True)
+    part["source_step_in_episode"] = part["step_in_episode"].astype(np.int32, copy=True)
     part["episode_id"] = part["episode_id"].astype(np.int32, copy=False) + int(episode_offset)
     max_episode_id = int(part["episode_id"].max()) if int(part["episode_id"].shape[0]) else -1
     route = part["route_progress"].astype(np.float32, copy=False)
@@ -78,6 +86,8 @@ def _slice_part(
     summary: dict[str, Any] = {
         "label": str(label),
         "selected_count": int(indices.shape[0]),
+        "dataset_index": int(dataset_index),
+        "dataset_path": str(dataset_path),
         "route_progress_min": float(np.min(route)),
         "route_progress_max": float(np.max(route)),
         "route_progress_mean": float(np.mean(route)),
@@ -135,6 +145,8 @@ def main() -> int:
             arrays,
             indices,
             label=str(label),
+            dataset_index=int(index),
+            dataset_path=str(raw_path),
             episode_offset=episode_offset,
         )
         episode_offset += next_episode_offset
