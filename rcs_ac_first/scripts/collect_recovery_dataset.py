@@ -42,6 +42,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--speed-kmh-max", type=float, default=None)
     parser.add_argument("--lane-offset-sign", choices=["any", "left", "right"], default="any")
     parser.add_argument("--require-corrective-sign-aligned", action="store_true")
+    parser.add_argument("--collection-steer-bias", type=float, default=0.0)
+    parser.add_argument("--collection-bias-route-min", type=float, default=None)
+    parser.add_argument("--collection-bias-route-max", type=float, default=None)
+    parser.add_argument("--collection-bias-abs-lane-offset-max", type=float, default=None)
     parser.add_argument("--accept-branch-only", action="store_true")
     parser.add_argument("--accept-lateral-branch-only", action="store_true")
     parser.add_argument("--require-turn-boost", action="store_true")
@@ -119,6 +123,24 @@ def _append(arrays: dict[str, list[Any]], key: str, value: Any) -> None:
     arrays.setdefault(key, []).append(value)
 
 
+def _apply_collection_bias(action: np.ndarray, info: dict[str, Any], args: argparse.Namespace) -> tuple[np.ndarray, float]:
+    bias = float(args.collection_steer_bias)
+    if abs(bias) <= 1e-9:
+        return action, 0.0
+    route_progress = float(info.get("route_progress", 0.0))
+    if args.collection_bias_route_min is not None and route_progress < float(args.collection_bias_route_min):
+        return action, 0.0
+    if args.collection_bias_route_max is not None and route_progress > float(args.collection_bias_route_max):
+        return action, 0.0
+    if args.collection_bias_abs_lane_offset_max is not None:
+        lane_offset = abs(float(info.get("lane_offset", 0.0)))
+        if lane_offset > float(args.collection_bias_abs_lane_offset_max):
+            return action, 0.0
+    biased = action.copy()
+    biased[0] = np.clip(float(biased[0]) + bias, -1.0, 1.0)
+    return biased.astype(np.float32, copy=False), float(biased[0] - float(action[0]))
+
+
 def main() -> int:
     args = parse_args()
     if int(args.num_transitions) <= 0:
@@ -175,6 +197,7 @@ def main() -> int:
         "target_corrected_steer": [],
         "target_corrective_delta": [],
         "target_corrective_delta_available": [],
+        "collection_steer_bias_applied": [],
         "source_dataset": [],
         "source_dataset_index": [],
         "source_label": [],
@@ -189,6 +212,7 @@ def main() -> int:
     accepted = 0
     attempted = 0
     episode_id = 0
+    last_info: dict[str, Any] = {}
     hidden_state: torch.Tensor | None = None
     env = None
     try:
@@ -213,17 +237,23 @@ def main() -> int:
             hidden = outputs["next_hidden_state"]
             hidden_state = hidden if isinstance(hidden, torch.Tensor) else None
 
-            step_result = env.step(action, policy_diagnostics=model.get_diagnostics())
+            # The route/lane values used here are only for collection-time perturbation bookkeeping.
+            # They are not part of the learned policy at inference time.
+            env_action, applied_bias = _apply_collection_bias(action, last_info, args)
+            step_result = env.step(env_action, policy_diagnostics=model.get_diagnostics())
             attempted += 1
             info = dict(step_result.get("info", {}))
+            last_info = info
             if _should_accept(info, args):
                 policy_action = dict(info.get("policy_action", {}))
-                corrected_steer = float(info.get("lateral_recovery_corrected_steer", policy_action.get("steer", action[0])))
-                if not bool(args.require_corrective_sign_aligned) or _corrective_sign_aligned(info, action, corrected_steer):
+                corrected_steer = float(info.get("lateral_recovery_corrected_steer", policy_action.get("steer", env_action[0])))
+                if not bool(args.require_corrective_sign_aligned) or _corrective_sign_aligned(
+                    info, env_action, corrected_steer
+                ):
                     target_action = np.asarray(
                         [
                             np.clip(corrected_steer, -1.0, 1.0),
-                            np.clip(float(policy_action.get("longitudinal", action[1])), -1.0, 1.0),
+                            np.clip(float(policy_action.get("longitudinal", env_action[1])), -1.0, 1.0),
                         ],
                         dtype=np.float32,
                     )
@@ -296,9 +326,9 @@ def main() -> int:
                         if key == "done_reason":
                             _append(arrays, key, str(info.get("done_reason", "running")))
                         elif key == "policy_action_steer":
-                            _append(arrays, key, float(policy_action.get("steer", action[0])))
+                            _append(arrays, key, float(policy_action.get("steer", env_action[0])))
                         elif key == "policy_action_longitudinal":
-                            _append(arrays, key, float(policy_action.get("longitudinal", action[1])))
+                            _append(arrays, key, float(policy_action.get("longitudinal", env_action[1])))
                         elif key == "target_corrected_steer":
                             _append(arrays, key, float(target_action[0]))
                         elif key == "target_corrective_delta":
@@ -316,6 +346,7 @@ def main() -> int:
                         else:
                             _append(arrays, key, float(info.get(key, 0.0)))
                     arrays["source_dataset"].append(str(output_path))
+                    arrays["collection_steer_bias_applied"].append(float(applied_bias))
                     arrays["source_dataset_index"].append(0)
                     arrays["source_label"].append(str(args.run_name))
                     arrays["source_episode_id"].append(int(episode_id))
@@ -329,6 +360,7 @@ def main() -> int:
                 auxiliary = flatten_auxiliary_observation_dict(reset_result["obs"], aux_spec)
                 hidden_state = None
                 episode_id += 1
+                last_info = {}
             else:
                 observation = flatten_observation_dict(step_result["obs"], obs_spec)
                 auxiliary = flatten_auxiliary_observation_dict(step_result["obs"], aux_spec)
@@ -370,6 +402,7 @@ def main() -> int:
         "target_corrected_steer": np.asarray(arrays["target_corrected_steer"], dtype=np.float32),
         "target_corrective_delta": np.asarray(arrays["target_corrective_delta"], dtype=np.float32),
         "target_corrective_delta_available": np.asarray(arrays["target_corrective_delta_available"], dtype=np.float32),
+        "collection_steer_bias_applied": np.asarray(arrays["collection_steer_bias_applied"], dtype=np.float32),
         "source_dataset": np.asarray(arrays["source_dataset"], dtype="<U512"),
         "source_dataset_index": np.asarray(arrays["source_dataset_index"], dtype=np.int32),
         "source_label": np.asarray(arrays["source_label"], dtype="<U128"),
@@ -393,6 +426,17 @@ def main() -> int:
         "speed_kmh_max_filter": None if args.speed_kmh_max is None else float(args.speed_kmh_max),
         "lane_offset_sign_filter": str(args.lane_offset_sign),
         "require_corrective_sign_aligned": bool(args.require_corrective_sign_aligned),
+        "collection_steer_bias": float(args.collection_steer_bias),
+        "collection_bias_route_min": None
+        if args.collection_bias_route_min is None
+        else float(args.collection_bias_route_min),
+        "collection_bias_route_max": None
+        if args.collection_bias_route_max is None
+        else float(args.collection_bias_route_max),
+        "collection_bias_abs_lane_offset_max": None
+        if args.collection_bias_abs_lane_offset_max is None
+        else float(args.collection_bias_abs_lane_offset_max),
+        "collection_steer_bias_applied_rate": float(np.mean(np.abs(stacked["collection_steer_bias_applied"]) > 1e-9)),
         "accept_branch_only": bool(args.accept_branch_only),
         "accept_lateral_branch_only": bool(args.accept_lateral_branch_only),
         "require_turn_boost": bool(args.require_turn_boost),
