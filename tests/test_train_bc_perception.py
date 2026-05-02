@@ -4,6 +4,7 @@ from rcs_ac_first.models.perception_aux import RGBPerceptionActorFeatureExtracto
 from rcs_ac_first.scripts.train_bc import (
     _compute_collision_cluster_route_offset_losses,
     _compute_corrective_delta_losses,
+    _compute_early_severe_longitudinal_ceiling_losses,
     _compute_early_severe_steer_losses,
     _compute_early_route_offset_losses,
     _compute_frame_perception_losses,
@@ -709,6 +710,32 @@ def test_route_progress_longitudinal_floor_loss_uses_route_and_speed_mask() -> N
     assert torch.isclose(losses["route_progress_longitudinal_floor_loss"], torch.tensor(0.25))
     assert torch.isclose(losses["route_progress_longitudinal_floor_rate"], torch.tensor(0.0))
     assert torch.isclose(losses["route_progress_longitudinal_mean"], torch.tensor(-0.20))
+
+
+def test_early_severe_longitudinal_ceiling_loss_slows_lateral_recovery_rows() -> None:
+    action_mean = torch.tensor([[0.20, 0.80], [-0.20, 0.60], [0.20, 0.30], [0.20, 0.90]])
+    batch = {
+        "target_corrective_delta": torch.tensor([0.30, -0.30, 0.30, 0.30]),
+        "target_corrective_delta_available": torch.ones((4,), dtype=torch.float32),
+    }
+
+    losses = _compute_early_severe_longitudinal_ceiling_losses(
+        action_mean,
+        batch,
+        route_progress=torch.tensor([0.20, 0.20, 0.20, 0.50]),
+        lane_offset=torch.tensor([-2.0, 2.0, -2.0, -2.0]),
+        heading_error=torch.tensor([8.0, -8.0, 8.0, 8.0]),
+        route_min=0.10,
+        route_max=0.32,
+        abs_lane_offset_min=0.55,
+        abs_heading_error_min=3.0,
+        longitudinal_ceiling=0.40,
+        side_balanced=True,
+        alignment_mode="semantic",
+    )
+
+    assert torch.isclose(losses["early_severe_longitudinal_ceiling_loss"], torch.tensor(0.20))
+    assert torch.isclose(losses["early_severe_longitudinal_ceiling_rate"], torch.tensor(1.0 / 3.0))
 
 
 def test_route_progress_longitudinal_floor_loss_respects_sequence_valid_mask() -> None:

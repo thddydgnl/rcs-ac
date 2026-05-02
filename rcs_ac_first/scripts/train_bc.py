@@ -95,6 +95,8 @@ BC_LOG_FIELDS: tuple[str, ...] = (
     "early_severe_probe_absolute_steer_loss",
     "early_severe_probe_absolute_steer_sign_rate",
     "early_severe_probe_absolute_steer_mask_rate",
+    "early_severe_longitudinal_ceiling_loss",
+    "early_severe_longitudinal_ceiling_rate",
     "early_severe_steer_mask_rate",
     "early_severe_steer_left_sign_rate",
     "early_severe_steer_right_sign_rate",
@@ -869,6 +871,8 @@ def _zero_early_severe_steer_losses(reference: torch.Tensor) -> dict[str, torch.
         "early_severe_probe_absolute_steer_loss": zero,
         "early_severe_probe_absolute_steer_sign_rate": zero,
         "early_severe_probe_absolute_steer_mask_rate": zero,
+        "early_severe_longitudinal_ceiling_loss": zero,
+        "early_severe_longitudinal_ceiling_rate": zero,
         "early_severe_steer_mask_rate": zero,
         "early_severe_steer_left_sign_rate": zero,
         "early_severe_steer_right_sign_rate": zero,
@@ -1202,6 +1206,62 @@ def _compute_early_severe_probe_absolute_steer_losses(
     }
 
 
+def _zero_early_severe_longitudinal_ceiling_losses(reference: torch.Tensor) -> dict[str, torch.Tensor]:
+    zero = reference.sum() * 0.0
+    return {
+        "early_severe_longitudinal_ceiling_loss": zero,
+        "early_severe_longitudinal_ceiling_rate": zero,
+    }
+
+
+def _compute_early_severe_longitudinal_ceiling_losses(
+    action_mean: torch.Tensor,
+    batch: dict[str, torch.Tensor],
+    *,
+    route_progress: torch.Tensor | None,
+    lane_offset: torch.Tensor | None,
+    heading_error: torch.Tensor | None,
+    route_min: float | None,
+    route_max: float | None,
+    abs_lane_offset_min: float,
+    abs_heading_error_min: float,
+    longitudinal_ceiling: float,
+    side_balanced: bool = True,
+    alignment_mode: str = "lane",
+    valid_mask: torch.Tensor | None = None,
+) -> dict[str, torch.Tensor]:
+    if int(action_mean.shape[-1]) <= 1:
+        return _zero_early_severe_longitudinal_ceiling_losses(action_mean)
+    mask_result = _early_severe_recovery_mask(
+        action_reference=action_mean,
+        batch=batch,
+        route_progress=route_progress,
+        lane_offset=lane_offset,
+        heading_error=heading_error,
+        route_min=route_min,
+        route_max=route_max,
+        abs_lane_offset_min=abs_lane_offset_min,
+        abs_heading_error_min=abs_heading_error_min,
+        alignment_mode=alignment_mode,
+        valid_mask=valid_mask,
+    )
+    if mask_result is None:
+        return _zero_early_severe_longitudinal_ceiling_losses(action_mean)
+    mask, _, lane_tensor = mask_result
+    longitudinal = action_mean[..., 1]
+    ceiling = longitudinal.new_tensor(float(longitudinal_ceiling))
+    loss_values = F.relu(longitudinal - ceiling)
+    if bool(side_balanced):
+        loss = _side_balanced_mean(loss_values, mask, lane_tensor)
+    else:
+        loss = _masked_mean(loss_values, mask)
+    ceiling_rate = _masked_mean((longitudinal <= ceiling).to(action_mean.dtype), mask)
+    return {
+        "early_severe_longitudinal_ceiling_loss": loss,
+        "early_severe_longitudinal_ceiling_rate": ceiling_rate,
+    }
+
+
 def _zero_route_progress_longitudinal_losses(reference: torch.Tensor) -> dict[str, torch.Tensor]:
     zero = reference.sum() * 0.0
     return {
@@ -1520,6 +1580,12 @@ def _metric_row(
         "early_severe_probe_absolute_steer_mask_rate": float(
             losses.get("early_severe_probe_absolute_steer_mask_rate", fusion.new_zeros(())).detach().cpu().item()
         ),
+        "early_severe_longitudinal_ceiling_loss": float(
+            losses.get("early_severe_longitudinal_ceiling_loss", fusion.new_zeros(())).detach().cpu().item()
+        ),
+        "early_severe_longitudinal_ceiling_rate": float(
+            losses.get("early_severe_longitudinal_ceiling_rate", fusion.new_zeros(())).detach().cpu().item()
+        ),
         "early_severe_steer_mask_rate": float(
             losses.get("early_severe_steer_mask_rate", fusion.new_zeros(())).detach().cpu().item()
         ),
@@ -1629,6 +1695,9 @@ def _evaluate(
     early_severe_absolute_steer_margin: float,
     early_severe_probe_absolute_steer_margin: float,
     early_severe_probe_axes: tuple[str, ...],
+    early_severe_longitudinal_ceiling_route_min: float | None,
+    early_severe_longitudinal_ceiling_route_max: float | None,
+    early_severe_longitudinal_ceiling: float,
     early_severe_side_balanced: bool,
     early_severe_alignment_mode: str,
     route_progress_longitudinal_floor_route_min: float | None,
@@ -1700,6 +1769,8 @@ def _evaluate(
         "early_severe_probe_absolute_steer_loss": 0.0,
         "early_severe_probe_absolute_steer_sign_rate": 0.0,
         "early_severe_probe_absolute_steer_mask_rate": 0.0,
+        "early_severe_longitudinal_ceiling_loss": 0.0,
+        "early_severe_longitudinal_ceiling_rate": 0.0,
         "early_severe_steer_mask_rate": 0.0,
         "early_severe_steer_left_sign_rate": 0.0,
         "early_severe_steer_right_sign_rate": 0.0,
@@ -1840,8 +1911,8 @@ def _evaluate(
                         route_progress=batch.get("route_progress"),
                         lane_offset=batch.get("lane_offset"),
                         heading_error=batch.get("heading_error"),
-                        route_min=early_severe_route_min,
-                        route_max=early_severe_route_max,
+                        route_min=early_severe_longitudinal_ceiling_route_min,
+                        route_max=early_severe_longitudinal_ceiling_route_max,
                         abs_lane_offset_min=early_severe_abs_lane_offset_min,
                         abs_heading_error_min=early_severe_abs_heading_error_min,
                         margin=early_severe_steer_margin,
@@ -1864,6 +1935,23 @@ def _evaluate(
                         abs_heading_error_min=early_severe_abs_heading_error_min,
                         margin=early_severe_probe_absolute_steer_margin,
                         axes=early_severe_probe_axes,
+                        side_balanced=early_severe_side_balanced,
+                        alignment_mode=early_severe_alignment_mode,
+                        valid_mask=batch.get("valid_mask"),
+                    )
+                )
+                losses.update(
+                    _compute_early_severe_longitudinal_ceiling_losses(
+                        action_mean,
+                        batch,
+                        route_progress=batch.get("route_progress"),
+                        lane_offset=batch.get("lane_offset"),
+                        heading_error=batch.get("heading_error"),
+                        route_min=early_severe_longitudinal_ceiling_route_min,
+                        route_max=early_severe_longitudinal_ceiling_route_max,
+                        abs_lane_offset_min=early_severe_abs_lane_offset_min,
+                        abs_heading_error_min=early_severe_abs_heading_error_min,
+                        longitudinal_ceiling=early_severe_longitudinal_ceiling,
                         side_balanced=early_severe_side_balanced,
                         alignment_mode=early_severe_alignment_mode,
                         valid_mask=batch.get("valid_mask"),
@@ -1995,8 +2083,8 @@ def _evaluate(
                         route_progress=batch.get("route_progress"),
                         lane_offset=batch.get("lane_offset"),
                         heading_error=batch.get("heading_error"),
-                        route_min=early_severe_route_min,
-                        route_max=early_severe_route_max,
+                        route_min=early_severe_longitudinal_ceiling_route_min,
+                        route_max=early_severe_longitudinal_ceiling_route_max,
                         abs_lane_offset_min=early_severe_abs_lane_offset_min,
                         abs_heading_error_min=early_severe_abs_heading_error_min,
                         margin=early_severe_steer_margin,
@@ -2018,6 +2106,22 @@ def _evaluate(
                         abs_heading_error_min=early_severe_abs_heading_error_min,
                         margin=early_severe_probe_absolute_steer_margin,
                         axes=early_severe_probe_axes,
+                        side_balanced=early_severe_side_balanced,
+                        alignment_mode=early_severe_alignment_mode,
+                    )
+                )
+                losses.update(
+                    _compute_early_severe_longitudinal_ceiling_losses(
+                        action_mean,
+                        batch,
+                        route_progress=batch.get("route_progress"),
+                        lane_offset=batch.get("lane_offset"),
+                        heading_error=batch.get("heading_error"),
+                        route_min=early_severe_route_min,
+                        route_max=early_severe_route_max,
+                        abs_lane_offset_min=early_severe_abs_lane_offset_min,
+                        abs_heading_error_min=early_severe_abs_heading_error_min,
+                        longitudinal_ceiling=early_severe_longitudinal_ceiling,
                         side_balanced=early_severe_side_balanced,
                         alignment_mode=early_severe_alignment_mode,
                     )
@@ -2230,6 +2334,16 @@ def main() -> int:
         )
     else:
         early_severe_probe_axes = tuple(str(item) for item in early_severe_probe_axes_raw)
+    early_severe_longitudinal_ceiling_loss_weight = float(
+        bc_raw.get("early_severe_longitudinal_ceiling_loss_weight", 0.0)
+    )
+    early_severe_longitudinal_ceiling_route_min = bc_raw.get(
+        "early_severe_longitudinal_ceiling_route_min", early_severe_route_min
+    )
+    early_severe_longitudinal_ceiling_route_max = bc_raw.get(
+        "early_severe_longitudinal_ceiling_route_max", early_severe_route_max
+    )
+    early_severe_longitudinal_ceiling = float(bc_raw.get("early_severe_longitudinal_ceiling", 1.0))
     early_severe_side_balanced = bool(bc_raw.get("early_severe_side_balanced", True))
     early_severe_alignment_mode = str(bc_raw.get("early_severe_alignment_mode", "lane"))
     route_progress_longitudinal_floor_loss_weight = float(
@@ -2474,6 +2588,24 @@ def main() -> int:
                                 valid_mask=batch.get("valid_mask"),
                             )
                         )
+                    if early_severe_longitudinal_ceiling_loss_weight > 0.0:
+                        losses.update(
+                            _compute_early_severe_longitudinal_ceiling_losses(
+                                action_mean,
+                                batch,
+                                route_progress=batch.get("route_progress"),
+                                lane_offset=batch.get("lane_offset"),
+                                heading_error=batch.get("heading_error"),
+                                route_min=early_severe_longitudinal_ceiling_route_min,
+                                route_max=early_severe_longitudinal_ceiling_route_max,
+                                abs_lane_offset_min=early_severe_abs_lane_offset_min,
+                                abs_heading_error_min=early_severe_abs_heading_error_min,
+                                longitudinal_ceiling=early_severe_longitudinal_ceiling,
+                                side_balanced=early_severe_side_balanced,
+                                alignment_mode=early_severe_alignment_mode,
+                                valid_mask=batch.get("valid_mask"),
+                            )
+                        )
                     losses.update(
                         _compute_route_progress_longitudinal_losses(
                             action_mean,
@@ -2628,6 +2760,23 @@ def main() -> int:
                                 alignment_mode=early_severe_alignment_mode,
                             )
                         )
+                    if early_severe_longitudinal_ceiling_loss_weight > 0.0:
+                        losses.update(
+                            _compute_early_severe_longitudinal_ceiling_losses(
+                                action_mean,
+                                batch,
+                                route_progress=batch.get("route_progress"),
+                                lane_offset=batch.get("lane_offset"),
+                                heading_error=batch.get("heading_error"),
+                                route_min=early_severe_longitudinal_ceiling_route_min,
+                                route_max=early_severe_longitudinal_ceiling_route_max,
+                                abs_lane_offset_min=early_severe_abs_lane_offset_min,
+                                abs_heading_error_min=early_severe_abs_heading_error_min,
+                                longitudinal_ceiling=early_severe_longitudinal_ceiling,
+                                side_balanced=early_severe_side_balanced,
+                                alignment_mode=early_severe_alignment_mode,
+                            )
+                        )
                     losses.update(
                         _compute_route_progress_longitudinal_losses(
                             action_mean,
@@ -2706,6 +2855,11 @@ def main() -> int:
                 )
                 total_loss = (
                     total_loss
+                    + losses.get("early_severe_longitudinal_ceiling_loss", total_loss.new_zeros(()))
+                    * early_severe_longitudinal_ceiling_loss_weight
+                )
+                total_loss = (
+                    total_loss
                     + losses.get("route_progress_longitudinal_floor_loss", total_loss.new_zeros(()))
                     * route_progress_longitudinal_floor_loss_weight
                 )
@@ -2774,6 +2928,9 @@ def main() -> int:
                 early_severe_absolute_steer_margin=early_severe_absolute_steer_margin,
                 early_severe_probe_absolute_steer_margin=early_severe_probe_absolute_steer_margin,
                 early_severe_probe_axes=early_severe_probe_axes,
+                early_severe_longitudinal_ceiling_route_min=early_severe_longitudinal_ceiling_route_min,
+                early_severe_longitudinal_ceiling_route_max=early_severe_longitudinal_ceiling_route_max,
+                early_severe_longitudinal_ceiling=early_severe_longitudinal_ceiling,
                 early_severe_side_balanced=early_severe_side_balanced,
                 early_severe_alignment_mode=early_severe_alignment_mode,
                 route_progress_longitudinal_floor_route_min=route_progress_longitudinal_floor_route_min,
