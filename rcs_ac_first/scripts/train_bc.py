@@ -4,7 +4,7 @@ import argparse
 import csv
 import sys
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 WORKSPACE_ROOT = PROJECT_ROOT.parent
@@ -14,6 +14,7 @@ for candidate in (PROJECT_ROOT, WORKSPACE_ROOT):
 
 import torch
 import torch.nn.functional as F
+from torch import nn
 from torch.utils.data import DataLoader
 
 from rcs_ac_first.data.expert_dataset import (
@@ -2588,6 +2589,64 @@ def _select_trainable_parameters(
     return selected
 
 
+def _parse_trainable_action_indices(raw: Any) -> tuple[int, ...]:
+    if raw is None:
+        return ()
+    if isinstance(raw, str):
+        pieces = [piece.strip() for piece in raw.split(",") if piece.strip()]
+    elif isinstance(raw, int):
+        pieces = [raw]
+    else:
+        pieces = list(raw)
+    indices = tuple(sorted({int(item) for item in pieces}))
+    if any(index < 0 for index in indices):
+        raise ValueError(f"bc.actor_head_output_trainable_indices must be non-negative, got {indices}")
+    return indices
+
+
+def _actor_head_output_row_restorer(
+    model: RCSACFirstModel,
+    trainable_indices: tuple[int, ...],
+) -> Callable[[], None] | None:
+    if not trainable_indices:
+        return None
+    actor_head = getattr(model.recurrent_actor_critic, "actor_head", None)
+    output_layer: nn.Linear | None = None
+    if isinstance(actor_head, nn.Sequential):
+        for module in reversed(actor_head):
+            if isinstance(module, nn.Linear):
+                output_layer = module
+                break
+    if output_layer is None:
+        raise ValueError("bc.actor_head_output_trainable_indices requires a Linear actor output layer")
+    action_dim = int(output_layer.out_features)
+    invalid = [index for index in trainable_indices if index >= action_dim]
+    if invalid:
+        raise ValueError(
+            "bc.actor_head_output_trainable_indices contains indices outside "
+            f"action_dim={action_dim}: {invalid}"
+        )
+    trainable_mask = torch.zeros(action_dim, dtype=torch.bool, device=output_layer.weight.device)
+    trainable_mask[list(trainable_indices)] = True
+    frozen_mask = ~trainable_mask
+    if not bool(frozen_mask.any().item()):
+        return None
+    frozen_weight = output_layer.weight.detach().clone()
+    frozen_bias = output_layer.bias.detach().clone() if output_layer.bias is not None else None
+
+    def restore() -> None:
+        with torch.no_grad():
+            output_layer.weight[frozen_mask] = frozen_weight[frozen_mask].to(output_layer.weight.device)
+            if output_layer.bias is not None and frozen_bias is not None:
+                output_layer.bias[frozen_mask] = frozen_bias[frozen_mask].to(output_layer.bias.device)
+
+    print(
+        "[trainable] actor_head_output_trainable_indices="
+        f"{list(trainable_indices)} frozen_indices={torch.nonzero(frozen_mask, as_tuple=False).view(-1).tolist()}"
+    )
+    return restore
+
+
 def main() -> int:
     args = parse_args()
     config = load_phase1_config(_resolve_config_path(str(args.config)))
@@ -2725,6 +2784,9 @@ def main() -> int:
         trainable_module_names = [trainable_module_names_raw]
     else:
         trainable_module_names = [str(item) for item in trainable_module_names_raw]
+    actor_head_output_trainable_indices = _parse_trainable_action_indices(
+        bc_raw.get("actor_head_output_trainable_indices")
+    )
 
     dataset_path = _project_path(args.dataset)
     arrays = load_expert_npz(dataset_path)
@@ -2781,6 +2843,10 @@ def main() -> int:
         )
     trainable_parameters = _select_trainable_parameters(model, trainable_module_names)
     optimizer = torch.optim.Adam(trainable_parameters, lr=learning_rate, weight_decay=weight_decay)
+    restore_frozen_actor_output_rows = _actor_head_output_row_restorer(
+        model,
+        actor_head_output_trainable_indices,
+    )
 
     logs_dir = _project_path(config.train.logs_dir) / str(run_name)
     checkpoints_dir = _project_path(config.train.checkpoints_dir) / str(run_name)
@@ -3337,6 +3403,8 @@ def main() -> int:
                 total_loss.backward()
                 torch.nn.utils.clip_grad_norm_(trainable_parameters, grad_clip_norm)
                 optimizer.step()
+                if restore_frozen_actor_output_rows is not None:
+                    restore_frozen_actor_output_rows()
                 global_step += 1
                 last_train_loss = float(losses["bc_loss"].detach().cpu().item())
                 if global_step % log_interval == 0:
