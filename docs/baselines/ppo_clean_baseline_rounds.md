@@ -2365,3 +2365,65 @@ Current blocker after Attempt 37:
 
 - Seed9 remains the best PPO family, but the clean 512 gate is still one event short.
 - The next productive PPO-only direction is no longer checkpoint selection; it should tune the seed9 family training dynamics or exploration around the recovery band.
+
+## PPO Baseline Attempt 38: Seed9 Steering Exploration Boost 8192
+
+Config: `configs/baselines/ppo_clean_same_env_sensor_action_seed9_steerhi_rollout512_mb256.yaml`
+
+Run name: `ppo_clean_seed9_steerhi_rollout512_mb256_8192`
+
+Status: **failed 512 clean gate**
+
+Purpose:
+
+- Test whether increasing steering exploration helps PPO discover the missing lateral recovery behavior.
+- Keep the clean environment, route, observation keys, reward, termination, and action wrapper unchanged.
+- Do not add PPO-only assist, privileged inference inputs, lane-offset runtime steering override, or RCS-AC auxiliary/corrective policy features.
+
+Allowed tuning changed from seed9 Attempt19 family:
+
+- `log_std_init_by_dim: [-0.9, -1.2]`
+- `max_std_by_dim: [0.55, 0.40]`
+- `entropy_loss_weight: 0.002`
+- Smoke budget: `8192` timesteps
+
+Training summary:
+
+- Timesteps: `8192`
+- Episodes: `52`
+- Done reasons: offroad `46`, collision `6`
+- Best training route progress: `0.538462`
+- Last update: `16`
+- Last actor loss: `-0.000101`
+- Last critic loss: `23.976788`
+- Last entropy: `0.738181`
+
+Pulled logs:
+
+- `remote_runs/ppo_baseline_seed9_steerhi_rollout512_mb256_8192_20260503T082843/train/training_log.csv`
+- `remote_runs/ppo_baseline_seed9_steerhi_rollout512_mb256_8192_20260503T082843/eval_last/`
+
+512 clean eval, last checkpoint:
+
+- Checkpoint: `checkpoints/ppo_clean_seed9_steerhi_rollout512_mb256_8192_20260503T082843/last.pt`
+- Eval run: `ppo_clean_seed9_steerhi_rollout512_mb256_8192_eval_512_20260503T084415`
+- Collision: `1`
+- Offroad: `0`
+- Early offroad: `0`
+- Severe early offroad: `0`
+- Stuck: `0`
+- Max route progress: `0.589744`
+- Mean action jitter L1: `0.000622`
+- PPO gate: `BLOCK`
+- Gate fail reasons: `collision_count 1 > 0`
+
+Failure diagnosis:
+
+- Higher steering exploration did not create a 512-safe checkpoint.
+- It moved the terminal failure from offroad toward collision and raised deterministic route progress to `0.589744`, but safety is still not acceptable.
+- Training was less stable than the original seed9 family: `52` episodes in `8192` steps with offroad `46` and collision `6`.
+
+Current blocker after Attempt 38:
+
+- Larger steering exploration is not the missing ingredient by itself.
+- The PPO baseline still lacks a stable recovery response near the same late lateral failure region.
