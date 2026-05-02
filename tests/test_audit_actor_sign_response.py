@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from rcs_ac_first.scripts.audit_actor_sign_response import _axis_summary
+from rcs_ac_first.scripts.audit_actor_sign_response import _axis_summary, _gate_status
 
 
 def _rows() -> list[dict[str, float | str]]:
@@ -34,3 +34,14 @@ def test_actor_sign_axis_summary_preserves_legacy_all_negative_direction() -> No
     assert summary["lane_offset"]["sign_pass"] is True
     assert summary["heading_error"]["sign_pass"] is False
     assert summary["route_target_y"]["sign_pass"] is False
+
+
+def test_actor_sign_gate_blocks_positive_zero_bias() -> None:
+    summary = _axis_summary(_rows(), min_delta=0.005, sign_convention="semantic")
+    for axis_summary in summary.values():
+        axis_summary["zero_steer"] = 0.16
+
+    gate = _gate_status(summary, min_delta=0.005, max_zero_bias=0.03)
+
+    assert gate["actor_sign_response_max_abs_zero_steer"] == 0.16
+    assert gate["pass_status"] == "BLOCK"

@@ -49,6 +49,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--route-y-scale", type=float, default=1.0)
     parser.add_argument("--sign-convention", default="legacy", choices=["legacy", "semantic"])
     parser.add_argument("--min-delta", type=float, default=0.005)
+    parser.add_argument("--max-zero-bias", type=float, default=0.03)
     return parser.parse_args()
 
 
@@ -296,6 +297,28 @@ def _axis_summary(rows: list[dict[str, Any]], *, min_delta: float, sign_conventi
     return result
 
 
+def _gate_status(axis_summary: dict[str, Any], *, min_delta: float, max_zero_bias: float) -> dict[str, float | str]:
+    sign_pass_rate = sum(1 for item in axis_summary.values() if item["sign_pass"]) / max(1, len(axis_summary))
+    monotonic_rate = sum(1 for item in axis_summary.values() if item["monotonic_pass"]) / max(1, len(axis_summary))
+    min_abs_delta = min((float(item["min_abs_delta"]) for item in axis_summary.values()), default=0.0)
+    zero_left_bias = min((float(item["zero_steer"]) for item in axis_summary.values()), default=0.0)
+    max_abs_zero_steer = max((abs(float(item["zero_steer"])) for item in axis_summary.values()), default=0.0)
+    pass_status = (
+        sign_pass_rate >= 0.999
+        and monotonic_rate >= 0.999
+        and min_abs_delta >= float(min_delta)
+        and max_abs_zero_steer <= float(max_zero_bias)
+    )
+    return {
+        "actor_sign_response_all_axes_rate": float(sign_pass_rate),
+        "actor_sign_response_monotonic_rate": float(monotonic_rate),
+        "actor_sign_response_min_abs_delta": float(min_abs_delta),
+        "actor_sign_response_left_bias_at_zero": float(zero_left_bias),
+        "actor_sign_response_max_abs_zero_steer": float(max_abs_zero_steer),
+        "pass_status": "PASS" if pass_status else "BLOCK",
+    }
+
+
 def main() -> int:
     args = parse_args()
     config_path = _project_path(args.config)
@@ -362,10 +385,8 @@ def main() -> int:
         min_delta=float(args.min_delta),
         sign_convention=str(args.sign_convention),
     )
-    sign_pass_rate = sum(1 for item in axis_summary.values() if item["sign_pass"]) / max(1, len(axis_summary))
-    monotonic_rate = sum(1 for item in axis_summary.values() if item["monotonic_pass"]) / max(1, len(axis_summary))
-    min_abs_delta = min((float(item["min_abs_delta"]) for item in axis_summary.values()), default=0.0)
-    zero_left_bias = min((float(item["zero_steer"]) for item in axis_summary.values()), default=0.0)
+    max_zero_bias = float(args.max_zero_bias)
+    gate = _gate_status(axis_summary, min_delta=float(args.min_delta), max_zero_bias=max_zero_bias)
     summary = {
         "config": str(config_path),
         "checkpoint": str(checkpoint_path),
@@ -374,14 +395,9 @@ def main() -> int:
         "route_y_index": int(args.route_y_index),
         "sign_convention": str(args.sign_convention),
         "min_delta": float(args.min_delta),
+        "max_zero_bias": float(max_zero_bias),
         "axis_summary": axis_summary,
-        "actor_sign_response_all_axes_rate": float(sign_pass_rate),
-        "actor_sign_response_monotonic_rate": float(monotonic_rate),
-        "actor_sign_response_min_abs_delta": float(min_abs_delta),
-        "actor_sign_response_left_bias_at_zero": float(zero_left_bias),
-        "pass_status": "PASS"
-        if sign_pass_rate >= 0.999 and monotonic_rate >= 0.999 and min_abs_delta >= float(args.min_delta) and zero_left_bias >= -0.03
-        else "BLOCK",
+        **gate,
         "csv": str(csv_path),
     }
     with summary_path.open("w", encoding="utf-8") as handle:

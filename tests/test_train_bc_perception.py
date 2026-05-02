@@ -6,8 +6,10 @@ from rcs_ac_first.scripts.train_bc import (
     _compute_corrective_delta_losses,
     _compute_early_severe_longitudinal_ceiling_losses,
     _compute_early_severe_steer_losses,
+    _compute_early_center_zero_steer_losses,
     _compute_early_route_offset_losses,
     _compute_frame_perception_losses,
+    _compute_late_recovery_absolute_steer_losses,
     _compute_route_progress_longitudinal_losses,
     _compute_route_aware_visual_center_losses,
     _compute_sequence_perception_losses,
@@ -736,6 +738,52 @@ def test_early_severe_longitudinal_ceiling_loss_slows_lateral_recovery_rows() ->
 
     assert torch.isclose(losses["early_severe_longitudinal_ceiling_loss"], torch.tensor(0.20))
     assert torch.isclose(losses["early_severe_longitudinal_ceiling_rate"], torch.tensor(1.0 / 3.0))
+
+
+def test_late_recovery_absolute_steer_loss_uses_separate_route_window() -> None:
+    action_mean = torch.tensor([[0.20, 0.0], [0.40, 0.0], [0.10, 0.0]])
+    batch = {
+        "target_corrective_delta": torch.tensor([0.30, 0.30, 0.30]),
+        "target_corrective_delta_available": torch.ones((3,), dtype=torch.float32),
+    }
+
+    losses = _compute_late_recovery_absolute_steer_losses(
+        action_mean,
+        batch,
+        route_progress=torch.tensor([0.05, 0.30, 0.40]),
+        lane_offset=torch.tensor([-2.0, -2.0, -2.0]),
+        heading_error=torch.tensor([8.0, 8.0, 8.0]),
+        route_min=0.28,
+        route_max=0.36,
+        abs_lane_offset_min=0.55,
+        abs_heading_error_min=3.0,
+        absolute_steer_margin=0.35,
+        side_balanced=False,
+        alignment_mode="semantic",
+    )
+
+    assert torch.isclose(losses["late_recovery_absolute_steer_mask_rate"], torch.tensor(1.0 / 3.0))
+    assert torch.isclose(losses["late_recovery_absolute_steer_loss"], torch.tensor(0.0))
+    assert torch.isclose(losses["late_recovery_absolute_steer_sign_rate"], torch.tensor(1.0))
+
+
+def test_early_center_zero_steer_loss_masks_centered_start_rows() -> None:
+    action_mean = torch.tensor([[0.04, 0.0], [0.20, 0.0], [-0.03, 0.0]])
+
+    losses = _compute_early_center_zero_steer_losses(
+        action_mean,
+        route_progress=torch.tensor([0.05, 0.05, 0.20]),
+        lane_offset=torch.tensor([0.05, 0.80, 0.05]),
+        heading_error=torch.tensor([1.0, 1.0, 1.0]),
+        route_min=0.025,
+        route_max=0.085,
+        abs_lane_offset_max=0.20,
+        abs_heading_error_max=2.0,
+    )
+
+    assert torch.isclose(losses["early_center_zero_steer_mask_rate"], torch.tensor(1.0 / 3.0))
+    assert torch.isclose(losses["early_center_zero_steer_loss"], torch.tensor(0.04))
+    assert torch.isclose(losses["early_center_zero_steer_abs_mean"], torch.tensor(0.04))
 
 
 def test_route_progress_longitudinal_floor_loss_respects_sequence_valid_mask() -> None:

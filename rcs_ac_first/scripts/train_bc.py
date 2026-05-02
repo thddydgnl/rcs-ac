@@ -97,6 +97,12 @@ BC_LOG_FIELDS: tuple[str, ...] = (
     "early_severe_probe_absolute_steer_mask_rate",
     "early_severe_longitudinal_ceiling_loss",
     "early_severe_longitudinal_ceiling_rate",
+    "late_recovery_absolute_steer_loss",
+    "late_recovery_absolute_steer_sign_rate",
+    "late_recovery_absolute_steer_mask_rate",
+    "early_center_zero_steer_loss",
+    "early_center_zero_steer_abs_mean",
+    "early_center_zero_steer_mask_rate",
     "early_severe_steer_mask_rate",
     "early_severe_steer_left_sign_rate",
     "early_severe_steer_right_sign_rate",
@@ -873,6 +879,12 @@ def _zero_early_severe_steer_losses(reference: torch.Tensor) -> dict[str, torch.
         "early_severe_probe_absolute_steer_mask_rate": zero,
         "early_severe_longitudinal_ceiling_loss": zero,
         "early_severe_longitudinal_ceiling_rate": zero,
+        "late_recovery_absolute_steer_loss": zero,
+        "late_recovery_absolute_steer_sign_rate": zero,
+        "late_recovery_absolute_steer_mask_rate": zero,
+        "early_center_zero_steer_loss": zero,
+        "early_center_zero_steer_abs_mean": zero,
+        "early_center_zero_steer_mask_rate": zero,
         "early_severe_steer_mask_rate": zero,
         "early_severe_steer_left_sign_rate": zero,
         "early_severe_steer_right_sign_rate": zero,
@@ -1262,6 +1274,121 @@ def _compute_early_severe_longitudinal_ceiling_losses(
     }
 
 
+def _zero_late_recovery_absolute_steer_losses(reference: torch.Tensor) -> dict[str, torch.Tensor]:
+    zero = reference.sum() * 0.0
+    return {
+        "late_recovery_absolute_steer_loss": zero,
+        "late_recovery_absolute_steer_sign_rate": zero,
+        "late_recovery_absolute_steer_mask_rate": zero,
+    }
+
+
+def _compute_late_recovery_absolute_steer_losses(
+    action_mean: torch.Tensor,
+    batch: dict[str, torch.Tensor],
+    *,
+    route_progress: torch.Tensor | None,
+    lane_offset: torch.Tensor | None,
+    heading_error: torch.Tensor | None,
+    route_min: float | None,
+    route_max: float | None,
+    abs_lane_offset_min: float,
+    abs_heading_error_min: float,
+    absolute_steer_margin: float,
+    side_balanced: bool = True,
+    alignment_mode: str = "semantic",
+    valid_mask: torch.Tensor | None = None,
+) -> dict[str, torch.Tensor]:
+    mask_result = _early_severe_recovery_mask(
+        action_reference=action_mean,
+        batch=batch,
+        route_progress=route_progress,
+        lane_offset=lane_offset,
+        heading_error=heading_error,
+        route_min=route_min,
+        route_max=route_max,
+        abs_lane_offset_min=abs_lane_offset_min,
+        abs_heading_error_min=abs_heading_error_min,
+        alignment_mode=alignment_mode,
+        valid_mask=valid_mask,
+    )
+    if mask_result is None:
+        return _zero_late_recovery_absolute_steer_losses(action_mean)
+    mask, target_tensor, lane_tensor = mask_result
+    signed_absolute_steer = action_mean[..., 0] * torch.sign(target_tensor)
+    loss_values = F.relu(signed_absolute_steer.new_tensor(float(absolute_steer_margin)) - signed_absolute_steer)
+    if bool(side_balanced):
+        loss = _side_balanced_mean(loss_values, mask, lane_tensor)
+    else:
+        loss = _masked_mean(loss_values, mask)
+    sign_rate = _masked_mean((signed_absolute_steer >= 0.0).to(action_mean.dtype), mask)
+    return {
+        "late_recovery_absolute_steer_loss": loss,
+        "late_recovery_absolute_steer_sign_rate": sign_rate,
+        "late_recovery_absolute_steer_mask_rate": mask.mean() if mask.numel() else loss.new_zeros(()),
+    }
+
+
+def _zero_early_center_zero_steer_losses(reference: torch.Tensor) -> dict[str, torch.Tensor]:
+    zero = reference.sum() * 0.0
+    return {
+        "early_center_zero_steer_loss": zero,
+        "early_center_zero_steer_abs_mean": zero,
+        "early_center_zero_steer_mask_rate": zero,
+    }
+
+
+def _compute_early_center_zero_steer_losses(
+    action_mean: torch.Tensor,
+    *,
+    route_progress: torch.Tensor | None,
+    lane_offset: torch.Tensor | None,
+    heading_error: torch.Tensor | None,
+    route_min: float | None,
+    route_max: float | None,
+    abs_lane_offset_max: float,
+    abs_heading_error_max: float,
+    valid_mask: torch.Tensor | None = None,
+) -> dict[str, torch.Tensor]:
+    if route_progress is None or lane_offset is None or heading_error is None:
+        return _zero_early_center_zero_steer_losses(action_mean)
+    action_steer = action_mean[..., 0]
+    route_tensor = route_progress.to(device=action_mean.device, dtype=action_mean.dtype)
+    lane_tensor = lane_offset.to(device=action_mean.device, dtype=action_mean.dtype)
+    heading_tensor = heading_error.to(device=action_mean.device, dtype=action_mean.dtype)
+    mask = torch.ones_like(action_steer, dtype=action_mean.dtype)
+    if valid_mask is not None:
+        mask = mask * valid_mask.to(device=action_mean.device, dtype=action_mean.dtype).clamp(0.0, 1.0)
+    for name, tensor in (
+        ("route_progress", route_tensor),
+        ("lane_offset", lane_tensor),
+        ("heading_error", heading_tensor),
+        ("mask", mask),
+    ):
+        if tuple(tensor.shape) != tuple(action_steer.shape):
+            if name == "route_progress":
+                route_tensor = tensor.reshape_as(action_steer)
+            elif name == "lane_offset":
+                lane_tensor = tensor.reshape_as(action_steer)
+            elif name == "heading_error":
+                heading_tensor = tensor.reshape_as(action_steer)
+            else:
+                mask = tensor.reshape_as(action_steer)
+    if route_min is not None:
+        mask = mask * (route_tensor >= float(route_min)).to(action_mean.dtype)
+    if route_max is not None:
+        mask = mask * (route_tensor <= float(route_max)).to(action_mean.dtype)
+    mask = mask * (lane_tensor.abs() <= float(abs_lane_offset_max)).to(action_mean.dtype)
+    mask = mask * (heading_tensor.abs() <= float(abs_heading_error_max)).to(action_mean.dtype)
+    abs_steer = action_steer.abs()
+    loss = _masked_mean(abs_steer, mask)
+    return {
+        "early_center_zero_steer_loss": loss,
+        "early_center_zero_steer_abs_mean": loss,
+        "early_center_zero_steer_mask_rate": mask.mean() if mask.numel() else loss.new_zeros(()),
+    }
+
+
 def _zero_route_progress_longitudinal_losses(reference: torch.Tensor) -> dict[str, torch.Tensor]:
     zero = reference.sum() * 0.0
     return {
@@ -1586,6 +1713,24 @@ def _metric_row(
         "early_severe_longitudinal_ceiling_rate": float(
             losses.get("early_severe_longitudinal_ceiling_rate", fusion.new_zeros(())).detach().cpu().item()
         ),
+        "late_recovery_absolute_steer_loss": float(
+            losses.get("late_recovery_absolute_steer_loss", fusion.new_zeros(())).detach().cpu().item()
+        ),
+        "late_recovery_absolute_steer_sign_rate": float(
+            losses.get("late_recovery_absolute_steer_sign_rate", fusion.new_zeros(())).detach().cpu().item()
+        ),
+        "late_recovery_absolute_steer_mask_rate": float(
+            losses.get("late_recovery_absolute_steer_mask_rate", fusion.new_zeros(())).detach().cpu().item()
+        ),
+        "early_center_zero_steer_loss": float(
+            losses.get("early_center_zero_steer_loss", fusion.new_zeros(())).detach().cpu().item()
+        ),
+        "early_center_zero_steer_abs_mean": float(
+            losses.get("early_center_zero_steer_abs_mean", fusion.new_zeros(())).detach().cpu().item()
+        ),
+        "early_center_zero_steer_mask_rate": float(
+            losses.get("early_center_zero_steer_mask_rate", fusion.new_zeros(())).detach().cpu().item()
+        ),
         "early_severe_steer_mask_rate": float(
             losses.get("early_severe_steer_mask_rate", fusion.new_zeros(())).detach().cpu().item()
         ),
@@ -1698,6 +1843,15 @@ def _evaluate(
     early_severe_longitudinal_ceiling_route_min: float | None,
     early_severe_longitudinal_ceiling_route_max: float | None,
     early_severe_longitudinal_ceiling: float,
+    late_recovery_route_min: float | None,
+    late_recovery_route_max: float | None,
+    late_recovery_abs_lane_offset_min: float,
+    late_recovery_abs_heading_error_min: float,
+    late_recovery_absolute_steer_margin: float,
+    early_center_zero_steer_route_min: float | None,
+    early_center_zero_steer_route_max: float | None,
+    early_center_zero_steer_abs_lane_offset_max: float,
+    early_center_zero_steer_abs_heading_error_max: float,
     early_severe_side_balanced: bool,
     early_severe_alignment_mode: str,
     route_progress_longitudinal_floor_route_min: float | None,
@@ -1771,6 +1925,12 @@ def _evaluate(
         "early_severe_probe_absolute_steer_mask_rate": 0.0,
         "early_severe_longitudinal_ceiling_loss": 0.0,
         "early_severe_longitudinal_ceiling_rate": 0.0,
+        "late_recovery_absolute_steer_loss": 0.0,
+        "late_recovery_absolute_steer_sign_rate": 0.0,
+        "late_recovery_absolute_steer_mask_rate": 0.0,
+        "early_center_zero_steer_loss": 0.0,
+        "early_center_zero_steer_abs_mean": 0.0,
+        "early_center_zero_steer_mask_rate": 0.0,
         "early_severe_steer_mask_rate": 0.0,
         "early_severe_steer_left_sign_rate": 0.0,
         "early_severe_steer_right_sign_rate": 0.0,
@@ -1958,6 +2118,36 @@ def _evaluate(
                     )
                 )
                 losses.update(
+                    _compute_late_recovery_absolute_steer_losses(
+                        action_mean,
+                        batch,
+                        route_progress=batch.get("route_progress"),
+                        lane_offset=batch.get("lane_offset"),
+                        heading_error=batch.get("heading_error"),
+                        route_min=late_recovery_route_min,
+                        route_max=late_recovery_route_max,
+                        abs_lane_offset_min=late_recovery_abs_lane_offset_min,
+                        abs_heading_error_min=late_recovery_abs_heading_error_min,
+                        absolute_steer_margin=late_recovery_absolute_steer_margin,
+                        side_balanced=early_severe_side_balanced,
+                        alignment_mode=early_severe_alignment_mode,
+                        valid_mask=batch.get("valid_mask"),
+                    )
+                )
+                losses.update(
+                    _compute_early_center_zero_steer_losses(
+                        action_mean,
+                        route_progress=batch.get("route_progress"),
+                        lane_offset=batch.get("lane_offset"),
+                        heading_error=batch.get("heading_error"),
+                        route_min=early_center_zero_steer_route_min,
+                        route_max=early_center_zero_steer_route_max,
+                        abs_lane_offset_max=early_center_zero_steer_abs_lane_offset_max,
+                        abs_heading_error_max=early_center_zero_steer_abs_heading_error_max,
+                        valid_mask=batch.get("valid_mask"),
+                    )
+                )
+                losses.update(
                     _compute_route_progress_longitudinal_losses(
                         action_mean,
                         batch,
@@ -2124,6 +2314,34 @@ def _evaluate(
                         longitudinal_ceiling=early_severe_longitudinal_ceiling,
                         side_balanced=early_severe_side_balanced,
                         alignment_mode=early_severe_alignment_mode,
+                    )
+                )
+                losses.update(
+                    _compute_late_recovery_absolute_steer_losses(
+                        action_mean,
+                        batch,
+                        route_progress=batch.get("route_progress"),
+                        lane_offset=batch.get("lane_offset"),
+                        heading_error=batch.get("heading_error"),
+                        route_min=late_recovery_route_min,
+                        route_max=late_recovery_route_max,
+                        abs_lane_offset_min=late_recovery_abs_lane_offset_min,
+                        abs_heading_error_min=late_recovery_abs_heading_error_min,
+                        absolute_steer_margin=late_recovery_absolute_steer_margin,
+                        side_balanced=early_severe_side_balanced,
+                        alignment_mode=early_severe_alignment_mode,
+                    )
+                )
+                losses.update(
+                    _compute_early_center_zero_steer_losses(
+                        action_mean,
+                        route_progress=batch.get("route_progress"),
+                        lane_offset=batch.get("lane_offset"),
+                        heading_error=batch.get("heading_error"),
+                        route_min=early_center_zero_steer_route_min,
+                        route_max=early_center_zero_steer_route_max,
+                        abs_lane_offset_max=early_center_zero_steer_abs_lane_offset_max,
+                        abs_heading_error_max=early_center_zero_steer_abs_heading_error_max,
                     )
                 )
                 losses.update(
@@ -2344,6 +2562,25 @@ def main() -> int:
         "early_severe_longitudinal_ceiling_route_max", early_severe_route_max
     )
     early_severe_longitudinal_ceiling = float(bc_raw.get("early_severe_longitudinal_ceiling", 1.0))
+    late_recovery_absolute_steer_loss_weight = float(bc_raw.get("late_recovery_absolute_steer_loss_weight", 0.0))
+    late_recovery_route_min = bc_raw.get("late_recovery_route_min", early_severe_route_min)
+    late_recovery_route_max = bc_raw.get("late_recovery_route_max", early_severe_route_max)
+    late_recovery_abs_lane_offset_min = float(
+        bc_raw.get("late_recovery_abs_lane_offset_min", early_severe_abs_lane_offset_min)
+    )
+    late_recovery_abs_heading_error_min = float(
+        bc_raw.get("late_recovery_abs_heading_error_min", early_severe_abs_heading_error_min)
+    )
+    late_recovery_absolute_steer_margin = float(bc_raw.get("late_recovery_absolute_steer_margin", 0.0))
+    early_center_zero_steer_loss_weight = float(bc_raw.get("early_center_zero_steer_loss_weight", 0.0))
+    early_center_zero_steer_route_min = bc_raw.get("early_center_zero_steer_route_min", early_route_min)
+    early_center_zero_steer_route_max = bc_raw.get("early_center_zero_steer_route_max", early_route_max)
+    early_center_zero_steer_abs_lane_offset_max = float(
+        bc_raw.get("early_center_zero_steer_abs_lane_offset_max", 0.20)
+    )
+    early_center_zero_steer_abs_heading_error_max = float(
+        bc_raw.get("early_center_zero_steer_abs_heading_error_max", 2.0)
+    )
     early_severe_side_balanced = bool(bc_raw.get("early_severe_side_balanced", True))
     early_severe_alignment_mode = str(bc_raw.get("early_severe_alignment_mode", "lane"))
     route_progress_longitudinal_floor_loss_weight = float(
@@ -2606,6 +2843,38 @@ def main() -> int:
                                 valid_mask=batch.get("valid_mask"),
                             )
                         )
+                    if late_recovery_absolute_steer_loss_weight > 0.0:
+                        losses.update(
+                            _compute_late_recovery_absolute_steer_losses(
+                                action_mean,
+                                batch,
+                                route_progress=batch.get("route_progress"),
+                                lane_offset=batch.get("lane_offset"),
+                                heading_error=batch.get("heading_error"),
+                                route_min=late_recovery_route_min,
+                                route_max=late_recovery_route_max,
+                                abs_lane_offset_min=late_recovery_abs_lane_offset_min,
+                                abs_heading_error_min=late_recovery_abs_heading_error_min,
+                                absolute_steer_margin=late_recovery_absolute_steer_margin,
+                                side_balanced=early_severe_side_balanced,
+                                alignment_mode=early_severe_alignment_mode,
+                                valid_mask=batch.get("valid_mask"),
+                            )
+                        )
+                    if early_center_zero_steer_loss_weight > 0.0:
+                        losses.update(
+                            _compute_early_center_zero_steer_losses(
+                                action_mean,
+                                route_progress=batch.get("route_progress"),
+                                lane_offset=batch.get("lane_offset"),
+                                heading_error=batch.get("heading_error"),
+                                route_min=early_center_zero_steer_route_min,
+                                route_max=early_center_zero_steer_route_max,
+                                abs_lane_offset_max=early_center_zero_steer_abs_lane_offset_max,
+                                abs_heading_error_max=early_center_zero_steer_abs_heading_error_max,
+                                valid_mask=batch.get("valid_mask"),
+                            )
+                        )
                     losses.update(
                         _compute_route_progress_longitudinal_losses(
                             action_mean,
@@ -2777,6 +3046,36 @@ def main() -> int:
                                 alignment_mode=early_severe_alignment_mode,
                             )
                         )
+                    if late_recovery_absolute_steer_loss_weight > 0.0:
+                        losses.update(
+                            _compute_late_recovery_absolute_steer_losses(
+                                action_mean,
+                                batch,
+                                route_progress=batch.get("route_progress"),
+                                lane_offset=batch.get("lane_offset"),
+                                heading_error=batch.get("heading_error"),
+                                route_min=late_recovery_route_min,
+                                route_max=late_recovery_route_max,
+                                abs_lane_offset_min=late_recovery_abs_lane_offset_min,
+                                abs_heading_error_min=late_recovery_abs_heading_error_min,
+                                absolute_steer_margin=late_recovery_absolute_steer_margin,
+                                side_balanced=early_severe_side_balanced,
+                                alignment_mode=early_severe_alignment_mode,
+                            )
+                        )
+                    if early_center_zero_steer_loss_weight > 0.0:
+                        losses.update(
+                            _compute_early_center_zero_steer_losses(
+                                action_mean,
+                                route_progress=batch.get("route_progress"),
+                                lane_offset=batch.get("lane_offset"),
+                                heading_error=batch.get("heading_error"),
+                                route_min=early_center_zero_steer_route_min,
+                                route_max=early_center_zero_steer_route_max,
+                                abs_lane_offset_max=early_center_zero_steer_abs_lane_offset_max,
+                                abs_heading_error_max=early_center_zero_steer_abs_heading_error_max,
+                            )
+                        )
                     losses.update(
                         _compute_route_progress_longitudinal_losses(
                             action_mean,
@@ -2860,6 +3159,16 @@ def main() -> int:
                 )
                 total_loss = (
                     total_loss
+                    + losses.get("late_recovery_absolute_steer_loss", total_loss.new_zeros(()))
+                    * late_recovery_absolute_steer_loss_weight
+                )
+                total_loss = (
+                    total_loss
+                    + losses.get("early_center_zero_steer_loss", total_loss.new_zeros(()))
+                    * early_center_zero_steer_loss_weight
+                )
+                total_loss = (
+                    total_loss
                     + losses.get("route_progress_longitudinal_floor_loss", total_loss.new_zeros(()))
                     * route_progress_longitudinal_floor_loss_weight
                 )
@@ -2931,6 +3240,15 @@ def main() -> int:
                 early_severe_longitudinal_ceiling_route_min=early_severe_longitudinal_ceiling_route_min,
                 early_severe_longitudinal_ceiling_route_max=early_severe_longitudinal_ceiling_route_max,
                 early_severe_longitudinal_ceiling=early_severe_longitudinal_ceiling,
+                late_recovery_route_min=late_recovery_route_min,
+                late_recovery_route_max=late_recovery_route_max,
+                late_recovery_abs_lane_offset_min=late_recovery_abs_lane_offset_min,
+                late_recovery_abs_heading_error_min=late_recovery_abs_heading_error_min,
+                late_recovery_absolute_steer_margin=late_recovery_absolute_steer_margin,
+                early_center_zero_steer_route_min=early_center_zero_steer_route_min,
+                early_center_zero_steer_route_max=early_center_zero_steer_route_max,
+                early_center_zero_steer_abs_lane_offset_max=early_center_zero_steer_abs_lane_offset_max,
+                early_center_zero_steer_abs_heading_error_max=early_center_zero_steer_abs_heading_error_max,
                 early_severe_side_balanced=early_severe_side_balanced,
                 early_severe_alignment_mode=early_severe_alignment_mode,
                 route_progress_longitudinal_floor_route_min=route_progress_longitudinal_floor_route_min,
