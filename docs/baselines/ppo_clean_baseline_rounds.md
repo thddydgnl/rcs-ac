@@ -2256,3 +2256,74 @@ Interpretation:
 - Future PPO eval summaries should still record visual-zero/corrective metrics.
 - These diagnostics no longer decide PPO clean baseline acceptance unless the config explicitly opts back into them.
 - A checkpoint still cannot become a PPO clean baseline candidate unless the 512 and 2048 clean evals both satisfy the hard safety criteria.
+
+## PPO Baseline Attempt 36: Seed12 Attempt19 Family 16k Budget
+
+Config: `configs/baselines/ppo_clean_same_env_sensor_action_seed12_midstd_rollout512_mb256.yaml`
+
+Run name: `ppo_clean_same_env_sensor_action_seed12_midstd_rollout512_mb256_16384`
+
+Status: **failed 512 clean gate**
+
+Allowed tuning changed from Attempt 30/31/34:
+
+- `seed: 12`
+
+Unchanged:
+
+- Training budget: `16384` timesteps via command-line override.
+- `env.traffic_seed: 7`
+- `log_std_init_by_dim: [-1.2, -1.2]`
+- `max_std_by_dim: [0.35, 0.40]`
+- `rollout_steps: 512`
+- `learning_rate: 0.00003`
+- `entropy_loss_weight: 0.001`
+- `clip_coef: 0.1`
+- `update_epochs: 1`
+- `minibatch_size: 256`
+- `max_grad_norm: 0.5`
+
+Gate note:
+
+- This run used the PPO baseline gate alignment, so RCS diagnostic metrics are recorded but no longer hard-block the PPO clean baseline gate.
+
+Training summary:
+
+- Timesteps: `16384`
+- Episodes: `91`
+- Done reasons: offroad `85`, collision `6`
+- Best training route progress: `0.589744`
+- Last update: `32`
+- Last actor loss: `0.000062`
+- Last critic loss: `28.530730`
+
+Pulled logs:
+
+- `remote_runs/ppo_baseline_seed12_midstd_rollout512_mb256_16384_20260503T074514/train/training_log.csv`
+- `remote_runs/ppo_baseline_seed12_midstd_rollout512_mb256_16384_20260503T074514/eval_last/`
+
+512 clean eval, last checkpoint:
+
+- Checkpoint: `checkpoints/ppo_clean_same_env_sensor_action_seed12_midstd_rollout512_mb256_16384_20260503T074514/last.pt`
+- Eval run: `ppo_clean_same_env_sensor_action_seed12_midstd_rollout512_mb256_16384_eval_512_20260503T081505`
+- Collision: `0`
+- Offroad: `2`
+- Early offroad: `0`
+- Severe early offroad: `0`
+- Stuck: `0`
+- Max route progress: `0.384615`
+- Mean action jitter L1: `0.001387`
+- PPO gate: `BLOCK`
+- Gate fail reasons: `offroad_count 2 > 0`
+
+Failure diagnosis:
+
+- Seed12 is weaker than seed9's near-pass band and similar to the broader failed seed family.
+- It avoids collision in deterministic 512 eval, but still fails with offroad `2`.
+- The gate alignment worked as intended: the run is blocked only by the hard safety requirement, not by RCS diagnostic thresholds.
+- Because the 512 zero-offroad gate failed, no 2048 eval was run.
+
+Current blocker after Attempt 36:
+
+- The strongest PPO baseline candidate remains seed9 update 10-12, especially `update_0011.pt`, with collision `0`, offroad `1`, and route progress `0.538462`.
+- Seed12 does not justify replacing seed9 as the working clean PPO candidate.
