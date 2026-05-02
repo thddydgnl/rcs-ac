@@ -1,0 +1,758 @@
+{
+  "actor_sign_response_all_axes_rate": 1.0,
+  "actor_sign_response_left_bias_at_zero": -0.015754880383610725,
+  "actor_sign_response_max_abs_zero_steer": 0.033768244087696075,
+  "actor_sign_response_min_abs_delta": 0.03133253939449787,
+  "actor_sign_response_monotonic_rate": 1.0,
+  "actor_sign_response_sample_pass_rate": 0.9375,
+  "checkpoint": "C:\\Users\\thddy\\Documents\\code\\RCS-AC-first\\checkpoints\\rgb_perception_actor_features_v2_smooth_sequence_bc_round93\\last.pt",
+  "config": "C:\\Users\\thddy\\Documents\\code\\RCS-AC-first\\configs\\bc_sequence_rgb_perception_actor_features_v2_smooth_round93.yaml",
+  "csv": "C:\\Users\\thddy\\Documents\\code\\RCS-AC-first\\outputs\\audits\\round93_early_any\\actor_sign_audit.csv",
+  "device": "cuda",
+  "max_samples": 16,
+  "max_zero_bias": 0.03,
+  "min_delta": 0.005,
+  "pass_status": "BLOCK",
+  "route_y_index": 1,
+  "sample_index_start": 0,
+  "sample_selector": "early_any",
+  "sample_summaries": [
+    {
+      "actor_sign_response_all_axes_rate": 1.0,
+      "actor_sign_response_left_bias_at_zero": 0.026228245347738266,
+      "actor_sign_response_max_abs_zero_steer": 0.026229431852698326,
+      "actor_sign_response_min_abs_delta": 0.039141153916716576,
+      "actor_sign_response_monotonic_rate": 1.0,
+      "audit_sample_offset": 0,
+      "axis_summary": {
+        "heading_error": {
+          "expected_direction": 1,
+          "min_abs_delta": 0.04646545276045799,
+          "monotonic_pass": true,
+          "sign_pass": true,
+          "symmetry_error": 0.003612292930483818,
+          "zero_steer": 0.026228245347738266
+        },
+        "lane_offset": {
+          "expected_direction": -1,
+          "min_abs_delta": 0.04758024401962757,
+          "monotonic_pass": true,
+          "sign_pass": true,
+          "symmetry_error": 0.003395345062017441,
+          "zero_steer": 0.026229431852698326
+        },
+        "route_target_y": {
+          "expected_direction": 1,
+          "min_abs_delta": 0.039141153916716576,
+          "monotonic_pass": true,
+          "sign_pass": true,
+          "symmetry_error": 0.001699511893093586,
+          "zero_steer": 0.02622939832508564
+        }
+      },
+      "pass_status": "PASS",
+      "source": {
+        "dataset": "C:\\Users\\thddy\\Documents\\code\\RCS-AC-first\\data\\expert\\rgb_perception_actor_features_v2_early_route_mix_4256_round36_provenance.npz",
+        "episode_id": 0,
+        "heading_error": 0.0,
+        "lane_offset": 0.0,
+        "route_progress": 0.05128205195069313,
+        "sample_index": 4,
+        "sample_selector": "early_any",
+        "source": "dataset",
+        "step_in_episode": 33
+      }
+    },
+    {
+      "actor_sign_response_all_axes_rate": 1.0,
+      "actor_sign_response_left_bias_at_zero": 0.015369952656328678,
+      "actor_sign_response_max_abs_zero_steer": 0.015376253053545952,
+      "actor_sign_response_min_abs_delta": 0.03133253939449787,
+      "actor_sign_response_monotonic_rate": 1.0,
+      "audit_sample_offset": 1,
+      "axis_summary": {
+        "heading_error": {
+          "expected_direction": 1,
+          "min_abs_delta": 0.05345471855252981,
+          "monotonic_pass": true,
+          "sign_pass": true,
+          "symmetry_error": 0.006754559464752674,
+          "zero_steer": 0.015369952656328678
+        },
+        "lane_offset": {
+          "expected_direction": -1,
+          "min_abs_delta": 0.04692857898771763,
+          "monotonic_pass": true,
+          "sign_pass": true,
+          "symmetry_error": 0.006196204572916031,
+          "zero_steer": 0.01537434570491314
+        },
+        "route_target_y": {
+          "expected_direction": 1,
+          "min_abs_delta": 0.03133253939449787,
+          "monotonic_pass": true,
+          "sign_pass": true,
+          "symmetry_error": 0.0033709080889821053,
+          "zero_steer": 0.015376253053545952
+        }
+      },
+      "pass_status": "PASS",
+      "source": {
+        "dataset": "C:\\Users\\thddy\\Documents\\code\\RCS-AC-first\\data\\expert\\rgb_perception_actor_features_v2_early_route_mix_4256_round36_provenance.npz",
+        "episode_id": 0,
+        "heading_error": 0.0,
+        "lane_offset": 0.0,
+        "route_progress": 0.07692307978868484,
+        "sample_index": 5,
+        "sample_selector": "early_any",
+        "source": "dataset",
+        "step_in_episode": 46
+      }
+    },
+    {
+      "actor_sign_response_all_axes_rate": 1.0,
+      "actor_sign_response_left_bias_at_zero": -0.009625084698200226,
+      "actor_sign_response_max_abs_zero_steer": 0.009625084698200226,
+      "actor_sign_response_min_abs_delta": 0.09777913987636566,
+      "actor_sign_response_monotonic_rate": 1.0,
+      "audit_sample_offset": 2,
+      "axis_summary": {
+        "heading_error": {
+          "expected_direction": 1,
+          "min_abs_delta": 0.13632883876562119,
+          "monotonic_pass": true,
+          "sign_pass": true,
+          "symmetry_error": 0.007428169250488281,
+          "zero_steer": -0.009619854390621185
+        },
+        "lane_offset": {
+          "expected_direction": -1,
+          "min_abs_delta": 0.13490281254053116,
+          "monotonic_pass": true,
+          "sign_pass": true,
+          "symmetry_error": 0.0050246864557266235,
+          "zero_steer": -0.009625084698200226
+        },
+        "route_target_y": {
+          "expected_direction": 1,
+          "min_abs_delta": 0.09777913987636566,
+          "monotonic_pass": true,
+          "sign_pass": true,
+          "symmetry_error": 0.0031717121601104736,
+          "zero_steer": -0.009623169898986816
+        }
+      },
+      "pass_status": "PASS",
+      "source": {
+        "dataset": "C:\\Users\\thddy\\Documents\\code\\RCS-AC-first\\data\\expert\\rgb_perception_actor_features_v2_early_route_mix_4256_round36_provenance.npz",
+        "episode_id": 2,
+        "heading_error": 0.0,
+        "lane_offset": 0.0,
+        "route_progress": 0.025641025975346565,
+        "sample_index": 13,
+        "sample_selector": "early_any",
+        "source": "dataset",
+        "step_in_episode": 6
+      }
+    },
+    {
+      "actor_sign_response_all_axes_rate": 1.0,
+      "actor_sign_response_left_bias_at_zero": 0.023091580718755722,
+      "actor_sign_response_max_abs_zero_steer": 0.023112855851650238,
+      "actor_sign_response_min_abs_delta": 0.0418380219489336,
+      "actor_sign_response_monotonic_rate": 1.0,
+      "audit_sample_offset": 3,
+      "axis_summary": {
+        "heading_error": {
+          "expected_direction": 1,
+          "min_abs_delta": 0.051492322236299515,
+          "monotonic_pass": true,
+          "sign_pass": true,
+          "symmetry_error": 0.0033058971166610718,
+          "zero_steer": 0.023091580718755722
+        },
+        "lane_offset": {
+          "expected_direction": -1,
+          "min_abs_delta": 0.051452286541461945,
+          "monotonic_pass": true,
+          "sign_pass": true,
+          "symmetry_error": 0.003299664705991745,
+          "zero_steer": 0.023112855851650238
+        },
+        "route_target_y": {
+          "expected_direction": 1,
+          "min_abs_delta": 0.0418380219489336,
+          "monotonic_pass": true,
+          "sign_pass": true,
+          "symmetry_error": 0.0011348212137818336,
+          "zero_steer": 0.023108845576643944
+        }
+      },
+      "pass_status": "PASS",
+      "source": {
+        "dataset": "C:\\Users\\thddy\\Documents\\code\\RCS-AC-first\\data\\expert\\rgb_perception_actor_features_v2_early_route_mix_4256_round36_provenance.npz",
+        "episode_id": 2,
+        "heading_error": 0.0,
+        "lane_offset": 0.0,
+        "route_progress": 0.05128205195069313,
+        "sample_index": 20,
+        "sample_selector": "early_any",
+        "source": "dataset",
+        "step_in_episode": 32
+      }
+    },
+    {
+      "actor_sign_response_all_axes_rate": 1.0,
+      "actor_sign_response_left_bias_at_zero": -0.011964837089180946,
+      "actor_sign_response_max_abs_zero_steer": 0.011964837089180946,
+      "actor_sign_response_min_abs_delta": 0.1000154335051775,
+      "actor_sign_response_monotonic_rate": 1.0,
+      "audit_sample_offset": 4,
+      "axis_summary": {
+        "heading_error": {
+          "expected_direction": 1,
+          "min_abs_delta": 0.13876483868807554,
+          "monotonic_pass": true,
+          "sign_pass": true,
+          "symmetry_error": 0.006448705680668354,
+          "zero_steer": -0.011959473602473736
+        },
+        "lane_offset": {
+          "expected_direction": -1,
+          "min_abs_delta": 0.13699723221361637,
+          "monotonic_pass": true,
+          "sign_pass": true,
+          "symmetry_error": 0.004346376284956932,
+          "zero_steer": -0.011964837089180946
+        },
+        "route_target_y": {
+          "expected_direction": 1,
+          "min_abs_delta": 0.1000154335051775,
+          "monotonic_pass": true,
+          "sign_pass": true,
+          "symmetry_error": 0.0021611396223306656,
+          "zero_steer": -0.011963026598095894
+        }
+      },
+      "pass_status": "PASS",
+      "source": {
+        "dataset": "C:\\Users\\thddy\\Documents\\code\\RCS-AC-first\\data\\expert\\rgb_perception_actor_features_v2_early_route_mix_4256_round36_provenance.npz",
+        "episode_id": 1,
+        "heading_error": 0.0,
+        "lane_offset": 0.0,
+        "route_progress": 0.025641025975346565,
+        "sample_index": 22,
+        "sample_selector": "early_any",
+        "source": "dataset",
+        "step_in_episode": 6
+      }
+    },
+    {
+      "actor_sign_response_all_axes_rate": 1.0,
+      "actor_sign_response_left_bias_at_zero": 0.024132616817951202,
+      "actor_sign_response_max_abs_zero_steer": 0.024143775925040245,
+      "actor_sign_response_min_abs_delta": 0.04050619341433048,
+      "actor_sign_response_monotonic_rate": 1.0,
+      "audit_sample_offset": 5,
+      "axis_summary": {
+        "heading_error": {
+          "expected_direction": 1,
+          "min_abs_delta": 0.04821861535310745,
+          "monotonic_pass": true,
+          "sign_pass": true,
+          "symmetry_error": 0.003565879538655281,
+          "zero_steer": 0.024132616817951202
+        },
+        "lane_offset": {
+          "expected_direction": -1,
+          "min_abs_delta": 0.04907882772386074,
+          "monotonic_pass": true,
+          "sign_pass": true,
+          "symmetry_error": 0.003402143716812134,
+          "zero_steer": 0.02414240874350071
+        },
+        "route_target_y": {
+          "expected_direction": 1,
+          "min_abs_delta": 0.04050619341433048,
+          "monotonic_pass": true,
+          "sign_pass": true,
+          "symmetry_error": 0.0016274629160761833,
+          "zero_steer": 0.024143775925040245
+        }
+      },
+      "pass_status": "PASS",
+      "source": {
+        "dataset": "C:\\Users\\thddy\\Documents\\code\\RCS-AC-first\\data\\expert\\rgb_perception_actor_features_v2_early_route_mix_4256_round36_provenance.npz",
+        "episode_id": 1,
+        "heading_error": 0.0,
+        "lane_offset": 0.0,
+        "route_progress": 0.025641025975346565,
+        "sample_index": 25,
+        "sample_selector": "early_any",
+        "source": "dataset",
+        "step_in_episode": 31
+      }
+    },
+    {
+      "actor_sign_response_all_axes_rate": 1.0,
+      "actor_sign_response_left_bias_at_zero": -0.015754880383610725,
+      "actor_sign_response_max_abs_zero_steer": 0.015754880383610725,
+      "actor_sign_response_min_abs_delta": 0.03581896424293518,
+      "actor_sign_response_monotonic_rate": 1.0,
+      "audit_sample_offset": 6,
+      "axis_summary": {
+        "heading_error": {
+          "expected_direction": 1,
+          "min_abs_delta": 0.08600388094782829,
+          "monotonic_pass": true,
+          "sign_pass": true,
+          "symmetry_error": 0.017759565263986588,
+          "zero_steer": -0.01574985310435295
+        },
+        "lane_offset": {
+          "expected_direction": -1,
+          "min_abs_delta": 0.0701990220695734,
+          "monotonic_pass": true,
+          "sign_pass": true,
+          "symmetry_error": 0.018966788426041603,
+          "zero_steer": -0.015754880383610725
+        },
+        "route_target_y": {
+          "expected_direction": 1,
+          "min_abs_delta": 0.03581896424293518,
+          "monotonic_pass": true,
+          "sign_pass": true,
+          "symmetry_error": 0.009950881823897362,
+          "zero_steer": -0.015752334147691727
+        }
+      },
+      "pass_status": "PASS",
+      "source": {
+        "dataset": "C:\\Users\\thddy\\Documents\\code\\RCS-AC-first\\data\\expert\\rgb_perception_actor_features_v2_early_route_mix_4256_round36_provenance.npz",
+        "episode_id": 1,
+        "heading_error": 0.0,
+        "lane_offset": 0.0,
+        "route_progress": 0.07692307978868484,
+        "sample_index": 31,
+        "sample_selector": "early_any",
+        "source": "dataset",
+        "step_in_episode": 40
+      }
+    },
+    {
+      "actor_sign_response_all_axes_rate": 1.0,
+      "actor_sign_response_left_bias_at_zero": 0.00897756777703762,
+      "actor_sign_response_max_abs_zero_steer": 0.00897904671728611,
+      "actor_sign_response_min_abs_delta": 0.04263954050838947,
+      "actor_sign_response_monotonic_rate": 1.0,
+      "audit_sample_offset": 7,
+      "axis_summary": {
+        "heading_error": {
+          "expected_direction": 1,
+          "min_abs_delta": 0.05218649096786976,
+          "monotonic_pass": true,
+          "sign_pass": true,
+          "symmetry_error": 0.004420699551701546,
+          "zero_steer": 0.00897756777703762
+        },
+        "lane_offset": {
+          "expected_direction": -1,
+          "min_abs_delta": 0.05306546948850155,
+          "monotonic_pass": true,
+          "sign_pass": true,
+          "symmetry_error": 0.004576301202178001,
+          "zero_steer": 0.00897904671728611
+        },
+        "route_target_y": {
+          "expected_direction": 1,
+          "min_abs_delta": 0.04263954050838947,
+          "monotonic_pass": true,
+          "sign_pass": true,
+          "symmetry_error": 0.0015435703098773956,
+          "zero_steer": 0.008978446945548058
+        }
+      },
+      "pass_status": "PASS",
+      "source": {
+        "dataset": "C:\\Users\\thddy\\Documents\\code\\RCS-AC-first\\data\\expert\\rgb_perception_actor_features_v2_early_route_mix_4256_round36_provenance.npz",
+        "episode_id": 2,
+        "heading_error": 0.0,
+        "lane_offset": 0.0,
+        "route_progress": 0.025641025975346565,
+        "sample_index": 33,
+        "sample_selector": "early_any",
+        "source": "dataset",
+        "step_in_episode": 16
+      }
+    },
+    {
+      "actor_sign_response_all_axes_rate": 1.0,
+      "actor_sign_response_left_bias_at_zero": 0.021678917109966278,
+      "actor_sign_response_max_abs_zero_steer": 0.021700197830796242,
+      "actor_sign_response_min_abs_delta": 0.042007677257061005,
+      "actor_sign_response_monotonic_rate": 1.0,
+      "audit_sample_offset": 8,
+      "axis_summary": {
+        "heading_error": {
+          "expected_direction": 1,
+          "min_abs_delta": 0.051503777503967285,
+          "monotonic_pass": true,
+          "sign_pass": true,
+          "symmetry_error": 0.003268962725996971,
+          "zero_steer": 0.021678917109966278
+        },
+        "lane_offset": {
+          "expected_direction": -1,
+          "min_abs_delta": 0.05151278339326382,
+          "monotonic_pass": true,
+          "sign_pass": true,
+          "symmetry_error": 0.003275614231824875,
+          "zero_steer": 0.021700197830796242
+        },
+        "route_target_y": {
+          "expected_direction": 1,
+          "min_abs_delta": 0.042007677257061005,
+          "monotonic_pass": true,
+          "sign_pass": true,
+          "symmetry_error": 0.0010415427386760712,
+          "zero_steer": 0.021696195006370544
+        }
+      },
+      "pass_status": "PASS",
+      "source": {
+        "dataset": "C:\\Users\\thddy\\Documents\\code\\RCS-AC-first\\data\\expert\\rgb_perception_actor_features_v2_early_route_mix_4256_round36_provenance.npz",
+        "episode_id": 0,
+        "heading_error": 0.0,
+        "lane_offset": 0.0,
+        "route_progress": 0.05128205195069313,
+        "sample_index": 37,
+        "sample_selector": "early_any",
+        "source": "dataset",
+        "step_in_episode": 32
+      }
+    },
+    {
+      "actor_sign_response_all_axes_rate": 1.0,
+      "actor_sign_response_left_bias_at_zero": 0.014817030169069767,
+      "actor_sign_response_max_abs_zero_steer": 0.014824985526502132,
+      "actor_sign_response_min_abs_delta": 0.044265102595090866,
+      "actor_sign_response_monotonic_rate": 1.0,
+      "audit_sample_offset": 9,
+      "axis_summary": {
+        "heading_error": {
+          "expected_direction": 1,
+          "min_abs_delta": 0.0555378058925271,
+          "monotonic_pass": true,
+          "sign_pass": true,
+          "symmetry_error": 0.003774232231080532,
+          "zero_steer": 0.014824985526502132
+        },
+        "lane_offset": {
+          "expected_direction": -1,
+          "min_abs_delta": 0.05529692675918341,
+          "monotonic_pass": true,
+          "sign_pass": true,
+          "symmetry_error": 0.0035676760599017143,
+          "zero_steer": 0.014817030169069767
+        },
+        "route_target_y": {
+          "expected_direction": 1,
+          "min_abs_delta": 0.044265102595090866,
+          "monotonic_pass": true,
+          "sign_pass": true,
+          "symmetry_error": 0.001140384003520012,
+          "zero_steer": 0.014818359166383743
+        }
+      },
+      "pass_status": "PASS",
+      "source": {
+        "dataset": "C:\\Users\\thddy\\Documents\\code\\RCS-AC-first\\data\\expert\\rgb_perception_actor_features_v2_early_route_mix_4256_round36_provenance.npz",
+        "episode_id": 0,
+        "heading_error": 0.0,
+        "lane_offset": 0.0,
+        "route_progress": 0.025641025975346565,
+        "sample_index": 57,
+        "sample_selector": "early_any",
+        "source": "dataset",
+        "step_in_episode": 22
+      }
+    },
+    {
+      "actor_sign_response_all_axes_rate": 1.0,
+      "actor_sign_response_left_bias_at_zero": 0.01445491798222065,
+      "actor_sign_response_max_abs_zero_steer": 0.01446706522256136,
+      "actor_sign_response_min_abs_delta": 0.03205130062997341,
+      "actor_sign_response_monotonic_rate": 1.0,
+      "audit_sample_offset": 10,
+      "axis_summary": {
+        "heading_error": {
+          "expected_direction": 1,
+          "min_abs_delta": 0.05952397268265486,
+          "monotonic_pass": true,
+          "sign_pass": true,
+          "symmetry_error": 0.004121691919863224,
+          "zero_steer": 0.01446706522256136
+        },
+        "lane_offset": {
+          "expected_direction": -1,
+          "min_abs_delta": 0.05046253465116024,
+          "monotonic_pass": true,
+          "sign_pass": true,
+          "symmetry_error": 0.004369776695966721,
+          "zero_steer": 0.01445530541241169
+        },
+        "route_target_y": {
+          "expected_direction": 1,
+          "min_abs_delta": 0.03205130062997341,
+          "monotonic_pass": true,
+          "sign_pass": true,
+          "symmetry_error": 0.0031605055555701256,
+          "zero_steer": 0.01445491798222065
+        }
+      },
+      "pass_status": "PASS",
+      "source": {
+        "dataset": "C:\\Users\\thddy\\Documents\\code\\RCS-AC-first\\data\\expert\\rgb_perception_actor_features_v2_early_route_mix_4256_round36_provenance.npz",
+        "episode_id": 2,
+        "heading_error": 0.0,
+        "lane_offset": 0.0,
+        "route_progress": 0.05128205195069313,
+        "sample_index": 59,
+        "sample_selector": "early_any",
+        "source": "dataset",
+        "step_in_episode": 39
+      }
+    },
+    {
+      "actor_sign_response_all_axes_rate": 1.0,
+      "actor_sign_response_left_bias_at_zero": 0.033758584409952164,
+      "actor_sign_response_max_abs_zero_steer": 0.033768244087696075,
+      "actor_sign_response_min_abs_delta": 0.03664548695087433,
+      "actor_sign_response_monotonic_rate": 1.0,
+      "audit_sample_offset": 11,
+      "axis_summary": {
+        "heading_error": {
+          "expected_direction": 1,
+          "min_abs_delta": 0.048370759934186935,
+          "monotonic_pass": true,
+          "sign_pass": true,
+          "symmetry_error": 0.006309707649052143,
+          "zero_steer": 0.033758584409952164
+        },
+        "lane_offset": {
+          "expected_direction": -1,
+          "min_abs_delta": 0.04701428487896919,
+          "monotonic_pass": true,
+          "sign_pass": true,
+          "symmetry_error": 0.006879206746816635,
+          "zero_steer": 0.033767979592084885
+        },
+        "route_target_y": {
+          "expected_direction": 1,
+          "min_abs_delta": 0.03664548695087433,
+          "monotonic_pass": true,
+          "sign_pass": true,
+          "symmetry_error": 0.004460816737264395,
+          "zero_steer": 0.033768244087696075
+        }
+      },
+      "pass_status": "BLOCK",
+      "source": {
+        "dataset": "C:\\Users\\thddy\\Documents\\code\\RCS-AC-first\\data\\expert\\rgb_perception_actor_features_v2_early_route_mix_4256_round36_provenance.npz",
+        "episode_id": 1,
+        "heading_error": 0.0,
+        "lane_offset": 0.0,
+        "route_progress": 0.05128205195069313,
+        "sample_index": 61,
+        "sample_selector": "early_any",
+        "source": "dataset",
+        "step_in_episode": 35
+      }
+    },
+    {
+      "actor_sign_response_all_axes_rate": 1.0,
+      "actor_sign_response_left_bias_at_zero": -0.009547151625156403,
+      "actor_sign_response_max_abs_zero_steer": 0.009547151625156403,
+      "actor_sign_response_min_abs_delta": 0.09775422513484955,
+      "actor_sign_response_monotonic_rate": 1.0,
+      "audit_sample_offset": 12,
+      "axis_summary": {
+        "heading_error": {
+          "expected_direction": 1,
+          "min_abs_delta": 0.13630450516939163,
+          "monotonic_pass": true,
+          "sign_pass": true,
+          "symmetry_error": 0.007425442337989807,
+          "zero_steer": -0.009541921317577362
+        },
+        "lane_offset": {
+          "expected_direction": -1,
+          "min_abs_delta": 0.1348624899983406,
+          "monotonic_pass": true,
+          "sign_pass": true,
+          "symmetry_error": 0.005037002265453339,
+          "zero_steer": -0.009547151625156403
+        },
+        "route_target_y": {
+          "expected_direction": 1,
+          "min_abs_delta": 0.09775422513484955,
+          "monotonic_pass": true,
+          "sign_pass": true,
+          "symmetry_error": 0.0031824782490730286,
+          "zero_steer": -0.009545229375362396
+        }
+      },
+      "pass_status": "PASS",
+      "source": {
+        "dataset": "C:\\Users\\thddy\\Documents\\code\\RCS-AC-first\\data\\expert\\rgb_perception_actor_features_v2_early_route_mix_4256_round36_provenance.npz",
+        "episode_id": 2,
+        "heading_error": 0.0,
+        "lane_offset": 0.0,
+        "route_progress": 0.025641025975346565,
+        "sample_index": 67,
+        "sample_selector": "early_any",
+        "source": "dataset",
+        "step_in_episode": 5
+      }
+    },
+    {
+      "actor_sign_response_all_axes_rate": 1.0,
+      "actor_sign_response_left_bias_at_zero": 0.02202397584915161,
+      "actor_sign_response_max_abs_zero_steer": 0.022027092054486275,
+      "actor_sign_response_min_abs_delta": 0.03229640796780586,
+      "actor_sign_response_monotonic_rate": 1.0,
+      "audit_sample_offset": 13,
+      "axis_summary": {
+        "heading_error": {
+          "expected_direction": 1,
+          "min_abs_delta": 0.05018130503594875,
+          "monotonic_pass": true,
+          "sign_pass": true,
+          "symmetry_error": 0.0018644444644451141,
+          "zero_steer": 0.022027092054486275
+        },
+        "lane_offset": {
+          "expected_direction": -1,
+          "min_abs_delta": 0.04574482887983322,
+          "monotonic_pass": true,
+          "sign_pass": true,
+          "symmetry_error": 0.0020257337018847466,
+          "zero_steer": 0.02202397584915161
+        },
+        "route_target_y": {
+          "expected_direction": 1,
+          "min_abs_delta": 0.03229640796780586,
+          "monotonic_pass": true,
+          "sign_pass": true,
+          "symmetry_error": 0.0013993307948112488,
+          "zero_steer": 0.02202475443482399
+        }
+      },
+      "pass_status": "PASS",
+      "source": {
+        "dataset": "C:\\Users\\thddy\\Documents\\code\\RCS-AC-first\\data\\expert\\rgb_perception_actor_features_v2_early_route_mix_4256_round36_provenance.npz",
+        "episode_id": 2,
+        "heading_error": 0.0,
+        "lane_offset": 0.0,
+        "route_progress": 0.05128205195069313,
+        "sample_index": 88,
+        "sample_selector": "early_any",
+        "source": "dataset",
+        "step_in_episode": 36
+      }
+    },
+    {
+      "actor_sign_response_all_axes_rate": 1.0,
+      "actor_sign_response_left_bias_at_zero": 0.011729235760867596,
+      "actor_sign_response_max_abs_zero_steer": 0.011736800894141197,
+      "actor_sign_response_min_abs_delta": 0.044350490905344486,
+      "actor_sign_response_monotonic_rate": 1.0,
+      "audit_sample_offset": 14,
+      "axis_summary": {
+        "heading_error": {
+          "expected_direction": 1,
+          "min_abs_delta": 0.05626070685684681,
+          "monotonic_pass": true,
+          "sign_pass": true,
+          "symmetry_error": 0.0042844489216804504,
+          "zero_steer": 0.011736800894141197
+        },
+        "lane_offset": {
+          "expected_direction": -1,
+          "min_abs_delta": 0.05601161438971758,
+          "monotonic_pass": true,
+          "sign_pass": true,
+          "symmetry_error": 0.004510984756052494,
+          "zero_steer": 0.011729235760867596
+        },
+        "route_target_y": {
+          "expected_direction": 1,
+          "min_abs_delta": 0.044350490905344486,
+          "monotonic_pass": true,
+          "sign_pass": true,
+          "symmetry_error": 0.001371520571410656,
+          "zero_steer": 0.011731221340596676
+        }
+      },
+      "pass_status": "PASS",
+      "source": {
+        "dataset": "C:\\Users\\thddy\\Documents\\code\\RCS-AC-first\\data\\expert\\rgb_perception_actor_features_v2_early_route_mix_4256_round36_provenance.npz",
+        "episode_id": 2,
+        "heading_error": 0.0,
+        "lane_offset": 0.0,
+        "route_progress": 0.025641025975346565,
+        "sample_index": 90,
+        "sample_selector": "early_any",
+        "source": "dataset",
+        "step_in_episode": 19
+      }
+    },
+    {
+      "actor_sign_response_all_axes_rate": 1.0,
+      "actor_sign_response_left_bias_at_zero": 0.00845760852098465,
+      "actor_sign_response_max_abs_zero_steer": 0.00845770537853241,
+      "actor_sign_response_min_abs_delta": 0.04443182796239853,
+      "actor_sign_response_monotonic_rate": 1.0,
+      "audit_sample_offset": 15,
+      "axis_summary": {
+        "heading_error": {
+          "expected_direction": 1,
+          "min_abs_delta": 0.05523734539747238,
+          "monotonic_pass": true,
+          "sign_pass": true,
+          "symmetry_error": 0.010215234011411667,
+          "zero_steer": 0.00845770537853241
+        },
+        "lane_offset": {
+          "expected_direction": -1,
+          "min_abs_delta": 0.05588456988334656,
+          "monotonic_pass": true,
+          "sign_pass": true,
+          "symmetry_error": 0.010933596640825272,
+          "zero_steer": 0.00845760852098465
+        },
+        "route_target_y": {
+          "expected_direction": 1,
+          "min_abs_delta": 0.04443182796239853,
+          "monotonic_pass": true,
+          "sign_pass": true,
+          "symmetry_error": 0.0052685365080833435,
+          "zero_steer": 0.008457668125629425
+        }
+      },
+      "pass_status": "PASS",
+      "source": {
+        "dataset": "C:\\Users\\thddy\\Documents\\code\\RCS-AC-first\\data\\expert\\rgb_perception_actor_features_v2_early_route_mix_4256_round36_provenance.npz",
+        "episode_id": 2,
+        "heading_error": 0.0,
+        "lane_offset": 0.0,
+        "route_progress": 0.025641025975346565,
+        "sample_index": 104,
+        "sample_selector": "early_any",
+        "source": "dataset",
+        "step_in_episode": 11
+      }
+    }
+  ],
+  "sign_convention": "semantic"
+}
