@@ -4,6 +4,7 @@ from rcs_ac_first.models.perception_aux import RGBPerceptionActorFeatureExtracto
 from rcs_ac_first.scripts.train_bc import (
     _compute_collision_cluster_route_offset_losses,
     _compute_corrective_delta_losses,
+    _compute_early_severe_steer_losses,
     _compute_early_route_offset_losses,
     _compute_frame_perception_losses,
     _compute_route_progress_longitudinal_losses,
@@ -469,6 +470,64 @@ def test_collision_cluster_route_offset_loss_is_zero_without_fields() -> None:
 
     assert torch.isclose(losses["collision_cluster_route_offset_agreement_loss"], torch.tensor(0.0))
     assert torch.isclose(losses["collision_cluster_route_offset_agreement_mask_rate"], torch.tensor(0.0))
+
+
+def test_early_severe_steer_loss_uses_target_delta_and_balances_sides() -> None:
+    action_mean = torch.tensor([[0.20, 0.0], [-0.10, 0.0], [0.00, 0.0], [0.05, 0.0]])
+    batch = {
+        "policy_action_steer": torch.zeros((4,), dtype=torch.float32),
+        "target_corrective_delta": torch.tensor([0.30, -0.30, 0.30, -0.30]),
+        "target_corrective_delta_available": torch.ones((4,), dtype=torch.float32),
+    }
+
+    losses = _compute_early_severe_steer_losses(
+        action_mean,
+        batch,
+        route_progress=torch.tensor([0.05, 0.05, 0.05, 0.12]),
+        lane_offset=torch.tensor([-1.2, 1.2, -1.2, 1.2]),
+        heading_error=torch.tensor([12.0, -12.0, 12.0, -12.0]),
+        route_min=0.025,
+        route_max=0.10,
+        abs_lane_offset_min=0.55,
+        abs_heading_error_min=3.0,
+        margin=0.05,
+        side_balanced=True,
+    )
+
+    assert torch.isclose(losses["early_severe_steer_mask_rate"], torch.tensor(0.75))
+    assert torch.isclose(losses["early_severe_steer_left_mask_rate"], torch.tensor(0.5))
+    assert torch.isclose(losses["early_severe_steer_right_mask_rate"], torch.tensor(0.25))
+    assert torch.isclose(losses["early_severe_steer_sign_rate"], torch.tensor(2.0 / 3.0))
+    assert torch.isclose(losses["early_severe_steer_left_sign_rate"], torch.tensor(0.5))
+    assert torch.isclose(losses["early_severe_steer_right_sign_rate"], torch.tensor(1.0))
+    assert torch.isclose(losses["early_severe_steer_delta_l1"], torch.tensor(0.2))
+
+
+def test_early_severe_steer_loss_respects_sequence_valid_mask() -> None:
+    action_mean = torch.tensor([[[0.20, 0.0], [0.20, 0.0]]])
+    batch = {
+        "policy_action_steer": torch.zeros((1, 2), dtype=torch.float32),
+        "target_corrective_delta": torch.tensor([[0.30, 0.30]]),
+        "target_corrective_delta_available": torch.ones((1, 2), dtype=torch.float32),
+    }
+
+    losses = _compute_early_severe_steer_losses(
+        action_mean,
+        batch,
+        route_progress=torch.tensor([[0.05, 0.05]]),
+        lane_offset=torch.tensor([[-1.2, -1.2]]),
+        heading_error=torch.tensor([[12.0, 12.0]]),
+        route_min=0.025,
+        route_max=0.10,
+        abs_lane_offset_min=0.55,
+        abs_heading_error_min=3.0,
+        margin=0.05,
+        valid_mask=torch.tensor([[1.0, 0.0]]),
+    )
+
+    assert torch.isclose(losses["early_severe_steer_mask_rate"], torch.tensor(0.5))
+    assert torch.isclose(losses["early_severe_steer_sign_rate"], torch.tensor(1.0))
+    assert torch.isclose(losses["early_severe_steer_delta_l1"], torch.tensor(0.1))
 
 
 def test_early_route_offset_loss_targets_left_drift_right_correction() -> None:

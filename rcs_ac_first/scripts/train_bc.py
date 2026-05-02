@@ -84,6 +84,18 @@ BC_LOG_FIELDS: tuple[str, ...] = (
     "early_route_offset_agreement_negative_sign_rate",
     "early_route_offset_agreement_positive_mask_rate",
     "early_route_offset_agreement_negative_mask_rate",
+    "early_severe_steer_delta_loss",
+    "early_severe_steer_delta_l1",
+    "early_severe_steer_sign_loss",
+    "early_severe_steer_sign_rate",
+    "early_severe_steer_wrong_sign_rate",
+    "early_severe_steer_mask_rate",
+    "early_severe_steer_left_sign_rate",
+    "early_severe_steer_right_sign_rate",
+    "early_severe_steer_left_mask_rate",
+    "early_severe_steer_right_mask_rate",
+    "early_severe_steer_signed_delta_mean",
+    "early_severe_steer_corrective_delta_mean",
     "route_progress_longitudinal_floor_loss",
     "route_progress_longitudinal_floor_rate",
     "route_progress_longitudinal_mask_rate",
@@ -838,6 +850,158 @@ def _compute_early_route_offset_losses(
     return _rename_route_offset_losses(losses, target_prefix=_EARLY_ROUTE_OFFSET_PREFIX)
 
 
+def _zero_early_severe_steer_losses(reference: torch.Tensor) -> dict[str, torch.Tensor]:
+    zero = reference.sum() * 0.0
+    return {
+        "early_severe_steer_delta_loss": zero,
+        "early_severe_steer_delta_l1": zero,
+        "early_severe_steer_sign_loss": zero,
+        "early_severe_steer_sign_rate": zero,
+        "early_severe_steer_wrong_sign_rate": zero,
+        "early_severe_steer_mask_rate": zero,
+        "early_severe_steer_left_sign_rate": zero,
+        "early_severe_steer_right_sign_rate": zero,
+        "early_severe_steer_left_mask_rate": zero,
+        "early_severe_steer_right_mask_rate": zero,
+        "early_severe_steer_signed_delta_mean": zero,
+        "early_severe_steer_corrective_delta_mean": zero,
+    }
+
+
+def _masked_mean(values: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
+    denom = mask.sum().clamp_min(1.0)
+    return (values * mask).sum() / denom
+
+
+def _side_balanced_mean(values: torch.Tensor, mask: torch.Tensor, lane_tensor: torch.Tensor) -> torch.Tensor:
+    left_mask = mask * (lane_tensor < 0.0).to(values.dtype)
+    right_mask = mask * (lane_tensor > 0.0).to(values.dtype)
+    parts: list[torch.Tensor] = []
+    if float(left_mask.detach().sum().cpu().item()) > 0.0:
+        parts.append(_masked_mean(values, left_mask))
+    if float(right_mask.detach().sum().cpu().item()) > 0.0:
+        parts.append(_masked_mean(values, right_mask))
+    if not parts:
+        return values.sum() * 0.0
+    return torch.stack(parts).mean()
+
+
+def _compute_early_severe_steer_losses(
+    action_mean: torch.Tensor,
+    batch: dict[str, torch.Tensor],
+    *,
+    route_progress: torch.Tensor | None,
+    lane_offset: torch.Tensor | None,
+    heading_error: torch.Tensor | None,
+    route_min: float | None,
+    route_max: float | None,
+    abs_lane_offset_min: float,
+    abs_heading_error_min: float,
+    margin: float,
+    side_balanced: bool = True,
+    valid_mask: torch.Tensor | None = None,
+    sign_epsilon: float = 1.0e-5,
+) -> dict[str, torch.Tensor]:
+    policy_steer = batch.get("policy_action_steer")
+    target_delta = batch.get("target_corrective_delta")
+    available = batch.get("target_corrective_delta_available")
+    if (
+        policy_steer is None
+        or target_delta is None
+        or available is None
+        or route_progress is None
+        or lane_offset is None
+        or heading_error is None
+    ):
+        return _zero_early_severe_steer_losses(action_mean)
+
+    action_steer = action_mean[..., 0]
+    policy_tensor = policy_steer.to(device=action_mean.device, dtype=action_mean.dtype)
+    target_tensor = target_delta.to(device=action_mean.device, dtype=action_mean.dtype)
+    route_tensor = route_progress.to(device=action_mean.device, dtype=action_mean.dtype)
+    lane_tensor = lane_offset.to(device=action_mean.device, dtype=action_mean.dtype)
+    heading_tensor = heading_error.to(device=action_mean.device, dtype=action_mean.dtype)
+    mask = available.to(device=action_mean.device, dtype=action_mean.dtype).clamp(0.0, 1.0)
+    if valid_mask is not None:
+        mask = mask * valid_mask.to(device=action_mean.device, dtype=action_mean.dtype).clamp(0.0, 1.0)
+
+    for name, tensor in (
+        ("policy_action_steer", policy_tensor),
+        ("target_corrective_delta", target_tensor),
+        ("route_progress", route_tensor),
+        ("lane_offset", lane_tensor),
+        ("heading_error", heading_tensor),
+        ("target_corrective_delta_available", mask),
+    ):
+        if tuple(tensor.shape) != tuple(action_steer.shape):
+            if name == "policy_action_steer":
+                policy_tensor = tensor.reshape_as(action_steer)
+            elif name == "target_corrective_delta":
+                target_tensor = tensor.reshape_as(action_steer)
+            elif name == "route_progress":
+                route_tensor = tensor.reshape_as(action_steer)
+            elif name == "lane_offset":
+                lane_tensor = tensor.reshape_as(action_steer)
+            elif name == "heading_error":
+                heading_tensor = tensor.reshape_as(action_steer)
+            else:
+                mask = tensor.reshape_as(action_steer)
+
+    if route_min is not None:
+        mask = mask * (route_tensor >= float(route_min)).to(action_mean.dtype)
+    if route_max is not None:
+        mask = mask * (route_tensor <= float(route_max)).to(action_mean.dtype)
+    lane_active = lane_tensor.abs() >= float(abs_lane_offset_min)
+    heading_active = heading_tensor.abs() >= float(abs_heading_error_min)
+    sign_active = target_tensor.abs() > float(sign_epsilon)
+    correction_aligned = (target_tensor * (-lane_tensor)) > 0.0
+    mask = (
+        mask
+        * (lane_active | heading_active).to(action_mean.dtype)
+        * sign_active.to(action_mean.dtype)
+        * correction_aligned.to(action_mean.dtype)
+    )
+
+    predicted_delta = action_steer - policy_tensor
+    delta_error = predicted_delta - target_tensor
+    delta_values = F.smooth_l1_loss(predicted_delta, target_tensor, reduction="none")
+    l1_values = delta_error.abs()
+    signed_delta = predicted_delta * torch.sign(target_tensor)
+    margin_values = F.relu(signed_delta.new_tensor(float(margin)) - signed_delta)
+    if bool(side_balanced):
+        delta_loss = _side_balanced_mean(delta_values, mask, lane_tensor)
+        l1_loss = _side_balanced_mean(l1_values, mask, lane_tensor)
+        sign_loss = _side_balanced_mean(margin_values, mask, lane_tensor)
+    else:
+        delta_loss = _masked_mean(delta_values, mask)
+        l1_loss = _masked_mean(l1_values, mask)
+        sign_loss = _masked_mean(margin_values, mask)
+
+    sign_rate = _masked_mean((signed_delta > 0.0).to(action_mean.dtype), mask)
+    wrong_sign_rate = _masked_mean((signed_delta <= 0.0).to(action_mean.dtype), mask)
+    left_mask = mask * (lane_tensor < 0.0).to(action_mean.dtype)
+    right_mask = mask * (lane_tensor > 0.0).to(action_mean.dtype)
+    left_rate = _masked_mean((signed_delta > 0.0).to(action_mean.dtype), left_mask)
+    right_rate = _masked_mean((signed_delta > 0.0).to(action_mean.dtype), right_mask)
+    signed_delta_mean = _masked_mean(signed_delta, mask)
+    corrective_delta_mean = _masked_mean(predicted_delta, mask)
+
+    return {
+        "early_severe_steer_delta_loss": delta_loss,
+        "early_severe_steer_delta_l1": l1_loss,
+        "early_severe_steer_sign_loss": sign_loss,
+        "early_severe_steer_sign_rate": sign_rate,
+        "early_severe_steer_wrong_sign_rate": wrong_sign_rate,
+        "early_severe_steer_mask_rate": mask.mean() if mask.numel() else delta_loss.new_zeros(()),
+        "early_severe_steer_left_sign_rate": left_rate,
+        "early_severe_steer_right_sign_rate": right_rate,
+        "early_severe_steer_left_mask_rate": left_mask.mean() if left_mask.numel() else delta_loss.new_zeros(()),
+        "early_severe_steer_right_mask_rate": right_mask.mean() if right_mask.numel() else delta_loss.new_zeros(()),
+        "early_severe_steer_signed_delta_mean": signed_delta_mean,
+        "early_severe_steer_corrective_delta_mean": corrective_delta_mean,
+    }
+
+
 def _zero_route_progress_longitudinal_losses(reference: torch.Tensor) -> dict[str, torch.Tensor]:
     zero = reference.sum() * 0.0
     return {
@@ -1126,6 +1290,42 @@ def _metric_row(
         "early_route_offset_agreement_negative_mask_rate": float(
             losses.get("early_route_offset_agreement_negative_mask_rate", fusion.new_zeros(())).detach().cpu().item()
         ),
+        "early_severe_steer_delta_loss": float(
+            losses.get("early_severe_steer_delta_loss", fusion.new_zeros(())).detach().cpu().item()
+        ),
+        "early_severe_steer_delta_l1": float(
+            losses.get("early_severe_steer_delta_l1", fusion.new_zeros(())).detach().cpu().item()
+        ),
+        "early_severe_steer_sign_loss": float(
+            losses.get("early_severe_steer_sign_loss", fusion.new_zeros(())).detach().cpu().item()
+        ),
+        "early_severe_steer_sign_rate": float(
+            losses.get("early_severe_steer_sign_rate", fusion.new_zeros(())).detach().cpu().item()
+        ),
+        "early_severe_steer_wrong_sign_rate": float(
+            losses.get("early_severe_steer_wrong_sign_rate", fusion.new_zeros(())).detach().cpu().item()
+        ),
+        "early_severe_steer_mask_rate": float(
+            losses.get("early_severe_steer_mask_rate", fusion.new_zeros(())).detach().cpu().item()
+        ),
+        "early_severe_steer_left_sign_rate": float(
+            losses.get("early_severe_steer_left_sign_rate", fusion.new_zeros(())).detach().cpu().item()
+        ),
+        "early_severe_steer_right_sign_rate": float(
+            losses.get("early_severe_steer_right_sign_rate", fusion.new_zeros(())).detach().cpu().item()
+        ),
+        "early_severe_steer_left_mask_rate": float(
+            losses.get("early_severe_steer_left_mask_rate", fusion.new_zeros(())).detach().cpu().item()
+        ),
+        "early_severe_steer_right_mask_rate": float(
+            losses.get("early_severe_steer_right_mask_rate", fusion.new_zeros(())).detach().cpu().item()
+        ),
+        "early_severe_steer_signed_delta_mean": float(
+            losses.get("early_severe_steer_signed_delta_mean", fusion.new_zeros(())).detach().cpu().item()
+        ),
+        "early_severe_steer_corrective_delta_mean": float(
+            losses.get("early_severe_steer_corrective_delta_mean", fusion.new_zeros(())).detach().cpu().item()
+        ),
         "route_progress_longitudinal_floor_loss": float(
             losses.get("route_progress_longitudinal_floor_loss", fusion.new_zeros(())).detach().cpu().item()
         ),
@@ -1206,6 +1406,12 @@ def _evaluate(
     early_route_heading_error_min: float,
     early_route_lane_offset_mode: str,
     early_route_heading_error_mode: str,
+    early_severe_route_min: float | None,
+    early_severe_route_max: float | None,
+    early_severe_abs_lane_offset_min: float,
+    early_severe_abs_heading_error_min: float,
+    early_severe_steer_margin: float,
+    early_severe_side_balanced: bool,
     route_progress_longitudinal_floor_route_min: float | None,
     route_progress_longitudinal_floor_route_max: float | None,
     route_progress_longitudinal_floor_speed_max_mps: float | None,
@@ -1265,6 +1471,18 @@ def _evaluate(
         "early_route_offset_agreement_negative_sign_rate": 0.0,
         "early_route_offset_agreement_positive_mask_rate": 0.0,
         "early_route_offset_agreement_negative_mask_rate": 0.0,
+        "early_severe_steer_delta_loss": 0.0,
+        "early_severe_steer_delta_l1": 0.0,
+        "early_severe_steer_sign_loss": 0.0,
+        "early_severe_steer_sign_rate": 0.0,
+        "early_severe_steer_wrong_sign_rate": 0.0,
+        "early_severe_steer_mask_rate": 0.0,
+        "early_severe_steer_left_sign_rate": 0.0,
+        "early_severe_steer_right_sign_rate": 0.0,
+        "early_severe_steer_left_mask_rate": 0.0,
+        "early_severe_steer_right_mask_rate": 0.0,
+        "early_severe_steer_signed_delta_mean": 0.0,
+        "early_severe_steer_corrective_delta_mean": 0.0,
         "route_progress_longitudinal_floor_loss": 0.0,
         "route_progress_longitudinal_floor_rate": 0.0,
         "route_progress_longitudinal_mask_rate": 0.0,
@@ -1392,6 +1610,22 @@ def _evaluate(
                     )
                 )
                 losses.update(
+                    _compute_early_severe_steer_losses(
+                        action_mean,
+                        batch,
+                        route_progress=batch.get("route_progress"),
+                        lane_offset=batch.get("lane_offset"),
+                        heading_error=batch.get("heading_error"),
+                        route_min=early_severe_route_min,
+                        route_max=early_severe_route_max,
+                        abs_lane_offset_min=early_severe_abs_lane_offset_min,
+                        abs_heading_error_min=early_severe_abs_heading_error_min,
+                        margin=early_severe_steer_margin,
+                        side_balanced=early_severe_side_balanced,
+                        valid_mask=batch.get("valid_mask"),
+                    )
+                )
+                losses.update(
                     _compute_route_progress_longitudinal_losses(
                         action_mean,
                         batch,
@@ -1508,6 +1742,21 @@ def _evaluate(
                         margin=early_route_offset_margin,
                         lane_offset_mode=early_route_lane_offset_mode,
                         heading_error_mode=early_route_heading_error_mode,
+                    )
+                )
+                losses.update(
+                    _compute_early_severe_steer_losses(
+                        action_mean,
+                        batch,
+                        route_progress=batch.get("route_progress"),
+                        lane_offset=batch.get("lane_offset"),
+                        heading_error=batch.get("heading_error"),
+                        route_min=early_severe_route_min,
+                        route_max=early_severe_route_max,
+                        abs_lane_offset_min=early_severe_abs_lane_offset_min,
+                        abs_heading_error_min=early_severe_abs_heading_error_min,
+                        margin=early_severe_steer_margin,
+                        side_balanced=early_severe_side_balanced,
                     )
                 )
                 losses.update(
@@ -1694,6 +1943,14 @@ def main() -> int:
     early_route_offset_margin = float(bc_raw.get("early_route_offset_margin", 0.0))
     early_route_lane_offset_mode = str(bc_raw.get("early_route_lane_offset_mode", "negative"))
     early_route_heading_error_mode = str(bc_raw.get("early_route_heading_error_mode", "positive"))
+    early_severe_steer_delta_loss_weight = float(bc_raw.get("early_severe_steer_delta_loss_weight", 0.0))
+    early_severe_steer_sign_loss_weight = float(bc_raw.get("early_severe_steer_sign_loss_weight", 0.0))
+    early_severe_route_min = bc_raw.get("early_severe_route_min", early_route_min)
+    early_severe_route_max = bc_raw.get("early_severe_route_max", 0.10)
+    early_severe_abs_lane_offset_min = float(bc_raw.get("early_severe_abs_lane_offset_min", 0.55))
+    early_severe_abs_heading_error_min = float(bc_raw.get("early_severe_abs_heading_error_min", 3.0))
+    early_severe_steer_margin = float(bc_raw.get("early_severe_steer_margin", 0.005))
+    early_severe_side_balanced = bool(bc_raw.get("early_severe_side_balanced", True))
     route_progress_longitudinal_floor_loss_weight = float(
         bc_raw.get("route_progress_longitudinal_floor_loss_weight", 0.0)
     )
@@ -1900,6 +2157,22 @@ def main() -> int:
                         )
                     )
                     losses.update(
+                        _compute_early_severe_steer_losses(
+                            action_mean,
+                            batch,
+                            route_progress=batch.get("route_progress"),
+                            lane_offset=batch.get("lane_offset"),
+                            heading_error=batch.get("heading_error"),
+                            route_min=early_severe_route_min,
+                            route_max=early_severe_route_max,
+                            abs_lane_offset_min=early_severe_abs_lane_offset_min,
+                            abs_heading_error_min=early_severe_abs_heading_error_min,
+                            margin=early_severe_steer_margin,
+                            side_balanced=early_severe_side_balanced,
+                            valid_mask=batch.get("valid_mask"),
+                        )
+                    )
+                    losses.update(
                         _compute_route_progress_longitudinal_losses(
                             action_mean,
                             batch,
@@ -2019,6 +2292,21 @@ def main() -> int:
                         )
                     )
                     losses.update(
+                        _compute_early_severe_steer_losses(
+                            action_mean,
+                            batch,
+                            route_progress=batch.get("route_progress"),
+                            lane_offset=batch.get("lane_offset"),
+                            heading_error=batch.get("heading_error"),
+                            route_min=early_severe_route_min,
+                            route_max=early_severe_route_max,
+                            abs_lane_offset_min=early_severe_abs_lane_offset_min,
+                            abs_heading_error_min=early_severe_abs_heading_error_min,
+                            margin=early_severe_steer_margin,
+                            side_balanced=early_severe_side_balanced,
+                        )
+                    )
+                    losses.update(
                         _compute_route_progress_longitudinal_losses(
                             action_mean,
                             batch,
@@ -2073,6 +2361,16 @@ def main() -> int:
                     total_loss
                     + losses.get("early_route_offset_agreement_loss", total_loss.new_zeros(()))
                     * early_route_offset_agreement_loss_weight
+                )
+                total_loss = (
+                    total_loss
+                    + losses.get("early_severe_steer_delta_loss", total_loss.new_zeros(()))
+                    * early_severe_steer_delta_loss_weight
+                )
+                total_loss = (
+                    total_loss
+                    + losses.get("early_severe_steer_sign_loss", total_loss.new_zeros(()))
+                    * early_severe_steer_sign_loss_weight
                 )
                 total_loss = (
                     total_loss
@@ -2136,6 +2434,12 @@ def main() -> int:
                 early_route_heading_error_min=early_route_heading_error_min,
                 early_route_lane_offset_mode=early_route_lane_offset_mode,
                 early_route_heading_error_mode=early_route_heading_error_mode,
+                early_severe_route_min=early_severe_route_min,
+                early_severe_route_max=early_severe_route_max,
+                early_severe_abs_lane_offset_min=early_severe_abs_lane_offset_min,
+                early_severe_abs_heading_error_min=early_severe_abs_heading_error_min,
+                early_severe_steer_margin=early_severe_steer_margin,
+                early_severe_side_balanced=early_severe_side_balanced,
                 route_progress_longitudinal_floor_route_min=route_progress_longitudinal_floor_route_min,
                 route_progress_longitudinal_floor_route_max=route_progress_longitudinal_floor_route_max,
                 route_progress_longitudinal_floor_speed_max_mps=route_progress_longitudinal_floor_speed_max_mps,
