@@ -40,6 +40,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--heading-error-threshold", type=float, default=8.0)
     parser.add_argument("--speed-kmh-min", type=float, default=None)
     parser.add_argument("--speed-kmh-max", type=float, default=None)
+    parser.add_argument("--lane-offset-sign", choices=["any", "left", "right"], default="any")
+    parser.add_argument("--require-corrective-sign-aligned", action="store_true")
     parser.add_argument("--accept-branch-only", action="store_true")
     parser.add_argument("--accept-lateral-branch-only", action="store_true")
     parser.add_argument("--require-turn-boost", action="store_true")
@@ -84,7 +86,12 @@ def _should_accept(info: dict[str, Any], args: argparse.Namespace) -> bool:
         return False
     if args.speed_kmh_max is not None and speed_kmh > float(args.speed_kmh_max):
         return False
-    lane_offset = abs(float(info.get("lane_offset", 0.0)))
+    signed_lane_offset = float(info.get("lane_offset", 0.0))
+    if str(args.lane_offset_sign) == "left" and signed_lane_offset >= 0.0:
+        return False
+    if str(args.lane_offset_sign) == "right" and signed_lane_offset <= 0.0:
+        return False
+    lane_offset = abs(signed_lane_offset)
     heading_error = abs(float(info.get("heading_error", 0.0)))
     recovery_active = bool(info.get("lateral_recovery_active", False))
     turn_boost_active = bool(info.get("lateral_recovery_turn_boost_active", False))
@@ -94,6 +101,18 @@ def _should_accept(info: dict[str, Any], args: argparse.Namespace) -> bool:
         or lane_offset >= float(args.lane_offset_threshold)
         or heading_error >= float(args.heading_error_threshold)
     )
+
+
+def _corrective_sign_aligned(info: dict[str, Any], raw_action: np.ndarray, corrected_steer: float) -> bool:
+    lane_offset = float(info.get("lane_offset", 0.0))
+    if abs(lane_offset) <= 1e-6:
+        return False
+    policy_action = dict(info.get("policy_action", {}))
+    policy_steer = float(policy_action.get("steer", raw_action[0]))
+    target_delta = float(corrected_steer) - policy_steer
+    if abs(target_delta) <= 1e-6:
+        return False
+    return bool(target_delta * (-lane_offset) > 0.0)
 
 
 def _append(arrays: dict[str, list[Any]], key: str, value: Any) -> None:
@@ -156,6 +175,12 @@ def main() -> int:
         "target_corrected_steer": [],
         "target_corrective_delta": [],
         "target_corrective_delta_available": [],
+        "source_dataset": [],
+        "source_dataset_index": [],
+        "source_label": [],
+        "source_episode_id": [],
+        "source_step_in_episode": [],
+        "source_row_index": [],
         "aux_road_mask_target": [],
         "aux_lane_edge_target": [],
         "aux_mask_targets_available": [],
@@ -194,95 +219,109 @@ def main() -> int:
             if _should_accept(info, args):
                 policy_action = dict(info.get("policy_action", {}))
                 corrected_steer = float(info.get("lateral_recovery_corrected_steer", policy_action.get("steer", action[0])))
-                target_action = np.asarray(
-                    [
-                        np.clip(corrected_steer, -1.0, 1.0),
-                        np.clip(float(policy_action.get("longitudinal", action[1])), -1.0, 1.0),
-                    ],
-                    dtype=np.float32,
-                )
-                control = dict(info.get("control", {}))
-                expert_control = np.asarray(
-                    [
-                        float(control.get("steer", info.get("steer", 0.0))),
-                        float(control.get("throttle", info.get("throttle", 0.0))),
-                        float(control.get("brake", info.get("brake", 0.0))),
-                    ],
-                    dtype=np.float32,
-                )
-                arrays["obs_flat"].append(observation.astype(np.float32, copy=False))
-                arrays["auxiliary"].append(auxiliary.astype(np.float32, copy=False))
-                arrays["expert_action"].append(target_action)
-                arrays["expert_control"].append(expert_control)
-                arrays["reward"].append(float(step_result.get("reward", 0.0)))
-                arrays["done"].append(bool(step_result.get("done", False)))
-                arrays["route_progress"].append(float(info.get("route_progress", 0.0)))
-                arrays["episode_id"].append(int(episode_id))
-                arrays["step_in_episode"].append(int(info.get("step", attempted)))
-                arrays["bad_transition_mask"].append(False)
-                mask_available = bool(info.get("aux_mask_targets_available", False))
-                road_mask = np.asarray(
-                    info.get("aux_road_mask_target", np.zeros((1, config.model.aux_mask_height, config.model.aux_mask_width))),
-                    dtype=np.float32,
-                )
-                lane_mask = np.asarray(
-                    info.get(
-                        "aux_lane_edge_target",
-                        np.zeros((1, config.model.aux_mask_height, config.model.aux_mask_width)),
-                    ),
-                    dtype=np.float32,
-                )
-                if road_mask.shape != (1, int(config.model.aux_mask_height), int(config.model.aux_mask_width)):
-                    road_mask = np.zeros((1, int(config.model.aux_mask_height), int(config.model.aux_mask_width)), dtype=np.float32)
-                    mask_available = False
-                if lane_mask.shape != (1, int(config.model.aux_mask_height), int(config.model.aux_mask_width)):
-                    lane_mask = np.zeros((1, int(config.model.aux_mask_height), int(config.model.aux_mask_width)), dtype=np.float32)
-                    mask_available = False
-                arrays["aux_road_mask_target"].append(road_mask.astype(np.float32, copy=False))
-                arrays["aux_lane_edge_target"].append(lane_mask.astype(np.float32, copy=False))
-                arrays["aux_mask_targets_available"].append(float(mask_available))
-                for key in (
-                    "done_reason",
-                    "lane_offset",
-                    "heading_error",
-                    "speed_kmh",
-                    "curve_proxy",
-                    "junction_branch_choice_active",
-                    "lateral_recovery_branch_active",
-                    "lateral_recovery_active",
-                    "lateral_recovery_correction",
-                    "lateral_recovery_turn_boost_active",
-                    "lateral_recovery_speed_gate_active",
-                    "lateral_recovery_raw_steer",
-                    "policy_action_steer",
-                    "policy_action_longitudinal",
-                    "target_corrected_steer",
-                    "target_corrective_delta",
-                    "target_corrective_delta_available",
-                ):
-                    if key == "done_reason":
-                        _append(arrays, key, str(info.get("done_reason", "running")))
-                    elif key == "policy_action_steer":
-                        _append(arrays, key, float(policy_action.get("steer", action[0])))
-                    elif key == "policy_action_longitudinal":
-                        _append(arrays, key, float(policy_action.get("longitudinal", action[1])))
-                    elif key == "target_corrected_steer":
-                        _append(arrays, key, float(target_action[0]))
-                    elif key == "target_corrective_delta":
-                        _append(arrays, key, float(target_action[0]) - float(policy_action.get("steer", action[0])))
-                    elif key == "target_corrective_delta_available":
-                        _append(arrays, key, 1.0)
-                    elif key in {
+                if not bool(args.require_corrective_sign_aligned) or _corrective_sign_aligned(info, action, corrected_steer):
+                    target_action = np.asarray(
+                        [
+                            np.clip(corrected_steer, -1.0, 1.0),
+                            np.clip(float(policy_action.get("longitudinal", action[1])), -1.0, 1.0),
+                        ],
+                        dtype=np.float32,
+                    )
+                    control = dict(info.get("control", {}))
+                    expert_control = np.asarray(
+                        [
+                            float(control.get("steer", info.get("steer", 0.0))),
+                            float(control.get("throttle", info.get("throttle", 0.0))),
+                            float(control.get("brake", info.get("brake", 0.0))),
+                        ],
+                        dtype=np.float32,
+                    )
+                    arrays["obs_flat"].append(observation.astype(np.float32, copy=False))
+                    arrays["auxiliary"].append(auxiliary.astype(np.float32, copy=False))
+                    arrays["expert_action"].append(target_action)
+                    arrays["expert_control"].append(expert_control)
+                    arrays["reward"].append(float(step_result.get("reward", 0.0)))
+                    arrays["done"].append(bool(step_result.get("done", False)))
+                    arrays["route_progress"].append(float(info.get("route_progress", 0.0)))
+                    arrays["episode_id"].append(int(episode_id))
+                    arrays["step_in_episode"].append(int(info.get("step", attempted)))
+                    arrays["bad_transition_mask"].append(False)
+                    mask_available = bool(info.get("aux_mask_targets_available", False))
+                    road_mask = np.asarray(
+                        info.get(
+                            "aux_road_mask_target",
+                            np.zeros((1, config.model.aux_mask_height, config.model.aux_mask_width)),
+                        ),
+                        dtype=np.float32,
+                    )
+                    lane_mask = np.asarray(
+                        info.get(
+                            "aux_lane_edge_target",
+                            np.zeros((1, config.model.aux_mask_height, config.model.aux_mask_width)),
+                        ),
+                        dtype=np.float32,
+                    )
+                    if road_mask.shape != (1, int(config.model.aux_mask_height), int(config.model.aux_mask_width)):
+                        road_mask = np.zeros(
+                            (1, int(config.model.aux_mask_height), int(config.model.aux_mask_width)), dtype=np.float32
+                        )
+                        mask_available = False
+                    if lane_mask.shape != (1, int(config.model.aux_mask_height), int(config.model.aux_mask_width)):
+                        lane_mask = np.zeros(
+                            (1, int(config.model.aux_mask_height), int(config.model.aux_mask_width)), dtype=np.float32
+                        )
+                        mask_available = False
+                    arrays["aux_road_mask_target"].append(road_mask.astype(np.float32, copy=False))
+                    arrays["aux_lane_edge_target"].append(lane_mask.astype(np.float32, copy=False))
+                    arrays["aux_mask_targets_available"].append(float(mask_available))
+                    for key in (
+                        "done_reason",
+                        "lane_offset",
+                        "heading_error",
+                        "speed_kmh",
+                        "curve_proxy",
                         "junction_branch_choice_active",
                         "lateral_recovery_branch_active",
                         "lateral_recovery_active",
+                        "lateral_recovery_correction",
                         "lateral_recovery_turn_boost_active",
                         "lateral_recovery_speed_gate_active",
-                    }:
-                        _append(arrays, key, bool(info.get(key, False)))
-                    else:
-                        _append(arrays, key, float(info.get(key, 0.0)))
-                accepted += 1
+                        "lateral_recovery_raw_steer",
+                        "policy_action_steer",
+                        "policy_action_longitudinal",
+                        "target_corrected_steer",
+                        "target_corrective_delta",
+                        "target_corrective_delta_available",
+                    ):
+                        if key == "done_reason":
+                            _append(arrays, key, str(info.get("done_reason", "running")))
+                        elif key == "policy_action_steer":
+                            _append(arrays, key, float(policy_action.get("steer", action[0])))
+                        elif key == "policy_action_longitudinal":
+                            _append(arrays, key, float(policy_action.get("longitudinal", action[1])))
+                        elif key == "target_corrected_steer":
+                            _append(arrays, key, float(target_action[0]))
+                        elif key == "target_corrective_delta":
+                            _append(arrays, key, float(target_action[0]) - float(policy_action.get("steer", action[0])))
+                        elif key == "target_corrective_delta_available":
+                            _append(arrays, key, 1.0)
+                        elif key in {
+                            "junction_branch_choice_active",
+                            "lateral_recovery_branch_active",
+                            "lateral_recovery_active",
+                            "lateral_recovery_turn_boost_active",
+                            "lateral_recovery_speed_gate_active",
+                        }:
+                            _append(arrays, key, bool(info.get(key, False)))
+                        else:
+                            _append(arrays, key, float(info.get(key, 0.0)))
+                    arrays["source_dataset"].append(str(output_path))
+                    arrays["source_dataset_index"].append(0)
+                    arrays["source_label"].append(str(args.run_name))
+                    arrays["source_episode_id"].append(int(episode_id))
+                    arrays["source_step_in_episode"].append(int(info.get("step", attempted)))
+                    arrays["source_row_index"].append(int(accepted))
+                    accepted += 1
 
             if bool(step_result.get("done", False)):
                 reset_result = env.reset()
@@ -331,6 +370,12 @@ def main() -> int:
         "target_corrected_steer": np.asarray(arrays["target_corrected_steer"], dtype=np.float32),
         "target_corrective_delta": np.asarray(arrays["target_corrective_delta"], dtype=np.float32),
         "target_corrective_delta_available": np.asarray(arrays["target_corrective_delta_available"], dtype=np.float32),
+        "source_dataset": np.asarray(arrays["source_dataset"], dtype="<U512"),
+        "source_dataset_index": np.asarray(arrays["source_dataset_index"], dtype=np.int32),
+        "source_label": np.asarray(arrays["source_label"], dtype="<U128"),
+        "source_episode_id": np.asarray(arrays["source_episode_id"], dtype=np.int32),
+        "source_step_in_episode": np.asarray(arrays["source_step_in_episode"], dtype=np.int32),
+        "source_row_index": np.asarray(arrays["source_row_index"], dtype=np.int32),
         "aux_road_mask_target": np.stack(arrays["aux_road_mask_target"]).astype(np.float32, copy=False),
         "aux_lane_edge_target": np.stack(arrays["aux_lane_edge_target"]).astype(np.float32, copy=False),
         "aux_mask_targets_available": np.asarray(arrays["aux_mask_targets_available"], dtype=np.float32),
@@ -346,6 +391,8 @@ def main() -> int:
         "heading_error_threshold": float(args.heading_error_threshold),
         "speed_kmh_min_filter": None if args.speed_kmh_min is None else float(args.speed_kmh_min),
         "speed_kmh_max_filter": None if args.speed_kmh_max is None else float(args.speed_kmh_max),
+        "lane_offset_sign_filter": str(args.lane_offset_sign),
+        "require_corrective_sign_aligned": bool(args.require_corrective_sign_aligned),
         "accept_branch_only": bool(args.accept_branch_only),
         "accept_lateral_branch_only": bool(args.accept_lateral_branch_only),
         "require_turn_boost": bool(args.require_turn_boost),
