@@ -222,6 +222,46 @@ loss:
 
 If the current model requires auxiliary heads to exist structurally, set their loss weights to zero and document that they are inactive.
 
+## PPO Matched RGB-Perception And Estimated-Scalar Variant
+
+Because the current RCS-AC clean baseline line now has RGB perception actor features and an estimated scalar actor feature path, PPO should also have a matched-input variant. This is separate from `PPO-strict`.
+
+Matched RGB-perception and estimated-scalar PPO configs:
+
+- `configs/baselines/ppo_clean_same_env_sensor_action_seed7_matched_estimated_scalar.yaml`
+- `configs/baselines/ppo_clean_same_env_sensor_action_seed9_matched_estimated_scalar_rollout512_mb256.yaml`
+
+This variant may use:
+
+```yaml
+model:
+  enable_rgb_perception_aux: true
+  use_scalar_actor_features: true
+  scalar_actor_feature_source: estimated
+  estimated_scalar_hidden_dim: 384
+  estimated_scalar_loss_weight: 1.0
+  use_rgb_perception_actor_features: true
+  enable_reliability: false
+  enable_risk_context: false
+  enable_shapley: false
+  enable_dropout_consistency: false
+
+loss:
+  aux_road_mask_loss_weight: 0.25
+  aux_lane_edge_mask_loss_weight: 1.0
+```
+
+Interpretation:
+
+- The PPO actor receives `estimated_lane_offset`, `estimated_heading_error`, and `route_target_y`.
+- The PPO actor also receives the same compact RGB perception actor features derived from predicted road/lane masks.
+- `estimated_lane_offset` and `estimated_heading_error` are inferred from RGB perception and route features.
+- CARLA `lane_offset` and `heading_error` may supervise the estimator during training, but they must not be used as actor inference inputs.
+- Reliability, risk context, Shapley, contribution alignment, and dropout consistency remain disabled.
+- This is the preferred PPO baseline for isolating RCS-AC module benefits from representation/input advantages.
+
+Do not call this a strict PPO baseline. Report it as `PPO-matched-rgb-perception-estimated-scalar`.
+
 ## Reward Contract
 
 PPO training must use the same reward contract as the RCS-AC RL training environment. Do not add PPO-only reward shaping to hide an unstable policy.

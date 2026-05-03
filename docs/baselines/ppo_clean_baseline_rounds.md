@@ -2660,3 +2660,85 @@ Current blocker after Attempt 42:
 - The accepted clean PPO baseline is still absent.
 - The strongest candidate remains original seed9 `update_0011.pt`, blocked only by one offroad event in 512 eval.
 - This round stops here per user request; no new PPO baseline round is started.
+
+## PPO Baseline Attempt 43: Seed9 Matched RGB-Perception Estimated-Scalar
+
+Configs:
+
+- `configs/baselines/ppo_clean_same_env_sensor_action_seed9_matched_estimated_scalar_rollout512_mb256.yaml`
+- `configs/baselines/ppo_clean_same_env_sensor_action_seed9_matched_estimated_scalar_continue_lr1e5_entropy0.yaml`
+
+Run names:
+
+- `ppo_matched_rgb_scalar_seed9_smoke2048`
+- `ppo_matched_rgb_scalar_seed9_8192`
+- `ppo_matched_rgb_scalar_seed9_update0014_continue_lr1e5_entropy0_4096`
+
+Status: **failed 512 clean gate**
+
+Purpose:
+
+- Move from `PPO-strict` to a representation-matched PPO baseline after RCS-AC adopted estimated scalar actor features.
+- Give PPO the same actor-facing RGB perception compact features and estimated scalar actor features used by the current RCS-AC comparison line.
+- Keep RCS-AC-specific reliability, risk context, Shapley, contribution bias, dropout consistency, lateral recovery assist, lane-offset runtime steering override, reward, action wrapper, and environment simplification disabled.
+
+Matched actor-facing inputs:
+
+- policy observation keys: `rgb`, `lidar`, `ego`, `route`
+- compact RGB perception actor features from predicted road/lane masks
+- `estimated_lane_offset`
+- `estimated_heading_error`
+- `route_target_y`
+
+Disabled RCS-AC-specific modules:
+
+- `enable_reliability: false`
+- `enable_risk_context: false`
+- `enable_shapley: false`
+- `enable_dropout_consistency: false`
+- `fusion.contribution_bias_scale: 0.0`
+- `fusion.use_risk_context: false`
+
+Allowed tuning:
+
+- Switched to matched RGB-perception + estimated-scalar actor representation.
+- Ran seed9 2048 smoke.
+- Increased same matched seed9 family to `8192` timesteps.
+- Continued the best 8192 checkpoint `update_0014.pt` for `4096` timesteps with `learning_rate: 0.00001` and `entropy_loss_weight: 0.0`.
+
+Pulled logs:
+
+- `remote_runs/ppo_matched_rgb_scalar_seed9_round_matched_20260503/ppo_matched_rgb_scalar_seed9_smoke2048_20260503T162018/training_log.csv`
+- `remote_runs/ppo_matched_rgb_scalar_seed9_round_matched_20260503/ppo_matched_rgb_scalar_seed9_8192_20260503T162757/training_log.csv`
+- `remote_runs/ppo_matched_rgb_scalar_seed9_round_matched_20260503/ppo_matched_rgb_scalar_seed9_update0014_continue_lr1e5_entropy0_4096_20260503T165222/training_log.csv`
+- `remote_runs/ppo_matched_rgb_scalar_seed9_round_matched_20260503/ppo_matched_rgb_scalar_seed9_smoke2048_eval_512_20260503T162528/`
+- `remote_runs/ppo_matched_rgb_scalar_seed9_round_matched_20260503/ppo_matched_rgb_scalar_seed9_8192_eval_512_last_20260503T164435/`
+- `remote_runs/ppo_matched_rgb_scalar_seed9_round_matched_20260503/ppo_matched_rgb_scalar_seed9_8192_eval_512_update0014_20260503T164658/`
+- `remote_runs/ppo_matched_rgb_scalar_seed9_round_matched_20260503/ppo_matched_rgb_scalar_seed9_8192_eval_512_update0015_20260503T164930/`
+- `remote_runs/ppo_matched_rgb_scalar_seed9_round_matched_20260503/ppo_matched_rgb_scalar_seed9_update0014_continue_lr1e5_entropy0_eval_512_last_20260503T170120/`
+
+512 clean eval results:
+
+| Checkpoint | Collision | Offroad | Early offroad | Severe early offroad | Stuck | Max route progress | Mean action jitter L1 | PPO gate |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |
+| 2048 `last.pt` | `0` | `2` | `0` | `0` | `0` | `0.307692` | `0.000851` | `BLOCK` |
+| 8192 `last.pt` | `1` | `0` | `0` | `0` | `0` | `0.564103` | `0.000712` | `BLOCK` |
+| 8192 `update_0014.pt` | `0` | `1` | `0` | `0` | `0` | `0.538462` | `0.000814` | `BLOCK` |
+| 8192 `update_0015.pt` | `1` | `0` | `0` | `0` | `0` | `0.564103` | `0.000824` | `BLOCK` |
+| update0014 continue `last.pt` | `1` | `0` | `0` | `0` | `0` | `0.564103` | `0.000865` | `BLOCK` |
+
+Failure diagnosis:
+
+- The matched representation helped route progress compared with several strict PPO failures: the best deterministic evals reached max route `0.538462` to `0.564103`.
+- The hard 512 safety gate is still not satisfied. The best checkpoints remain one event short, alternating between late offroad and late collision.
+- `update_0014.pt` is the best matched PPO candidate from this attempt: collision `0`, offroad `1`, severe early offroad `0`, stuck `0`, max route `0.538462`.
+- The 8192 last and continuation checkpoints remove offroad but produce one late collision near route progress `0.564103`, lane offset around `1.47` to `2.06`, and heading error around `-11.8`.
+- Near-failure windows still report route-offset corrective sign rate `0.0` and visual-center correction rate `0.0`, so the actor is not yet converting the matched representation into an adequate late lateral correction.
+- The continuation with lower LR and entropy `0.0` did not improve the gate; it repeated the late-collision pattern.
+
+Current blocker after Attempt 43:
+
+- Accepted clean PPO baseline is still absent.
+- Best strict PPO candidate remains original seed9 `update_0011.pt` with collision `0`, offroad `1`, max route `0.538462`.
+- Best matched PPO candidate is now 8192 `update_0014.pt` with collision `0`, offroad `1`, max route `0.538462`; matched input improved representation fairness but did not yet solve the zero-event 512 gate.
+- Next productive direction is a matched-input seed repeat or a matched-input pretraining/initialization policy that is documented separately from strict PPO, because PPO-only continuation from the near-pass checkpoint did not fix late correction.

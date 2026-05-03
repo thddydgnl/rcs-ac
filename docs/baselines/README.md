@@ -12,9 +12,12 @@ Round90 is fixed as the current RCS-AC clean baseline for weather, corruption, a
 ## Preparation Guides
 
 - PPO clean baseline preparation: `docs/baselines/ppo_baseline_preparation_plan.md`
+- Estimated scalar actor features plan: `docs/baselines/estimated_scalar_actor_features_plan.md`
 
 ## PPO Baseline Candidates
 
 - PPO same-env/sensor/action seed7 config: `configs/baselines/ppo_clean_same_env_sensor_action_seed7.yaml`
+- PPO matched estimated-scalar seed7 config: `configs/baselines/ppo_clean_same_env_sensor_action_seed7_matched_estimated_scalar.yaml`
+- PPO matched estimated-scalar seed9 config: `configs/baselines/ppo_clean_same_env_sensor_action_seed9_matched_estimated_scalar_rollout512_mb256.yaml`
 - Implementation record: `docs/baselines/ppo_clean_same_env_sensor_action_seed7_implementation.md`
 - PPO clean baseline rounds: `docs/baselines/ppo_clean_baseline_rounds.md`

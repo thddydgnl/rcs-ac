@@ -13,6 +13,7 @@ from rcs_ac_first.rl.losses import (
     compute_dense_perception_aux_loss,
     compute_entropy_loss,
     compute_dropout_consistency_loss,
+    compute_estimated_scalar_aux_loss,
     compute_ppo_actor_loss,
     compute_reliability_supervision_loss,
     compute_risk_aware_regularization,
@@ -204,6 +205,14 @@ class PPOAgent:
                     lane_edge_weight=self.config.loss.aux_lane_edge_mask_loss_weight,
                     lane_edge_pos_weight=self.config.loss.aux_lane_edge_pos_weight,
                 )
+                estimated_scalar_loss, estimated_scalar_metrics = compute_estimated_scalar_aux_loss(
+                    outputs.get("estimated_lane_offset"),  # type: ignore[arg-type]
+                    batch.aux_lane_offset_targets[mb_idx],
+                    outputs.get("estimated_heading_error"),  # type: ignore[arg-type]
+                    batch.aux_heading_error_targets[mb_idx],
+                    lane_offset_weight=float(self.config.model.estimated_scalar_loss_weight),
+                    heading_error_weight=float(self.config.model.estimated_scalar_loss_weight),
+                )
                 entropy_loss = compute_entropy_loss(entropy)
                 reliability_loss = compute_reliability_supervision_loss(
                     outputs["reliability"],  # type: ignore[arg-type]
@@ -230,6 +239,7 @@ class PPOAgent:
                     + self.config.loss.entropy_loss_weight * entropy_loss
                     + aux_loss
                     + dense_aux_loss
+                    + estimated_scalar_loss
                     + self.config.loss.reliability_loss_weight * reliability_loss
                     + self.config.loss.risk_supervision_loss_weight * risk_supervision_loss
                     + self.config.loss.risk_regularization_weight * risk_regularization
@@ -251,6 +261,7 @@ class PPOAgent:
                         "grad_norm": float(torch.as_tensor(grad_norm).detach().cpu().item()),
                         **aux_metrics,
                         **dense_aux_metrics,
+                        **estimated_scalar_metrics,
                         "reliability_loss": float(reliability_loss.detach().cpu().item()),
                         "risk_supervision_loss": float(risk_supervision_loss.detach().cpu().item()),
                         "risk_regularization": float(risk_regularization.detach().cpu().item()),
