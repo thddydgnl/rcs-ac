@@ -3529,3 +3529,60 @@ Decision:
 - Next round should not simply increase BC branch margins. Prefer either:
   - a narrower pre-offroad longitudinal target that lowers target speed earlier while freezing the already improved steer row, or
   - PPO reward/advantage diagnostics to confirm whether lane/heading/turn-speed penalties are actually large enough before terminal offroad.
+
+## PPO Baseline Attempt 59: Longitudinal-Only Reward V2
+
+Date: 2026-05-04
+
+Status: **512 clean safety retained; 2048 still blocked**
+
+Purpose:
+
+- Test the Attempt 58 diagnosis without damaging steering authority.
+- Start again from Attempt 57 Branch Authority V2 rather than the Attempt 58 PPO checkpoint.
+- Train only the longitudinal output row so the previously best steering row is frozen.
+
+Config added:
+
+- `configs/baselines/ppo_matched_bc_pretrain_estimated_scalar_seed9_turn_phase_longitudinal_reward_v2.yaml`
+
+What changed:
+
+- Started from Attempt 57 `last.pt`.
+- BC trainable scope was only `recurrent_actor_critic.actor_head.2`, with `actor_head_output_trainable_indices: [1]`.
+- The log confirmed only `514` trainable parameters and `frozen_indices=[0]`.
+- Kept shared reward-shaping block for later PPO, but this attempt only accepted the BC/eval result.
+- Enabled early severe longitudinal ceiling loss with ceiling `-0.45`; kept the broader turn-phase longitudinal ceiling loose to avoid global over-slowing.
+
+Infrastructure fix during this attempt:
+
+- Repeated CARLA `load_world(Town04)`/streaming timeouts were traced to the readiness guard only checking process, port, and `get_world()` on the default map.
+- `scripts/windows/ensure_carla_ready.ps1` now target-loads `Town04` during the Python probe, uses a longer probe timeout, requires a longer settle window, and restarts CARLA internally after repeated health failures.
+- After this change, the previously failing 2048 eval completed without `load_world` timeout.
+
+Artifacts:
+
+- `remote_runs/ppo_matched_turn_phase_longitudinal_reward_v2_20260504/`
+- BC checkpoint on Windows: `checkpoints/ppo_matched_turn_phase_longitudinal_reward_v2_bc_20260504T0251/last.pt`
+
+Results:
+
+| Candidate | Steps | Collision | Offroad | Early offroad | Severe early offroad | Stuck | Max route progress | Final route progress | Mean action jitter L1 | Status |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |
+| Longitudinal-only V2 BC `last.pt` | 512 | 0 | 0 | 0 | 0 | 0 | 0.538462 | 0.538462 | 0.088668 | 512 PASS, gate BLOCK |
+| Longitudinal-only V2 BC `last.pt` | 2048 | 0 | 1 | 0 | 0 | 0 | 0.538462 | 0.205128 | 0.090204 | 2048 BLOCK |
+
+2048 failure-window notes:
+
+- The same left-branch bottleneck remains at route `0.333333`, `maneuver_command=left`.
+- Terminal row: lane offset `-2.544445`, heading error `29.453812`, steer `0.538765`, target speed `10.7385 km/h`, speed `9.0123 km/h`, brake `0.569225`.
+- Compared with Attempt 58, steering was better preserved near the terminal row (`0.5388` vs `0.5120`), but lane/heading error regressed (`-2.5444`/`29.45` vs `-2.3653`/`20.89`).
+- Target-speed remained too high at roughly `10.7-11.3 km/h` in the failure window even though actual brake was applied.
+
+Decision:
+
+- Attempt 59 is not accepted because 2048 still has offroad `1`.
+- Freezing steer avoided the worst steering-authority loss but did not lower target speed early or strongly enough.
+- The next useful step is not a broader global turn-speed loss. It should either:
+  - make the severe-left longitudinal target stronger and earlier while monitoring terminal steer, or
+  - inspect the label/action mapping to confirm what longitudinal value is required to reach `6-8 km/h` target speed before offroad candidate onset.

@@ -3,7 +3,10 @@ param(
     [string]$ProjectRoot = "C:\Users\thddy\Documents\code\RCS-AC-first",
     [string]$StartScript = "C:\Users\thddy\Documents\code\RCS-AC-first\scripts\windows\start_carla_interactive.ps1",
     [int]$TimeoutSeconds = 180,
-    [int]$StableSeconds = 8,
+    [int]$StableSeconds = 15,
+    [int]$ProbeTimeoutSeconds = 120,
+    [int]$HealthFailureRestartThreshold = 2,
+    [string]$TargetTown = "Town04",
     [switch]$ForceRestart,
     [switch]$SkipPythonProbe
 )
@@ -20,13 +23,35 @@ function Get-CarlaProcesses {
 }
 
 function Test-CarlaPythonProbe {
-    param([int]$Port)
+    param(
+        [int]$Port,
+        [string]$Town
+    )
 
     if ($SkipPythonProbe) {
         return $true
     }
 
-    $probeCode = "import carla; client = carla.Client('127.0.0.1', $Port); client.set_timeout(10.0); print(client.get_server_version()); print(client.get_world().get_map().name)"
+    $escapedTown = $Town.Replace("'", "\'")
+    $probeCode = @"
+import carla
+client = carla.Client('127.0.0.1', $Port)
+client.set_timeout(float($ProbeTimeoutSeconds))
+print(client.get_server_version())
+world = client.get_world()
+current_map = world.get_map().name
+print(current_map)
+target_town = '$escapedTown'
+if target_town:
+    normalized = current_map.rsplit('/', 1)[-1]
+    if normalized != target_town:
+        print('PYTHON_PROBE_LOAD_TARGET=' + target_town)
+        world = client.load_world(target_town)
+        world.wait_for_tick()
+        print(world.get_map().name)
+    else:
+        print('PYTHON_PROBE_TARGET_ALREADY_LOADED=' + target_town)
+"@
 
     Push-Location $ProjectRoot
     try {
@@ -62,7 +87,7 @@ function Test-CarlaHealthy {
         return $false
     }
 
-    if (-not (Test-CarlaPythonProbe -Port $Port)) {
+    if (-not (Test-CarlaPythonProbe -Port $Port -Town $TargetTown)) {
         Write-Host "CARLA_HEALTH=PYTHON_PROBE_FAILED"
         return $false
     }
@@ -81,13 +106,24 @@ else {
 }
 
 $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
+$consecutiveHealthFailures = 0
 while ((Get-Date) -lt $deadline) {
     if (Test-CarlaHealthy -Port $CarlaPort) {
+        $consecutiveHealthFailures = 0
         Write-Host "CARLA_STABLE_WAIT_SECONDS=$StableSeconds"
         Start-Sleep -Seconds $StableSeconds
         if (Test-CarlaHealthy -Port $CarlaPort) {
             Write-Host "CARLA_READY=True"
             exit 0
+        }
+    }
+    else {
+        $consecutiveHealthFailures += 1
+        Write-Host "CARLA_CONSECUTIVE_HEALTH_FAILURES=$consecutiveHealthFailures"
+        if ($consecutiveHealthFailures -ge $HealthFailureRestartThreshold) {
+            Write-Host "CARLA_RESTART_REQUIRED=True_AFTER_HEALTH_FAILURES"
+            & powershell -ExecutionPolicy Bypass -File $StartScript -CarlaPort $CarlaPort
+            $consecutiveHealthFailures = 0
         }
     }
     Start-Sleep -Seconds 2

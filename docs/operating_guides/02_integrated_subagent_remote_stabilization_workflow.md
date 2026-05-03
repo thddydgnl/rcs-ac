@@ -11,14 +11,16 @@ This guide defines the combined stabilization workflow when both of these are tr
 2. CARLA execution happens on the Windows desktop through Mac-to-Windows SSH.
 ```
 
-This document connects:
+This document connects the short core workflow with Windows/CARLA execution:
 
 ```text
 docs/operating_guides/00_agent_workflow_rules.md
-docs/operating_guides/01_remote_mac_windows_stabilization_workflow.md
+docs/operating_guides/03_lite_subagent_stabilization_workflow.md
 ```
 
-It does not replace them. If details conflict, use the stricter rule.
+Use `01_remote_mac_windows_stabilization_workflow.md` only when detailed remote setup or troubleshooting is needed.
+Use `04_full_subagent_roles_and_legacy_rules.md` only after Full escalation.
+If details conflict, use the stricter safety rule.
 
 ## 1. Trigger Phrase
 
@@ -33,7 +35,7 @@ The short default trigger is:
 It is equivalent to:
 
 ```text
-다음 라운드 서브에이전트 구조로, Mac-Windows 원격 실행 방식까지 포함해서 안정화 진행해줘.
+다음 라운드를 Lite Subagent Workflow로 시작하고, Mac-Windows 원격 실행 방식까지 포함해서 안정화 진행해줘.
 ```
 
 Equivalent acceptable phrases:
@@ -58,7 +60,8 @@ or:
 라운드 안정화 진행해줘
 ```
 
-the main agent must use this integrated workflow without asking for confirmation. State in the first progress update that the short trigger is being treated as the full sub-agent + Mac-Windows remote stabilization workflow.
+the main agent must use this integrated workflow without asking for confirmation. State in the first progress update that the short trigger is being treated as Lite sub-agent + Mac-Windows remote stabilization workflow by default.
+The default sub-agent mode is Lite. State whether the round starts in Lite mode or is escalated to Full mode, and cite the escalation reason when Full is used.
 
 ## 2. Role Split
 
@@ -96,21 +99,22 @@ The combined workflow must follow this order:
 ```text
 1. Identify current state.
 2. Pull or locate the latest relevant Windows text/table logs.
-3. Spawn required sub-agents on Mac.
-4. Wait for required findings.
-5. Integrate findings.
-6. Write the Experiment Brief.
-7. Edit code/config/docs.
-8. Run local validation.
-9. Commit and push.
-10. Windows git pull --ff-only.
-11. Run CARLA readiness guard.
-12. Run one CARLA step: collect, eval, train, or PPO.
-13. Re-run CARLA readiness guard before every next CARLA step.
-14. Pull complete text/table logs for the round.
-15. Analyze results and apply 2048/4096 gates.
-16. Write result document.
-17. Commit and push the report.
+3. Choose Lite or Full mode using `03_lite_subagent_stabilization_workflow.md`.
+4. Spawn required sub-agents on Mac.
+5. Wait for required findings.
+6. Integrate findings.
+7. Write the Experiment Brief.
+8. Edit code/config/docs.
+9. Run local validation.
+10. Commit and push.
+11. Windows git pull --ff-only.
+12. Run CARLA readiness guard.
+13. Run one CARLA step: collect, eval, train, or PPO.
+14. Re-run CARLA readiness guard before every next CARLA step.
+15. Pull complete text/table logs for the round.
+16. Analyze results and apply 2048/4096 gates.
+17. Write result document.
+18. Commit and push the report.
 ```
 
 Short form:
@@ -126,9 +130,30 @@ Document sixth
 
 ## 4. Sub-Agent Phase
 
-### 4.1 Mandatory Core Agents
+### 4.1 Default Lite Agents
 
-For a triggered sub-agent stabilization round, spawn these by default:
+For an ordinary stabilization round, use the Lite workflow from:
+
+```text
+docs/operating_guides/03_lite_subagent_stabilization_workflow.md
+```
+
+Default Lite agents:
+
+```text
+Agent A - Log / Result Analyst
+Agent C - Mechanism / Gate Verifier
+```
+
+Add Lite Agent B only when the round edits code, non-trivial config wiring, logging, or checkpoint loading behavior:
+
+```text
+Agent B - Focused Code / Config Auditor
+```
+
+### 4.2 Mandatory Full Core Agents
+
+For a high-risk stabilization round, spawn these:
 
 ```text
 Agent A - Log Analyst
@@ -138,9 +163,9 @@ Agent D - Safety Regression Analyst
 Agent J - Hardcoding / Privileged Controller Auditor
 ```
 
-### 4.2 Mandatory Conditional Agent
+### 4.3 Mandatory Conditional Full Agent
 
-Add this whenever the round uses imitation/data:
+Add this whenever the round creates, modifies, relabels, or remixes imitation/data:
 
 ```text
 Agent F - Imitation/Data Auditor
@@ -159,7 +184,9 @@ DAgger-style data
 policy-generated targets
 ```
 
-### 4.3 Optional Agents
+Existing dataset reuse without new targets may remain Lite unless another escalation condition is true.
+
+### 4.4 Optional Full Agents
 
 Use only when needed:
 
@@ -177,7 +204,7 @@ Agent I - Documentation Auditor
   Use for large direction changes or paper-relevant result cleanup.
 ```
 
-### 4.4 Pre-Edit Barrier
+### 4.5 Pre-Edit Barrier
 
 Before sub-agent findings are integrated, do not:
 
@@ -205,7 +232,7 @@ draft non-binding diagnosis notes
 
 The main agent must write an Experiment Brief before editing files.
 
-Required fields:
+Full required fields:
 
 ```text
 Round name:
@@ -226,6 +253,22 @@ Stop conditions:
 ```
 
 The brief can be in a progress update, work note, or the top section of a round result document.
+
+Lite rounds may use the shorter Lite Experiment Brief from `03_lite_subagent_stabilization_workflow.md`, but they must still include:
+
+```text
+Round name:
+Mode: Lite
+Baseline:
+Primary hypothesis:
+Sub-agent summary:
+Allowed changes:
+Rejected changes:
+Gate metrics:
+Stop conditions:
+Files to edit:
+Escalation check:
+```
 
 ## 6. Local Mac Validation
 
@@ -305,9 +348,11 @@ It checks:
 ```text
 1. `CarlaUE4-Win64-Shipping` process exists.
 2. TCP port 2000 accepts connections.
-3. Python can import `carla`, connect to the server, and read the current world/map.
-4. The healthy state remains stable for a short settle window.
+3. Python can import `carla`, connect to the server, and load the target town, default `Town04`.
+4. The target town remains stable for a short settle window.
 ```
+
+The target-town probe matters. CARLA can report a healthy process, open port, and readable default world such as `Town10HD_Opt`, then still fail on the experiment's immediate `client.load_world("Town04")` with streaming refused or timeout. A guard PASS is valid only after the target town has loaded successfully.
 
 If the checks fail, the guard restarts CARLA through:
 
@@ -315,7 +360,16 @@ If the checks fail, the guard restarts CARLA through:
 scripts/windows/start_carla_interactive.ps1
 ```
 
-Do not rely on port-open alone. A port can briefly open while CARLA is not ready for `client.load_world()` or streaming.
+Do not rely on port-open or `get_world()` alone. A port can briefly open while CARLA is not ready for `client.load_world()` or streaming.
+
+If the target-town probe fails repeatedly, the guard restarts CARLA internally after the configured consecutive health-failure threshold. Keep the default unless debugging infrastructure:
+
+```text
+TargetTown=Town04
+ProbeTimeoutSeconds=120
+StableSeconds=15
+HealthFailureRestartThreshold=2
+```
 
 If a crash or timeout happens after the guard passes, classify the current CARLA state as contaminated. Retry only after `ensure_carla_ready.ps1 -ForceRestart`; do not proceed to PPO or the next eval from that simulator instance.
 
@@ -468,26 +522,28 @@ Sub-agent execution unavailable; main agent followed the same role structure man
 
 ```text
 User:
-  다음 라운드 서브에이전트 구조로, Mac-Windows 원격 실행 방식까지 포함해서 안정화 진행해줘.
+  안정화 라운드 진행해줘.
 
 Main Agent:
-  1. Read 00/01/02 operating guides.
-  2. Identify latest logs/checkpoints/configs.
-  3. Spawn A/B/C/D/J and F if data/BC is involved.
-  4. Integrate findings.
-  5. Write Experiment Brief.
-  6. Edit/validate/commit/push.
-  7. Run Mac-side Tailscale/SSH tunnel preflight.
-  8. Windows pull.
-  9. Run ensure_carla_ready.ps1 before every CARLA command.
-  10. Pull complete text/table logs.
-  11. Document regression-first result and push.
+  1. Read 00 and 03.
+  2. Read relevant 02 sections if Windows/CARLA execution is needed.
+  3. Identify latest logs/checkpoints/configs.
+  4. Start Lite by default: spawn A/C, plus B only if needed.
+  5. Escalate to Full if any high-risk condition is present.
+  6. Integrate findings.
+  7. Write Lite or Full Experiment Brief.
+  8. Edit/validate/commit/push.
+  9. Run Mac-side Tailscale/SSH tunnel preflight.
+  10. Windows pull.
+  11. Run ensure_carla_ready.ps1 before every CARLA command.
+  12. Pull complete text/table logs.
+  13. Document regression-first result and push.
 ```
 
 ## 14. Non-Negotiable Rules
 
 ```text
-1. Sub-agent findings come before experiment design when the sub-agent trigger is used.
+1. Lite or Full sub-agent findings come before experiment design when the stabilization trigger is used.
 2. Experiment Brief comes before file edits.
 3. Mac does analysis and edits; Windows runs CARLA.
 4. Never run two CARLA jobs in parallel.
