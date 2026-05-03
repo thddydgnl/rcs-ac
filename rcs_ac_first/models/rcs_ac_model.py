@@ -229,6 +229,7 @@ class RCSACFirstModel(nn.Module):
             risk_context=risk_context,
             modality_mask=modality_mask,
         )
+        aux = self.aux_head(fusion_output.fused)
         actor_input = self._build_actor_input(
             fusion_output.fused,
             perception_actor["compact_features"],
@@ -236,9 +237,9 @@ class RCSACFirstModel(nn.Module):
             lane_edge_mask_logits=perception_aux["pred_lane_edge_mask_logits"],
             auxiliary_tensor=auxiliary_tensor,
             route_input=split["route"],
+            estimated_scalar_base=aux,
         )
         ac_output = self.recurrent_actor_critic(actor_input, hidden_state=hidden_state)
-        aux = self.aux_head(fusion_output.fused)
         projected_feature_stack = torch.stack([fusion_output.projected_features[key] for key in MODALITY_ORDER], dim=1)
         prepared_mask = validate_modality_mask(
             modality_mask,
@@ -626,6 +627,7 @@ class RCSACFirstModel(nn.Module):
         lane_edge_mask_logits: torch.Tensor | None = None,
         auxiliary_tensor: torch.Tensor,
         route_input: torch.Tensor,
+        estimated_scalar_base: torch.Tensor | None = None,
     ) -> torch.Tensor:
         if self.actor_input_adapter is None:
             actor_input = fused_feature
@@ -649,6 +651,7 @@ class RCSACFirstModel(nn.Module):
             lane_edge_mask_logits=lane_edge_mask_logits,
             route_input=route_input,
             reference=actor_input,
+            estimated_scalar_base=estimated_scalar_base,
         )
         return actor_input + self.scalar_actor_adapter(scalar_features)
 
@@ -660,6 +663,7 @@ class RCSACFirstModel(nn.Module):
         lane_edge_mask_logits: torch.Tensor | None = None,
         route_input: torch.Tensor,
         reference: torch.Tensor,
+        estimated_scalar_base: torch.Tensor | None = None,
     ) -> torch.Tensor:
         route = route_input.to(device=reference.device, dtype=reference.dtype)
         if self.config.scalar_actor_feature_source == "estimated":
@@ -678,7 +682,14 @@ class RCSACFirstModel(nn.Module):
                 device=reference.device,
                 dtype=reference.dtype,
             )
-            estimated = self.estimated_scalar_head(visual_geometry, route)
+            residual = self.estimated_scalar_head(visual_geometry, route)
+            if estimated_scalar_base is None:
+                base = residual.new_zeros(residual.shape)
+            else:
+                base = estimated_scalar_base.to(device=residual.device, dtype=residual.dtype)
+                if base.ndim != 2 or int(base.shape[-1]) != 2:
+                    raise ValueError(f"estimated_scalar_base must have shape [B, 2], got {tuple(base.shape)}")
+            estimated = base + residual
             lane_value = estimated[:, 0]
             heading_value = estimated[:, 1]
         else:

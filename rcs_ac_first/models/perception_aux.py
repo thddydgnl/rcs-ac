@@ -168,6 +168,7 @@ class EstimatedScalarHead(nn.Module):
             nn.ReLU(),
             nn.Linear(int(hidden_dim), 2),
         )
+        self._initialize_residual_output()
 
     def forward(
         self,
@@ -186,3 +187,11 @@ class EstimatedScalarHead(nn.Module):
         if not torch.isfinite(estimated).all():
             raise ValueError("Estimated scalar head produced non-finite values.")
         return estimated
+
+    def _initialize_residual_output(self) -> None:
+        output = self.net[-1]
+        if not isinstance(output, nn.Linear):
+            return
+        with torch.no_grad():
+            output.weight.zero_()
+            output.bias.zero_()
