@@ -13,6 +13,7 @@ Round90 is fixed as the current RCS-AC clean baseline for weather, corruption, a
 
 - PPO clean baseline preparation: `docs/baselines/ppo_baseline_preparation_plan.md`
 - Estimated scalar actor features plan: `docs/baselines/estimated_scalar_actor_features_plan.md`
+- Comparison training budget and protocol: `docs/baselines/comparison_training_budget_and_protocol.md`
 
 ## PPO Baseline Candidates
 
