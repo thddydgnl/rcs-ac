@@ -3766,3 +3766,54 @@ Current interpretation:
   - collect or synthesize matched clean-safe samples covering the waypoint `15-17` exit window, with policy-available observations and expert controls,
   - add richer eval logging for target waypoint/local route geometry to determine whether the route advancement blocker is target selection, distance threshold, or policy action,
   - run a strictly gated PPO fine-tune from V4/V6 with the shared reward unchanged, accepting only checkpoints that preserve 512 safety and beat `0.410256`.
+
+## PPO Baseline Attempt 66: V4 PPO 4096 Scout
+
+Date: 2026-05-04
+
+Status: **blocked; shared-reward PPO scout preserved eval safety but did not improve route progress**
+
+Purpose:
+
+- Test the remaining allowed path after the BC longitudinal probes: a short PPO fine-tune from V4 using the same config, shared reward, target-speed/action wrapper, and matched PPO input contract.
+- Do not change reward, runtime assist, action wrapper, or RCS-AC-specific modules.
+
+Run:
+
+- Config: `configs/baselines/ppo_matched_bc_pretrain_estimated_scalar_seed9_turn_phase_early_steer_slow_v4.yaml`
+- Init checkpoint: Windows `checkpoints/ppo_matched_turn_phase_early_steer_slow_v4_bc_20260504T0415/last.pt`
+- Run name: `ppo_matched_turn_phase_early_steer_slow_v4_ppo4096_scout_20260504T0540`
+- PPO trainable scope: `recurrent_actor_critic.actor_head.2`, `recurrent_actor_critic.critic_head`
+- Total timesteps: `4096`
+
+Training result:
+
+- Episodes 0-6 stayed collision/offroad/stuck free but did not exceed route `0.410256`.
+- Episode 7 terminated with `offroad` at route `0.333333`.
+- Because an offroad appeared during the scout rollout, this run is not a clean baseline candidate.
+
+512 eval of `last.pt`:
+
+- collision/offroad/severe early offroad/stuck: `0/0/0/0`
+- max route: `0.410256`
+- max target waypoint index: `16`
+- min target distance to waypoint 16: `0.0241 m`
+- final target distance: `0.1957 m`
+- mean action jitter L1: `0.097793`
+- PPO gate: `BLOCK`
+
+Interpretation:
+
+- The new route-ending summary shows the policy can get extremely close to waypoint `16` but still does not advance to waypoint `17`.
+- This confirms the blocker is not simply "reach waypoint 16"; the route manager advances only when the vehicle becomes closer to the next waypoint than the current best target, so the policy needs to carry enough safe exit motion past waypoint `16`.
+- Short PPO fine-tuning with the current reward did not create that extra exit motion and reintroduced an offroad during training, so it should not be pushed further without a more specific data/logging change.
+
+Artifacts:
+
+- `remote_runs/ppo_matched_turn_phase_early_steer_slow_v4_ppo4096_scout_20260504/`
+
+Decision:
+
+- Keep V4 as the current PPO matched clean-safety candidate.
+- Do not promote the PPO 4096 scout.
+- Next step should focus on matched clean-safe samples or route-local geometry logging around waypoint `15-17`, not more generic PPO updates.
