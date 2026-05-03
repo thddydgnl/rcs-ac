@@ -10,6 +10,7 @@ from rcs_ac_first.models.perception_aux import (
     EstimatedScalarHead,
     RGBPerceptionActorFeatureExtractor,
     RGBPerceptionAuxHead,
+    build_estimated_scalar_visual_features,
     build_rgb_perception_raw_features,
 )
 from rcs_ac_first.models.reliability import RCSACReliabilityModule, ReliabilityConfig
@@ -678,7 +679,7 @@ class RCSACFirstModel(nn.Module):
                 )
                 road_mask_logits = reference.new_zeros(shape)
                 lane_edge_mask_logits = reference.new_zeros(shape)
-            visual_geometry = build_rgb_perception_raw_features(road_mask_logits, lane_edge_mask_logits).to(
+            visual_geometry = build_estimated_scalar_visual_features(road_mask_logits, lane_edge_mask_logits).to(
                 device=reference.device,
                 dtype=reference.dtype,
             )

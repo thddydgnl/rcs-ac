@@ -9,18 +9,7 @@ def build_rgb_perception_raw_features(
     road_mask_logits: torch.Tensor,
     lane_edge_mask_logits: torch.Tensor,
 ) -> torch.Tensor:
-    if road_mask_logits.ndim != 4 or lane_edge_mask_logits.ndim != 4:
-        raise ValueError("Perception logits must have shape [B, 1, H, W].")
-    if tuple(road_mask_logits.shape) != tuple(lane_edge_mask_logits.shape):
-        raise ValueError(
-            "road/lane logits shape mismatch: "
-            f"{tuple(road_mask_logits.shape)} vs {tuple(lane_edge_mask_logits.shape)}"
-        )
-    if int(road_mask_logits.shape[1]) != 1:
-        raise ValueError(f"Expected single-channel logits, got {tuple(road_mask_logits.shape)}")
-
-    road = torch.sigmoid(road_mask_logits.to(dtype=torch.float32))
-    lane = torch.sigmoid(lane_edge_mask_logits.to(dtype=torch.float32))
+    road, lane = _validate_and_sigmoid_perception_logits(road_mask_logits, lane_edge_mask_logits)
     _, _, height, width = road.shape
     lower_start = max(0, height // 2)
     bottom_start = max(0, int(height * 3 // 4))
@@ -40,10 +29,8 @@ def build_rgb_perception_raw_features(
     x_coords = torch.linspace(-1.0, 1.0, width, dtype=road.dtype, device=road.device).view(1, 1, 1, width)
     y_coords = torch.linspace(0.0, 1.0, height, dtype=road.dtype, device=road.device).view(1, 1, height, 1)
 
-    road_mass = road_lower.sum(dim=(1, 2, 3)).clamp_min(1.0e-6)
-    lane_mass = lane_lower.sum(dim=(1, 2, 3)).clamp_min(1.0e-6)
-    road_x = (road_lower * x_coords).sum(dim=(1, 2, 3)) / road_mass
-    lane_x = (lane_lower * x_coords).sum(dim=(1, 2, 3)) / lane_mass
+    road_x = _weighted_x_mean(road_lower, x_coords)
+    lane_x = _weighted_x_mean(lane_lower, x_coords)
     road_y = (road * y_coords).sum(dim=(1, 2, 3)) / road.sum(dim=(1, 2, 3)).clamp_min(1.0e-6)
     lane_y = (lane * y_coords).sum(dim=(1, 2, 3)) / lane.sum(dim=(1, 2, 3)).clamp_min(1.0e-6)
 
@@ -67,6 +54,85 @@ def build_rgb_perception_raw_features(
     if not torch.isfinite(raw).all():
         raise ValueError("RGB perception actor features contain non-finite values.")
     return raw
+
+
+def build_estimated_scalar_visual_features(
+    road_mask_logits: torch.Tensor,
+    lane_edge_mask_logits: torch.Tensor,
+) -> torch.Tensor:
+    raw = build_rgb_perception_raw_features(road_mask_logits, lane_edge_mask_logits)
+    road, lane = _validate_and_sigmoid_perception_logits(road_mask_logits, lane_edge_mask_logits)
+    _, _, height, width = road.shape
+
+    far_start = max(0, height // 4)
+    far_stop = max(far_start + 1, height // 2)
+    mid_start = max(0, height // 2)
+    mid_stop = max(mid_start + 1, int(height * 3 // 4))
+    near_start = max(0, int(height * 3 // 4))
+    near_stop = height
+
+    x_coords = torch.linspace(-1.0, 1.0, width, dtype=road.dtype, device=road.device).view(1, 1, 1, width)
+
+    road_far = road[:, :, far_start:far_stop, :]
+    road_mid = road[:, :, mid_start:mid_stop, :]
+    road_near = road[:, :, near_start:near_stop, :]
+    lane_far = lane[:, :, far_start:far_stop, :]
+    lane_mid = lane[:, :, mid_start:mid_stop, :]
+    lane_near = lane[:, :, near_start:near_stop, :]
+
+    road_far_x = _weighted_x_mean(road_far, x_coords)
+    road_mid_x = _weighted_x_mean(road_mid, x_coords)
+    road_near_x = _weighted_x_mean(road_near, x_coords)
+    lane_far_x = _weighted_x_mean(lane_far, x_coords)
+    lane_mid_x = _weighted_x_mean(lane_mid, x_coords)
+    lane_near_x = _weighted_x_mean(lane_near, x_coords)
+
+    extended = torch.stack(
+        [
+            road_far_x,
+            road_mid_x,
+            road_near_x,
+            road_far_x - road_near_x,
+            road_far.mean(dim=(1, 2, 3)),
+            road_mid.mean(dim=(1, 2, 3)),
+            road_near.mean(dim=(1, 2, 3)),
+            lane_far_x,
+            lane_mid_x,
+            lane_near_x,
+            lane_far_x - lane_near_x,
+            lane_far.mean(dim=(1, 2, 3)),
+            lane_mid.mean(dim=(1, 2, 3)),
+            lane_near.mean(dim=(1, 2, 3)),
+        ],
+        dim=-1,
+    )
+    features = torch.cat([raw, extended], dim=-1)
+    if not torch.isfinite(features).all():
+        raise ValueError("Estimated scalar visual features contain non-finite values.")
+    return features
+
+
+def _validate_and_sigmoid_perception_logits(
+    road_mask_logits: torch.Tensor,
+    lane_edge_mask_logits: torch.Tensor,
+) -> tuple[torch.Tensor, torch.Tensor]:
+    if road_mask_logits.ndim != 4 or lane_edge_mask_logits.ndim != 4:
+        raise ValueError("Perception logits must have shape [B, 1, H, W].")
+    if tuple(road_mask_logits.shape) != tuple(lane_edge_mask_logits.shape):
+        raise ValueError(
+            "road/lane logits shape mismatch: "
+            f"{tuple(road_mask_logits.shape)} vs {tuple(lane_edge_mask_logits.shape)}"
+        )
+    if int(road_mask_logits.shape[1]) != 1:
+        raise ValueError(f"Expected single-channel logits, got {tuple(road_mask_logits.shape)}")
+
+    road = torch.sigmoid(road_mask_logits.to(dtype=torch.float32))
+    lane = torch.sigmoid(lane_edge_mask_logits.to(dtype=torch.float32))
+    return road, lane
+
+
+def _weighted_x_mean(mask: torch.Tensor, x_coords: torch.Tensor) -> torch.Tensor:
+    return (mask * x_coords).sum(dim=(1, 2, 3)) / mask.sum(dim=(1, 2, 3)).clamp_min(1.0e-6)
 
 
 class RGBPerceptionAuxHead(nn.Module):
@@ -149,7 +215,7 @@ class RGBPerceptionActorFeatureExtractor(nn.Module):
 
 
 class EstimatedScalarHead(nn.Module):
-    input_dim: int = RGBPerceptionActorFeatureExtractor.raw_feature_dim
+    input_dim: int = 28
 
     def __init__(
         self,

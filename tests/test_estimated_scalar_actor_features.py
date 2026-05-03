@@ -1,5 +1,6 @@
 import torch
 
+from rcs_ac_first.models.perception_aux import build_estimated_scalar_visual_features
 from rcs_ac_first.models.rcs_ac_model import RCSACFirstModel
 from rcs_ac_first.runtime.config import RCSACFirstFusionConfig, RCSACFirstModelConfig
 
@@ -34,6 +35,25 @@ def test_estimated_scalar_source_uses_estimator_without_oracle_actor_input() -> 
     diagnostics = model.get_diagnostics()
     assert diagnostics["scalar_actor_feature_source_estimated"] == 1.0
     assert diagnostics["scalar_actor_feature_source_oracle_auxiliary"] == 0.0
+
+
+def test_estimated_scalar_visual_features_add_near_far_center_proxies() -> None:
+    road_logits = torch.full((1, 1, 8, 5), -20.0)
+    lane_logits = torch.full((1, 1, 8, 5), -20.0)
+    road_logits[:, :, 2:4, 0] = 20.0
+    road_logits[:, :, 6:, 4] = 20.0
+    lane_logits[:, :, 2:4, 1] = 20.0
+    lane_logits[:, :, 6:, 3] = 20.0
+
+    features = build_estimated_scalar_visual_features(road_logits, lane_logits)
+
+    assert features.shape == (1, 28)
+    assert features[0, 14] < -0.99
+    assert features[0, 16] > 0.99
+    assert features[0, 17] < -1.99
+    assert features[0, 21] < -0.49
+    assert features[0, 23] > 0.49
+    assert features[0, 24] < -0.99
 
 
 def test_disabled_scalar_source_disables_scalar_actor_features() -> None:
