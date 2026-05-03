@@ -2785,3 +2785,747 @@ Current blocker after Attempt 44:
 - Seed9 matched remains the best matched-input PPO family.
 - The strongest matched-input checkpoint remains Attempt 43 `update_0014.pt` with collision `0`, offroad `1`, severe early offroad `0`, stuck `0`, and max route `0.538462`.
 - The next productive direction should use the seed9 matched low-std/rollout512 family, not the seed7 high-entropy smoke settings.
+
+## PPO Baseline Attempt 45: Matched-Input BC-Pretrained PPO
+
+Date: 2026-05-03
+
+Config: `configs/baselines/ppo_matched_bc_pretrain_estimated_scalar_seed9.yaml`
+
+Dataset: `data/expert/rgb_perception_actor_features_v2_early_route_mix_4256_round36_provenance.npz`
+
+Status: **512 clean safety passed, 2048 clean safety still blocked by one late offroad**
+
+Purpose:
+
+- Switch the fair PPO comparison path from reward-only scratch PPO to `PPO matched-input + BC imitation pretrain + PPO fine-tuning`.
+- Match the current RCS-AC estimated-scalar actor-facing input contract while disabling RCS-AC-specific modules.
+- Do not warm-start from a RCS-AC checkpoint.
+
+Fairness contract:
+
+- Uses policy-available sensor input plus matched actor-facing features: RGB, LiDAR, ego, route, RGB perception actor features, and estimated scalar actor features.
+- Disables reliability, risk context, Shapley, dropout consistency, contribution bias, lateral recovery assist, and runtime lane-offset steering override.
+- Uses the same expert/recovery dataset family as the RCS-AC Round90 stabilization line.
+
+BC pretrain:
+
+- Run: `ppo_matched_bc_pretrain_estimated_scalar_seed9_20260503T1902`
+- `epoch_001.pt`: lowest validation loss (`0.088481`) but 512 eval had offroad `2`.
+- `epoch_002.pt`: validation loss `0.101236`, best CARLA behavior.
+- `epoch_003.pt` / `last.pt`: validation loss regressed to `0.216770`, not selected.
+
+PPO fine-tuning:
+
+- Init checkpoint: `checkpoints/ppo_matched_bc_pretrain_estimated_scalar_seed9_20260503T1902/epoch_002.pt`
+- Run: `ppo_matched_bc_pretrain_estimated_scalar_seed9_ppo4096_20260503T1914`
+- Total timesteps: `4096`
+- Selected eval checkpoint: `update_0026.pt`
+
+Artifacts:
+
+- `remote_runs/ppo_matched_bc_pretrain_estimated_scalar_seed9_20260503/ppo_matched_bc_pretrain_estimated_scalar_seed9_20260503T1902/bc_training_log.csv`
+- `remote_runs/ppo_matched_bc_pretrain_estimated_scalar_seed9_20260503/ppo_matched_bc_pretrain_estimated_scalar_seed9_ppo4096_20260503T1914_20260503T191424/training_log.csv`
+- `remote_runs/ppo_matched_bc_pretrain_estimated_scalar_seed9_20260503/ppo_matched_bc_pretrain_estimated_scalar_seed9_epoch002_eval_512_20260503T1906_20260503T190626/`
+- `remote_runs/ppo_matched_bc_pretrain_estimated_scalar_seed9_20260503/ppo_matched_bc_pretrain_estimated_scalar_seed9_epoch002_eval_2048_20260503T1908_20260503T190855/`
+- `remote_runs/ppo_matched_bc_pretrain_estimated_scalar_seed9_20260503/ppo_matched_bc_pretrain_seed9_ppo4096_update0026_eval_512_20260503T1923_20260503T192328/`
+- `remote_runs/ppo_matched_bc_pretrain_estimated_scalar_seed9_20260503/ppo_matched_bc_pretrain_seed9_ppo4096_update0026_eval_2048_20260503T1925_20260503T192544/`
+
+Results:
+
+| Candidate | Steps | Collision | Offroad | Early offroad | Severe early offroad | Stuck | Max route progress | Final route progress | Mean action jitter L1 | Status |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |
+| BC `epoch_002.pt` | 512 | 0 | 0 | 0 | 0 | 0 | 0.512821 | 0.512821 | 0.051496 | 512 PASS |
+| BC `epoch_002.pt` | 2048 | 0 | 1 | 0 | 0 | 0 | 0.512821 | 0.179487 | 0.048678 | 2048 BLOCK |
+| PPO `update_0026.pt` | 512 | 0 | 0 | 0 | 0 | 0 | 0.512821 | 0.512821 | 0.069341 | 512 PASS |
+| PPO `update_0026.pt` | 2048 | 0 | 1 | 0 | 0 | 0 | 0.512821 | 0.179487 | 0.047373 | 2048 BLOCK |
+
+Interpretation:
+
+- This is the first PPO comparison path that is fair with respect to RCS-AC's imitation-based clean stabilization.
+- BC pretraining immediately improved PPO clean behavior: the selected BC checkpoint passed 512 clean safety with zero collision/offroad/stuck and route progress `0.512821`.
+- PPO fine-tuning preserved the 512 zero-event result at `update_0026.pt`.
+- The remaining blocker is long-horizon 2048 safety: one late offroad remains in both the BC checkpoint and PPO-fine-tuned checkpoint.
+- Because 2048 still has offroad `1`, this is **not yet an accepted PPO clean baseline** and must not be used for the robustness matrix.
+
+Next action:
+
+- Continue from the BC-pretrained PPO path, not from scratch PPO.
+- Focus on removing the single 2048 late-offroad failure without adding runtime assist or changing PPO-only reward/action-wrapper conditions.
+
+## PPO Baseline Attempt 46: Late Recovery Boosts and PPO 8192 Fine-Tune
+
+Date: 2026-05-03
+
+Status: **512 improved, 2048 still blocked by one late offroad**
+
+Purpose:
+
+- Continue the accepted fair direction: PPO matched-input + BC imitation pretrain + PPO fine-tuning.
+- Keep RCS-AC-specific modules disabled: reliability, risk context, Shapley, dropout consistency, contribution bias, lateral recovery assist, and runtime lane-offset steering override.
+- Test whether the repeated route `0.30`-`0.33` late offroad can be fixed by stronger supervised recovery steering and then PPO reward fine-tuning.
+
+Configs added:
+
+- `configs/baselines/ppo_matched_bc_pretrain_estimated_scalar_seed9_late_boost.yaml`
+- `configs/baselines/ppo_matched_bc_pretrain_estimated_scalar_seed9_late_route_boost.yaml`
+- `configs/baselines/ppo_matched_bc_pretrain_estimated_scalar_seed9_actor_route_boost.yaml`
+
+Main changes tested:
+
+- `late_boost`: actor output head only, stronger late absolute steer margin (`0.72`).
+- `late_route_boost`: visual-center corrective loss disabled because rollout visual-center sign conflicted with lane-offset sign near failure; route/lane-offset agreement and late absolute steer were strengthened.
+- `actor_route_boost`: actor head inner/output layers opened, stronger route/lane-offset and late absolute steer losses.
+- PPO 8192 fine-tune from `actor_route_boost epoch_001.pt`.
+
+Artifacts:
+
+- `remote_runs/ppo_matched_bc_pretrain_estimated_scalar_seed9_late_boost_20260503/`
+- `remote_runs/ppo_matched_bc_pretrain_estimated_scalar_seed9_late_route_boost_20260503/`
+- `remote_runs/ppo_matched_bc_pretrain_estimated_scalar_seed9_actor_route_boost_20260503/`
+- `remote_runs/ppo_matched_bc_pretrain_estimated_scalar_seed9_actor_route_boost_ppo8192_20260503/`
+
+Results:
+
+| Candidate | Steps | Collision | Offroad | Early offroad | Severe early offroad | Stuck | Max route progress | Final route progress | Mean action jitter L1 | Status |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |
+| `late_boost last.pt` | 512 | 0 | 0 | 0 | 0 | 0 | 0.512821 | 0.512821 | 0.068549 | 512 PASS |
+| `late_boost last.pt` | 2048 | 0 | 1 | 0 | 0 | 0 | 0.512821 | 0.179487 | 0.062241 | 2048 BLOCK |
+| `late_route_boost last.pt` | 512 | 0 | 0 | 0 | 0 | 0 | 0.512821 | 0.512821 | 0.074256 | 512 PASS |
+| `late_route_boost last.pt` | 2048 | 0 | 1 | 0 | 0 | 0 | 0.512821 | 0.179487 | 0.067753 | 2048 BLOCK |
+| `actor_route_boost epoch_001.pt` | 512 | 0 | 0 | 0 | 0 | 0 | 0.512821 | 0.512821 | 0.074469 | 512 PASS |
+| `actor_route_boost epoch_001.pt` | 2048 | 0 | 1 | 0 | 0 | 0 | 0.512821 | 0.179487 | 0.075358 | 2048 BLOCK |
+| PPO8192 `last.pt` | 512 | 0 | 0 | 0 | 0 | 0 | 0.538462 | 0.538462 | 0.058930 | 512 PASS |
+| PPO8192 `last.pt` | 2048 | 0 | 1 | 0 | 0 | 0 | 0.512821 | 0.179487 | 0.068235 | 2048 BLOCK |
+| PPO8192 `update_0052.pt` | 512 | 0 | 0 | 0 | 0 | 0 | 0.512821 | 0.512821 | 0.078065 | 512 PASS |
+| PPO8192 `update_0052.pt` | 2048 | 0 | 1 | 0 | 0 | 0 | 0.512821 | 0.179487 | 0.067776 | 2048 BLOCK |
+
+Failure diagnosis:
+
+- All Attempt 46 candidates preserved short-horizon clean safety, and PPO8192 `last.pt` improved 512 max/final route progress to `0.538462`.
+- The accepted-baseline blocker remains unchanged: 2048 eval still contains exactly one late offroad, with collision, severe early offroad, and stuck all `0`.
+- The offroad repeats around route progress `0.307692`-`0.333333`. Steering direction is usually correct for negative lane offset, but it arrives too late or with insufficient sustained authority through the waypoint transition.
+- Example `actor_route_boost epoch_001.pt`: lane offset grows from about `-1.12` to `-2.61` while heading error stays about `30`-`41` degrees; steer rises to `0.48` only at the terminal offroad row.
+- Visual-center metrics remain unreliable for this failure because rollout `visual_lane_center_error_mean` can be tiny or sign-inconsistent relative to simulator lane offset. Do not use visual-center correction rate as a hard gate for PPO clean acceptance.
+
+Decision:
+
+- No Attempt 46 checkpoint is an accepted PPO clean baseline because every 2048 eval still has offroad `1`.
+- Best current PPO matched candidate for short eval progress is PPO8192 `last.pt` with 512 max route `0.538462`, but it is blocked for robustness comparison.
+
+Next action:
+
+- Continue with PPO matched-input + BC pretrain, but stop treating stronger late steering margin alone as the main fix.
+- Next round should target the waypoint-transition recovery problem directly: sequence/hidden-state training, route-target jump examples, or PPO rollout curriculum around route `0.28`-`0.36`, while keeping inference inputs and runtime assists unchanged.
+
+## PPO Baseline Attempt 47: Sequence Transition and Preemptive Route Window
+
+Date: 2026-05-03
+
+Status: **512 clean safety retained; 2048 still blocked by one late offroad**
+
+Purpose:
+
+- Follow the Attempt 46 diagnosis that stronger steering margin alone is insufficient.
+- Target the route `0.28`-`0.36` waypoint-transition failure with GRU sequence training instead of frame-only BC.
+- Keep the PPO comparison contract unchanged: matched policy inputs, no RCS-AC reliability/risk/Shapley/dropout-consistency modules, no runtime lateral assist, and no lane-offset steering override.
+
+Configs added:
+
+- `configs/baselines/ppo_matched_bc_pretrain_estimated_scalar_seed9_sequence_transition.yaml`
+- `configs/baselines/ppo_matched_bc_pretrain_estimated_scalar_seed9_sequence_preemptive_transition.yaml`
+
+What changed:
+
+- `sequence_transition` used `bc.mode: sequence`, `sequence_length: 32`, `sequence_stride: 4`, and trained only `recurrent_actor_critic.gru` plus actor head layers from PPO8192 `last.pt`.
+- Failure-window audit showed the offroad starts before the old late mask activates: around route `0.307692`, lane offset is already about `-0.54` with heading error about `14` degrees.
+- `sequence_preemptive_transition` moved the route-transition recovery window earlier: route `0.25`-`0.34`, abs lane offset `0.35`, abs heading error `8.0`, and moderate absolute steer margin `0.60`.
+- PPO4096 fine-tune was then run from the preemptive sequence checkpoint.
+
+Artifacts:
+
+- `remote_runs/ppo_matched_bc_pretrain_estimated_scalar_seed9_sequence_transition_20260503/`
+- `remote_runs/ppo_matched_bc_pretrain_estimated_scalar_seed9_sequence_preemptive_transition_20260503/`
+
+Results:
+
+| Candidate | Steps | Collision | Offroad | Early offroad | Severe early offroad | Stuck | Max route progress | Final route progress | Mean action jitter L1 | Status |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |
+| Sequence transition `epoch_001.pt` | 512 | 0 | 0 | 0 | 0 | 0 | 0.512821 | 0.512821 | 0.089522 | 512 PASS |
+| Sequence transition `epoch_001.pt` | 2048 | 0 | 1 | 0 | 0 | 0 | 0.512821 | 0.179487 | 0.083397 | 2048 BLOCK |
+| Preemptive sequence `last.pt` | 512 | 0 | 0 | 0 | 0 | 0 | 0.512821 | 0.512821 | 0.086408 | 512 PASS |
+| Preemptive sequence `last.pt` | 2048 | 0 | 1 | 0 | 0 | 0 | 0.512821 | 0.179487 | 0.083733 | 2048 BLOCK |
+| Preemptive PPO4096 `last.pt` | 512 | 0 | 0 | 0 | 0 | 0 | 0.538462 | 0.538462 | 0.088011 | 512 PASS |
+| Preemptive PPO4096 `last.pt` | 2048 | 0 | 1 | 0 | 0 | 0 | 0.538462 | 0.179487 | 0.082721 | 2048 BLOCK |
+
+Failure-window notes:
+
+- Preemptive sequence BC 2048 offroad: terminal row route `0.333333`, lane offset `-2.515449`, heading error `27.365322`, steer `0.532263`, speed `8.636 km/h`.
+- Preemptive PPO4096 2048 offroad: terminal row route `0.333333`, lane offset `-2.579554`, heading error `32.582932`, steer `0.435068`, speed `8.866 km/h`.
+- The 45-step window before offroad starts around lane offset `-0.56` to `-0.62` and heading error `13`-`20` degrees. Even with earlier masking, the lane offset still grows to about `-2.5`.
+- PPO4096 improved max route progress to `0.538462`, but it did not remove the single long-horizon offroad.
+
+Decision:
+
+- Attempt 47 does not produce an accepted PPO clean baseline because 2048 still has offroad `1`.
+- The current best PPO matched candidate for route progress is Preemptive PPO4096 `last.pt`, but it remains blocked for robustness comparison.
+
+Next action:
+
+- The repeated failure is now less likely to be solved by BC loss shaping alone.
+- Next round should inspect the shared environment/action-wrapper dynamics at this curve: target-speed/brake behavior, steering smoothing delay, offroad threshold timing, and route waypoint jump handling.
+- If any action-wrapper change is needed, it must be shared and RCS-AC Round90/estimated-scalar baseline must be revalidated under the same wrapper before comparison.
+
+## PPO Baseline Attempt 48: RGB Corrective Authority
+
+Date: 2026-05-03
+
+Status: **512 clean safety retained; 2048 still blocked by one late offroad**
+
+Purpose:
+
+- Reflect the Round90 vs PPO failure-window comparison.
+- RCS-AC Round90 survives the repeated route `0.307692`-`0.333333` left-drift transition because its severe-left recovery steering and RGB visual-zero steer delta are stronger.
+- Test whether PPO can close that gap by increasing the trainable RGB/perception-to-actor correction path while keeping RCS-AC-only modules disabled.
+
+Config added:
+
+- `configs/baselines/ppo_matched_bc_pretrain_estimated_scalar_seed9_rgb_corrective_authority.yaml`
+
+What changed:
+
+- Initialized from Preemptive PPO4096 `last.pt`.
+- Used sequence BC for one epoch, but froze the GRU this time and opened only:
+  - `rgb_perception_actor_features`
+  - `actor_input_adapter`
+  - actor head input/output layers
+- Increased visual-zero and target-corrective losses for the early route window:
+  - route max `0.36`
+  - abs heading error min `8.0`
+  - corrective steer margin `0.05`
+  - corrective sign loss weight `1.2`
+  - target corrective delta loss weight `0.65`
+  - visual-zero target delta loss weight `0.9`
+- Kept PPO comparison restrictions unchanged: no reliability, no risk context, no Shapley, no dropout consistency, no lateral recovery assist, and no lane-offset runtime steering override.
+
+Artifacts:
+
+- `remote_runs/ppo_matched_bc_pretrain_estimated_scalar_seed9_rgb_corrective_authority_20260503/`
+
+Results:
+
+| Candidate | Steps | Collision | Offroad | Early offroad | Severe early offroad | Stuck | Max route progress | Final route progress | Mean action jitter L1 | Mean visual-zero steer delta | Status |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |
+| RGB corrective authority `last.pt` | 512 | 0 | 0 | 0 | 0 | 0 | 0.512821 | 0.512821 | 0.102329 | 0.032619 | 512 PASS |
+| RGB corrective authority `last.pt` | 2048 | 0 | 1 | 0 | 0 | 0 | 0.538462 | 0.179487 | 0.093280 | 0.032301 | 2048 BLOCK |
+
+Failure-window notes:
+
+- The 2048 offroad is still the same late left-drift bottleneck.
+- Terminal row: route `0.333333`, lane offset `-2.598278`, heading error `31.897247`, steer `0.453921`, speed `8.964 km/h`.
+- In the final 12 rows, lane offset grows from about `-1.78` to `-2.60`; steer stays only around `0.44`-`0.45`.
+- Direction is correct for the negative lane offset, but the correction is still too weak and too late.
+- Mean visual-zero steer delta rose only slightly to about `0.0323`, still below the RCS severe-left comparison level of about `0.0478`.
+- Jitter increased relative to the previous PPO4096 candidate, so simply strengthening RGB losses did not buy enough corrective authority.
+
+Decision:
+
+- Attempt 48 does not produce an accepted PPO clean baseline because 2048 still has offroad `1`.
+- The best current PPO matched candidate remains useful as a diagnostic, but not as a robustness comparison baseline.
+
+Next action:
+
+- Do not keep increasing visual loss weights blindly; this is starting to add jitter without solving the transition.
+- The next PPO round should either:
+  - target the route `0.30`-`0.34` failure with stronger direct severe-left absolute steering supervision and explicit jitter control, or
+  - re-check whether the fair PPO baseline should include the same inference-available corrective feature route that lets RCS-AC produce larger visual-zero deltas, while still excluding reliability/risk/Shapley.
+- Any action-wrapper or speed/steering range change must be shared with RCS-AC and followed by Round90/estimated-scalar revalidation.
+
+## PPO Baseline Attempt 49: Maneuver Turn-Phase Supervision
+
+Date: 2026-05-03
+
+Status: **512 clean safety retained; 2048 still blocked by one late offroad**
+
+Purpose:
+
+- Avoid route-progress-specific supervision for the repeated route `0.307692`-`0.333333` failure.
+- Use the route observation's maneuver hint instead: left is encoded as `+0.35`, right as `-0.35` in route index `8`.
+- Train general turn behavior for left/right maneuvers: correct turn direction, expert-magnitude imitation, smooth steering through the turn, and a mild longitudinal ceiling.
+
+Code/config added:
+
+- `rcs_ac_first/scripts/train_bc.py`
+- `configs/baselines/ppo_matched_bc_pretrain_estimated_scalar_seed9_turn_phase.yaml`
+
+What changed:
+
+- Added turn-phase BC metrics/losses:
+  - `turn_phase_direction_loss`
+  - `turn_phase_magnitude_loss`
+  - `turn_phase_smoothness_loss`
+  - `turn_phase_longitudinal_ceiling_loss`
+- The mask does not use `route_progress`.
+- The mask uses route maneuver hint, route target lateral magnitude, heading error, and expert steer sign/magnitude:
+  - `abs(route[8]) >= 0.175`
+  - `abs(route_target_y) >= 0.8`
+  - `abs(heading_error) >= 5.0`
+  - `abs(expert_steer) >= 0.08`
+  - `expert_steer` sign agrees with maneuver turn sign
+- Dataset audit for the training file found `882` masked rows: left `453`, right `429`.
+- Route-specific recovery losses from the previous config were disabled for this attempt.
+
+Artifacts:
+
+- `remote_runs/ppo_matched_bc_pretrain_estimated_scalar_seed9_turn_phase_20260503/`
+
+Results:
+
+| Candidate | Steps | Collision | Offroad | Early offroad | Severe early offroad | Stuck | Max route progress | Final route progress | Mean action jitter L1 | Mean visual-zero steer delta | Status |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |
+| Turn-phase `last.pt` | 512 | 0 | 0 | 0 | 0 | 0 | 0.538462 | 0.538462 | 0.085611 | 0.029153 | 512 PASS |
+| Turn-phase `last.pt` | 2048 | 0 | 1 | 0 | 0 | 0 | 0.538462 | 0.205128 | 0.078842 | 0.028956 | 2048 BLOCK |
+
+Training notes:
+
+- BC val loss improved to `0.117734` from Attempt 48's `0.123476`.
+- Train turn-phase sign rate stayed near `0.99`-`1.0` in logged batches.
+- Turn-phase mask was active in training, with logged mask rates around `0.15`-`0.22`.
+
+Failure-window notes:
+
+- The 2048 offroad is still the same left junction bottleneck.
+- Terminal row: route `0.333333`, lane offset `-2.639264`, heading error `30.579014`, steer `0.513491`, speed `9.125 km/h`.
+- Compared with Attempt 48, terminal steer increased from about `0.454` to `0.513`, and jitter dropped from `0.093280` to `0.078842`.
+- The vehicle still enters the transition too far left: lane offset is already about `-2.10` at episode step `298`, then reaches `-2.64` by terminal offroad.
+- Turn-phase supervision improved general turn smoothness and steering magnitude, but did not create enough lateral recovery before the offroad threshold.
+
+Decision:
+
+- Attempt 49 is not an accepted PPO clean baseline because 2048 still has offroad `1`.
+- This direction is cleaner than route-progress-specific masking and improved jitter, but by itself it is not sufficient to solve the long-horizon left-drift failure.
+
+Next action:
+
+- Keep turn-phase supervision as a useful stabilizer.
+- The next PPO round should combine it with a route-progress-free severe lateral recovery mask:
+  - maneuver command/hint left or right,
+  - large lane offset,
+  - large heading error,
+  - expert/corrected recovery sign agreement,
+  - explicit jitter control.
+- Do not use runtime steering override or route-progress-specific steering rules.
+
+## PPO Baseline Attempt 50: Route-Free Severe Recovery Added to Turn-Phase
+
+Date: 2026-05-03
+
+Status: **512 clean safety retained; 2048 still blocked, regression in the failure window**
+
+Purpose:
+
+- Continue from Attempt 49's cleaner maneuver-based turn-phase supervision.
+- Add a route-progress-free severe lateral recovery mask using lane offset, heading error, and corrected recovery labels.
+- Avoid route `0.30`-`0.34` hardcoding while directly targeting large lateral drift.
+
+Config added:
+
+- `configs/baselines/ppo_matched_bc_pretrain_estimated_scalar_seed9_turn_phase_severe_recovery.yaml`
+
+What changed:
+
+- Started from Attempt 49 `last.pt`.
+- Kept turn-phase supervision.
+- Enabled early-severe delta/sign/absolute-steer losses with no route min/max.
+- Enabled late recovery absolute steer loss with no route min/max.
+- Tightened the severe mask after audit to:
+  - `abs(lane_offset) >= 1.8`
+  - `abs(heading_error) >= 15.0`
+  - corrected target sign agreement
+- Added small sequence action smoothness.
+
+Artifacts:
+
+- `remote_runs/ppo_matched_bc_pretrain_estimated_scalar_seed9_turn_phase_severe_recovery_20260503/`
+
+Results:
+
+| Candidate | Steps | Collision | Offroad | Early offroad | Severe early offroad | Stuck | Max route progress | Final route progress | Mean action jitter L1 | Mean visual-zero steer delta | Status |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |
+| Turn-phase + severe recovery `last.pt` | 512 | 0 | 0 | 0 | 0 | 0 | 0.538462 | 0.538462 | 0.091385 | 0.027994 | 512 PASS |
+| Turn-phase + severe recovery `last.pt` | 2048 | 0 | 1 | 0 | 0 | 0 | 0.538462 | 0.205128 | 0.086234 | 0.027782 | 2048 BLOCK |
+
+Failure-window notes:
+
+- The 2048 failure regressed relative to Attempt 49.
+- Terminal row: route `0.307692`, lane offset `-2.850211`, heading error `35.331718`, steer `0.408280`, speed `9.149 km/h`.
+- Attempt 49 failed later at route `0.333333` with stronger terminal steer `0.513491`.
+- The severe recovery losses were active in training, but they did not translate into stronger rollout recovery; they increased jitter and moved the offroad earlier.
+
+Decision:
+
+- Do not continue this exact severe-steer-loss direction.
+- Keep Attempt 49 as the cleaner base: it improved jitter and raised terminal steer without route-progress hardcoding.
+- The next round should test turn-aware slowing/longitudinal control rather than stronger route-free steering supervision.
+
+Next action:
+
+- Start again from Attempt 49 `last.pt`.
+- Keep maneuver turn-phase direction/magnitude/smoothness.
+- Increase turn-phase longitudinal slowing during left/right maneuvers.
+- Avoid adding broad severe steering losses until the speed/entry-angle hypothesis is tested.
+
+## PPO Baseline Attempt 51: Turn-Phase Slow Entry
+
+Date: 2026-05-03
+
+Status: **512 clean safety retained; 2048 still blocked, jitter improved**
+
+Purpose:
+
+- Test whether the repeated left-junction failure is partly caused by entering the turn too fast.
+- Start again from Attempt 49 `last.pt`.
+- Keep maneuver turn-phase supervision, but increase turn-phase longitudinal slowing instead of adding broad severe steering losses.
+
+Config added:
+
+- `configs/baselines/ppo_matched_bc_pretrain_estimated_scalar_seed9_turn_phase_slow_entry.yaml`
+
+What changed:
+
+- Turn-phase longitudinal ceiling changed to `-0.65`.
+- Turn-phase longitudinal ceiling loss weight increased to `0.8`.
+- Action smoothness increased slightly.
+- No route-progress-specific supervision.
+- No broad severe steering recovery loss.
+
+Artifacts:
+
+- `remote_runs/ppo_matched_bc_pretrain_estimated_scalar_seed9_turn_phase_slow_entry_20260503/`
+
+Results:
+
+| Candidate | Steps | Collision | Offroad | Early offroad | Severe early offroad | Stuck | Max route progress | Final route progress | Mean action jitter L1 | Mean visual-zero steer delta | Status |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |
+| Turn-phase slow entry `last.pt` | 512 | 0 | 0 | 0 | 0 | 0 | 0.538462 | 0.538462 | 0.072976 | 0.028638 | 512 PASS |
+| Turn-phase slow entry `last.pt` | 2048 | 0 | 1 | 0 | 0 | 0 | 0.538462 | 0.179487 | 0.066199 | 0.028439 | 2048 BLOCK |
+
+Failure-window notes:
+
+- Jitter improved to below the PPO gate threshold: mean action jitter L1 `0.066199`.
+- The 2048 offroad still happened in the same left junction area.
+- Terminal row: route `0.307692`, lane offset `-2.935881`, heading error `36.306858`, steer `0.407513`, speed `8.727 km/h`.
+- Speed was lower than Attempt 50, but steering authority also dropped sharply relative to Attempt 49's terminal steer `0.513491`.
+- The likely issue is that slowing was trained through shared actor layers, so it changed steering behavior instead of only adjusting longitudinal output.
+
+Decision:
+
+- Slow-entry is useful for jitter and speed, but this exact implementation is not accepted because it still has offroad `1`.
+- Next round should preserve Attempt 49 steering and train only the longitudinal action output row.
+
+Next action:
+
+- Start from Attempt 49 `last.pt`.
+- Use turn-phase slow-entry loss.
+- Train only `recurrent_actor_critic.actor_head.2` output row `1` so the steer row is restored/frozen.
+- Re-evaluate 512 and 2048 clean.
+
+## PPO Baseline Attempt 52: Turn-Phase Longitudinal-Only Slow Entry
+
+Date: 2026-05-03
+
+Status: **512 clean safety retained; 2048 still blocked**
+
+Purpose:
+
+- Follow Attempt 51's diagnosis that slowing helped jitter but damaged steering authority.
+- Preserve Attempt 49 steering by training only the longitudinal output row.
+- Test whether lower turn-entry speed alone can solve the left-junction offroad.
+
+Config added:
+
+- `configs/baselines/ppo_matched_bc_pretrain_estimated_scalar_seed9_turn_phase_longitudinal_only.yaml`
+
+What changed:
+
+- Started from Attempt 49 `last.pt`.
+- Trained only `recurrent_actor_critic.actor_head.2` output row `1`.
+- Frozen actor output row `0` preserved the steering output.
+- Kept turn-phase slow-entry longitudinal ceiling.
+
+Artifacts:
+
+- `remote_runs/ppo_matched_bc_pretrain_estimated_scalar_seed9_turn_phase_longitudinal_only_20260503/`
+
+Results:
+
+| Candidate | Steps | Collision | Offroad | Early offroad | Severe early offroad | Stuck | Max route progress | Final route progress | Mean action jitter L1 | Mean visual-zero steer delta | Status |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |
+| Turn-phase longitudinal-only `last.pt` | 512 | 0 | 0 | 0 | 0 | 0 | 0.538462 | 0.538462 | 0.085180 | 0.029194 | 512 PASS |
+| Turn-phase longitudinal-only `last.pt` | 2048 | 0 | 1 | 0 | 0 | 0 | 0.538462 | 0.205128 | 0.080442 | 0.028833 | 2048 BLOCK |
+
+Decision:
+
+- Attempt 52 is not accepted because 2048 still has offroad `1`.
+- Longitudinal-only training did not preserve the useful jitter improvement from Attempt 51 and did not remove the left-junction failure.
+- The bottleneck now needs richer diagnostics before another tuning round.
+
+Logging update for next rounds:
+
+- `rcs_ac_first/scripts/evaluate_bc.py` now adds bottleneck-analysis fields to `bc_eval_log.csv`:
+  - vehicle pose: `x`, `y`, `z`, `yaw`
+  - route geometry: `target_waypoint_index`, `target_waypoint_delta`, `route_waypoint_count`, `route_total_length_m`, `route_heading_jump_max_deg`
+  - route dynamics: `route_progress_delta`, `route_target_y_delta`, `target_distance`, `min_target_distance`, `lookahead_turn_delta_rad`
+  - junction state: `maneuver_turn_sign`, `junction_branch_choice_active`, `junction_candidate_count`, `junction_selected_candidate_signed_yaw_diff_deg`
+  - offroad threshold state: `offroad_candidate`, `offroad_candidate_lane_offset`, `offroad_candidate_threshold`, `offroad_margin`, `offroad_steps`, `offroad_grace_active`
+  - action/speed timing: `target_speed_kmh`, `speed_error_kmh`, `requested_action_*`, `curve_proxy`, `recent_*`
+- Next evals should use this enhanced logger before making more policy changes.
+
+## PPO Baseline Attempt 53: Enhanced Bottleneck Logger Validation
+
+Date: 2026-05-03
+
+Status: **diagnostic logging accepted; 2048 still blocked**
+
+Purpose:
+
+- Add enough logging to focus the next stabilization rounds on the repeated Town04 route `0.30-0.34` left-junction bottleneck.
+- Avoid another blind tuning step before confirming whether the failure is caused by waypoint transition, route jump, excessive speed, or accumulated lateral drift.
+
+Code change:
+
+- `rcs_ac_first/scripts/evaluate_bc.py` now merges `env_step_log.csv` back into `bc_eval_log.csv` after each eval.
+- This fills actual map pose and route/environment fields that are available in the environment log but not always present in the per-step `info` dict.
+- Added/validated fields include `x`, `y`, `yaw`, `route_continuity_mean_abs_error_m`, `route_heading_mismatch`, `offroad_candidate_recent_junction_active`, and `lane_invasion`.
+
+Artifacts:
+
+- `remote_runs/ppo_matched_bc_pretrain_estimated_scalar_seed9_turn_phase_enhanced_20260503/`
+- `remote_runs/ppo_matched_bc_pretrain_estimated_scalar_seed9_turn_phase_overlay_20260503/`
+
+Validation eval:
+
+| Candidate | Steps | Collision | Offroad | Early offroad | Severe early offroad | Stuck | Max route progress | Final route progress | Mean action jitter L1 | Status |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |
+| Turn-phase `last.pt` with overlay logger | 2048 | 0 | 1 | 0 | 0 | 0 | 0.538462 | 0.205128 | 0.082324 | 2048 BLOCK |
+
+Failure-window diagnosis:
+
+- The failure remains the same left-junction/branch area, now localized to approximately Town04 `x=317.994`, `y=-248.929`, `yaw=-47.895`.
+- The terminal row is route `0.307692`, target waypoint `12`, lane offset `-2.680329`, heading error `34.988892`, steer `0.398650`, longitudinal `-0.531286`, speed `9.079 km/h`.
+- The waypoint index does not jump in the failure window: `target_waypoint_delta=0.0` from episode steps `290-307`.
+- Route target lateral demand increases only gradually: `route_target_y` `1.5306 -> 1.5508`, not a sudden target flip.
+- The offroad candidate starts at episode step `300`, when lane offset crosses roughly `-2.27`; termination happens after `8` offroad candidate steps.
+- The first large lateral discontinuity occurs around episode step `298`: lane offset `-1.789 -> -2.140` and heading error `14.114 -> 43.972`, while the waypoint remains `12`.
+
+Decision:
+
+- The logger update is accepted for all following rounds.
+- The bottleneck should be treated as accumulated left-junction lateral drift inside a stable target waypoint, not primarily as a waypoint-index jump.
+- Next policy work should focus on earlier and stronger turn-branch recovery before the lane offset crosses the offroad threshold, while preserving the fair PPO/RCS matched input/action conditions.
+
+## PPO Baseline Attempt 54: Pre-Offroad Branch Recovery
+
+Date: 2026-05-04
+
+Status: **512 clean safety retained; 2048 still blocked**
+
+Purpose:
+
+- Use Attempt 53's overlay diagnosis to avoid blind route-window tuning.
+- Target the stable-waypoint Town04 left-branch drift before offroad termination.
+- Keep inference/action fairness unchanged: no runtime lateral assist, no lane-offset steering override, no reliability/risk/Shapley/dropout consistency.
+
+Config added:
+
+- `configs/baselines/ppo_matched_bc_pretrain_estimated_scalar_seed9_turn_phase_preoffroad_branch.yaml`
+
+What changed:
+
+- Started from Attempt 49 turn-phase `last.pt`.
+- Opened only `recurrent_actor_critic.actor_head.2` output row `0`.
+- Added a narrow pre-offroad branch mask:
+  - route `0.285-0.335`
+  - abs lane offset `>= 1.45`
+  - abs heading error `>= 12`
+  - absolute steer margin `0.56`
+
+Results:
+
+| Candidate | Steps | Collision | Offroad | Early offroad | Severe early offroad | Stuck | Max route progress | Final route progress | Mean action jitter L1 | Status |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |
+| Pre-offroad branch `last.pt` | 512 | 0 | 0 | 0 | 0 | 0 | 0.538462 | 0.538462 | 0.086880 | 512 PASS |
+| Pre-offroad branch `last.pt` | 2048 | 0 | 1 | 0 | 0 | 0 | 0.538462 | 0.205128 | 0.080334 | 2048 BLOCK |
+
+Failure-window notes:
+
+- Terminal: route `0.333333`, x/y `318.123/-248.935`, lane offset `-2.655015`, heading error `33.199223`, steer `0.403581`, speed `9.104 km/h`.
+- Mean failure-window steer did not improve versus Attempt 49: `0.3934 -> 0.3919`.
+- Output-row-only tuning was too weak for this bottleneck.
+
+## PPO Baseline Attempt 55: Strong Pre-Offroad Branch Recovery
+
+Date: 2026-05-04
+
+Status: **512 clean safety retained; 2048 still blocked**
+
+Config added:
+
+- `configs/baselines/ppo_matched_bc_pretrain_estimated_scalar_seed9_turn_phase_preoffroad_branch_strong.yaml`
+
+What changed:
+
+- Still opened only actor output steer row.
+- Increased the same branch mask strength:
+  - abs lane offset min `1.0`
+  - absolute steer margin `0.66`
+  - late recovery absolute steer loss weight `7.0`
+  - two BC epochs
+
+Results:
+
+| Candidate | Steps | Collision | Offroad | Early offroad | Severe early offroad | Stuck | Max route progress | Final route progress | Mean action jitter L1 | Status |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |
+| Strong pre-offroad branch `last.pt` | 512 | 0 | 0 | 0 | 0 | 0 | 0.538462 | 0.538462 | 0.087826 | 512 PASS |
+| Strong pre-offroad branch `last.pt` | 2048 | 0 | 1 | 0 | 0 | 0 | 0.538462 | 0.205128 | 0.083638 | 2048 BLOCK |
+
+Failure-window notes:
+
+- Terminal: route `0.333333`, x/y `318.069/-248.878`, lane offset `-2.606813`, heading error `32.882057`, steer `0.418990`, speed `9.085 km/h`.
+- Mean failure-window steer improved only modestly: `0.3934 -> 0.4128`.
+- Offroad margin decreased from `0.4748` to `0.4106`, but remained far from zero.
+
+## PPO Baseline Attempt 56: Branch Authority
+
+Date: 2026-05-04
+
+Status: **512 clean safety retained; 2048 still blocked**
+
+Config added:
+
+- `configs/baselines/ppo_matched_bc_pretrain_estimated_scalar_seed9_turn_phase_branch_authority.yaml`
+
+What changed:
+
+- Opened actor head internal layer plus steer output row:
+  - `recurrent_actor_critic.actor_head.0`
+  - `recurrent_actor_critic.actor_head.2`, output row `0`
+- Increased branch absolute steer margin to `0.72`.
+- Kept longitudinal output row frozen.
+
+Results:
+
+| Candidate | Steps | Collision | Offroad | Early offroad | Severe early offroad | Stuck | Max route progress | Final route progress | Mean action jitter L1 | Mean visual-zero steer delta | Status |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |
+| Branch authority `last.pt` | 512 | 0 | 0 | 0 | 0 | 0 | 0.538462 | 0.538462 | 0.089964 | 0.030999 | 512 PASS |
+| Branch authority `last.pt` | 2048 | 0 | 1 | 0 | 0 | 0 | 0.538462 | 0.205128 | 0.083239 | 0.031006 | 2048 BLOCK |
+
+Failure-window notes:
+
+- Terminal: route `0.333333`, x/y `318.734/-248.963`, lane offset `-2.521560`, heading error `25.982124`, steer `0.531751`, speed `8.878 km/h`.
+- This was the first branch-supervision variant to materially increase terminal steering and reduce speed.
+- Offroad margin improved to `0.3685` but still triggered one offroad.
+
+## PPO Baseline Attempt 57: Branch Authority V2
+
+Date: 2026-05-04
+
+Status: **512 clean safety retained; 2048 still blocked**
+
+Config added:
+
+- `configs/baselines/ppo_matched_bc_pretrain_estimated_scalar_seed9_turn_phase_branch_authority_v2.yaml`
+
+What changed:
+
+- Continued from Attempt 56 `last.pt`.
+- Increased branch absolute steer margin to `0.82`.
+- Increased branch steer loss weight and smoothness penalty.
+
+Results:
+
+| Candidate | Steps | Collision | Offroad | Early offroad | Severe early offroad | Stuck | Max route progress | Final route progress | Mean action jitter L1 | Mean visual-zero steer delta | Status |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |
+| Branch authority v2 `last.pt` | 512 | 0 | 0 | 0 | 0 | 0 | 0.538462 | 0.538462 | 0.097015 | 0.032207 | 512 PASS |
+| Branch authority v2 `last.pt` | 2048 | 0 | 1 | 0 | 0 | 0 | 0.538462 | 0.205128 | 0.086683 | 0.031982 | 2048 BLOCK |
+
+Failure-window notes:
+
+- Terminal: route `0.333333`, x/y `318.717/-248.936`, lane offset `-2.492085`, heading error `24.817558`, steer `0.554480`, speed `8.970 km/h`.
+- Compared with Attempt 49, terminal lane offset improved from `-2.680329` to `-2.492085`.
+- Offroad margin improved from `0.4748` to `0.3446`, but still failed the 2048 clean criterion.
+- Jitter rose too much, especially in 512 eval, so further branch BC strength is likely to damage policy smoothness before it reaches accepted 2048 safety.
+
+Decision after Attempts 54-57:
+
+- The new logger made the bottleneck clear and branch-authority supervision moved the right metrics: larger steer, lower terminal lane error, and lower terminal speed.
+- However, BC loss shaping alone is not reaching offroad `0`; it trades smoothness for authority and still leaves a single offroad.
+- Next stabilization should stop increasing branch BC margins blindly.
+- The next productive step is PPO fine-tuning from the best branch-authority checkpoint or an action-wrapper/shared-dynamics audit, with any wrapper change treated as shared and requiring RCS-AC revalidation.
+
+## PPO Baseline Attempt 58: Turn-Phase Speed Reward V1
+
+Date: 2026-05-04
+
+Status: **512 clean safety retained; 2048 still blocked**
+
+Purpose:
+
+- Apply the shared reward-shaping contract that was first checked against the RCS-AC Round90 clean baseline.
+- Combine the previous branch-authority checkpoint with explicit target-speed reduction in the severe-left branch window.
+- Avoid runtime lateral recovery assist, lane-offset steering override, reliability/risk/Shapley/dropout consistency, or PPO-only hidden inputs.
+
+Config added:
+
+- `configs/baselines/ppo_matched_bc_pretrain_estimated_scalar_seed9_turn_phase_speed_reward_v1.yaml`
+
+What changed:
+
+- Started from Attempt 57 `last.pt`.
+- Added shared reward shaping:
+  - `lane_offset_penalty_weight: 0.04`
+  - `heading_error_penalty_weight: 0.005`
+  - `heading_recovery_reward_weight: 0.003`
+  - `turn_speed_penalty_weight: 0.06`
+  - `control_cost_scale: 0.12`
+- Opened PPO trainable scope to actor head and critic head only.
+- Opened BC actor output rows `[0, 1]` and enabled `early_severe_longitudinal_ceiling_loss_weight: 0.35` with ceiling `-0.45`.
+- Ran one BC speed-correction epoch from Attempt 57, then PPO 4096 with shaped reward.
+
+Execution notes:
+
+- Windows `git pull --ff-only` was blocked by the Windows HTTPS credential prompt, so the new config was copied by SSH/SCP for this round.
+- CARLA produced repeated `load_world`/streaming timeouts after readiness checks. Each contaminated simulator state was discarded and retried after `ensure_carla_ready.ps1 -ForceRestart`.
+- Successful model eval results below exclude the CARLA timeout attempts.
+
+Artifacts:
+
+- `remote_runs/ppo_matched_turn_phase_speed_reward_v1_20260504/`
+- BC checkpoint on Windows: `checkpoints/ppo_matched_bc_pretrain_estimated_scalar_seed9_turn_phase_speed_reward_v1_bc_20260504T0209/last.pt`
+- PPO checkpoint on Windows: `checkpoints/ppo_matched_turn_phase_speed_reward_v1_ppo4096_retry1_20260504T0220_20260504T022009/last.pt`
+
+Results:
+
+| Candidate | Steps | Collision | Offroad | Early offroad | Severe early offroad | Stuck | Max route progress | Final route progress | Mean action jitter L1 | Status |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |
+| Speed-reward BC `last.pt` | 512 | 0 | 0 | 0 | 0 | 0 | 0.538462 | 0.538462 | 0.095062 | 512 PASS, gate BLOCK |
+| Speed-reward PPO4096 `last.pt` | 512 | 0 | 0 | 0 | 0 | 0 | 0.538462 | 0.538462 | 0.098056 | 512 PASS, gate BLOCK |
+| Speed-reward PPO4096 `last.pt` | 2048 | 0 | 1 | 0 | 0 | 0 | 0.538462 | 0.205128 | 0.090963 | 2048 BLOCK |
+
+2048 failure-window notes:
+
+- The same left-branch bottleneck remains: route `0.333333`, `maneuver_command=left`, offroad at `offroad_steps=10`.
+- Terminal row after PPO: lane offset `-2.365312`, heading error `20.889992`, steer `0.512041`, target speed `10.9408 km/h`, speed `8.8336 km/h`.
+- Compared with Attempt 57 terminal lane offset `-2.492085` and heading error `24.817558`, this round reduced lateral/heading error but did not remove offroad.
+- Compared with Attempt 57 terminal steer `0.554480`, steering authority dropped to `0.512041`.
+- PPO rollout training itself still saw offroad episodes at route `0.333`, so the shaped reward did not immediately solve the repeated branch failure.
+- Jitter remained high: 512 `0.098056`, 2048 `0.090963`, both above the `0.07` PPO gate.
+
+Decision:
+
+- Attempt 58 is not accepted because 2048 still has offroad `1`.
+- The speed/reward direction is partially useful: it reduces terminal lane offset and heading error.
+- However, the policy still crosses the offroad threshold before recovery completes, and the extra speed/reward training does not preserve enough steering authority or smoothness.
+- Next round should not simply increase BC branch margins. Prefer either:
+  - a narrower pre-offroad longitudinal target that lowers target speed earlier while freezing the already improved steer row, or
+  - PPO reward/advantage diagnostics to confirm whether lane/heading/turn-speed penalties are actually large enough before terminal offroad.
