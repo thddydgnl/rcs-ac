@@ -3645,7 +3645,7 @@ Decision:
 - It is not yet the final PPO baseline manifest because the PPO gate still blocks on jitter: 512 mean action jitter `0.097191`, 2048 mean action jitter `0.086860`, both above the `0.07` gate.
 - The next round should preserve the V4 safety behavior while reducing jitter. Prefer smoothing-aware/distillation-style refinement from V4 rather than more steering margin. A small BC blend or PPO fine-tune can be considered only if it does not reintroduce left-branch offroad.
 
-## PPO Baseline Attempts 62-64: V4 Route Identity and Exit Longitudinal Probes
+## PPO Baseline Attempts 62-65: V4 Route Identity and Exit Longitudinal Probes
 
 Date: 2026-05-04
 
@@ -3705,6 +3705,27 @@ Attempt 64: Pre-Exit Longitudinal V6:
   - mean action jitter `0.094872`, steer jitter `0.083910`, longitudinal jitter `0.010962`.
 - Decision: blocked. This reduced jitter relative to V5 and preserved safety, but it still did not move beyond target waypoint index `16`.
 
+Attempt 65: Pre-Exit Release V7:
+
+- Config: `configs/baselines/ppo_matched_bc_pretrain_estimated_scalar_seed9_turn_phase_pre_exit_release_v7.yaml`
+- Init checkpoint: V4 `last.pt`.
+- Trainable scope: actor head output row `[1]` only, freezing steering.
+- Stronger release floor at the same represented pre-exit waypoint:
+  - route window `0.350-0.365`
+  - speed max `10.0 m/s`
+  - floor `-0.25`
+  - weight `0.60`
+  - one epoch, LR `3e-5`
+- Training result:
+  - BC completed with `val_loss=0.085248`.
+  - The floor mask was active: val `route_progress_longitudinal_mask_rate=0.102487`, `floor_rate=0.0`, `longitudinal_mean=-0.584046`.
+- 512 result:
+  - collision/offroad/severe early offroad/stuck `0/0/0/0`.
+  - max route `0.410256`, final route `0.410256`.
+  - mean action jitter `0.096058`, steer jitter `0.084407`, longitudinal jitter `0.011650`.
+  - final target distance at waypoint `16` increased to `0.9425 m`, while V4 sometimes ended near `0.34-0.36 m`.
+- Decision: blocked. Stronger pre-exit release did not advance to waypoint `17`; it may overshoot or miss the waypoint advancement condition rather than simply arriving too late.
+
 Comparison:
 
 | Candidate | Steps | Collision | Offroad | Severe early offroad | Stuck | Max route progress | Max waypoint | Mean action jitter L1 | Decision |
@@ -3713,14 +3734,28 @@ Comparison:
 | V4 route-identity rerun | 2048 | 0 | 0 | 0 | 0 | 0.410256 | 16 | 0.090786 | best current clean-safety candidate |
 | Exit Progress V5 | 512 | 0 | 0 | 0 | 0 | 0.410256 | 16 | 0.105393 | blocked, empty supervision mask |
 | Pre-Exit Longitudinal V6 | 512 | 0 | 0 | 0 | 0 | 0.410256 | 16 | 0.094872 | blocked, no route gain |
+| Pre-Exit Release V7 | 512 | 0 | 0 | 0 | 0 | 0.410256 | 16 | 0.096058 | blocked, no route gain |
 
 Artifacts:
 
 - V4 route-identity rerun: `remote_runs/ppo_matched_turn_phase_early_steer_slow_v4_route_identity_rerun_20260504/`
 - V5 logs: `remote_runs/ppo_matched_turn_phase_exit_progress_v5_20260504/`
 - V6 logs: `remote_runs/ppo_matched_turn_phase_pre_exit_longitudinal_v6_20260504/`
+- V7 logs: `remote_runs/ppo_matched_turn_phase_pre_exit_release_v7_20260504/`
 - V5 checkpoint on Windows sync: `checkpoints/ppo_matched_turn_phase_exit_progress_v5_bc_20260504T0500/last.pt`
 - V6 checkpoint on Windows sync: `checkpoints/ppo_matched_turn_phase_pre_exit_longitudinal_v6_bc_20260504T0510/last.pt`
+- V7 checkpoint on Windows sync: `checkpoints/ppo_matched_turn_phase_pre_exit_release_v7_bc_20260504T0525/last.pt`
+
+Logging update:
+
+- `rcs_ac_first/scripts/evaluate_bc.py` now records route-ending diagnostics in `summary.json`:
+  - `final_target_waypoint_index`
+  - `max_target_waypoint_index`
+  - `target_waypoint_advance_count`
+  - `final_target_distance`
+  - `min_target_distance`
+  - per-episode `episode_route_endings` with final speed, longitudinal, brake, lane offset, heading error, and offroad margin.
+- This is intended to make the waypoint `16 -> 17` blocker visible without manually reading every CSV tail.
 
 Current interpretation:
 

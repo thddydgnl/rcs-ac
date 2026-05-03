@@ -5,7 +5,7 @@ import csv
 import json
 import math
 import sys
-from collections import Counter
+from collections import Counter, defaultdict
 from pathlib import Path
 from typing import Any
 
@@ -743,6 +743,39 @@ def _initial_audit_summary(rows: list[dict[str, Any]], *, max_episode_step: int 
     }
 
 
+def _episode_route_endings(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    grouped: dict[int, list[dict[str, Any]]] = defaultdict(list)
+    for row in rows:
+        grouped[int(row.get("episode", 0))].append(row)
+    endings: list[dict[str, Any]] = []
+    for episode, episode_rows in sorted(grouped.items()):
+        if not episode_rows:
+            continue
+        final = episode_rows[-1]
+        endings.append(
+            {
+                "episode": int(episode),
+                "final_episode_step": int(final.get("episode_step", final.get("step", 0))),
+                "final_route_progress": float(final.get("route_progress", 0.0)),
+                "max_route_progress": max(float(row.get("route_progress", 0.0)) for row in episode_rows),
+                "final_target_waypoint_index": float(final.get("target_waypoint_index", 0.0)),
+                "max_target_waypoint_index": max(float(row.get("target_waypoint_index", 0.0)) for row in episode_rows),
+                "target_waypoint_advance_count": int(
+                    sum(1 for row in episode_rows if float(row.get("target_waypoint_delta", 0.0)) > 0.0)
+                ),
+                "final_target_distance": float(final.get("target_distance", 0.0)),
+                "min_target_distance": min(float(row.get("target_distance", 0.0)) for row in episode_rows),
+                "final_speed_kmh": float(final.get("speed_kmh", 0.0)),
+                "final_longitudinal": float(final.get("longitudinal", 0.0)),
+                "final_brake": float(final.get("brake", 0.0)),
+                "final_lane_offset": float(final.get("lane_offset", 0.0)),
+                "final_heading_error": float(final.get("heading_error", 0.0)),
+                "final_offroad_margin": float(final.get("offroad_margin", 0.0)),
+            }
+        )
+    return endings
+
+
 def _build_summary(
     *,
     run_name: str,
@@ -754,6 +787,9 @@ def _build_summary(
 ) -> dict[str, Any]:
     completed_steps = len(rows)
     route_values = [float(row["route_progress"]) for row in rows]
+    route_endings = _episode_route_endings(rows)
+    target_waypoint_values = [float(row.get("target_waypoint_index", 0.0)) for row in rows]
+    target_distance_values = [float(row.get("target_distance", 0.0)) for row in rows]
     done_reasons = Counter(str(row["done_reason"]) for row in rows if bool(row["done"]))
     action_range_ok = all(-1.0001 <= float(row["steer"]) <= 1.0001 and -1.0001 <= float(row["longitudinal"]) <= 1.0001 for row in rows)
     finite_ok = _finite_rows(rows)
@@ -917,6 +953,14 @@ def _build_summary(
         "final_route_progress": float(route_values[-1]) if route_values else 0.0,
         "mean_route_progress": float(mean_route_progress),
         "max_route_progress": float(max(route_values, default=0.0)),
+        "final_target_waypoint_index": float(target_waypoint_values[-1]) if target_waypoint_values else 0.0,
+        "max_target_waypoint_index": float(max(target_waypoint_values, default=0.0)),
+        "target_waypoint_advance_count": int(
+            sum(1 for row in rows if float(row.get("target_waypoint_delta", 0.0)) > 0.0)
+        ),
+        "final_target_distance": float(target_distance_values[-1]) if target_distance_values else 0.0,
+        "min_target_distance": float(min(target_distance_values, default=0.0)),
+        "episode_route_endings": route_endings,
         "collision_rate": float(collision_rate),
         "collision_count": int(collision_count),
         "collision_context_window_steps": int(COLLISION_CONTEXT_WINDOW_STEPS),
