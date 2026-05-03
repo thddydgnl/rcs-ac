@@ -540,7 +540,34 @@ Main Agent:
   13. Document regression-first result and push.
 ```
 
-## 14. Non-Negotiable Rules
+## 14. CARLA Crash/Timeout Guardrails
+
+When CARLA shows `Fatal error! Crash in runnable thread TaskGraphThreadNP` or a Python timeout while waiting for the simulator:
+
+```text
+1. Treat it as infrastructure until proven otherwise.
+2. Confirm no second CARLA job is running.
+3. Run ensure_carla_ready.ps1 with TargetTown Town04; use ForceRestart after a failed load/eval.
+4. Verify the guard prints PYTHON_PROBE_TARGET_ALREADY_LOADED=Town04 before launching train/eval.
+5. Verify shared_core/env/carla_env.py does not call client.load_world(Town04) when the current world is already Town04.
+6. Do not overwrite Windows shared_core/env/carla_env.py with an older standalone env/carla_env.py layout.
+7. If shared_core/env/carla_env.py must be patched remotely, preserve shared_core imports, action_contract_version, target-speed longitudinal control, action_smoothing, maneuver_command route hints, semantic aux masks, and advanced StateBuilder input objects.
+```
+
+The readiness guard and the env must work together:
+
+```text
+guard responsibility:
+  start CARLA, wait for port, target-load Town04, confirm stable get_world.
+
+env responsibility:
+  reuse current Town04 world when already loaded.
+  only call load_world when the current map is missing or not the requested town.
+```
+
+If the guard loads Town04 and the env immediately reloads Town04, the next command can still timeout or crash even though the guard reported healthy.
+
+## 15. Non-Negotiable Rules
 
 ```text
 1. Lite or Full sub-agent findings come before experiment design when the stabilization trigger is used.

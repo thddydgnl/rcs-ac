@@ -3586,3 +3586,61 @@ Decision:
 - The next useful step is not a broader global turn-speed loss. It should either:
   - make the severe-left longitudinal target stronger and earlier while monitoring terminal steer, or
   - inspect the label/action mapping to confirm what longitudinal value is required to reach `6-8 km/h` target speed before offroad candidate onset.
+
+## PPO Baseline Attempt 60-61: Deep Slow V3 and Early-Steer Slow V4
+
+Date: 2026-05-04
+
+Status: **first 512/2048 clean safety pass for the matched BC checkpoint; PPO gate still blocked by jitter**
+
+Purpose:
+
+- Continue the left-branch route `0.30-0.34` failure analysis from Attempts 57-59.
+- Separate two suspected causes:
+  - target speed was still too high before the left offroad threshold,
+  - steer authority arrived too late around route `0.307-0.333`.
+
+Infrastructure recovery:
+
+- A CARLA readiness guard can load `Town04`, but the shared env was still re-calling `client.load_world(self.town)` on eval startup.
+- The shared env now reuses the current world when `get_world().get_map()` is already the requested town, avoiding a second same-town load that can trigger CARLA streaming timeout/crash.
+- During recovery, the Windows `shared_core/env/carla_env.py` source had to be treated as layout-specific shared-core code. Do not overwrite it with the older standalone `Code/env/carla_env.py` layout without preserving shared-core imports, action contract v2, route maneuver hints, target-speed control, smoothing, and advanced state-builder calls.
+
+Attempt 60: Deep Slow V3:
+
+- Config: `configs/baselines/ppo_matched_bc_pretrain_estimated_scalar_seed9_turn_phase_deep_slow_v3.yaml`
+- Init checkpoint: Attempt 57 Branch Authority V2 `last.pt`.
+- Trainable scope: actor head output row `[1]` only, freezing steer.
+- Stronger early severe longitudinal ceiling: route `0.255-0.335`, abs lane offset `>=0.75`, ceiling `-0.85`, loss weight `8.0`.
+- Result: 512 PASS, 2048 still offroad `1`.
+- 2048 terminal left row improved speed control but not enough: lane offset `-2.440991`, heading error `29.022316`, steer `0.525490`, target speed `8.225 km/h`, speed `6.815 km/h`.
+- Diagnosis: speed was no longer the only blocker. The left episode starts drifting at route `0.307692`; steer stayed around `0.37-0.38` while lane offset grew from `-1.42` to `-2.13`, then rose above `0.50` only after route `0.333333`.
+
+Attempt 61: Early-Steer Slow V4:
+
+- Config: `configs/baselines/ppo_matched_bc_pretrain_estimated_scalar_seed9_turn_phase_early_steer_slow_v4.yaml`
+- Init checkpoint: Attempt 60 Deep Slow V3 `last.pt`.
+- Trainable scope: actor head output row `[0]` only, preserving the learned slow longitudinal row.
+- Shifted late recovery steering supervision earlier and stronger: route `0.265-0.335`, abs lane offset `>=0.75`, abs heading error `>=10`, absolute steer margin `0.86`, loss weight `24.0`.
+- Result: 512 PASS and 2048 PASS for clean safety.
+
+Results:
+
+| Candidate | Steps | Collision | Offroad | Early offroad | Severe early offroad | Stuck | Max route progress | Final route progress | Mean action jitter L1 | Status |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |
+| Deep Slow V3 BC `last.pt` | 512 | 0 | 0 | 0 | 0 | 0 | 0.410256 | 0.410256 | 0.057725 | 512 PASS, gate BLOCK |
+| Deep Slow V3 BC `last.pt` | 2048 | 0 | 1 | 0 | 0 | 0 | 0.435897 | 0.076923 | 0.050257 | 2048 BLOCK |
+| Early-Steer Slow V4 BC `last.pt` | 512 | 0 | 0 | 0 | 0 | 0 | 0.410256 | 0.410256 | 0.097191 | 512 PASS, gate BLOCK |
+| Early-Steer Slow V4 BC `last.pt` | 2048 | 0 | 0 | 0 | 0 | 0 | 0.410256 | 0.410256 | 0.086860 | 2048 clean safety PASS, gate BLOCK |
+
+Artifacts:
+
+- Deep Slow V3 logs: `remote_runs/ppo_matched_turn_phase_deep_slow_v3_20260504/`
+- Early-Steer Slow V4 logs: `remote_runs/ppo_matched_turn_phase_early_steer_slow_v4_20260504/`
+- V4 checkpoint on Windows: `checkpoints/ppo_matched_turn_phase_early_steer_slow_v4_bc_20260504T0415/last.pt`
+
+Decision:
+
+- V4 is the first matched PPO/BC clean-safety candidate to satisfy the hard 512/2048 safety criteria: collision `0`, offroad `0`, severe early offroad `0`, stuck `0`.
+- It is not yet the final PPO baseline manifest because the PPO gate still blocks on jitter: 512 mean action jitter `0.097191`, 2048 mean action jitter `0.086860`, both above the `0.07` gate.
+- The next round should preserve the V4 safety behavior while reducing jitter. Prefer smoothing-aware/distillation-style refinement from V4 rather than more steering margin. A small BC blend or PPO fine-tune can be considered only if it does not reintroduce left-branch offroad.
