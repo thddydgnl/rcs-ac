@@ -2543,3 +2543,120 @@ Current blocker after Attempt 40:
 
 - PPO-only allowed tuning has not produced a 512-safe checkpoint.
 - The strongest candidate remains original seed9 `update_0011.pt`, but it still fails the hard gate with offroad `1`.
+
+## PPO Baseline Attempt 41: Seed9 Midstd Rollout512 Minibatch256 32k
+
+Config: `configs/baselines/ppo_clean_same_env_sensor_action_seed9_midstd_rollout512_mb256.yaml`
+
+Run name: `ppo_clean_seed9_midstd_rollout512_mb256_32768`
+
+Status: **failed 512 clean gate**
+
+Purpose:
+
+- Test whether the closest seed9 family improves with a longer pure PPO budget.
+- Keep clean environment, route, observation keys, reward, termination, action wrapper, and PPO-only feature exclusions unchanged.
+- Do not add PPO-only assist, privileged inference inputs, lane-offset runtime steering override, or RCS-AC auxiliary/corrective policy features.
+
+Allowed tuning changed from seed9 Attempt19 family:
+
+- Training budget: `32768` timesteps
+
+Training summary:
+
+- Timesteps: `32768`
+- Episodes: `172`
+- Done reasons: offroad `156`, collision `15`, max_steps `1`
+- Best training route progress: `0.692308`
+- Best training episode: episode `96`, length `512`, done reason `max_steps`, collision/offroad/stuck all false
+- Last update: `64`
+- Last actor loss: `-0.000139`
+- Last critic loss: `22.197791`
+- Last entropy: `0.438457`
+
+Pulled logs:
+
+- `remote_runs/ppo_baseline_seed9_midstd_rollout512_mb256_32768_20260503T092911/logs/training_log.csv`
+- `remote_runs/ppo_baseline_seed9_midstd_rollout512_mb256_32768_20260503T092911/eval_update0035/`
+- `remote_runs/ppo_baseline_seed9_midstd_rollout512_mb256_32768_20260503T092911/eval_last/`
+
+512 clean eval results:
+
+| Checkpoint | Collision | Offroad | Early offroad | Severe early offroad | Stuck | Max route progress | Mean action jitter L1 | PPO gate |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |
+| `update_0035.pt` | `0` | `3` | `0` | `0` | `0` | `0.230769` | `0.001687` | `BLOCK` |
+| `last.pt` | `0` | `2` | `0` | `0` | `0` | `0.358974` | `0.003288` | `BLOCK` |
+
+Failure diagnosis:
+
+- The longer budget produced one clean max-steps training episode, but that checkpoint did not generalize to deterministic 512 eval.
+- `update_0035.pt` failed with offroad `3` and low route progress despite containing the best training episode.
+- `last.pt` improved route sanity above the recommended `0.30` threshold but still failed the hard zero-offroad requirement with offroad `2`.
+- Longer pure PPO training alone is not enough to convert the seed9 near-pass family into an accepted clean baseline.
+
+Current blocker after Attempt 41:
+
+- The accepted clean PPO baseline is still absent.
+- The best checkpoint remains original seed9 `update_0011.pt` with collision `0`, offroad `1`, severe early offroad `0`, stuck `0`, and max route progress `0.538462`.
+- The next fair direction is seed repetition under the same Attempt19 family rather than PPO-only reward, wrapper, or hidden-assist changes.
+
+## PPO Baseline Attempt 42: Seed13 Attempt19 Family 16k Budget
+
+Config: `configs/baselines/ppo_clean_same_env_sensor_action_seed13_midstd_rollout512_mb256.yaml`
+
+Run name: `ppo_clean_seed13_midstd_rollout512_mb256_16384`
+
+Status: **failed 512 clean gate**
+
+Purpose:
+
+- Continue fair seed repetition under the closest Attempt19 family.
+- Keep clean environment, route, observation keys, reward, termination, action wrapper, and PPO-only feature exclusions unchanged.
+- Do not add PPO-only assist, privileged inference inputs, lane-offset runtime steering override, or RCS-AC auxiliary/corrective policy features.
+
+Allowed tuning changed from seed9 Attempt19 family:
+
+- Seed: `13`
+- Training budget: `16384` timesteps
+
+Training summary:
+
+- Timesteps: `16384`
+- Episodes: `87`
+- Done reasons: offroad `82`, collision `3`, max_steps `2`
+- Best training route progress: `0.692308`
+- Clean max-steps training episodes:
+  - episode `57`, length `512`, route progress `0.692308`, collision/offroad/stuck all false
+  - episode `81`, length `512`, route progress `0.692308`, collision/offroad/stuck all false
+- Last update: `32`
+- Last actor loss: `0.000061`
+- Last critic loss: `17.014809`
+- Last entropy: `0.438026`
+
+Pulled logs:
+
+- `remote_runs/ppo_baseline_seed13_midstd_rollout512_mb256_16384_20260503T103335/logs/training_log.csv`
+- `remote_runs/ppo_baseline_seed13_midstd_rollout512_mb256_16384_20260503T103335/eval_update0020/`
+- `remote_runs/ppo_baseline_seed13_midstd_rollout512_mb256_16384_20260503T103335/eval_update0030/`
+- `remote_runs/ppo_baseline_seed13_midstd_rollout512_mb256_16384_20260503T103335/eval_last/`
+
+512 clean eval results:
+
+| Checkpoint | Collision | Offroad | Early offroad | Severe early offroad | Stuck | Max route progress | Mean action jitter L1 | PPO gate |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |
+| `update_0020.pt` | `0` | `3` | `0` | `0` | `0` | `0.230769` | `0.000426` | `BLOCK` |
+| `update_0030.pt` | `0` | `2` | `0` | `0` | `0` | `0.256410` | `0.000522` | `BLOCK` |
+| `last.pt` | `0` | `2` | `0` | `0` | `0` | `0.256410` | `0.000605` | `BLOCK` |
+
+Failure diagnosis:
+
+- Seed13 produced two clean max-steps training episodes, but the corresponding checkpoints did not reproduce 512-safe behavior in deterministic eval.
+- All evaluated checkpoints satisfied collision/stuck/severe-early-offroad zero, but all failed on offroad count and route sanity.
+- The eval initial audits show a left-only steering tendency (`left_steer_rate: 1.0`) for the selected seed13 checkpoints, mirroring earlier single-direction steering-bias failures in other seeds.
+- Seed13 therefore does not replace seed9 as the best clean PPO candidate.
+
+Current blocker after Attempt 42:
+
+- The accepted clean PPO baseline is still absent.
+- The strongest candidate remains original seed9 `update_0011.pt`, blocked only by one offroad event in 512 eval.
+- This round stops here per user request; no new PPO baseline round is started.
