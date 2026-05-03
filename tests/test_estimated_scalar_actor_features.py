@@ -47,13 +47,15 @@ def test_estimated_scalar_visual_features_add_near_far_center_proxies() -> None:
 
     features = build_estimated_scalar_visual_features(road_logits, lane_logits)
 
-    assert features.shape == (1, 28)
+    assert features.shape == (1, 64)
     assert features[0, 14] < -0.99
-    assert features[0, 16] > 0.99
-    assert features[0, 17] < -1.99
-    assert features[0, 21] < -0.49
-    assert features[0, 23] > 0.49
-    assert features[0, 24] < -0.99
+    assert features[0, 16].abs() < 1.0e-2
+    assert features[0, 17] > 0.99
+    assert features[0, 28] > 0.99
+    assert features[0, 56] < -0.49
+    assert features[0, 58] < -1.99
+    assert features[0, 60] < -0.49
+    assert features[0, 62] < -0.99
 
 
 def test_disabled_scalar_source_disables_scalar_actor_features() -> None:

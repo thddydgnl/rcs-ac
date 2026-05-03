@@ -80,29 +80,45 @@ def build_estimated_scalar_visual_features(
     lane_mid = lane[:, :, mid_start:mid_stop, :]
     lane_near = lane[:, :, near_start:near_stop, :]
 
-    road_far_x = _weighted_x_mean(road_far, x_coords)
-    road_mid_x = _weighted_x_mean(road_mid, x_coords)
-    road_near_x = _weighted_x_mean(road_near, x_coords)
-    lane_far_x = _weighted_x_mean(lane_far, x_coords)
-    lane_mid_x = _weighted_x_mean(lane_mid, x_coords)
-    lane_near_x = _weighted_x_mean(lane_near, x_coords)
+    road_far_features = _band_geometry_features(road_far, x_coords)
+    road_mid_features = _band_geometry_features(road_mid, x_coords)
+    road_near_features = _band_geometry_features(road_near, x_coords)
+    lane_far_features = _band_geometry_features(lane_far, x_coords)
+    lane_mid_features = _band_geometry_features(lane_mid, x_coords)
+    lane_near_features = _band_geometry_features(lane_near, x_coords)
 
-    extended = torch.stack(
+    road_far_x = road_far_features[:, 0]
+    road_mid_x = road_mid_features[:, 0]
+    road_near_x = road_near_features[:, 0]
+    lane_far_x = lane_far_features[:, 0]
+    lane_mid_x = lane_mid_features[:, 0]
+    lane_near_x = lane_near_features[:, 0]
+    road_far_mid_slope = road_far_x - road_mid_x
+    road_mid_near_slope = road_mid_x - road_near_x
+    lane_far_mid_slope = lane_far_x - lane_mid_x
+    lane_mid_near_slope = lane_mid_x - lane_near_x
+    slope_features = torch.stack(
         [
-            road_far_x,
-            road_mid_x,
-            road_near_x,
+            road_far_mid_slope,
+            road_mid_near_slope,
             road_far_x - road_near_x,
-            road_far.mean(dim=(1, 2, 3)),
-            road_mid.mean(dim=(1, 2, 3)),
-            road_near.mean(dim=(1, 2, 3)),
-            lane_far_x,
-            lane_mid_x,
-            lane_near_x,
+            road_far_mid_slope - road_mid_near_slope,
+            lane_far_mid_slope,
+            lane_mid_near_slope,
             lane_far_x - lane_near_x,
-            lane_far.mean(dim=(1, 2, 3)),
-            lane_mid.mean(dim=(1, 2, 3)),
-            lane_near.mean(dim=(1, 2, 3)),
+            lane_far_mid_slope - lane_mid_near_slope,
+        ],
+        dim=-1,
+    )
+    extended = torch.cat(
+        [
+            road_far_features,
+            road_mid_features,
+            road_near_features,
+            lane_far_features,
+            lane_mid_features,
+            lane_near_features,
+            slope_features,
         ],
         dim=-1,
     )
@@ -133,6 +149,30 @@ def _validate_and_sigmoid_perception_logits(
 
 def _weighted_x_mean(mask: torch.Tensor, x_coords: torch.Tensor) -> torch.Tensor:
     return (mask * x_coords).sum(dim=(1, 2, 3)) / mask.sum(dim=(1, 2, 3)).clamp_min(1.0e-6)
+
+
+def _band_geometry_features(mask: torch.Tensor, x_coords: torch.Tensor) -> torch.Tensor:
+    _, _, _, width = mask.shape
+    split = max(1, width // 2)
+    left_mask = mask[:, :, :, :split]
+    right_mask = mask[:, :, :, split:]
+    left_x_coords = x_coords[:, :, :, :split]
+    right_x_coords = x_coords[:, :, :, split:]
+    center_x = _weighted_x_mean(mask, x_coords)
+    left_x = _weighted_x_mean(left_mask, left_x_coords)
+    right_x = _weighted_x_mean(right_mask, right_x_coords) if int(right_mask.shape[-1]) > 0 else torch.zeros_like(left_x)
+    return torch.stack(
+        [
+            center_x,
+            left_x,
+            right_x,
+            right_x - left_x,
+            mask.mean(dim=(1, 2, 3)),
+            left_mask.mean(dim=(1, 2, 3)),
+            right_mask.mean(dim=(1, 2, 3)) if int(right_mask.shape[-1]) > 0 else torch.zeros_like(left_x),
+        ],
+        dim=-1,
+    )
 
 
 class RGBPerceptionAuxHead(nn.Module):
@@ -215,7 +255,7 @@ class RGBPerceptionActorFeatureExtractor(nn.Module):
 
 
 class EstimatedScalarHead(nn.Module):
-    input_dim: int = 28
+    input_dim: int = 64
 
     def __init__(
         self,
@@ -227,12 +267,25 @@ class EstimatedScalarHead(nn.Module):
         self.route_dim = int(route_dim)
         if self.route_dim <= 0:
             raise ValueError(f"route_dim must be positive, got {route_dim!r}")
-        self.net = nn.Sequential(
-            nn.Linear(self.input_dim + self.route_dim, int(hidden_dim)),
-            nn.ReLU(),
-            nn.Linear(int(hidden_dim), int(hidden_dim)),
-            nn.ReLU(),
-            nn.Linear(int(hidden_dim), 2),
+        hidden = int(hidden_dim)
+        self.visual_net = nn.Sequential(
+            nn.Linear(self.input_dim, hidden),
+            nn.LayerNorm(hidden),
+            nn.SiLU(),
+        )
+        self.route_net = nn.Sequential(
+            nn.Linear(self.route_dim, hidden),
+            nn.LayerNorm(hidden),
+            nn.SiLU(),
+        )
+        self.fusion_net = nn.Sequential(
+            nn.Linear(hidden * 2, hidden),
+            nn.LayerNorm(hidden),
+            nn.SiLU(),
+            nn.Linear(hidden, hidden),
+            nn.LayerNorm(hidden),
+            nn.SiLU(),
+            nn.Linear(hidden, 2),
         )
         self._initialize_residual_output()
 
@@ -249,13 +302,15 @@ class EstimatedScalarHead(nn.Module):
         route = route_input.to(device=visual_geometry_features.device, dtype=visual_geometry_features.dtype)
         if route.ndim != 2 or int(route.shape[-1]) != self.route_dim:
             raise ValueError(f"route_input must have shape [B, {self.route_dim}], got {tuple(route.shape)}")
-        estimated = self.net(torch.cat([visual_geometry_features, route], dim=-1))
+        visual_feature = self.visual_net(visual_geometry_features)
+        route_feature = self.route_net(route)
+        estimated = self.fusion_net(torch.cat([visual_feature, route_feature], dim=-1))
         if not torch.isfinite(estimated).all():
             raise ValueError("Estimated scalar head produced non-finite values.")
         return estimated
 
     def _initialize_residual_output(self) -> None:
-        output = self.net[-1]
+        output = self.fusion_net[-1]
         if not isinstance(output, nn.Linear):
             return
         with torch.no_grad():
