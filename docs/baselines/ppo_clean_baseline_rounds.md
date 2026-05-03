@@ -2427,3 +2427,59 @@ Current blocker after Attempt 38:
 
 - Larger steering exploration is not the missing ingredient by itself.
 - The PPO baseline still lacks a stable recovery response near the same late lateral failure region.
+
+## PPO Baseline Attempt 39: Seed9 Longitudinal Low-Std 8192
+
+Config: `configs/baselines/ppo_clean_same_env_sensor_action_seed9_longlow_rollout512_mb256.yaml`
+
+Run name: `ppo_clean_seed9_longlow_rollout512_mb256_8192`
+
+Status: **failed 512 clean gate**
+
+Purpose:
+
+- Test whether reducing longitudinal action exploration stabilizes the late safety failure seen in the seed9 near-pass band.
+- Keep steering exploration, clean environment, route, observation keys, reward, termination, and action wrapper unchanged.
+- Do not add PPO-only assist, privileged inference inputs, lane-offset runtime steering override, or RCS-AC auxiliary/corrective policy features.
+
+Allowed tuning changed from seed9 Attempt19 family:
+
+- `log_std_init_by_dim: [-1.2, -2.0]`
+- `max_std_by_dim: [0.35, 0.25]`
+- Smoke budget: `8192` timesteps
+
+Training summary:
+
+- Timesteps: `8192`
+- Episodes: `49`
+- Done reasons: offroad `41`, collision `8`
+- Best training route progress: `0.564103`
+- Last update: `16`
+- Last actor loss: `0.000041`
+- Last critic loss: `16.597123`
+- Last entropy: `-0.361723`
+
+Pulled logs:
+
+- `remote_runs/ppo_baseline_seed9_longlow_rollout512_mb256_8192_20260503T084821/train/training_log.csv`
+- `remote_runs/ppo_baseline_seed9_longlow_rollout512_mb256_8192_20260503T084821/eval_last/`
+- `remote_runs/ppo_baseline_seed9_longlow_rollout512_mb256_8192_20260503T084821/eval_update0010/`
+
+512 clean eval results:
+
+| Checkpoint | Collision | Offroad | Early offroad | Severe early offroad | Stuck | Max route progress | Mean action jitter L1 | PPO gate |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |
+| `last.pt` | `1` | `0` | `0` | `0` | `0` | `0.564103` | `0.000797` | `BLOCK` |
+| `update_0010.pt` | `0` | `2` | `0` | `0` | `0` | `0.384615` | `0.000867` | `BLOCK` |
+
+Failure diagnosis:
+
+- Lower longitudinal exploration did not produce a 512-safe checkpoint.
+- The final checkpoint again shifts the failure from offroad to collision at route progress `0.564103`.
+- The mid checkpoint selected from the high-progress training region failed worse in deterministic eval (`offroad 2`).
+- This suggests the seed9 failure is not mainly caused by longitudinal exploration noise.
+
+Current blocker after Attempt 39:
+
+- The best PPO checkpoint remains the original seed9 `update_0011.pt` near-pass candidate with offroad `1`.
+- Steering exploration and longitudinal exploration changes both failed to remove the last safety event.
