@@ -1,0 +1,509 @@
+
+
+--- PAGE 1 ---
+RCS-AC-first 안정화 진단 및 다음 라운드 구현안
+1
+작성 기준: rcs_ac_diagnosis_package_2026-05-02.pdf 및 대화 내 진단 내용
+ CARLA RCS-AC-first 안정화 진단 보고서
+ Episode 초기 좌측 커브, RGB perception feature, BC/PPO, guard 평가 및 다음 라운드 구현안
+핵심 결론
+첨부 PDF 기준으로 보면 episode 시작 직후 왼쪽으로 크게 커브하는 현상은 단일 sign bug 하나라기보다 초기 route/maneuver 입
+력, severe early recovery 데이터 부족, steer correction과 speed/brake correction의 coupling 부재가 겹친 문제일 가능성이 높다.
+ 다만 sign convention은 틀리면 모든 보정 loss가 반대로 작동하므로 원인 가능성 순위와 별개로 점검 우선순위는 P0로 둔다.
+목차
+- A. 가장 가능성 높은 원인 Top 5
+- B. 코드상 즉시 점검할 파일/함수/라인 단위 포인트
+- C. 실험 결과 해석: Round24, 27, 28, 29
+- D. 다음 라운드 구현안: 데이터, loss, config, eval gate
+- E. PPO를 재개해도 되는 조건
+- F. lateral recovery guard를 논문/보고서에서 공정하게 다루는 방법
+- 부록. 다음 안정화 라운드의 최소 코드 변경 3개
+작성 근거: 첨부 PDF의 모델 구조/센서 사용 방식, RGB perception actor feature 구현, BC/PPO 학습 코드, Round17-29 안정화 실험 결과. 주
+요 수치로는 Round24 val loss 0.005694, Round28 side split sign rate, Round29 raw/guard/PPO eval 결과, lateral recovery guard
+speed gate 설정을 반영했다.
+
+
+
+--- PAGE 2 ---
+RCS-AC-first 안정화 진단 및 다음 라운드 구현안
+2
+작성 기준: rcs_ac_diagnosis_package_2026-05-02.pdf 및 대화 내 진단 내용
+A. 가장 가능성 높은 원인 Top 5
+순
+위
+원인
+판단 근거
+즉시 확인법
+1
+초기 route/maneuver 초기화
+또는 maneuver hint bias
+Round27/28/29 raw eval이 반복적으로
+route_progress=0.076923에서 terminal offroad. PDF에는
+route representation에 maneuver hint가 포함되고,
+maneuver_command_enabled=true, mode=cycle,
+values=[straight, left, right]가 명시됨. 시작 직후 좌회전이면
+route heading과 maneuver hint가 spawn 직후 불일치했을 가능
+성이 큼.
+20 episode만 maneuver_command_en
+abled=false 또는 fixed_straight로 eval.
+좌측 커브가 사라지면 route/maneuver가
+1차 원인.
+2
+early severe recovery 데이터
+분포 부족
+Round29 early route 데이터를 추가했지만 Round24 policy
+collection은 lane min -0.64m 수준이고 raw failure는 lane 약
+-3m. early_route_offset_agreement_mask_rate=0.018779,
+negative_sign_rate=0.098592로 학습 신호가 매우 희박함.
+route_progress<=0.10, 
+abs(lane_offset)>=1.2m, 가능하면 
+>=2.0m, abs(heading_error)>=10deg 
+row를 양쪽 sign으로 강제 수집.
+3
+steer correction과
+speed/brake correction의
+coupling 부재
+Round29 terminal CSV에서 lane_offset -1.85 -> -2.86, steer 
+-0.15 -> +0.43, 속도 약 17km/h가 관찰됨. 방향 보정은 들어오지만
+ 차량이 이미 빠르게 lateral drift 중이라 늦음. guard speed gate는 
+min_speed 16km/h, target 10km/h, throttle_cap 0.06, 
+max_brake 0.20로 이 문제를 직접 보정함.
+steering loss와 별도 high-speed lateral
+error longitudinal loss를 추가.
+high-speed severe case에서 throttle
+cap violation과 brake activation을 계측.
+4
+global sign bug보다는
+side-specific sign imbalance
+또는 feature/loss sign
+mismatch
+desired_sign=-sign(lane_offset)를 쓰지만 Round28은 overall
+sign rate 0.860795와 달리 negative-lane 1.0, positive-lane
+0.199643. Round29 early negative sign rate도 0.098592. 전체
+sign convention 하나보다 좌/우 side별 supervision 불균형이 강함.
+step 0-80 로그로 steer +가 실제 yaw를 
+어느 방향으로 바꾸는지, lane_offset<0일 
+때 복귀 steer sign이 무엇인지 검증.
+5
+RGB visual center feature와
+actor-facing RGB 영향의
+phase lag
+visual_center_error=lane_x-road_x인데 lane_x는 lane edge
+mask weighted center라 실제 lane centerline이 아닐 수 있음.
+severe early offroad에서 reliability_rgb=1.0인데
+fusion_rgb=0.001~0.023. 그러나 RGB compact feature는
+actor_input_adapter로 bypass되어 들어가므로 fusion_rgb만으로
+ RGB 영향이 낮다고 결론 내리기 어려움.
+road_x/lane_x/visual_center_error와
+simulator lane_offset/heading_error의
+offline correlation 및 RGB overlay를 먼
+저 확인.
+구조적 진단
+현재 안정화가 어려운 이유는 모델 구조, loss 설계, 데이터 수집, PPO fine-tuning, runtime guard가 서로 맞물려 있기 때문이다.
+FusionGate의 fusion_rgb와 actor에 들어가는 RGB perception compact feature가 분리되어 해석 지표와 실제 steering 영향이
+어긋날 수 있고, loss는 aggregate sign rate가 side split 실패를 숨긴다. 데이터는 실제 실패 강도인 route_progress=0.076923,
+lane 약 -3m, heading +20~30deg를 충분히 포함하지 못했다. PPO는 deterministic BC gate와 다른 stochastic rollout
+distribution에서 actor drift와 critic error를 다시 만들 수 있다. guard는 raw policy 실패를 덮을 수 있어 논문/보고서에서는 분리
+보고가 필수다.
+
+
+
+--- PAGE 3 ---
+RCS-AC-first 안정화 진단 및 다음 라운드 구현안
+3
+작성 기준: rcs_ac_diagnosis_package_2026-05-02.pdf 및 대화 내 진단 내용
+B. 코드상 즉시 점검할 파일/함수/라인 단위 포인트
+B1. rcs_ac_first/runtime/action.py
+PDF의 action contract는 action shape=(2,), order=(steer, longitudinal), longitudinal>0 throttle, longitudinal<0 
+brake다. 여기서 action[0]이 CARLA VehicleControl.steer로 그대로 들어가는지, sign flip이나 smoothing 전후 sign 변환
+이 없는지 가장 먼저 확인해야 한다.
+t, raw_steer, smoothed_steer, applied_carla_steer,
+vehicle_yaw, yaw_delta, lane_offset, heading_error,
+route_target_heading, maneuver_command
+통과 기준은 raw_steer sign -> yaw_delta sign -> lane_offset 감소 방향이 일관적인 것이다.
+B2. rcs_ac_first/runtime/observation.py
+route representation은 target_xy_plus_two_distance_heading_plus_third_heading_plus_turn_delta_plus_maneuve
+r_hint_v1이다. episode 시작 직후 좌측 커브가 나타나면 첫 route target heading, maneuver one-hot, turn_delta,
+target_xy local frame이 spawn yaw 기준으로 맞는지 봐야 한다.
+maneuver_command_enabled: false
+# 또는
+maneuver_command_mode: fixed
+maneuver_command_value: straight
+# route turn_delta와 target heading은 그대로 유지
+fixed-straight에서 시작 좌회전이 사라지면 route/maneuver 쪽이 원인이다.
+B3. rcs_ac_first/runtime/auxiliary.py
+lane_offset, heading_error, route_progress의 sign과 scale을 확인한다. 특히 route_progress=0.076923이 실제 route
+의 어느 waypoint/segment인지 확인해야 한다.
+- 차량이 lane center보다 왼쪽일 때 lane_offset sign
+- 차량 heading이 lane 방향보다 왼쪽으로 틀어졌을 때 heading_error sign
+- heading_error 단위가 deg인지 rad인지
+- route_progress=0.076923이 실제 route의 어느 waypoint/segment인지
+B4. rcs_ac_first/models/perception_aux.py:43-120
+RGBPerceptionActorFeatureExtractor는 road/lane mask logits에서 14개 raw statistic을 만들고 16-d compact feature
+로 project한다. road_x와 lane_x는 lower-half mask의 x-coordinate weighted center이며
+visual_center_error=lane_x-road_x다.
+주의점
+lane_x는 lane centerline이 아니라 lane edge density center일 가능성이 높다. 양쪽 차선 edge가 보이는 상황, 한쪽만 보이는 상
+황, 커브에서 road mask 중심이 이동하는 상황에서 lane_x-road_x의 sign이 simulator lane_offset과 항상 같은 의미라고 보장되지
+ 않는다.
+road_center_x
+lane_edge_center_x
+lane_left_x, lane_right_x
+lane_edge_width
+lane_conf_left, lane_conf_right
+visual_center_error = lane_center_proxy - road_center_x
+visual_heading_proxy = bottom_center_x - lower_center_x
+다음 라운드에서는 feature 구조를 바로 크게 바꾸기보다 corr(visual_center_error, lane_offset),
+corr(visual_heading_proxy, heading_error)와 RGB overlay를 먼저 확인한다.
+B5. rcs_ac_first/scripts/train_bc.py
+
+
+
+--- PAGE 4 ---
+RCS-AC-first 안정화 진단 및 다음 라운드 구현안
+4
+작성 기준: rcs_ac_diagnosis_package_2026-05-02.pdf 및 대화 내 진단 내용
+위치
+점검 내용
+의심 포인트
+517-587
+visual center corrective loss
+visual_center_error=lane_x-road_x의 sign과 RGB-vs-zero steer delta sign. delta 계산 방
+향이 with_rgb-zero_rgb인지 반대인지 확인.
+603-680
+route-aware visual center loss
+route_progress window가 실패 지점 0.076923을 충분히 포함하는지 확인.
+715-804
+collision cluster route-offset loss
+desired_sign=-sign(lane_offset). heading_error, speed, side imbalance를 무시하면
+Round28처럼 한쪽만 맞음.
+807-838
+early route offset loss
+early mask density와 side balance. Round29 mask rate 0.018779는 너무 희박함.
+2031-2080
+BC total loss
+loss weight 적용 순서와 action dim. steer loss가 longitudinal과 섞이지 않는지 확인.
+visual_center_correction_rate=1.0인데 offroad가 계속 나는 것은 loss sign이 맞다는 증거가 아니라, mask가 쉬운 샘플만
+잡거나 phase가 늦은 샘플을 놓친다는 증거일 수 있다.
+B6. rcs_ac_first/models/fusion_gate.py
+reliability_rgb=1.0인데 fusion_rgb=0.001~0.023인 것은 모순이 아니다. FusionGate는 modality feature MLP logit,
+reliability log bias, risk scalar, contribution bias를 softmax로 합치고 route/ego floor를 적용한다. 또한 RGB perception
+compact feature는 fused feature와 별도로 actor_input_adapter로 들어간다.
+rgb_base_logit
+rgb_reliability_bias
+rgb_risk_bias
+rgb_contribution_bias
+rgb_pre_softmax_logit
+fusion_rgb_after_floor
+rgb_perception_compact_norm
+actor_input_adapter_rgb_jacobian_proxy
+zero_rgb_perception_actor_features steer delta
+따라서 fusion_rgb는 RGB encoder branch의 fusion weight이지 actor-facing RGB 영향 전체가 아니다.
+B7. rcs_ac_first/rl/ppo_agent.py, rcs_ac_first/scripts/train.py
+Round29에서 guard+smoothing 512 eval은 PPO gate를 통과했지만 PPO 2048 rollout은 offroad 7, collision 1을 만들
+었다. deterministic BC eval과 stochastic PPO rollout의 distribution mismatch를 분리해야 한다.
+deterministic eval action vs stochastic rollout action
+loaded_log_std_by_dim = [-2.0, -2.0] 실제 적용 여부
+guard/smoothing이 rollout collection과 eval에 동일하게 적용되는지
+GRU hidden state reset timing
+offroad/collision 발생 transition이 PPO update에 들어가는지
+PPO update 직후 BC imitation anchor가 있는지
+
+
+
+--- PAGE 5 ---
+RCS-AC-first 안정화 진단 및 다음 라운드 구현안
+5
+작성 기준: rcs_ac_diagnosis_package_2026-05-02.pdf 및 대화 내 진단 내용
+C. 실험 결과 해석: Round24, 27, 28, 29
+Round
+관찰 결과
+증명한 것
+Round24
+BC train val loss 0.005694, visual_zero_steer_delta 0.020045,
+target_corrective_delta_sign_rate 0.946128,
+visual_center_correction_rate 1.0. 512 eval은 offroad 0, collision
+0, max route 0.769231이었지만 2048 retry에서 collision 5,
+offroad 2.
+짧은 deterministic BC gate는 통과 가능하지만 long-horizon
+safety는 보장하지 않는다. visual/sign auxiliary metric이 높아
+도 PPO/long-horizon에서 collision/offroad가 생긴다.
+Round27
+collision cluster는 route 0.16-0.20, lane_offset>+1.5, 
+heading_error<-8 근처. 그러나 512 eval에서 early offroad 7, 
+terminal route_progress 0.076923, lane_offset 약 -3m, 
+heading_error +21~27deg, collision false.
+collision cluster 보정은 early route offroad를 못 잡는다. 실패
+위치가 route 0.16-0.20이 아니라 0.076923이므로 loss
+window가 틀렸다.
+Round28
+desired_sign=-sign(lane_offset)를 쓰는 symmetric abs loss로 바꿨
+지만 overall sign rate 0.860795와 달리 negative-lane 1.0,
+positive-lane 0.199643. 512 eval은 collision 0, offroad 7,
+early/severe early offroad 7, max route 0.076923.
+aggregate sign rate는 위험하다. 좌/우 side split을 보지 않으면
+ 한쪽이 완전히 무너진 상태를 통과시킨다.
+Round29
+early recovery data와 early-route signed correction loss 추가. raw
+512 eval은 collision 0, offroad 7, early/severe early offroad 7,
+max route 0.076923. guard 512 eval은 offroad 0, max route
+0.564103, jitter 0.073864. stronger smoothing은 jitter 0.066269
+로 PPO gate PASS였지만 collision 1 at route 0.435897. PPO 2048
+은 offroad 7, collision 1.
+guard는 early offroad를 막지만 raw policy는 아직 못 배웠다.
+보정 방향은 맞지만 너무 늦다는 해석이 강하다. speed/brake
+correction 없이 steering sign loss만 키우면 같은 실패가 반복된
+다.
+Round29의 핵심 메시지
+raw policy는 early route recovery를 학습하지 못했고, guard+smoothing은 이를 runtime에서 막았다. 따라서 다음 라운드 성공
+기준은 guard-assisted 성능이 아니라 raw BC 512/2048에서 early/severe terminal offroad 0을 달성하는 것이다.
+
+
+
+--- PAGE 6 ---
+RCS-AC-first 안정화 진단 및 다음 라운드 구현안
+6
+작성 기준: rcs_ac_diagnosis_package_2026-05-02.pdf 및 대화 내 진단 내용
+D. 다음 라운드 구현안: 데이터, loss, config, eval gate
+D1. severe early recovery 데이터 수집 조건
+다음 라운드 데이터는 단순 early route가 아니라 severe early recovery로 명시해야 한다.
+route_progress: 0.025 <= p <= 0.10
+abs(lane_offset): >= 1.2m, preferably >= 2.0m
+abs(heading_error): >= 10deg
+speed: >= 16km/h인 high-speed drift case 별도 표시
+side: lane_offset < 0 / lane_offset > 0 각각 최소 50%에 가깝게 balance
+window: terminal 직전 20-40 step 저장
+target: corrected_steer - policy_steer
+target: corrected_longitudinal - policy_longitudinal
+spawn injection grid
+lane_offset_init in {-2.5, -1.5, -0.75, +0.75, +1.5, +2.5}
+heading_error_init in {-25, -15, -5, +5, +15, +25} deg
+speed_init in {10, 17, 25} km/h
+route_progress bucket in {0.025, 0.05, 0.075, 0.10}
+maneuver in {straight, left, right}
+# sign audit 전에는 fixed_straight 우선
+D2. steering correction과 speed/brake correction 분리 loss
+현재 action은 [steer, longitudinal]이고 longitudinal은 양수 throttle, 음수 brake다. recovery loss도 action dim별로 분리
+해야 한다.
+m_early = (route_progress <= 0.10)
+m_severe = m_early & ((abs(lane_offset) >= 1.2) |
+ (abs(heading_error_deg) >= 10.0))
+m_fast = m_severe & (speed_kmh >= 16.0)
+delta_steer_target = corrected_steer - policy_steer
+delta_long_target = corrected_longitudinal - policy_longitudinal
+delta_steer_pred = pred_steer - policy_steer
+delta_long_pred = pred_longitudinal - policy_longitudinal
+추천 loss
+L_early_steer_delta =
+ mean(w_side * m_severe * huber(delta_steer_pred - delta_steer_target,
+ delta=0.05))
+L_early_steer_sign =
+ mean(w_side * m_severe * relu(margin_s - sign(delta_steer_target) *
+ delta_steer_pred))
+L_early_long_delta =
+ mean(m_fast * huber(delta_long_pred - delta_long_target, delta=0.05))
+# high-speed lateral recovery 중에는 throttle 제한
+L_early_throttle_cap =
+ mean(m_fast * relu(pred_longitudinal - 0.06) ** 2)
+# brake가 필요한 경우 pred_longitudinal <= -brake_margin 유도
+L_early_brake_margin =
+ mean(m_fast * relu(pred_longitudinal + brake_margin) ** 2)
+초기 weight
+early_steer_delta_loss_weight: 1.0
+early_steer_sign_loss_weight: 0.5
+early_long_delta_loss_weight: 0.5
+early_throttle_cap_loss_weight: 0.3
+early_brake_margin_loss_weight: 0.3
+steer_sign_margin: 0.04
+brake_margin: 0.08
+
+
+
+--- PAGE 7 ---
+RCS-AC-first 안정화 진단 및 다음 라운드 구현안
+7
+작성 기준: rcs_ac_diagnosis_package_2026-05-02.pdf 및 대화 내 진단 내용
+중요한 점은 steering loss가 action[:,0]에만, speed/brake loss가 action[:,1]에만 걸리도록 하는 것이다. shared trunk까지
+gradient가 섞이는 것은 괜찮지만 loss 계산 자체는 dim-specific이어야 한다.
+D3. 기존 BC loss 수정 방향
+Round29 config는 steer_loss_weight 3.0, longitudinal_loss_weight 0.5, visual_center_corrective_sign_loss_weight
+0.20, route_aware_visual_center_loss_weight 0.15, collision_cluster_route_offset_agreement_loss_weight 0.60을
+사용했다. guard의 speed gate가 있어야 raw failure가 막힌다면 일반 longitudinal MSE 0.5만으로는 recovery 상황에서 너
+무 약하다.
+# 유지
+steer_loss_weight: 3.0
+longitudinal_loss_weight: 0.5
+target_corrective_delta_loss_weight: 0.40
+# 낮추거나 audit용으로 유지
+visual_center_corrective_sign_loss_weight: 0.05 # 기존 0.20
+route_aware_visual_center_loss_weight: 0.10 # 기존 0.15
+# collision cluster는 early severe와 분리
+collision_cluster_route_offset_agreement_loss_weight: 0.30 # 기존 0.60
+# 새로 추가
+early_steer_delta_loss_weight: 1.0
+early_steer_sign_loss_weight: 0.5
+early_long_delta_loss_weight: 0.5
+early_throttle_cap_loss_weight: 0.3
+early_brake_margin_loss_weight: 0.3
+side_balance_weighting: true
+visual_center_error는 바로 제거하지 말고, simulator lane_offset/heading_error와 sign correlation이 통과할 때까지
+weight를 낮춰 audit용으로 유지한다.
+D4. eval gate
+다음 라운드 eval은 guard를 섞지 말고 네 단계로 분리한다.
+1. raw BC 512
+2. raw BC 2048
+3. guard BC 512
+4. guard+smoothing BC 512
+성공 gate
+sign audit:
+ step 0-80에서 steer sign, yaw_delta sign, lane_offset 감소 방향 일치
+ visual_center_error와 lane_offset sign correlation이 양쪽 side에서 일관
+raw BC 512:
+ collision_count = 0
+ offroad_count = 0
+ early_offroad_count = 0
+ severe_early_terminal_offroad_count = 0
+ max_route_progress >= 0.50
+ mean_action_jitter <= 0.07
+raw BC 2048:
+ collision_count = 0
+ offroad_count = 0
+ early_offroad_count = 0
+ severe_early_terminal_offroad_count = 0
+ typical terminal route_progress가 0.103-0.179로 후퇴하지 않을 것
+loss-side metrics:
+ positive-lane corrective sign rate >= 0.75
+ negative-lane corrective sign rate >= 0.75
+ early severe mask rate >= 0.05
+ high-speed throttle cap violation <= 5%
+
+
+
+--- PAGE 8 ---
+RCS-AC-first 안정화 진단 및 다음 라운드 구현안
+8
+작성 기준: rcs_ac_diagnosis_package_2026-05-02.pdf 및 대화 내 진단 내용
+E. PPO를 재개해도 되는 조건
+지금 상태에서는 PPO를 재개하면 안 된다. Round29는 guard+smoothing 512 eval에서 PPO gate를 통과했지만, PPO
+2048에서 offroad 7, collision 1이 다시 발생했다. 이는 BC deterministic gate가 PPO rollout distribution을 대표하지 못
+한다는 증거다.
+PPO 재개 전 필수 조건
+1. raw BC 512: collision 0, offroad 0, early/severe early offroad 0
+2. raw BC 2048: collision 0, offroad 0, early/severe early offroad 0
+3. guard BC 512/2048: raw 실패를 guard가 완전히 덮는 구조가 아닐 것
+4. positive-lane sign rate >= 0.75, negative-lane sign rate >= 0.75
+5. high-speed severe lateral error에서 throttle cap violation <= 5%
+6. mean_action_jitter <= 0.07
+7. collision이 있는데 fail_reasons가 비는 gate loophole 없음
+8. maneuver fixed-straight와 cycle에서 초기 route heading, heading_error, steer sign이 설명 가능
+PPO 재개 시 보수적 설정
+ppo:
+ learning_rate: 0.000002 # 기존 0.000005보다 더 보수적으로 시작
+ clip_coef: 0.03 # 기존 0.06보다 작게
+ update_epochs: 1
+ max_grad_norm: 0.5
+ target_kl: 0.01
+ abort_rollout_on_offroad: true
+ abort_rollout_on_collision: true
+ freeze_rgb_perception: true # 초기 N update
+ freeze_actor_input_adapter: true # 초기 N update
+ critic_warmup_updates: 3
+ imitation_anchor_on_failure_transitions: true
+PPO update마다 before-update deterministic eval, after-update deterministic eval, after-update stochastic eval,
+offroad/collision transition replay imitation anchor, KL early stop을 강제한다. PPO가 다시 offroad를 만들면 reward 문
+제로만 보지 말고 BC anchor가 없는 actor drift와 critic이 early offroad의 장기 cost를 과소평가하는 문제로 봐야 한다.
+
+
+
+--- PAGE 9 ---
+RCS-AC-first 안정화 진단 및 다음 라운드 구현안
+9
+작성 기준: rcs_ac_diagnosis_package_2026-05-02.pdf 및 대화 내 진단 내용
+F. lateral recovery guard를 논문/보고서에서 공정하게 다루는 방법
+Round29 기준으로 lateral recovery guard는 아직 성능을 조금 보강하는 safety layer라기보다 raw policy 실패를 가리는
+hand-coded controller에 가깝다. raw 512 eval은 offroad 7, early/severe early offroad 7이었지만 guard 512 eval은
+offroad 0과 max route 0.564103을 만들었다. 즉 현재 성능 차이의 큰 부분이 learned policy가 아니라 runtime correction
+에서 나온다.
+보고서에 분리해서 제시할 조건
+- RCS-AC raw
+- RCS-AC + smoothing only
+- RCS-AC + lateral recovery guard
+- RCS-AC + lateral recovery guard + speed gate
+- PPO/attention baseline + 동일 guard
+- SAC/TD3/attention baseline + 동일 guard
+guard를 안전층으로 유지해도 되는 조건
+- raw policy가 이미 collision 0, offroad 0, early offroad 0을 만족
+- guard intervention rate <= 10-15%
+- mean abs steer correction <= 0.03-0.05
+- max correction 0.22가 매우 드물게만 발생
+- guard on/off 성능 차이가 route progress 기준 0.10 이하
+- 동일 guard를 baseline에도 적용했을 때 RCS-AC의 상대 우위가 유지
+보고서 문장 예시
+Lateral recovery guard는 학습 정책의 일부가 아니라 runtime safety layer로 사용하였다. 따라서 본문 주요 성능은 raw policy와
+guard-assisted policy를 분리해 보고하고, 모든 baseline에 동일 guard를 적용한 공정 비교를 함께 제시하였다.
+현재 Round29 결과를 그대로 쓰면 결론은 다음과 같다: Raw RCS-AC는 아직 early route recovery를 학습하지 못했다.
+Guard+smoothing은 early offroad를 막지만 policy 성능을 가린다. 따라서 다음 라운드의 성공 기준은 guard 성능이 아니라
+ raw BC 512/2048의 early/severe offroad 0이다.
+
+
+
+--- PAGE 10 ---
+RCS-AC-first 안정화 진단 및 다음 라운드 구현안
+10
+작성 기준: rcs_ac_diagnosis_package_2026-05-02.pdf 및 대화 내 진단 내용
+부록. 다음 안정화 라운드의 가장 작은 코드 변경 3개
+변경
+내용
+성공 gate
+실패 판정
+1
+step 0-80 sign/route audit logger +
+maneuver fixed-straight eval switch 추가
+fixed-straight에서 시작 좌회전이 사라지거나, 적어
+도 route heading/maneuver와 steer sign의 원인
+이 분리됨.
+fixed-straight에서도 route 0.076923 offroad 7
+이면 route hint보다 sign/data/speed 쪽.
+2
+early severe side-balanced steer loss 추가
+raw BC 512에서 early/severe offroad 0, 
+positive/negative sign rate 둘 다 >=0.75, max 
+route >=0.50.
+aggregate sign rate는 높지만 한쪽 side <0.6, 또는
+ raw offroad 7 유지.
+3
+high-speed lateral recovery용 longitudinal
+loss 추가
+speed>=16, severe lateral error에서 throttle 
+cap violation <=5%, brake/negative 
+longitudinal이 들어가고 guard 없이 early 
+offroad 감소.
+route progress가 stuck으로 떨어지거나
+longitudinal이 과도한 brake로 학습됨.
+이 3개가 작은 변경인 이유는 모델 아키텍처를 크게 바꾸지 않고 logger/config/loss mask만 추가하기 때문이다. FusionGate
+나 RGB feature 구조를 바로 뜯기보다, 먼저 route/sign/data/speed를 분리해야 한다.
+최종 실행 우선순위
+1. P0: action.py, auxiliary.py, observation.py에서 sign/route/maneuver audit를 먼저 끝낸다.
+2. P1: severe early recovery 데이터셋을 route_progress 0.025-0.10, abs(lane)>=1.2/2.0, abs(heading)>=10deg, 양
+쪽 side balance로 다시 수집한다.
+3. P2: steer correction loss와 longitudinal speed/brake correction loss를 action dim별로 분리한다.
+4. P3: raw BC 512/2048에서 early/severe offroad 0을 달성하기 전에는 PPO를 재개하지 않는다.
+5. P4: guard는 safety layer로 유지할 수 있지만 raw/guard-assisted 결과를 반드시 분리해서 보고한다.
+참고: PDF 근거 위치 요약
+원문 페이지
+근거 내용
+p.1
+RCS-AC 전체 구조와 action contract: action shape=(2,), steer/longitudinal order, longitudinal throttle/brake decode.
+p.2
+RGBPerceptionActorFeatureExtractor: 14 raw stats, 16-d compact feature, road_x/lane_x/visual_center_error.
+p.3
+FusionGate: reliability, contribution, risk scalar, route/ego floor, PPO config 개요.
+p.4-p.5
+train_bc.py loss 위치와 Round29 guarded config: BC loss weights, guard/smoothing, lateral recovery speed gate.
+p.6-p.8
+Round24/27/28/29 결과 수치: val loss, sign rate, raw/guard/PPO eval, offroad/collision 결과.
+p.8-p.10
+episode 시작 직후 좌측 커브의 원인 후보: route/maneuver, sign convention, data distribution, RGB correction phase lag,
+speed coupling.
+p.11-p.12
+제안 해결 방향: sign convention audit, severe early route data, steer/speed correction 분리, PPO gate 강화.
