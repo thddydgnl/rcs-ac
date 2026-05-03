@@ -2742,3 +2742,46 @@ Current blocker after Attempt 43:
 - Best strict PPO candidate remains original seed9 `update_0011.pt` with collision `0`, offroad `1`, max route `0.538462`.
 - Best matched PPO candidate is now 8192 `update_0014.pt` with collision `0`, offroad `1`, max route `0.538462`; matched input improved representation fairness but did not yet solve the zero-event 512 gate.
 - Next productive direction is a matched-input seed repeat or a matched-input pretraining/initialization policy that is documented separately from strict PPO, because PPO-only continuation from the near-pass checkpoint did not fix late correction.
+
+## PPO Baseline Attempt 44: Seed7 Matched RGB-Perception Estimated-Scalar 8192
+
+Config: `configs/baselines/ppo_clean_same_env_sensor_action_seed7_matched_estimated_scalar.yaml`
+
+Run name: `ppo_matched_rgb_scalar_seed7_8192`
+
+Status: **failed 512 clean gate**
+
+Purpose:
+
+- Repeat the matched RGB-perception + estimated-scalar PPO setup with seed7 to check whether Attempt 43's one-event seed9 failures were seed-specific.
+- Keep the same matched actor-facing representation contract while preserving disabled RCS-AC reliability, risk context, Shapley, contribution bias, dropout consistency, lateral recovery assist, and runtime lane-offset override.
+
+Important config note:
+
+- Seed7 matched inherits the seed7 smoke PPO settings: `rollout_steps: 128`, `log_std_init_by_dim: [-0.2, -0.2]`, `min_std_by_dim: [0.05, 0.05]`, `max_std_by_dim: [0.8, 0.8]`.
+- This makes it a higher-entropy seed repeat than the seed9 matched family and not a direct replacement for the seed9 near-pass configuration.
+
+Pulled logs:
+
+- `remote_runs/ppo_matched_rgb_scalar_seed7_8192_20260503/ppo_matched_rgb_scalar_seed7_8192_20260503T170639/training_log.csv`
+- `remote_runs/ppo_matched_rgb_scalar_seed7_8192_20260503/ppo_matched_rgb_scalar_seed7_8192_eval_512_last_20260503T172416/`
+
+512 clean eval result:
+
+| Checkpoint | Collision | Offroad | Early offroad | Severe early offroad | Stuck | Max route progress | Mean action jitter L1 | PPO gate |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |
+| `last.pt` | `4` | `0` | `0` | `0` | `0` | `0.128205` | `0.003247` | `BLOCK` |
+
+Failure diagnosis:
+
+- Seed7 matched regressed relative to seed9 matched.
+- Deterministic eval showed a strong right-steer bias (`right_steer_rate: 1.0`) and repeated early route `0.128205` collisions.
+- Route-offset corrective sign rate and visual-center correction rate remained `0.0`, so the actor still did not use the matched RGB/scalar representation for recovery.
+- Because route sanity failed (`max_route_progress 0.128205 < 0.30`) and collision count was `4`, seed7 is not a viable clean baseline candidate.
+
+Current blocker after Attempt 44:
+
+- Accepted clean PPO baseline is still absent.
+- Seed9 matched remains the best matched-input PPO family.
+- The strongest matched-input checkpoint remains Attempt 43 `update_0014.pt` with collision `0`, offroad `1`, severe early offroad `0`, stuck `0`, and max route `0.538462`.
+- The next productive direction should use the seed9 matched low-std/rollout512 family, not the seed7 high-entropy smoke settings.
