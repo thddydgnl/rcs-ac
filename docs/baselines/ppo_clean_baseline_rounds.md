@@ -3817,3 +3817,63 @@ Decision:
 - Keep V4 as the current PPO matched clean-safety candidate.
 - Do not promote the PPO 4096 scout.
 - Next step should focus on matched clean-safe samples or route-local geometry logging around waypoint `15-17`, not more generic PPO updates.
+
+## PPO Baseline Attempt 67: Exit Expert V8/V9
+
+Date: 2026-05-04
+
+Status: **accepted V9 as PPO matched clean baseline candidate**
+
+Purpose:
+
+- Fix the V4 waypoint `16 -> 17` plateau without adding runtime assist or changing the shared reward.
+- Use targeted offline clean expert samples for the route window that was absent from the previous BC dataset.
+
+Data/tooling change:
+
+- `collect_expert_dataset.py` now supports route-progress window filtering, `--max-steps`, metadata keys needed for compatible mixing, and a fallback to the current shared-core heuristic expert interface when `step_expert_autopilot()` is unavailable.
+- New route-window expert data: `data/expert/ppo_matched_exit_expert_route036_049_256_20260504.npz`
+- New mixed data: `data/expert/ppo_matched_exit_expert_mix_4512_20260504.npz`
+- New expert rows: `256`, route range `0.384615-0.487179`, mean route `0.433894`
+- Mixed rows: `4512`
+
+V8:
+
+- Config: `configs/baselines/ppo_matched_bc_pretrain_estimated_scalar_seed9_turn_phase_exit_expert_v8.yaml`
+- Scope: actor head longitudinal row only
+- Result: 512 safety stayed `0/0/0/0`, but route remained `0.410256`; not promoted.
+
+V9:
+
+- Config: `configs/baselines/ppo_matched_bc_pretrain_estimated_scalar_seed9_turn_phase_exit_expert_v9.yaml`
+- Init checkpoint: `checkpoints/ppo_matched_turn_phase_early_steer_slow_v4_bc_20260504T0415/last.pt`
+- Checkpoint: Windows sync `checkpoints/ppo_matched_turn_phase_exit_expert_v9_bc_20260504T0635/last.pt`
+- Scope: actor head longitudinal row only; steering row frozen.
+- Training: `3` epochs, `8e-5` learning rate, longitudinal loss `1.5`, route-window longitudinal floor `0.384-0.488`.
+
+512 clean eval:
+
+- collision/offroad/severe early offroad/stuck: `0/0/0/0`
+- max route: `0.5128205128`
+- max target waypoint index: `20`
+- mean action jitter L1: `0.128828`
+
+2048 clean eval:
+
+- collision/offroad/severe early offroad/stuck: `0/0/0/0`
+- max route: `0.5128205128`
+- max target waypoint index: `20`
+- mean action jitter L1: `0.118856`
+
+Comparison:
+
+- RCS-AC Round90 estimated scalar v6 route reference: `0.435897`
+- V4 PPO matched route: `0.410256`
+- V9 PPO matched route: `0.512821`
+
+Decision:
+
+- Promote `ppo_matched_turn_phase_exit_expert_v9` to PPO matched clean baseline candidate.
+- The generic PPO gate still reports `BLOCK` because of jitter and visual-center correction thresholds, but this goal explicitly treats jitter as a reference metric and prioritizes clean safety plus route progress.
+- Manifest: `docs/baselines/ppo_clean_baseline_ppo_matched_turn_phase_exit_expert_v9.md`
+- Pullback: `remote_runs/ppo_matched_turn_phase_exit_expert_v9_20260504/`

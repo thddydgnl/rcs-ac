@@ -33,6 +33,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--device", default=None, choices=["auto", "cpu", "cuda"])
     parser.add_argument("--weather", default=None)
     parser.add_argument("--max-episode-steps", type=int, default=None)
+    parser.add_argument("--max-steps", type=int, default=None)
+    parser.add_argument("--route-progress-min", type=float, default=None)
+    parser.add_argument("--route-progress-max", type=float, default=None)
     parser.add_argument("--skip-bad-transitions", action="store_true")
     return parser.parse_args()
 
@@ -67,6 +70,62 @@ def _is_bad_transition(info: dict[str, Any], action: np.ndarray) -> bool:
 
 def _append_optional(target: dict[str, list[Any]], key: str, value: Any) -> None:
     target.setdefault(key, []).append(value)
+
+
+def _passes_route_progress_filter(info: dict[str, Any], args: argparse.Namespace) -> bool:
+    route_progress = float(info.get("route_progress", 0.0))
+    if args.route_progress_min is not None and route_progress < float(args.route_progress_min):
+        return False
+    if args.route_progress_max is not None and route_progress > float(args.route_progress_max):
+        return False
+    return True
+
+
+def _control_to_policy_action(control_action: np.ndarray) -> np.ndarray:
+    if control_action.shape == (2,):
+        return np.clip(control_action, -1.0, 1.0).astype(np.float32, copy=False)
+    if control_action.shape != (3,):
+        raise ValueError(f"Expected expert action shape (2,) or (3,), got {control_action.shape}")
+    steer = float(np.clip(control_action[0], -1.0, 1.0))
+    longitudinal = float(np.clip(float(control_action[1]) - float(control_action[2]), -1.0, 1.0))
+    return np.asarray([steer, longitudinal], dtype=np.float32)
+
+
+def _enable_expert_control(env: Any) -> None:
+    if hasattr(env, "enable_ego_autopilot"):
+        env.enable_ego_autopilot()
+
+
+def _disable_expert_control(env: Any) -> None:
+    if hasattr(env, "disable_ego_autopilot"):
+        env.disable_ego_autopilot()
+
+
+def _step_expert(env: Any) -> dict[str, Any]:
+    if hasattr(env, "step_expert_autopilot"):
+        result = env.step_expert_autopilot()
+        expert_action = np.asarray(result["expert_action"], dtype=np.float32)
+        result["expert_action"] = _control_to_policy_action(expert_action)
+        return result
+
+    if not hasattr(env, "_compute_heuristic_action"):
+        raise AttributeError(
+            "CarlaEnv does not provide step_expert_autopilot() or _compute_heuristic_action(); "
+            "cannot collect expert supervision with this shared_core version."
+        )
+    expert_control_action = np.asarray(env._compute_heuristic_action(), dtype=np.float32)
+    result = env.step(expert_control_action)
+    control = dict(result.get("info", {}).get("control", {}))
+    result["expert_action"] = _control_to_policy_action(expert_control_action)
+    result["expert_control"] = np.asarray(
+        [
+            float(control.get("steer", expert_control_action[0])),
+            float(control.get("throttle", expert_control_action[1] if expert_control_action.shape[0] > 1 else 0.0)),
+            float(control.get("brake", expert_control_action[2] if expert_control_action.shape[0] > 2 else 0.0)),
+        ],
+        dtype=np.float32,
+    )
+    return result
 
 
 def main() -> int:
@@ -109,6 +168,15 @@ def main() -> int:
         "step_in_episode": [],
         "bad_transition_mask": [],
         "done_reason": [],
+        "lane_offset": [],
+        "heading_error": [],
+        "speed_kmh": [],
+        "curve_proxy": [],
+        "policy_action_steer": [],
+        "policy_action_longitudinal": [],
+        "target_corrected_steer": [],
+        "target_corrective_delta": [],
+        "target_corrective_delta_available": [],
         "corruption_level": [],
         "drop_rgb": [],
         "drop_lidar": [],
@@ -125,9 +193,11 @@ def main() -> int:
     try:
         env = _build_env(config, host=host, port=port, output_dir=output_dir, run_name=run_name)
         env.reset()
-        env.enable_ego_autopilot()
+        _enable_expert_control(env)
         while accepted < int(args.num_transitions):
-            step_result = env.step_expert_autopilot()
+            if args.max_steps is not None and attempted >= int(args.max_steps):
+                break
+            step_result = _step_expert(env)
             attempted += 1
             info = dict(step_result.get("info", {}))
             obs_flat = flatten_observation_dict(step_result["obs"], obs_spec)
@@ -135,10 +205,11 @@ def main() -> int:
             expert_action = np.asarray(step_result["expert_action"], dtype=np.float32)
             expert_control = np.asarray(step_result["expert_control"], dtype=np.float32)
             bad_transition = _is_bad_transition(info, expert_action)
-            if not args.skip_bad_transitions or not bad_transition:
+            if _passes_route_progress_filter(info, args) and (not args.skip_bad_transitions or not bad_transition):
+                clipped_expert_action = np.clip(expert_action, -1.0, 1.0).astype(np.float32, copy=False)
                 arrays["obs_flat"].append(obs_flat)
                 arrays["auxiliary"].append(auxiliary)
-                arrays["expert_action"].append(np.clip(expert_action, -1.0, 1.0))
+                arrays["expert_action"].append(clipped_expert_action)
                 arrays["expert_control"].append(expert_control)
                 arrays["reward"].append(float(step_result["reward"]))
                 arrays["done"].append(bool(step_result["done"]))
@@ -147,6 +218,15 @@ def main() -> int:
                 arrays["step_in_episode"].append(int(info.get("current_step", env.step_count)))
                 arrays["bad_transition_mask"].append(bool(bad_transition))
                 arrays["done_reason"].append(str(info.get("done_reason", "running")))
+                arrays["lane_offset"].append(float(info.get("lane_offset", 0.0)))
+                arrays["heading_error"].append(float(info.get("heading_error", 0.0)))
+                arrays["speed_kmh"].append(float(info.get("speed_kmh", info.get("speed", 0.0) * 3.6)))
+                arrays["curve_proxy"].append(float(info.get("curve_proxy", info.get("lookahead_turn_delta_rad", 0.0))))
+                arrays["policy_action_steer"].append(float(clipped_expert_action[0]))
+                arrays["policy_action_longitudinal"].append(float(clipped_expert_action[1]))
+                arrays["target_corrected_steer"].append(float(clipped_expert_action[0]))
+                arrays["target_corrective_delta"].append(0.0)
+                arrays["target_corrective_delta_available"].append(0.0)
                 arrays["corruption_level"].append(float(info.get("corruption_level", 0.0)))
                 for key in ("rgb", "lidar", "ego", "route"):
                     arrays[f"drop_{key}"].append(float(info.get(f"drop_{key}", 0.0)))
@@ -177,18 +257,21 @@ def main() -> int:
                 arrays["aux_mask_targets_available"].append(float(mask_available))
                 accepted += 1
             if bool(step_result["done"]):
-                env.disable_ego_autopilot()
+                _disable_expert_control(env)
                 env.reset()
-                env.enable_ego_autopilot()
+                _enable_expert_control(env)
                 episode_id += 1
             if attempted % 100 == 0:
                 print(f"[collect] accepted={accepted} attempted={attempted} episodes={episode_id}")
     finally:
         if env is not None:
             try:
-                env.disable_ego_autopilot()
+                _disable_expert_control(env)
             finally:
                 env.close()
+
+    if accepted <= 0:
+        raise RuntimeError("No expert transitions collected.")
 
     stacked: dict[str, np.ndarray] = {
         "obs_flat": np.stack(arrays["obs_flat"]).astype(np.float32, copy=False),
@@ -202,6 +285,15 @@ def main() -> int:
         "step_in_episode": np.asarray(arrays["step_in_episode"], dtype=np.int32),
         "bad_transition_mask": np.asarray(arrays["bad_transition_mask"], dtype=np.bool_),
         "done_reason": np.asarray(arrays["done_reason"], dtype="<U64"),
+        "lane_offset": np.asarray(arrays["lane_offset"], dtype=np.float32),
+        "heading_error": np.asarray(arrays["heading_error"], dtype=np.float32),
+        "speed_kmh": np.asarray(arrays["speed_kmh"], dtype=np.float32),
+        "curve_proxy": np.asarray(arrays["curve_proxy"], dtype=np.float32),
+        "policy_action_steer": np.asarray(arrays["policy_action_steer"], dtype=np.float32),
+        "policy_action_longitudinal": np.asarray(arrays["policy_action_longitudinal"], dtype=np.float32),
+        "target_corrected_steer": np.asarray(arrays["target_corrected_steer"], dtype=np.float32),
+        "target_corrective_delta": np.asarray(arrays["target_corrective_delta"], dtype=np.float32),
+        "target_corrective_delta_available": np.asarray(arrays["target_corrective_delta_available"], dtype=np.float32),
         "corruption_level": np.asarray(arrays["corruption_level"], dtype=np.float32),
         "drop_rgb": np.asarray(arrays["drop_rgb"], dtype=np.float32),
         "drop_lidar": np.asarray(arrays["drop_lidar"], dtype=np.float32),
@@ -214,7 +306,19 @@ def main() -> int:
     summary = save_expert_npz(output_path, stacked)
     summary_path = output_path.with_suffix(".summary.json")
     summary_path.write_text(
-        json.dumps(summary.to_dict() | {"attempted_transitions": int(attempted)}, indent=2),
+        json.dumps(
+            summary.to_dict()
+            | {
+                "attempted_transitions": int(attempted),
+                "route_progress_min_filter": None
+                if args.route_progress_min is None
+                else float(args.route_progress_min),
+                "route_progress_max_filter": None
+                if args.route_progress_max is None
+                else float(args.route_progress_max),
+            },
+            indent=2,
+        ),
         encoding="utf-8",
     )
     print(f"[done] dataset={output_path} summary={summary_path} {summary.to_dict()}")

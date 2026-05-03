@@ -1,0 +1,19 @@
+{
+  "num_transitions": 4512,
+  "obs_dim": 47311,
+  "auxiliary_dim": 30,
+  "action_dim": 2,
+  "bad_transition_count": 0,
+  "done_count": 0,
+  "route_progress_min": 0.025641025975346565,
+  "route_progress_max": 0.4871794879436493,
+  "route_progress_mean": 0.26410484313964844,
+  "input_paths": [
+    "C:\\Users\\thddy\\Documents\\code\\RCS-AC-first\\data\\expert\\rgb_perception_actor_features_v2_early_route_mix_4256_round36_provenance.npz",
+    "C:\\Users\\thddy\\Documents\\code\\RCS-AC-first-codex-sync\\data\\expert\\ppo_matched_exit_expert_route036_049_256_20260504.npz"
+  ],
+  "input_counts": [
+    4256,
+    256
+  ]
+}
