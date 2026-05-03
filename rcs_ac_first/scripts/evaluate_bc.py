@@ -50,17 +50,44 @@ BC_EVAL_FIELDS: tuple[str, ...] = (
     "reward",
     "done",
     "done_reason",
+    "x",
+    "y",
+    "z",
+    "yaw",
     "route_progress",
+    "route_progress_delta",
     "speed_kmh",
     "lane_offset",
+    "lane_offset_delta",
     "heading_error",
+    "heading_error_delta",
     "vehicle_yaw",
     "yaw_delta",
+    "target_waypoint_index",
+    "target_waypoint_delta",
+    "route_waypoint_count",
+    "route_total_length_m",
+    "route_lane_switch_count",
+    "route_road_switch_count",
+    "route_heading_jump_max_deg",
+    "route_continuity_mean_abs_error_m",
+    "route_heading_mismatch",
     "route_target_heading",
     "route_heading_error",
     "route_target_x",
     "route_target_y",
+    "route_target_y_delta",
+    "target_distance",
+    "min_target_distance",
+    "final_target_distance",
+    "lookahead_turn_delta_rad",
     "maneuver_command",
+    "maneuver_turn_sign",
+    "maneuver_hint_active",
+    "junction_branch_choice_active",
+    "junction_candidate_count",
+    "junction_selected_candidate_signed_yaw_diff_deg",
+    "junction_command_match_found",
     "collision",
     "collision_count_event",
     "collision_route_delta_0179487",
@@ -69,7 +96,32 @@ BC_EVAL_FIELDS: tuple[str, ...] = (
     "collision_window_0743590",
     "near_collision_cluster",
     "offroad",
+    "offroad_candidate",
+    "offroad_by_lane_offset_only",
+    "offroad_waypoint_missing",
+    "offroad_candidate_lane_offset",
+    "offroad_candidate_threshold",
+    "offroad_margin",
+    "offroad_candidate_recent_junction_active",
+    "offroad_steps",
+    "offroad_threshold",
+    "offroad_grace_steps",
+    "offroad_grace_active",
+    "first_offroad_step",
     "stuck",
+    "lane_invasion",
+    "target_speed_kmh",
+    "speed_error_kmh",
+    "requested_action_steer",
+    "requested_action_throttle",
+    "requested_action_brake",
+    "raw_requested_throttle",
+    "raw_requested_brake",
+    "curve_proxy",
+    "recent_steer_mean",
+    "recent_throttle_mean",
+    "recent_brake_mean",
+    "recent_speed_mean_kmh",
     "steer_delta_abs",
     "longitudinal_delta_abs",
     "action_jitter_l1",
@@ -200,6 +252,142 @@ def _safe_info_str(info: dict[str, Any], *names: str, default: str = "") -> str:
     return default
 
 
+def _safe_info_bool(info: dict[str, Any], *names: str, default: bool = False) -> bool:
+    for name in names:
+        if name in info:
+            return bool(info[name])
+    return bool(default)
+
+
+def _info_delta(info: dict[str, Any], previous_info: dict[str, Any] | None, *names: str) -> float:
+    if previous_info is None:
+        return 0.0
+    current = _safe_info_float(info, *names)
+    previous = _safe_info_float(previous_info, *names)
+    return float(current - previous)
+
+
+def _coerce_env_step_value(value: str) -> Any:
+    lowered = value.strip().lower()
+    if lowered in {"true", "false"}:
+        return lowered == "true"
+    try:
+        return float(value)
+    except ValueError:
+        return value
+
+
+def _find_env_step_log_path(output_dir: Path) -> Path | None:
+    for name in ("env_step_log.csv", "logs.csv"):
+        candidate = output_dir / name
+        if candidate.exists():
+            return candidate
+    return None
+
+
+def _enrich_rows_from_env_step_log(rows: list[dict[str, Any]], output_dir: Path) -> None:
+    env_log_path = _find_env_step_log_path(output_dir)
+    if not rows or env_log_path is None:
+        return
+    with env_log_path.open("r", encoding="utf-8", newline="") as handle:
+        env_rows = list(csv.DictReader(handle))
+    env_action_rows = []
+    for env_row in env_rows:
+        try:
+            env_step = int(float(env_row.get("step", "0")))
+        except (TypeError, ValueError):
+            env_step = 0
+        if env_step > 0:
+            env_action_rows.append(env_row)
+    overlay_fields = (
+        "x",
+        "y",
+        "z",
+        "yaw",
+        "target_waypoint_index",
+        "route_waypoint_count",
+        "route_total_length_m",
+        "route_lane_switch_count",
+        "route_road_switch_count",
+        "route_heading_jump_max_deg",
+        "route_continuity_mean_abs_error_m",
+        "route_heading_mismatch",
+        "target_x_local",
+        "target_y_local",
+        "target_distance",
+        "min_target_distance",
+        "final_target_distance",
+        "lookahead_turn_delta_rad",
+        "maneuver_command",
+        "maneuver_turn_sign",
+        "maneuver_hint_active",
+        "junction_branch_choice_active",
+        "junction_candidate_count",
+        "junction_selected_candidate_signed_yaw_diff_deg",
+        "junction_command_match_found",
+        "offroad_candidate",
+        "offroad_by_lane_offset_only",
+        "offroad_waypoint_missing",
+        "offroad_candidate_lane_offset",
+        "offroad_candidate_threshold",
+        "offroad_candidate_recent_junction_active",
+        "offroad_steps",
+        "offroad_threshold",
+        "offroad_grace_steps",
+        "offroad_grace_active",
+        "first_offroad_step",
+        "target_speed_kmh",
+        "speed_error_kmh",
+        "requested_action_steer",
+        "requested_action_throttle",
+        "requested_action_brake",
+        "raw_requested_throttle",
+        "raw_requested_brake",
+        "curve_proxy",
+        "recent_steer_mean",
+        "recent_throttle_mean",
+        "recent_brake_mean",
+        "recent_speed_mean_kmh",
+        "lane_invasion",
+    )
+    alias = {
+        "route_target_x": "target_x_local",
+        "route_target_y": "target_y_local",
+    }
+    for row, env_row in zip(rows, env_action_rows):
+        for field in overlay_fields:
+            if field not in env_row or env_row[field] == "":
+                continue
+            target_field = {
+                "target_x_local": "route_target_x",
+                "target_y_local": "route_target_y",
+            }.get(field, field)
+            row[target_field] = _coerce_env_step_value(env_row[field])
+        lane_offset = float(row.get("offroad_candidate_lane_offset", row.get("lane_offset", 0.0)))
+        threshold = float(row.get("offroad_candidate_threshold", 2.1))
+        row["offroad_margin"] = abs(lane_offset) - threshold
+    for index, row in enumerate(rows):
+        previous = rows[index - 1] if index > 0 else None
+        if previous is None or int(row.get("episode_step", 0)) == 0:
+            row["target_waypoint_delta"] = 0.0
+            row["route_target_y_delta"] = 0.0
+        else:
+            row["target_waypoint_delta"] = float(row.get("target_waypoint_index", 0.0)) - float(
+                previous.get("target_waypoint_index", 0.0)
+            )
+            row["route_target_y_delta"] = float(row.get("route_target_y", 0.0)) - float(
+                previous.get("route_target_y", 0.0)
+            )
+
+
+def _write_rows(path: Path, rows: list[dict[str, Any]]) -> None:
+    with path.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=BC_EVAL_FIELDS)
+        writer.writeheader()
+        for row in rows:
+            writer.writerow(row)
+
+
 def _build_log_row(
     *,
     step: int,
@@ -217,6 +405,7 @@ def _build_log_row(
     corrective_abs_lane_offset_min: float,
     corrective_abs_heading_error_min: float,
     visual_center_error_min: float,
+    previous_info: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     decoded = decode_stage4_action_v2(action.tolist())
     if previous_action is None:
@@ -239,6 +428,9 @@ def _build_log_row(
     corrective_need_active = lane_risk_active and failure_window_active
     visual_zero_steer_share = visual_zero_steer_delta / max(visual_zero_action_l1, 1.0e-6)
     signed_steer_delta = float(visual_zero_deltas.get("signed_steer", 0.0))
+    offroad_candidate_lane_offset = _safe_info_float(info, "offroad_candidate_lane_offset", default=lane_offset)
+    offroad_candidate_threshold = _safe_info_float(info, "offroad_candidate_threshold", default=2.1)
+    offroad_margin = abs(float(offroad_candidate_lane_offset)) - float(offroad_candidate_threshold)
     visual_center_error = _safe_diag(diagnostics, "visual_lane_center_error_mean")
     visual_center_active = abs(visual_center_error) >= float(visual_center_error_min)
     visual_center_corrective_sign = bool(visual_center_active and signed_steer_delta * visual_center_error < 0.0)
@@ -295,12 +487,28 @@ def _build_log_row(
         "reward": float(reward),
         "done": bool(done),
         "done_reason": str(info.get("done_reason", "running")),
+        "x": _safe_info_float(info, "x"),
+        "y": _safe_info_float(info, "y"),
+        "z": _safe_info_float(info, "z"),
+        "yaw": _safe_info_float(info, "yaw"),
         "route_progress": route_progress,
+        "route_progress_delta": _info_delta(info, previous_info, "route_progress"),
         "speed_kmh": float(info.get("speed_kmh", info.get("speed", 0.0))),
         "lane_offset": lane_offset,
+        "lane_offset_delta": _info_delta(info, previous_info, "lane_offset"),
         "heading_error": heading_error,
+        "heading_error_delta": _info_delta(info, previous_info, "heading_error"),
         "vehicle_yaw": _safe_info_float(info, "vehicle_yaw", "yaw", "ego_yaw"),
         "yaw_delta": _safe_info_float(info, "yaw_delta", "vehicle_yaw_delta", "ego_yaw_delta"),
+        "target_waypoint_index": _safe_info_float(info, "target_waypoint_index"),
+        "target_waypoint_delta": _info_delta(info, previous_info, "target_waypoint_index"),
+        "route_waypoint_count": _safe_info_float(info, "route_waypoint_count"),
+        "route_total_length_m": _safe_info_float(info, "route_total_length_m"),
+        "route_lane_switch_count": _safe_info_float(info, "route_lane_switch_count"),
+        "route_road_switch_count": _safe_info_float(info, "route_road_switch_count"),
+        "route_heading_jump_max_deg": _safe_info_float(info, "route_heading_jump_max_deg"),
+        "route_continuity_mean_abs_error_m": _safe_info_float(info, "route_continuity_mean_abs_error_m"),
+        "route_heading_mismatch": _safe_info_float(info, "route_heading_mismatch"),
         "route_target_heading": _safe_info_float(
             info,
             "route_target_heading",
@@ -317,7 +525,21 @@ def _build_log_row(
         ),
         "route_target_x": _safe_info_float(info, "route_target_x", "target_x", "route_target_local_x", "target_x_local"),
         "route_target_y": _safe_info_float(info, "route_target_y", "target_y", "route_target_local_y", "target_y_local"),
+        "route_target_y_delta": _info_delta(info, previous_info, "route_target_y", "target_y", "route_target_local_y", "target_y_local"),
+        "target_distance": _safe_info_float(info, "target_distance"),
+        "min_target_distance": _safe_info_float(info, "min_target_distance"),
+        "final_target_distance": _safe_info_float(info, "final_target_distance"),
+        "lookahead_turn_delta_rad": _safe_info_float(info, "lookahead_turn_delta_rad"),
         "maneuver_command": _safe_info_str(info, "maneuver_command", "maneuver", "command", default=""),
+        "maneuver_turn_sign": _safe_info_float(info, "maneuver_turn_sign"),
+        "maneuver_hint_active": _safe_info_bool(info, "maneuver_hint_active"),
+        "junction_branch_choice_active": _safe_info_bool(info, "junction_branch_choice_active"),
+        "junction_candidate_count": _safe_info_float(info, "junction_candidate_count"),
+        "junction_selected_candidate_signed_yaw_diff_deg": _safe_info_float(
+            info,
+            "junction_selected_candidate_signed_yaw_diff_deg",
+        ),
+        "junction_command_match_found": _safe_info_bool(info, "junction_command_match_found"),
         "collision": bool(info.get("collision", False)),
         "collision_count_event": bool(info.get("collision", False) and done),
         "collision_route_delta_0179487": float(collision_cluster_deltas["0179487"]),
@@ -326,7 +548,32 @@ def _build_log_row(
         "collision_window_0743590": bool(nearest_collision_cluster == "0743590"),
         "near_collision_cluster": bool(nearest_collision_cluster is not None),
         "offroad": bool(info.get("offroad", False)),
+        "offroad_candidate": _safe_info_bool(info, "offroad_candidate"),
+        "offroad_by_lane_offset_only": _safe_info_bool(info, "offroad_by_lane_offset_only"),
+        "offroad_waypoint_missing": _safe_info_bool(info, "offroad_waypoint_missing"),
+        "offroad_candidate_lane_offset": offroad_candidate_lane_offset,
+        "offroad_candidate_threshold": offroad_candidate_threshold,
+        "offroad_margin": float(offroad_margin),
+        "offroad_candidate_recent_junction_active": _safe_info_bool(info, "offroad_candidate_recent_junction_active"),
+        "offroad_steps": _safe_info_float(info, "offroad_steps"),
+        "offroad_threshold": _safe_info_float(info, "offroad_threshold"),
+        "offroad_grace_steps": _safe_info_float(info, "offroad_grace_steps"),
+        "offroad_grace_active": _safe_info_bool(info, "offroad_grace_active"),
+        "first_offroad_step": _safe_info_float(info, "first_offroad_step"),
         "stuck": bool(info.get("stuck", False)),
+        "lane_invasion": bool(info.get("lane_invasion", False)),
+        "target_speed_kmh": _safe_info_float(info, "target_speed_kmh"),
+        "speed_error_kmh": _safe_info_float(info, "speed_error_kmh"),
+        "requested_action_steer": _safe_info_float(info, "requested_action_steer"),
+        "requested_action_throttle": _safe_info_float(info, "requested_action_throttle"),
+        "requested_action_brake": _safe_info_float(info, "requested_action_brake"),
+        "raw_requested_throttle": _safe_info_float(info, "raw_requested_throttle"),
+        "raw_requested_brake": _safe_info_float(info, "raw_requested_brake"),
+        "curve_proxy": _safe_info_float(info, "curve_proxy"),
+        "recent_steer_mean": _safe_info_float(info, "recent_steer_mean"),
+        "recent_throttle_mean": _safe_info_float(info, "recent_throttle_mean"),
+        "recent_brake_mean": _safe_info_float(info, "recent_brake_mean"),
+        "recent_speed_mean_kmh": _safe_info_float(info, "recent_speed_mean_kmh"),
         "steer_delta_abs": float(steer_delta_abs),
         "longitudinal_delta_abs": float(longitudinal_delta_abs),
         "action_jitter_l1": float(steer_delta_abs + longitudinal_delta_abs),
@@ -791,6 +1038,7 @@ def main() -> int:
         auxiliary = flatten_auxiliary_observation_dict(reset["obs"], aux_spec)
         hidden_state: torch.Tensor | None = None
         previous_action: np.ndarray | None = None
+        previous_info: dict[str, Any] | None = None
         episode = 0
         episode_step = 0
 
@@ -849,6 +1097,7 @@ def main() -> int:
                     episode=episode,
                     action=action,
                     previous_action=previous_action,
+                    previous_info=previous_info,
                     reward=reward,
                     done=done,
                     info=info,
@@ -864,6 +1113,7 @@ def main() -> int:
                 handle.flush()
                 rows.append(row)
                 previous_action = action.copy()
+                previous_info = info
 
                 observation = flatten_observation_dict(result["obs"], obs_spec)
                 auxiliary = flatten_auxiliary_observation_dict(result["obs"], aux_spec)
@@ -872,11 +1122,15 @@ def main() -> int:
                     episode_step = 0
                     hidden_state = None
                     previous_action = None
+                    previous_info = None
                     reset = env.reset()
                     observation = flatten_observation_dict(reset["obs"], obs_spec)
                     auxiliary = flatten_auxiliary_observation_dict(reset["obs"], aux_spec)
                 else:
                     episode_step += 1
+
+        _enrich_rows_from_env_step_log(rows, output_dir)
+        _write_rows(log_path, rows)
 
         summary = _build_summary(
             run_name=run_name,

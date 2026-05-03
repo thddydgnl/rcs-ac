@@ -104,6 +104,17 @@ BC_LOG_FIELDS: tuple[str, ...] = (
     "late_recovery_absolute_steer_loss",
     "late_recovery_absolute_steer_sign_rate",
     "late_recovery_absolute_steer_mask_rate",
+    "turn_phase_direction_loss",
+    "turn_phase_direction_sign_rate",
+    "turn_phase_magnitude_loss",
+    "turn_phase_smoothness_loss",
+    "turn_phase_longitudinal_ceiling_loss",
+    "turn_phase_longitudinal_ceiling_rate",
+    "turn_phase_mask_rate",
+    "turn_phase_left_mask_rate",
+    "turn_phase_right_mask_rate",
+    "turn_phase_abs_steer_mean",
+    "turn_phase_expert_abs_steer_mean",
     "early_center_zero_steer_loss",
     "early_center_zero_steer_abs_mean",
     "early_center_zero_steer_mask_rate",
@@ -1445,6 +1456,125 @@ def _compute_late_recovery_absolute_steer_losses(
     }
 
 
+def _zero_turn_phase_losses(reference: torch.Tensor) -> dict[str, torch.Tensor]:
+    zero = reference.sum() * 0.0
+    return {
+        "turn_phase_direction_loss": zero,
+        "turn_phase_direction_sign_rate": zero,
+        "turn_phase_magnitude_loss": zero,
+        "turn_phase_smoothness_loss": zero,
+        "turn_phase_longitudinal_ceiling_loss": zero,
+        "turn_phase_longitudinal_ceiling_rate": zero,
+        "turn_phase_mask_rate": zero,
+        "turn_phase_left_mask_rate": zero,
+        "turn_phase_right_mask_rate": zero,
+        "turn_phase_abs_steer_mean": zero,
+        "turn_phase_expert_abs_steer_mean": zero,
+    }
+
+
+def _route_tensor_from_batch(batch: dict[str, torch.Tensor], *, route_dim: int) -> torch.Tensor | None:
+    obs = batch.get("obs")
+    if obs is None or int(route_dim) <= 0:
+        return None
+    if obs.ndim == 2:
+        if int(obs.shape[-1]) < int(route_dim):
+            return None
+        return obs[..., -int(route_dim) :]
+    if obs.ndim == 3:
+        if int(obs.shape[-1]) < int(route_dim):
+            return None
+        return obs[..., -int(route_dim) :]
+    return None
+
+
+def _compute_turn_phase_losses(
+    action_mean: torch.Tensor,
+    expert_action: torch.Tensor,
+    batch: dict[str, torch.Tensor],
+    *,
+    route_dim: int,
+    maneuver_turn_sign_index: int,
+    turn_sign_scale: float,
+    route_y_index: int,
+    route_y_abs_min: float,
+    heading_error_abs_min: float,
+    expert_abs_steer_min: float,
+    direction_margin: float,
+    longitudinal_ceiling: float,
+    valid_mask: torch.Tensor | None = None,
+) -> dict[str, torch.Tensor]:
+    route = _route_tensor_from_batch(batch, route_dim=route_dim)
+    if route is None or int(route.shape[-1]) <= int(max(maneuver_turn_sign_index, route_y_index)):
+        return _zero_turn_phase_losses(action_mean)
+    if action_mean.shape[:-1] != expert_action.shape[:-1]:
+        raise ValueError(
+            f"action_mean/expert_action leading shapes differ: {tuple(action_mean.shape)} vs {tuple(expert_action.shape)}"
+        )
+
+    dtype = action_mean.dtype
+    device = action_mean.device
+    route = route.to(device=device, dtype=dtype)
+    expert = expert_action.to(device=device, dtype=dtype)
+    turn_hint = route[..., int(maneuver_turn_sign_index)]
+    turn_sign = torch.sign(turn_hint)
+    route_y = route[..., int(route_y_index)]
+    heading = batch.get("heading_error")
+    if heading is None:
+        heading_tensor = torch.zeros_like(turn_hint)
+    else:
+        heading_tensor = heading.to(device=device, dtype=dtype).reshape_as(turn_hint)
+
+    if valid_mask is None:
+        mask = torch.ones_like(turn_hint, dtype=dtype)
+    else:
+        mask = valid_mask.to(device=device, dtype=dtype).reshape_as(turn_hint).clamp(0.0, 1.0)
+
+    scale_threshold = max(abs(float(turn_sign_scale)) * 0.5, 1.0e-6)
+    mask = mask * (turn_hint.abs() >= scale_threshold).to(dtype)
+    mask = mask * (route_y.abs() >= float(route_y_abs_min)).to(dtype)
+    mask = mask * (heading_tensor.abs() >= float(heading_error_abs_min)).to(dtype)
+    mask = mask * (expert[..., 0].abs() >= float(expert_abs_steer_min)).to(dtype)
+    mask = mask * (expert[..., 0] * turn_sign > 0.0).to(dtype)
+
+    signed_steer = action_mean[..., 0] * turn_sign
+    signed_expert = expert[..., 0] * turn_sign
+    direction_loss_values = F.relu(signed_steer.new_tensor(float(direction_margin)) - signed_steer)
+    direction_loss = _masked_mean(direction_loss_values, mask)
+    direction_sign_rate = _masked_mean((signed_steer > 0.0).to(dtype), mask)
+    magnitude_loss = _masked_mean(F.smooth_l1_loss(signed_steer, signed_expert, reduction="none"), mask)
+
+    if action_mean.ndim == 3 and int(action_mean.shape[1]) > 1:
+        pair_mask = (mask[:, 1:] * mask[:, :-1]).clamp(0.0, 1.0)
+        same_turn = (turn_sign[:, 1:] == turn_sign[:, :-1]).to(dtype)
+        pair_mask = pair_mask * same_turn
+        smooth_values = (action_mean[:, 1:, 0] - action_mean[:, :-1, 0]).abs()
+        smoothness_loss = _masked_mean(smooth_values, pair_mask)
+    else:
+        smoothness_loss = action_mean.new_zeros(())
+
+    longitudinal = action_mean[..., 1]
+    ceiling = longitudinal.new_tensor(float(longitudinal_ceiling))
+    longitudinal_ceiling_loss = _masked_mean(F.relu(longitudinal - ceiling), mask)
+    longitudinal_ceiling_rate = _masked_mean((longitudinal <= ceiling).to(dtype), mask)
+
+    left_mask = mask * (turn_sign > 0.0).to(dtype)
+    right_mask = mask * (turn_sign < 0.0).to(dtype)
+    return {
+        "turn_phase_direction_loss": direction_loss,
+        "turn_phase_direction_sign_rate": direction_sign_rate,
+        "turn_phase_magnitude_loss": magnitude_loss,
+        "turn_phase_smoothness_loss": smoothness_loss,
+        "turn_phase_longitudinal_ceiling_loss": longitudinal_ceiling_loss,
+        "turn_phase_longitudinal_ceiling_rate": longitudinal_ceiling_rate,
+        "turn_phase_mask_rate": mask.mean() if mask.numel() else direction_loss.new_zeros(()),
+        "turn_phase_left_mask_rate": left_mask.mean() if left_mask.numel() else direction_loss.new_zeros(()),
+        "turn_phase_right_mask_rate": right_mask.mean() if right_mask.numel() else direction_loss.new_zeros(()),
+        "turn_phase_abs_steer_mean": _masked_mean(action_mean[..., 0].abs(), mask),
+        "turn_phase_expert_abs_steer_mean": _masked_mean(expert[..., 0].abs(), mask),
+    }
+
+
 def _late_recovery_bc_sample_weight(
     action_mean: torch.Tensor,
     batch: dict[str, torch.Tensor],
@@ -1896,6 +2026,39 @@ def _metric_row(
         "late_recovery_absolute_steer_mask_rate": float(
             losses.get("late_recovery_absolute_steer_mask_rate", fusion.new_zeros(())).detach().cpu().item()
         ),
+        "turn_phase_direction_loss": float(
+            losses.get("turn_phase_direction_loss", fusion.new_zeros(())).detach().cpu().item()
+        ),
+        "turn_phase_direction_sign_rate": float(
+            losses.get("turn_phase_direction_sign_rate", fusion.new_zeros(())).detach().cpu().item()
+        ),
+        "turn_phase_magnitude_loss": float(
+            losses.get("turn_phase_magnitude_loss", fusion.new_zeros(())).detach().cpu().item()
+        ),
+        "turn_phase_smoothness_loss": float(
+            losses.get("turn_phase_smoothness_loss", fusion.new_zeros(())).detach().cpu().item()
+        ),
+        "turn_phase_longitudinal_ceiling_loss": float(
+            losses.get("turn_phase_longitudinal_ceiling_loss", fusion.new_zeros(())).detach().cpu().item()
+        ),
+        "turn_phase_longitudinal_ceiling_rate": float(
+            losses.get("turn_phase_longitudinal_ceiling_rate", fusion.new_zeros(())).detach().cpu().item()
+        ),
+        "turn_phase_mask_rate": float(
+            losses.get("turn_phase_mask_rate", fusion.new_zeros(())).detach().cpu().item()
+        ),
+        "turn_phase_left_mask_rate": float(
+            losses.get("turn_phase_left_mask_rate", fusion.new_zeros(())).detach().cpu().item()
+        ),
+        "turn_phase_right_mask_rate": float(
+            losses.get("turn_phase_right_mask_rate", fusion.new_zeros(())).detach().cpu().item()
+        ),
+        "turn_phase_abs_steer_mean": float(
+            losses.get("turn_phase_abs_steer_mean", fusion.new_zeros(())).detach().cpu().item()
+        ),
+        "turn_phase_expert_abs_steer_mean": float(
+            losses.get("turn_phase_expert_abs_steer_mean", fusion.new_zeros(())).detach().cpu().item()
+        ),
         "early_center_zero_steer_loss": float(
             losses.get("early_center_zero_steer_loss", fusion.new_zeros(())).detach().cpu().item()
         ),
@@ -2044,6 +2207,15 @@ def _evaluate(
     late_recovery_abs_heading_error_min: float,
     late_recovery_absolute_steer_margin: float,
     late_recovery_bc_loss_scale: float,
+    route_dim: int,
+    turn_phase_maneuver_turn_sign_index: int,
+    turn_phase_turn_sign_scale: float,
+    turn_phase_route_y_index: int,
+    turn_phase_route_y_abs_min: float,
+    turn_phase_heading_error_abs_min: float,
+    turn_phase_expert_abs_steer_min: float,
+    turn_phase_direction_margin: float,
+    turn_phase_longitudinal_ceiling: float,
     early_center_zero_steer_route_min: float | None,
     early_center_zero_steer_route_max: float | None,
     early_center_zero_steer_abs_lane_offset_max: float,
@@ -2127,6 +2299,17 @@ def _evaluate(
         "late_recovery_absolute_steer_loss": 0.0,
         "late_recovery_absolute_steer_sign_rate": 0.0,
         "late_recovery_absolute_steer_mask_rate": 0.0,
+        "turn_phase_direction_loss": 0.0,
+        "turn_phase_direction_sign_rate": 0.0,
+        "turn_phase_magnitude_loss": 0.0,
+        "turn_phase_smoothness_loss": 0.0,
+        "turn_phase_longitudinal_ceiling_loss": 0.0,
+        "turn_phase_longitudinal_ceiling_rate": 0.0,
+        "turn_phase_mask_rate": 0.0,
+        "turn_phase_left_mask_rate": 0.0,
+        "turn_phase_right_mask_rate": 0.0,
+        "turn_phase_abs_steer_mean": 0.0,
+        "turn_phase_expert_abs_steer_mean": 0.0,
         "early_center_zero_steer_loss": 0.0,
         "early_center_zero_steer_abs_mean": 0.0,
         "early_center_zero_steer_mask_rate": 0.0,
@@ -2372,6 +2555,23 @@ def _evaluate(
                     )
                 )
                 losses.update(
+                    _compute_turn_phase_losses(
+                        action_mean,
+                        batch["expert_action"],
+                        batch,
+                        route_dim=route_dim,
+                        maneuver_turn_sign_index=turn_phase_maneuver_turn_sign_index,
+                        turn_sign_scale=turn_phase_turn_sign_scale,
+                        route_y_index=turn_phase_route_y_index,
+                        route_y_abs_min=turn_phase_route_y_abs_min,
+                        heading_error_abs_min=turn_phase_heading_error_abs_min,
+                        expert_abs_steer_min=turn_phase_expert_abs_steer_min,
+                        direction_margin=turn_phase_direction_margin,
+                        longitudinal_ceiling=turn_phase_longitudinal_ceiling,
+                        valid_mask=batch.get("valid_mask"),
+                    )
+                )
+                losses.update(
                     _compute_early_center_zero_steer_losses(
                         action_mean,
                         route_progress=batch.get("route_progress"),
@@ -2584,6 +2784,22 @@ def _evaluate(
                         absolute_steer_margin=late_recovery_absolute_steer_margin,
                         side_balanced=early_severe_side_balanced,
                         alignment_mode=early_severe_alignment_mode,
+                    )
+                )
+                losses.update(
+                    _compute_turn_phase_losses(
+                        action_mean,
+                        batch["expert_action"],
+                        batch,
+                        route_dim=route_dim,
+                        maneuver_turn_sign_index=turn_phase_maneuver_turn_sign_index,
+                        turn_sign_scale=turn_phase_turn_sign_scale,
+                        route_y_index=turn_phase_route_y_index,
+                        route_y_abs_min=turn_phase_route_y_abs_min,
+                        heading_error_abs_min=turn_phase_heading_error_abs_min,
+                        expert_abs_steer_min=turn_phase_expert_abs_steer_min,
+                        direction_margin=turn_phase_direction_margin,
+                        longitudinal_ceiling=turn_phase_longitudinal_ceiling,
                     )
                 )
                 losses.update(
@@ -2888,6 +3104,20 @@ def main() -> int:
     )
     late_recovery_absolute_steer_margin = float(bc_raw.get("late_recovery_absolute_steer_margin", 0.0))
     late_recovery_bc_loss_scale = float(bc_raw.get("late_recovery_bc_loss_scale", 1.0))
+    turn_phase_direction_loss_weight = float(bc_raw.get("turn_phase_direction_loss_weight", 0.0))
+    turn_phase_magnitude_loss_weight = float(bc_raw.get("turn_phase_magnitude_loss_weight", 0.0))
+    turn_phase_smoothness_loss_weight = float(bc_raw.get("turn_phase_smoothness_loss_weight", 0.0))
+    turn_phase_longitudinal_ceiling_loss_weight = float(
+        bc_raw.get("turn_phase_longitudinal_ceiling_loss_weight", 0.0)
+    )
+    turn_phase_maneuver_turn_sign_index = int(bc_raw.get("turn_phase_maneuver_turn_sign_index", 8))
+    turn_phase_turn_sign_scale = float(bc_raw.get("turn_phase_turn_sign_scale", 0.35))
+    turn_phase_route_y_index = int(bc_raw.get("turn_phase_route_y_index", 1))
+    turn_phase_route_y_abs_min = float(bc_raw.get("turn_phase_route_y_abs_min", 0.8))
+    turn_phase_heading_error_abs_min = float(bc_raw.get("turn_phase_heading_error_abs_min", 5.0))
+    turn_phase_expert_abs_steer_min = float(bc_raw.get("turn_phase_expert_abs_steer_min", 0.08))
+    turn_phase_direction_margin = float(bc_raw.get("turn_phase_direction_margin", 0.08))
+    turn_phase_longitudinal_ceiling = float(bc_raw.get("turn_phase_longitudinal_ceiling", 0.35))
     early_center_zero_steer_loss_weight = float(bc_raw.get("early_center_zero_steer_loss_weight", 0.0))
     early_center_zero_steer_route_min = bc_raw.get("early_center_zero_steer_route_min", early_route_min)
     early_center_zero_steer_route_max = bc_raw.get("early_center_zero_steer_route_max", early_route_max)
@@ -3202,6 +3432,23 @@ def main() -> int:
                                 valid_mask=batch.get("valid_mask"),
                             )
                         )
+                    losses.update(
+                        _compute_turn_phase_losses(
+                            action_mean,
+                            batch["expert_action"],
+                            batch,
+                            route_dim=config.model.route_dim,
+                            maneuver_turn_sign_index=turn_phase_maneuver_turn_sign_index,
+                            turn_sign_scale=turn_phase_turn_sign_scale,
+                            route_y_index=turn_phase_route_y_index,
+                            route_y_abs_min=turn_phase_route_y_abs_min,
+                            heading_error_abs_min=turn_phase_heading_error_abs_min,
+                            expert_abs_steer_min=turn_phase_expert_abs_steer_min,
+                            direction_margin=turn_phase_direction_margin,
+                            longitudinal_ceiling=turn_phase_longitudinal_ceiling,
+                            valid_mask=batch.get("valid_mask"),
+                        )
+                    )
                     if early_center_zero_steer_loss_weight > 0.0:
                         losses.update(
                             _compute_early_center_zero_steer_losses(
@@ -3421,6 +3668,22 @@ def main() -> int:
                                 alignment_mode=early_severe_alignment_mode,
                             )
                         )
+                    losses.update(
+                        _compute_turn_phase_losses(
+                            action_mean,
+                            batch["expert_action"],
+                            batch,
+                            route_dim=config.model.route_dim,
+                            maneuver_turn_sign_index=turn_phase_maneuver_turn_sign_index,
+                            turn_sign_scale=turn_phase_turn_sign_scale,
+                            route_y_index=turn_phase_route_y_index,
+                            route_y_abs_min=turn_phase_route_y_abs_min,
+                            heading_error_abs_min=turn_phase_heading_error_abs_min,
+                            expert_abs_steer_min=turn_phase_expert_abs_steer_min,
+                            direction_margin=turn_phase_direction_margin,
+                            longitudinal_ceiling=turn_phase_longitudinal_ceiling,
+                        )
+                    )
                     if early_center_zero_steer_loss_weight > 0.0:
                         losses.update(
                             _compute_early_center_zero_steer_losses(
@@ -3526,6 +3789,26 @@ def main() -> int:
                 )
                 total_loss = (
                     total_loss
+                    + losses.get("turn_phase_direction_loss", total_loss.new_zeros(()))
+                    * turn_phase_direction_loss_weight
+                )
+                total_loss = (
+                    total_loss
+                    + losses.get("turn_phase_magnitude_loss", total_loss.new_zeros(()))
+                    * turn_phase_magnitude_loss_weight
+                )
+                total_loss = (
+                    total_loss
+                    + losses.get("turn_phase_smoothness_loss", total_loss.new_zeros(()))
+                    * turn_phase_smoothness_loss_weight
+                )
+                total_loss = (
+                    total_loss
+                    + losses.get("turn_phase_longitudinal_ceiling_loss", total_loss.new_zeros(()))
+                    * turn_phase_longitudinal_ceiling_loss_weight
+                )
+                total_loss = (
+                    total_loss
                     + losses.get("early_center_zero_steer_loss", total_loss.new_zeros(()))
                     * early_center_zero_steer_loss_weight
                 )
@@ -3610,6 +3893,15 @@ def main() -> int:
                 late_recovery_abs_heading_error_min=late_recovery_abs_heading_error_min,
                 late_recovery_absolute_steer_margin=late_recovery_absolute_steer_margin,
                 late_recovery_bc_loss_scale=late_recovery_bc_loss_scale,
+                route_dim=config.model.route_dim,
+                turn_phase_maneuver_turn_sign_index=turn_phase_maneuver_turn_sign_index,
+                turn_phase_turn_sign_scale=turn_phase_turn_sign_scale,
+                turn_phase_route_y_index=turn_phase_route_y_index,
+                turn_phase_route_y_abs_min=turn_phase_route_y_abs_min,
+                turn_phase_heading_error_abs_min=turn_phase_heading_error_abs_min,
+                turn_phase_expert_abs_steer_min=turn_phase_expert_abs_steer_min,
+                turn_phase_direction_margin=turn_phase_direction_margin,
+                turn_phase_longitudinal_ceiling=turn_phase_longitudinal_ceiling,
                 early_center_zero_steer_route_min=early_center_zero_steer_route_min,
                 early_center_zero_steer_route_max=early_center_zero_steer_route_max,
                 early_center_zero_steer_abs_lane_offset_max=early_center_zero_steer_abs_lane_offset_max,
