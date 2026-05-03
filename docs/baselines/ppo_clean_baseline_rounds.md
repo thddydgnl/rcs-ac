@@ -3644,3 +3644,90 @@ Decision:
 - V4 is the first matched PPO/BC clean-safety candidate to satisfy the hard 512/2048 safety criteria: collision `0`, offroad `0`, severe early offroad `0`, stuck `0`.
 - It is not yet the final PPO baseline manifest because the PPO gate still blocks on jitter: 512 mean action jitter `0.097191`, 2048 mean action jitter `0.086860`, both above the `0.07` gate.
 - The next round should preserve the V4 safety behavior while reducing jitter. Prefer smoothing-aware/distillation-style refinement from V4 rather than more steering margin. A small BC blend or PPO fine-tune can be considered only if it does not reintroduce left-branch offroad.
+
+## PPO Baseline Attempts 62-64: V4 Route Identity and Exit Longitudinal Probes
+
+Date: 2026-05-04
+
+Status: **V4 remains the best clean-safety candidate; exit longitudinal BC did not recover route progress**
+
+Purpose:
+
+- Freeze `ppo_matched_turn_phase_early_steer_slow_v4` as the safety-preserving base and verify whether its `0.410256` route plateau is a stale-log artifact or a real behavior.
+- Avoid runtime steering overrides, lateral recovery assist, reward changes, or RCS-AC-specific modules.
+- Test whether the remaining gap to RCS-AC Round90 (`0.435897`) can be closed by reducing overly conservative longitudinal/brake behavior near the route exit.
+
+Attempt 62: V4 route-identity rerun:
+
+- Config: `configs/baselines/ppo_matched_bc_pretrain_estimated_scalar_seed9_turn_phase_early_steer_slow_v4.yaml`
+- Checkpoint: Windows `checkpoints/ppo_matched_turn_phase_early_steer_slow_v4_bc_20260504T0415/last.pt`
+- Result:
+  - 512: collision/offroad/severe early offroad/stuck `0/0/0/0`, max route `0.410256`, jitter `0.098872`.
+  - 2048: collision/offroad/severe early offroad/stuck `0/0/0/0`, max route `0.410256`, jitter `0.090786`.
+- Diagnosis:
+  - The plateau is real, not only stale documentation.
+  - The 2048 rerun never passed target waypoint index `16`.
+  - The route `0.36-0.44` bands had safe offroad margin, so the blocker is not immediate offroad risk.
+  - The sync eval log still lacks some advanced local target geometry fields because shared-core `logs.csv` does not expose them, but `target_waypoint_index`, speed, brake, route progress, lane offset, and heading error were enough to confirm the waypoint plateau.
+
+Attempt 63: Exit Progress V5:
+
+- Config: `configs/baselines/ppo_matched_bc_pretrain_estimated_scalar_seed9_turn_phase_exit_progress_v5.yaml`
+- Init checkpoint: V4 `last.pt`.
+- Trainable scope: actor head output row `[1]` only, freezing steering.
+- Intended change: route-progress longitudinal floor over `0.395-0.425`, speed max `2.4 m/s`, floor `-0.58`, weight `0.12`.
+- Training result:
+  - BC completed with `val_loss=0.085248`.
+  - The route-progress longitudinal loss had `mask_rate=0.0`, so the intended floor supervision never applied.
+- 512 result:
+  - collision/offroad/severe early offroad/stuck `0/0/0/0`.
+  - max route `0.410256`, final route `0.410256`.
+  - mean action jitter `0.105393`.
+- Decision: blocked. No 2048 promotion because there was no route improvement and jitter worsened.
+
+Attempt 64: Pre-Exit Longitudinal V6:
+
+- Config: `configs/baselines/ppo_matched_bc_pretrain_estimated_scalar_seed9_turn_phase_pre_exit_longitudinal_v6.yaml`
+- Init checkpoint: V4 `last.pt`.
+- Trainable scope: actor head output row `[1]` only, freezing steering.
+- Corrected the route window to an actually represented dataset waypoint:
+  - route window `0.350-0.365`
+  - speed max `10.0 m/s`
+  - floor `-0.55`
+  - weight `0.20`
+  - one epoch, LR `2e-5`
+- Training result:
+  - BC completed with `val_loss=0.085248`.
+  - The floor mask was active: val `route_progress_longitudinal_mask_rate=0.102487`, `floor_rate=0.086022`, `longitudinal_mean=-0.589731`.
+- 512 result:
+  - collision/offroad/severe early offroad/stuck `0/0/0/0`.
+  - max route `0.410256`, final route `0.410256`.
+  - mean action jitter `0.094872`, steer jitter `0.083910`, longitudinal jitter `0.010962`.
+- Decision: blocked. This reduced jitter relative to V5 and preserved safety, but it still did not move beyond target waypoint index `16`.
+
+Comparison:
+
+| Candidate | Steps | Collision | Offroad | Severe early offroad | Stuck | Max route progress | Max waypoint | Mean action jitter L1 | Decision |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |
+| V4 route-identity rerun | 512 | 0 | 0 | 0 | 0 | 0.410256 | 16 | 0.098872 | safety retained |
+| V4 route-identity rerun | 2048 | 0 | 0 | 0 | 0 | 0.410256 | 16 | 0.090786 | best current clean-safety candidate |
+| Exit Progress V5 | 512 | 0 | 0 | 0 | 0 | 0.410256 | 16 | 0.105393 | blocked, empty supervision mask |
+| Pre-Exit Longitudinal V6 | 512 | 0 | 0 | 0 | 0 | 0.410256 | 16 | 0.094872 | blocked, no route gain |
+
+Artifacts:
+
+- V4 route-identity rerun: `remote_runs/ppo_matched_turn_phase_early_steer_slow_v4_route_identity_rerun_20260504/`
+- V5 logs: `remote_runs/ppo_matched_turn_phase_exit_progress_v5_20260504/`
+- V6 logs: `remote_runs/ppo_matched_turn_phase_pre_exit_longitudinal_v6_20260504/`
+- V5 checkpoint on Windows sync: `checkpoints/ppo_matched_turn_phase_exit_progress_v5_bc_20260504T0500/last.pt`
+- V6 checkpoint on Windows sync: `checkpoints/ppo_matched_turn_phase_pre_exit_longitudinal_v6_bc_20260504T0510/last.pt`
+
+Current interpretation:
+
+- The remaining RCS-AC Round90 gap is not solved by a narrow longitudinal-only floor.
+- V4/V6 stay centered with safe offroad margins around the plateau, but the policy still does not advance from waypoint `16` to `17`.
+- The training dataset used for PPO matched BC does not contain route rows in `0.36-0.425`; it jumps from `0.358974` to `0.461538`, so directly supervising the observed eval plateau at `0.384615/0.410256` is not possible with this dataset.
+- The next useful step is not another blind longitudinal floor. Prefer one of:
+  - collect or synthesize matched clean-safe samples covering the waypoint `15-17` exit window, with policy-available observations and expert controls,
+  - add richer eval logging for target waypoint/local route geometry to determine whether the route advancement blocker is target selection, distance threshold, or policy action,
+  - run a strictly gated PPO fine-tune from V4/V6 with the shared reward unchanged, accepting only checkpoints that preserve 512 safety and beat `0.410256`.
