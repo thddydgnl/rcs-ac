@@ -268,8 +268,9 @@ PPO training must use the same reward contract as the RCS-AC RL training environ
 
 Recommended starting reward source:
 
-- Copy the `reward:` block from `configs/phase1_core_smoke.yaml` unless a newer shared reward config is fixed.
+- Copy the `reward:` block from `configs/bc_frame_rgb_perception_actor_features_v2_sustain_late_recovery_round90_shared_reward_baseline.yaml`.
 - Use the same reward block for any RCS-AC PPO fine-tuning candidate and PPO baseline run.
+- The original Round90 no-shaping reward is historical only and should not be used for new matched-baseline training unless the baseline comparison is explicitly labeled as no-shaping.
 
 Do not compare PPO trained with one reward to RCS-AC trained/evaluated under another reward without documenting the mismatch.
 
