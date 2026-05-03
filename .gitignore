@@ -24,11 +24,16 @@ outputs/
 logs/*
 !logs/**/
 !logs/**/*.csv
+logs/**/rgb/
 remote_runs/*
 !remote_runs/**/
 !remote_runs/summary.json
 !remote_runs/metrics.csv
+!remote_runs/**/*.json
+!remote_runs/**/*.csv
 !remote_runs/**/*.txt
+remote_runs/**/rgb/
+round*_results/**/rgb/
 
 # Local datasets and generated artifacts
 data/**/*.npz

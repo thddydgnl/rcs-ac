@@ -17,12 +17,19 @@ Required operating guides live in:
 docs/operating_guides/
 ```
 
-Before starting or continuing any stabilization round, read:
+Before starting or continuing an ordinary stabilization round, read:
 
 ```text
 docs/operating_guides/00_agent_workflow_rules.md
-docs/operating_guides/01_remote_mac_windows_stabilization_workflow.md
+docs/operating_guides/03_lite_subagent_stabilization_workflow.md
+```
+
+Read these only when needed:
+
+```text
 docs/operating_guides/02_integrated_subagent_remote_stabilization_workflow.md
+docs/operating_guides/04_full_subagent_roles_and_legacy_rules.md
+docs/operating_guides/01_remote_mac_windows_stabilization_workflow.md
 ```
 
 ## Current Records

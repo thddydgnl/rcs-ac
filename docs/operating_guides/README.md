@@ -1,37 +1,45 @@
 # Operating Guides
 
-These documents are required reading for every stabilization round.
+Use this folder for stable process rules, sub-agent workflow rules, Mac/Windows execution rules, and troubleshooting references.
 
-Use this folder for stable process rules, machine split rules, remote execution instructions, and Codex reporting requirements.
+Do not read every file by default. Use this router to keep ordinary Lite rounds small.
 
-## Required Every Round
-
-Default trigger:
+## Default Trigger
 
 ```text
 안정화 라운드 진행해줘
 ```
 
-In this repository, that short request means:
+means:
 
 ```text
-다음 라운드 서브에이전트 구조로, Mac-Windows 원격 실행 방식까지 포함해서 안정화 진행해줘.
+Start in Lite Subagent Workflow mode.
+Use Mac-Windows remote CARLA execution when needed.
+Escalate to Full Subagent Workflow if a high-risk condition appears.
 ```
 
-Do not ask for confirmation before applying the integrated workflow.
+## Required Every Round
 
 1. `00_agent_workflow_rules.md`
-   - Defines the stabilization agent workflow, Experiment Brief barrier, sub-agent roles, PASS/WARN/FAIL gates, and reporting expectations.
+   - Short core rules, reading router, barriers, gate rules, and global safety rules.
 
-2. `01_remote_mac_windows_stabilization_workflow.md`
-   - Defines the Mac/Windows split:
-     - Mac: Codex, sub-agents, analysis, code edits, commits, reports.
-     - Windows: CARLA, Python execution, raw logs, checkpoints, sensor outputs.
+2. `03_lite_subagent_stabilization_workflow.md`
+   - Default lightweight workflow for ordinary stabilization rounds.
+   - Required unless the user explicitly asks only for documentation review.
+
+## Read When Needed
 
 3. `02_integrated_subagent_remote_stabilization_workflow.md`
-   - Defines the combined workflow when a stabilization round should use both:
-     - sub-agent analysis and Experiment Brief barriers
-     - Mac-to-Windows SSH execution with CARLA readiness guards
+   - Read relevant sections when Windows/CARLA execution is needed.
+   - Use for Windows sync, CARLA readiness guard, CARLA execution, and log pullback.
+
+4. `04_full_subagent_roles_and_legacy_rules.md`
+   - Read only after Full escalation or when detailed Full agent role prompts are needed.
+   - Contains legacy/historical workflow content; newer `00` and `03` rules win on conflict.
+
+5. `01_remote_mac_windows_stabilization_workflow.md`
+   - Detailed remote setup/troubleshooting reference.
+   - Read only for SSH, Tailscale, SCP, CARLA startup, or infrastructure failures.
 
 ## Not Stored Here
 

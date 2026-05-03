@@ -554,6 +554,20 @@ When CARLA shows `Fatal error! Crash in runnable thread TaskGraphThreadNP` or a 
 7. If shared_core/env/carla_env.py must be patched remotely, preserve shared_core imports, action_contract_version, target-speed longitudinal control, action_smoothing, maneuver_command route hints, semantic aux masks, and advanced StateBuilder input objects.
 ```
 
+Before the first CARLA command after a Windows pull, run this drift check:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\windows\check_shared_core_carla_env.ps1
+```
+
+The check must print:
+
+```text
+SHARED_CORE_CARLA_ENV_CHECK=PASS
+```
+
+If it fails, stop the round and fix the Windows `shared_core/env/carla_env.py` patch before launching train/eval. A failed check means the repo wrapper may still be correct while the runtime CARLA environment is using a stale external dependency.
+
 The readiness guard and the env must work together:
 
 ```text

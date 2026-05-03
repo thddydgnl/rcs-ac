@@ -10,12 +10,20 @@ Path:
 docs/operating_guides/
 ```
 
-Read these before every stabilization round. They define how Codex should analyze, edit, run, and report.
+Use the guide router before every stabilization round. It defines what to read for ordinary Lite rounds and what to open only after escalation or infrastructure failure.
 
 Required every round:
 
 ```text
 docs/operating_guides/00_agent_workflow_rules.md
+docs/operating_guides/03_lite_subagent_stabilization_workflow.md
+```
+
+Read only when needed:
+
+```text
+docs/operating_guides/02_integrated_subagent_remote_stabilization_workflow.md
+docs/operating_guides/04_full_subagent_roles_and_legacy_rules.md
 docs/operating_guides/01_remote_mac_windows_stabilization_workflow.md
 ```
 
