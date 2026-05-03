@@ -2483,3 +2483,63 @@ Current blocker after Attempt 39:
 
 - The best PPO checkpoint remains the original seed9 `update_0011.pt` near-pass candidate with offroad `1`.
 - Steering exploration and longitudinal exploration changes both failed to remove the last safety event.
+
+## PPO Baseline Attempt 40: Seed9 Update Epochs 2 8192
+
+Config: `configs/baselines/ppo_clean_same_env_sensor_action_seed9_epochs2_rollout512_mb256.yaml`
+
+Run name: `ppo_clean_seed9_epochs2_rollout512_mb256_8192`
+
+Status: **failed 512 clean gate**
+
+Purpose:
+
+- Test whether increasing PPO update strength improves the seed9 near-pass family.
+- Keep clean environment, route, observation keys, reward, termination, action wrapper, exploration std, and minibatch size otherwise unchanged.
+- Do not add PPO-only assist, privileged inference inputs, lane-offset runtime steering override, or RCS-AC auxiliary/corrective policy features.
+
+Allowed tuning changed from seed9 Attempt19 family:
+
+- `update_epochs: 2`
+- Smoke budget: `8192` timesteps
+
+Training summary:
+
+- Timesteps: `8192`
+- Episodes: `45`
+- Done reasons: offroad `41`, collision `4`
+- Best training route progress: `0.538462`
+- Last update: `16`
+- Last actor loss: `0.000062`
+- Last critic loss: `18.800428`
+- Last entropy: `0.437769`
+
+Pulled logs:
+
+- `remote_runs/ppo_baseline_seed9_epochs2_rollout512_mb256_8192_20260503T090924/train/training_log.csv`
+- `remote_runs/ppo_baseline_seed9_epochs2_rollout512_mb256_8192_20260503T090924/eval_last/`
+
+512 clean eval, last checkpoint:
+
+- Checkpoint: `checkpoints/ppo_clean_seed9_epochs2_rollout512_mb256_8192_20260503T090924/last.pt`
+- Eval run: `ppo_clean_seed9_epochs2_rollout512_mb256_8192_eval_512_20260503T092505`
+- Collision: `4`
+- Offroad: `0`
+- Early offroad: `0`
+- Severe early offroad: `0`
+- Stuck: `0`
+- Max route progress: `0.179487`
+- Mean action jitter L1: `0.001424`
+- PPO gate: `BLOCK`
+- Gate fail reasons: `collision_count 4 > 0`, `max_route_progress 0.179487 < 0.300000`
+
+Failure diagnosis:
+
+- Increasing update epochs made the deterministic eval much worse.
+- The actor developed a strong right-steer bias in the eval initial audit (`right_steer_rate: 1.0`, `mean_steer: 0.022115`) and repeatedly collided at low route progress.
+- This mirrors the earlier seed7 epochs2 regression, so update strength is not a good next direction for the PPO clean baseline.
+
+Current blocker after Attempt 40:
+
+- PPO-only allowed tuning has not produced a 512-safe checkpoint.
+- The strongest candidate remains original seed9 `update_0011.pt`, but it still fails the hard gate with offroad `1`.
