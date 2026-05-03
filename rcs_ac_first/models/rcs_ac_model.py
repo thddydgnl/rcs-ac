@@ -6,7 +6,12 @@ from torch import nn
 from rcs_ac_first.models.encoders import MultiModalEncoder
 from rcs_ac_first.models.fusion_gate import FusionGate, FusionGateConfig, MODALITY_ORDER
 from rcs_ac_first.models.masked_critic import MaskedCritic, MaskedCriticConfig
-from rcs_ac_first.models.perception_aux import RGBPerceptionActorFeatureExtractor, RGBPerceptionAuxHead
+from rcs_ac_first.models.perception_aux import (
+    EstimatedScalarHead,
+    RGBPerceptionActorFeatureExtractor,
+    RGBPerceptionAuxHead,
+    build_rgb_perception_raw_features,
+)
 from rcs_ac_first.models.reliability import RCSACReliabilityModule, ReliabilityConfig
 from rcs_ac_first.models.recurrent_actor_critic import (
     RecurrentActorCritic,
@@ -122,6 +127,14 @@ class RCSACFirstModel(nn.Module):
         )
         if self.scalar_actor_adapter is not None:
             self._initialize_scalar_actor_adapter()
+        self.estimated_scalar_head = (
+            EstimatedScalarHead(
+                route_dim=int(self.config.route_dim),
+                hidden_dim=int(self.config.estimated_scalar_hidden_dim),
+            )
+            if self.config.use_scalar_actor_features and self.config.scalar_actor_feature_source == "estimated"
+            else None
+        )
         self.reliability_module = (
             RCSACReliabilityModule(
                 ReliabilityConfig(
@@ -157,6 +170,9 @@ class RCSACFirstModel(nn.Module):
                 hidden_dim=self.config.critic_hidden_dim,
             )
         )
+        self._last_scalar_actor_features: torch.Tensor | None = None
+        self._last_estimated_lane_offset: torch.Tensor | None = None
+        self._last_estimated_heading_error: torch.Tensor | None = None
         self._last_diagnostics = self._empty_diagnostics()
 
     def forward_policy_outputs(
@@ -216,6 +232,8 @@ class RCSACFirstModel(nn.Module):
         actor_input = self._build_actor_input(
             fusion_output.fused,
             perception_actor["compact_features"],
+            road_mask_logits=perception_aux["pred_road_mask_logits"],
+            lane_edge_mask_logits=perception_aux["pred_lane_edge_mask_logits"],
             auxiliary_tensor=auxiliary_tensor,
             route_input=split["route"],
         )
@@ -242,6 +260,9 @@ class RCSACFirstModel(nn.Module):
             "pred_lane_edge_mask_logits": perception_aux["pred_lane_edge_mask_logits"],
             "rgb_perception_actor_features": perception_actor["compact_features"],
             "rgb_perception_actor_raw_features": perception_actor["raw_features"],
+            "estimated_lane_offset": getattr(self, "_last_estimated_lane_offset", None),
+            "estimated_heading_error": getattr(self, "_last_estimated_heading_error", None),
+            "scalar_actor_feature_source": None,
             "actor_input_feature": actor_input,
             "reliability": reliability,
             "reliability_logits": reliability_logits,
@@ -263,6 +284,8 @@ class RCSACFirstModel(nn.Module):
                 actor_input=actor_input,
                 fused_feature=fusion_output.fused,
                 recurrent_feature=ac_output.recurrent_feature,
+                auxiliary_tensor=auxiliary_tensor,
+                route_input=split["route"],
             )
         return outputs
 
@@ -330,6 +353,8 @@ class RCSACFirstModel(nn.Module):
             modules.append(self.actor_input_adapter)
         if self.scalar_actor_adapter is not None:
             modules.append(self.scalar_actor_adapter)
+        if self.estimated_scalar_head is not None:
+            modules.append(self.estimated_scalar_head)
         if self.reliability_module is not None:
             modules.append(self.reliability_module)
         if self.risk_context_head is not None:
@@ -442,8 +467,16 @@ class RCSACFirstModel(nn.Module):
             "compact_visual_actor_input_l1_mean": 0.0,
             "visual_actor_delta_l1_mean": 0.0,
             "scalar_actor_features_enabled": 0.0,
+            "scalar_actor_feature_source_estimated": 0.0,
+            "scalar_actor_feature_source_oracle_auxiliary": 0.0,
             "scalar_actor_feature_l1_mean": 0.0,
             "scalar_actor_delta_l1_mean": 0.0,
+            "estimated_lane_offset_mean": 0.0,
+            "estimated_heading_error_mean": 0.0,
+            "estimated_lane_offset_mae": 0.0,
+            "estimated_heading_error_mae": 0.0,
+            "estimated_lane_offset_sign_agreement": 0.0,
+            "estimated_heading_error_sign_agreement": 0.0,
             "recurrent_hidden_l1_mean": 0.0,
         }
 
@@ -589,6 +622,8 @@ class RCSACFirstModel(nn.Module):
         fused_feature: torch.Tensor,
         perception_actor_features: torch.Tensor,
         *,
+        road_mask_logits: torch.Tensor | None = None,
+        lane_edge_mask_logits: torch.Tensor | None = None,
         auxiliary_tensor: torch.Tensor,
         route_input: torch.Tensor,
     ) -> torch.Tensor:
@@ -610,6 +645,8 @@ class RCSACFirstModel(nn.Module):
             return actor_input
         scalar_features = self._scalar_actor_features(
             auxiliary_tensor,
+            road_mask_logits=road_mask_logits,
+            lane_edge_mask_logits=lane_edge_mask_logits,
             route_input=route_input,
             reference=actor_input,
         )
@@ -619,21 +656,49 @@ class RCSACFirstModel(nn.Module):
         self,
         auxiliary_tensor: torch.Tensor,
         *,
+        road_mask_logits: torch.Tensor | None = None,
+        lane_edge_mask_logits: torch.Tensor | None = None,
         route_input: torch.Tensor,
         reference: torch.Tensor,
     ) -> torch.Tensor:
-        split = split_flat_auxiliary_observation(auxiliary_tensor, self.aux_spec)
-        risk = split["risk_stats"].to(device=reference.device, dtype=reference.dtype)
         route = route_input.to(device=reference.device, dtype=reference.dtype)
-        lane_index = RISK_STATS_FIELDS.index("lane_offset")
-        heading_index = RISK_STATS_FIELDS.index("heading_error")
-        lane_offset = risk[:, lane_index] / float(self.config.scalar_actor_lane_offset_scale)
-        heading_error = risk[:, heading_index] / float(self.config.scalar_actor_heading_error_scale)
+        if self.config.scalar_actor_feature_source == "estimated":
+            if self.estimated_scalar_head is None:
+                raise RuntimeError("estimated scalar source requires estimated_scalar_head")
+            if road_mask_logits is None or lane_edge_mask_logits is None:
+                shape = (
+                    int(route.shape[0]),
+                    1,
+                    int(self.config.aux_mask_height),
+                    int(self.config.aux_mask_width),
+                )
+                road_mask_logits = reference.new_zeros(shape)
+                lane_edge_mask_logits = reference.new_zeros(shape)
+            visual_geometry = build_rgb_perception_raw_features(road_mask_logits, lane_edge_mask_logits).to(
+                device=reference.device,
+                dtype=reference.dtype,
+            )
+            estimated = self.estimated_scalar_head(visual_geometry, route)
+            lane_value = estimated[:, 0]
+            heading_value = estimated[:, 1]
+        else:
+            split = split_flat_auxiliary_observation(auxiliary_tensor, self.aux_spec)
+            risk = split["risk_stats"].to(device=reference.device, dtype=reference.dtype)
+            lane_index = RISK_STATS_FIELDS.index("lane_offset")
+            heading_index = RISK_STATS_FIELDS.index("heading_error")
+            lane_value = risk[:, lane_index]
+            heading_value = risk[:, heading_index]
+        self._last_estimated_lane_offset = lane_value if self.config.scalar_actor_feature_source == "estimated" else None
+        self._last_estimated_heading_error = heading_value if self.config.scalar_actor_feature_source == "estimated" else None
+        lane_offset = lane_value / float(self.config.scalar_actor_lane_offset_scale)
+        heading_error = heading_value / float(self.config.scalar_actor_heading_error_scale)
         if int(route.shape[-1]) > 1:
             route_y = route[:, 1] / float(self.config.scalar_actor_route_y_scale)
         else:
             route_y = route.new_zeros((int(route.shape[0]),))
-        return torch.stack([lane_offset, heading_error, route_y], dim=-1).clamp(-5.0, 5.0)
+        scalar_features = torch.stack([lane_offset, heading_error, route_y], dim=-1).clamp(-5.0, 5.0)
+        self._last_scalar_actor_features = scalar_features
+        return scalar_features
 
     def _build_diagnostics(
         self,
@@ -645,6 +710,8 @@ class RCSACFirstModel(nn.Module):
         actor_input: torch.Tensor,
         fused_feature: torch.Tensor,
         recurrent_feature: torch.Tensor,
+        auxiliary_tensor: torch.Tensor,
+        route_input: torch.Tensor,
     ) -> dict[str, float]:
         diagnostics = self._empty_diagnostics()
         diagnostics.update(encoder_diagnostics)
@@ -674,8 +741,49 @@ class RCSACFirstModel(nn.Module):
             (actor_input.detach() - fused_feature.detach()).abs().mean().cpu().item()
         )
         diagnostics["scalar_actor_features_enabled"] = float(self.config.use_scalar_actor_features)
+        diagnostics["scalar_actor_feature_source_estimated"] = float(
+            self.config.use_scalar_actor_features and self.config.scalar_actor_feature_source == "estimated"
+        )
+        diagnostics["scalar_actor_feature_source_oracle_auxiliary"] = float(
+            self.config.use_scalar_actor_features and self.config.scalar_actor_feature_source == "oracle_auxiliary"
+        )
         if self.scalar_actor_adapter is not None:
             diagnostics["scalar_actor_delta_l1_mean"] = float(
                 self.scalar_actor_adapter.weight.detach().abs().mean().cpu().item()
             )
+            if isinstance(self._last_scalar_actor_features, torch.Tensor):
+                diagnostics["scalar_actor_feature_l1_mean"] = float(
+                    self._last_scalar_actor_features.detach().abs().mean().cpu().item()
+                )
+        estimated_lane = getattr(self, "_last_estimated_lane_offset", None)
+        estimated_heading = getattr(self, "_last_estimated_heading_error", None)
+        if isinstance(estimated_lane, torch.Tensor) and isinstance(estimated_heading, torch.Tensor):
+            diagnostics["estimated_lane_offset_mean"] = float(estimated_lane.detach().mean().cpu().item())
+            diagnostics["estimated_heading_error_mean"] = float(estimated_heading.detach().mean().cpu().item())
+            split = split_flat_auxiliary_observation(auxiliary_tensor, self.aux_spec)
+            risk = split["risk_stats"].to(device=estimated_lane.device, dtype=estimated_lane.dtype)
+            lane_target = risk[:, RISK_STATS_FIELDS.index("lane_offset")]
+            heading_target = risk[:, RISK_STATS_FIELDS.index("heading_error")]
+            diagnostics["estimated_lane_offset_mae"] = float((estimated_lane - lane_target).detach().abs().mean().cpu().item())
+            diagnostics["estimated_heading_error_mae"] = float(
+                (estimated_heading - heading_target).detach().abs().mean().cpu().item()
+            )
+            lane_mask = (estimated_lane.detach().abs() > 1.0e-6) & (lane_target.detach().abs() > 1.0e-6)
+            heading_mask = (estimated_heading.detach().abs() > 1.0e-6) & (heading_target.detach().abs() > 1.0e-6)
+            if bool(lane_mask.any().item()):
+                diagnostics["estimated_lane_offset_sign_agreement"] = float(
+                    (torch.sign(estimated_lane[lane_mask]) == torch.sign(lane_target[lane_mask]))
+                    .to(dtype=torch.float32)
+                    .mean()
+                    .cpu()
+                    .item()
+                )
+            if bool(heading_mask.any().item()):
+                diagnostics["estimated_heading_error_sign_agreement"] = float(
+                    (torch.sign(estimated_heading[heading_mask]) == torch.sign(heading_target[heading_mask]))
+                    .to(dtype=torch.float32)
+                    .mean()
+                    .cpu()
+                    .item()
+                )
         return diagnostics

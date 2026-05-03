@@ -118,6 +118,13 @@ BC_LOG_FIELDS: tuple[str, ...] = (
     "route_progress_longitudinal_floor_rate",
     "route_progress_longitudinal_mask_rate",
     "route_progress_longitudinal_mean",
+    "estimated_scalar_loss",
+    "estimated_lane_offset_loss",
+    "estimated_heading_error_loss",
+    "estimated_lane_offset_mae",
+    "estimated_heading_error_mae",
+    "estimated_lane_offset_sign_agreement",
+    "estimated_heading_error_sign_agreement",
     "perception_aux_loss",
     "aux_road_mask_loss",
     "aux_lane_edge_mask_loss",
@@ -354,6 +361,86 @@ def _compute_sequence_perception_losses(
     valid_count = flat_valid.sum().clamp_min(1.0)
     result["sequence_mask_available_valid_rate"] = (flat_available * flat_valid).sum() / valid_count
     result["sequence_perception_logits_available"] = action_mean.new_ones(())
+    return result
+
+
+def _compute_estimated_scalar_losses(
+    outputs: dict[str, torch.Tensor | None],
+    batch: dict[str, torch.Tensor],
+    *,
+    valid_mask: torch.Tensor | None = None,
+) -> dict[str, torch.Tensor]:
+    action_mean = outputs.get("action_mean_sequence")
+    if not isinstance(action_mean, torch.Tensor):
+        action_mean = outputs.get("action_mean")
+    if not isinstance(action_mean, torch.Tensor):
+        raise RuntimeError("Model output action_mean is missing.")
+    zero = action_mean.sum() * 0.0
+    result = {
+        "estimated_scalar_loss": zero,
+        "estimated_lane_offset_loss": zero,
+        "estimated_heading_error_loss": zero,
+        "estimated_lane_offset_mae": zero,
+        "estimated_heading_error_mae": zero,
+        "estimated_lane_offset_sign_agreement": zero,
+        "estimated_heading_error_sign_agreement": zero,
+    }
+    estimated_lane = outputs.get("estimated_lane_offset")
+    estimated_heading = outputs.get("estimated_heading_error")
+    target_lane = batch.get("lane_offset")
+    target_heading = batch.get("heading_error")
+    if (
+        not isinstance(estimated_lane, torch.Tensor)
+        or not isinstance(estimated_heading, torch.Tensor)
+        or not isinstance(target_lane, torch.Tensor)
+        or not isinstance(target_heading, torch.Tensor)
+    ):
+        return result
+    if estimated_lane.ndim == 1 and target_lane.ndim == 2:
+        target_lane = target_lane[:, -1]
+        target_heading = target_heading[:, -1]
+        if valid_mask is not None and valid_mask.ndim == 2:
+            valid_mask = valid_mask[:, -1]
+    target_lane = target_lane.to(device=estimated_lane.device, dtype=estimated_lane.dtype)
+    target_heading = target_heading.to(device=estimated_heading.device, dtype=estimated_heading.dtype)
+    if tuple(estimated_lane.shape) != tuple(target_lane.shape) or tuple(estimated_heading.shape) != tuple(target_heading.shape):
+        return result
+    lane_loss = F.smooth_l1_loss(estimated_lane, target_lane, reduction="none")
+    heading_loss = F.smooth_l1_loss(estimated_heading, target_heading, reduction="none")
+    lane_abs = (estimated_lane - target_lane).abs()
+    heading_abs = (estimated_heading - target_heading).abs()
+    if valid_mask is not None:
+        mask = valid_mask.to(device=estimated_lane.device, dtype=estimated_lane.dtype).reshape_as(lane_loss).clamp(0.0, 1.0)
+        denom = mask.sum().clamp_min(1.0)
+        lane_loss_mean = (lane_loss * mask).sum() / denom
+        heading_loss_mean = (heading_loss * mask).sum() / denom
+        lane_mae = (lane_abs * mask).sum() / denom
+        heading_mae = (heading_abs * mask).sum() / denom
+    else:
+        lane_loss_mean = lane_loss.mean()
+        heading_loss_mean = heading_loss.mean()
+        lane_mae = lane_abs.mean()
+        heading_mae = heading_abs.mean()
+        mask = torch.ones_like(lane_loss)
+    result["estimated_lane_offset_loss"] = lane_loss_mean
+    result["estimated_heading_error_loss"] = heading_loss_mean
+    result["estimated_scalar_loss"] = lane_loss_mean + heading_loss_mean
+    result["estimated_lane_offset_mae"] = lane_mae
+    result["estimated_heading_error_mae"] = heading_mae
+    lane_sign_mask = (mask > 0.0) & (estimated_lane.detach().abs() > 1.0e-6) & (target_lane.detach().abs() > 1.0e-6)
+    heading_sign_mask = (
+        (mask > 0.0)
+        & (estimated_heading.detach().abs() > 1.0e-6)
+        & (target_heading.detach().abs() > 1.0e-6)
+    )
+    if bool(lane_sign_mask.any().item()):
+        result["estimated_lane_offset_sign_agreement"] = (
+            torch.sign(estimated_lane[lane_sign_mask]) == torch.sign(target_lane[lane_sign_mask])
+        ).to(dtype=estimated_lane.dtype).mean()
+    if bool(heading_sign_mask.any().item()):
+        result["estimated_heading_error_sign_agreement"] = (
+            torch.sign(estimated_heading[heading_sign_mask]) == torch.sign(target_heading[heading_sign_mask])
+        ).to(dtype=estimated_heading.dtype).mean()
     return result
 
 
@@ -1539,6 +1626,8 @@ def _forward_sequence_outputs(
     road_logits: list[torch.Tensor] = []
     lane_logits: list[torch.Tensor] = []
     raw_features: list[torch.Tensor] = []
+    estimated_lanes: list[torch.Tensor] = []
+    estimated_headings: list[torch.Tensor] = []
     last_outputs: dict[str, torch.Tensor | None] | None = None
     sequence_length = int(obs.shape[1])
     for step in range(sequence_length):
@@ -1562,6 +1651,11 @@ def _forward_sequence_outputs(
         raw = outputs.get("rgb_perception_actor_raw_features")
         if isinstance(raw, torch.Tensor):
             raw_features.append(raw)
+        estimated_lane = outputs.get("estimated_lane_offset")
+        estimated_heading = outputs.get("estimated_heading_error")
+        if isinstance(estimated_lane, torch.Tensor) and isinstance(estimated_heading, torch.Tensor):
+            estimated_lanes.append(estimated_lane)
+            estimated_headings.append(estimated_heading)
         next_hidden = outputs["next_hidden_state"]
         hidden = next_hidden if isinstance(next_hidden, torch.Tensor) else None
         last_outputs = outputs
@@ -1575,6 +1669,9 @@ def _forward_sequence_outputs(
         last_outputs["pred_lane_edge_mask_logits_sequence"] = torch.stack(lane_logits, dim=1)
     if len(raw_features) == sequence_length:
         last_outputs["rgb_perception_actor_raw_features_sequence"] = torch.stack(raw_features, dim=1)
+    if len(estimated_lanes) == sequence_length and len(estimated_headings) == sequence_length:
+        last_outputs["estimated_lane_offset"] = torch.stack(estimated_lanes, dim=1)
+        last_outputs["estimated_heading_error"] = torch.stack(estimated_headings, dim=1)
     return action_sequence, last_outputs
 
 
@@ -1841,6 +1938,27 @@ def _metric_row(
         "route_progress_longitudinal_mean": float(
             losses.get("route_progress_longitudinal_mean", fusion.new_zeros(())).detach().cpu().item()
         ),
+        "estimated_scalar_loss": float(
+            losses.get("estimated_scalar_loss", fusion.new_zeros(())).detach().cpu().item()
+        ),
+        "estimated_lane_offset_loss": float(
+            losses.get("estimated_lane_offset_loss", fusion.new_zeros(())).detach().cpu().item()
+        ),
+        "estimated_heading_error_loss": float(
+            losses.get("estimated_heading_error_loss", fusion.new_zeros(())).detach().cpu().item()
+        ),
+        "estimated_lane_offset_mae": float(
+            losses.get("estimated_lane_offset_mae", fusion.new_zeros(())).detach().cpu().item()
+        ),
+        "estimated_heading_error_mae": float(
+            losses.get("estimated_heading_error_mae", fusion.new_zeros(())).detach().cpu().item()
+        ),
+        "estimated_lane_offset_sign_agreement": float(
+            losses.get("estimated_lane_offset_sign_agreement", fusion.new_zeros(())).detach().cpu().item()
+        ),
+        "estimated_heading_error_sign_agreement": float(
+            losses.get("estimated_heading_error_sign_agreement", fusion.new_zeros(())).detach().cpu().item()
+        ),
         "policy_std": float(model.get_std().detach().mean().cpu().item()),
         "risk_scalar": float(risk_scalar.detach().mean().cpu().item()),
     }
@@ -2023,6 +2141,13 @@ def _evaluate(
         "route_progress_longitudinal_floor_rate": 0.0,
         "route_progress_longitudinal_mask_rate": 0.0,
         "route_progress_longitudinal_mean": 0.0,
+        "estimated_scalar_loss": 0.0,
+        "estimated_lane_offset_loss": 0.0,
+        "estimated_heading_error_loss": 0.0,
+        "estimated_lane_offset_mae": 0.0,
+        "estimated_heading_error_mae": 0.0,
+        "estimated_lane_offset_sign_agreement": 0.0,
+        "estimated_heading_error_sign_agreement": 0.0,
     }
     totals.update({key: 0.0 for key in PERCEPTION_AUX_METRIC_KEYS})
     count = 0
@@ -2085,6 +2210,7 @@ def _evaluate(
                         lane_edge_pos_weight=lane_edge_pos_weight,
                     )
                 )
+                losses.update(_compute_estimated_scalar_losses(outputs, batch, valid_mask=batch.get("valid_mask")))
                 zero_action_mean, _ = _forward_sequence_outputs(
                     model,
                     batch,
@@ -2312,6 +2438,7 @@ def _evaluate(
                         lane_edge_pos_weight=lane_edge_pos_weight,
                     )
                 )
+                losses.update(_compute_estimated_scalar_losses(outputs, batch))
                 zero_outputs = model.forward_policy_outputs(
                     batch["obs"],
                     auxiliary=auxiliary,
@@ -2674,6 +2801,9 @@ def main() -> int:
     steer_loss_weight = float(bc_raw.get("steer_loss_weight", 1.0))
     longitudinal_loss_weight = float(bc_raw.get("longitudinal_loss_weight", 1.0))
     perception_aux_loss_weight = float(bc_raw.get("perception_aux_loss_weight", 0.0))
+    estimated_scalar_loss_weight = float(
+        bc_raw.get("estimated_scalar_loss_weight", config.model.estimated_scalar_loss_weight)
+    )
     visual_zero_margin = float(bc_raw.get("visual_zero_margin", 0.0))
     visual_zero_margin_loss_weight = float(bc_raw.get("visual_zero_margin_loss_weight", 0.0))
     visual_zero_steer_margin = float(bc_raw.get("visual_zero_steer_margin", 0.0))
@@ -2908,6 +3038,7 @@ def main() -> int:
                             lane_edge_pos_weight=lane_edge_pos_weight,
                         )
                     )
+                    losses.update(_compute_estimated_scalar_losses(outputs, batch, valid_mask=batch.get("valid_mask")))
                     zero_action_mean, _ = _forward_sequence_outputs(
                         model,
                         batch,
@@ -3139,6 +3270,7 @@ def main() -> int:
                             lane_edge_pos_weight=lane_edge_pos_weight,
                         )
                     )
+                    losses.update(_compute_estimated_scalar_losses(outputs, batch))
                     zero_outputs = model.forward_policy_outputs(
                         batch["obs"],
                         auxiliary=auxiliary,
@@ -3314,6 +3446,10 @@ def main() -> int:
                     )
                 total_loss = losses["bc_loss"] * bc_loss_weight
                 total_loss = total_loss + losses.get("perception_aux_loss", total_loss.new_zeros(())) * perception_aux_loss_weight
+                total_loss = (
+                    total_loss
+                    + losses.get("estimated_scalar_loss", total_loss.new_zeros(())) * estimated_scalar_loss_weight
+                )
                 total_loss = (
                     total_loss
                     + losses.get("visual_zero_margin_loss", total_loss.new_zeros(())) * visual_zero_margin_loss_weight
