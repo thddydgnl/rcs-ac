@@ -102,3 +102,70 @@ Before treating Round90 or shared-reward Round90 as a locked baseline:
 3. Re-run original Round90 and shared-reward Round90 under that pinned runtime.
 4. Only call the baseline fixed if repeated 2048 runs pass with offroad `0`.
 
+## Follow-Up: Schema Restored
+
+The Windows `shared_core/env/carla_env.py` runtime was patched on 2026-05-04 to
+restore the full route/debug env log contract:
+
+- `logs.csv` -> `env_step_log.csv`
+- `ENV_STEP_LOG_FIELDS` is used as the CSV schema
+- route geometry is placed back into `info` and the env log:
+  - `route_representation`
+  - `target_x_local`, `target_y_local`
+  - `lookahead_turn_delta_rad`
+  - `route_waypoint_count`
+  - `route_total_length_m`
+  - `route_heading_mismatch`
+
+Verification:
+
+- Probe output: `outputs/route_contract_probe_round90_after_schema_restore`
+- `obs["route"]` remains nonzero
+- `env_step_log.csv` is created
+- route geometry columns are populated
+
+The helper script that applied the remote shared-core patch is stored in:
+
+`tools/patch_shared_core_route_log.py`
+
+The Windows guard script was also tightened:
+
+`scripts/windows/check_shared_core_carla_env.ps1`
+
+It now checks for `env_step_log.csv`, `ENV_STEP_LOG_FIELDS`,
+`target_x_local`, `route_waypoint_count`, and `lookahead_turn_delta_rad`.
+
+## Follow-Up: Original Round90 Revalidation After Schema Restore
+
+Artifacts:
+
+`round90_results/schema_restored_reverify_20260504/windows_outputs/`
+
+512-step original Round90:
+
+- run: `rgb_perception_actor_features_v2_round90_original_schema_restored_512_20260504T140729`
+- done reasons: `{"max_steps": 1}`
+- collision/offroad/severe early offroad/stuck: `0/0/0/0`
+- `env_step_log.csv`: present
+- `route_target_x`: nonzero for all `512` rows
+- `route_waypoint_count`: nonzero for all `512` rows
+- mean route target heading: `-0.561988`
+
+2048-step original Round90:
+
+- run: `rgb_perception_actor_features_v2_round90_original_schema_restored_2048_20260504T140844`
+- done reasons: `{"max_steps": 2, "offroad": 2}`
+- collision/offroad/severe early offroad/stuck: `0/>0/0/0`
+- `env_step_log.csv`: present
+- `route_target_x`: nonzero for all `2048` rows
+- `route_waypoint_count`: nonzero for all `2048` rows
+- mean route target heading: `-0.549803`
+
+Interpretation:
+
+The logging/route-debug contract is now restored closely enough for old/new log
+comparison. However, restoring the schema did not restore 2048 clean safety.
+Original Round90 still produced late offroad under the current CARLA/shared-core
+runtime. Therefore the remaining difference is not missing route observation or
+missing route logging; it is long-horizon rollout variability or policy/runtime
+behavior under the currently pinned environment.

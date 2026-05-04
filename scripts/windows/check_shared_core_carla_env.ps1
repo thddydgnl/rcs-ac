@@ -15,7 +15,12 @@ $requiredPatterns = @(
     @{ Name = "stage4 action contract"; Pattern = "action_contract_version" },
     @{ Name = "target-speed action wrapper"; Pattern = "target_speed_kmh" },
     @{ Name = "maneuver route hints"; Pattern = "maneuver_command" },
-    @{ Name = "advanced observation inputs"; Pattern = "PolicyObservationInputs" }
+    @{ Name = "advanced observation inputs"; Pattern = "PolicyObservationInputs" },
+    @{ Name = "full env step log file"; Pattern = "env_step_log.csv" },
+    @{ Name = "full env step log schema"; Pattern = "ENV_STEP_LOG_FIELDS" },
+    @{ Name = "route target x logging"; Pattern = "target_x_local" },
+    @{ Name = "route metadata logging"; Pattern = "route_waypoint_count" },
+    @{ Name = "route turn delta logging"; Pattern = "lookahead_turn_delta_rad" }
 )
 
 $missing = @()
