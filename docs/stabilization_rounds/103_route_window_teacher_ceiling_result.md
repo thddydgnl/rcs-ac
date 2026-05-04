@@ -27,5 +27,76 @@ Round103 config:
 
 ## Verification
 
-Pending Windows BC train and clean eval.
+Local:
 
+- `python -m py_compile rcs_ac_first/scripts/train_bc.py`: PASS
+- Round103 config load: PASS
+- Tensor-level teacher clipping probe: PASS
+
+Windows BC train:
+
+- Dataset: `data/expert/rgb_perception_actor_features_v2_early_route_mix_4256_round36_provenance.npz`
+- Checkpoint: `checkpoints/rgb_perception_actor_features_v2_route_window_teacher_ceiling_bc_round103/last.pt`
+- Trainable parameters: `514`
+- Train loss: `0.321018`
+- Val loss: `0.317988`
+- Val teacher loss: `0.082682`
+- Val teacher L1: `0.360465`
+- Val teacher mask rate: `0.636150`
+- Val teacher target mean: `-0.658842`
+
+512 clean eval:
+
+- Run: `rgb_perception_actor_features_v2_route_window_teacher_ceiling_eval_512_round103_20260504T191656`
+- Completed steps: `512`
+- Done reasons: `{"max_steps": 1}`
+- Collision: `0`
+- Offroad: `0`
+- Severe early offroad: `0`
+- Stuck: `0`
+- Max route progress: `0.461538`
+- Mean route progress: `0.220202`
+- Mean action jitter L1: `0.131299`
+- Mean longitudinal jitter: `0.051523`
+- Visual-center correction rate: `0.714286`
+- PPO gate: `BLOCK`
+
+2048 clean eval:
+
+- Run: `rgb_perception_actor_features_v2_route_window_teacher_ceiling_eval_2048_round103_20260504T191813`
+- Completed steps: `2048`
+- Done reasons: `{"max_steps": 3, "offroad": 1}`
+- Collision: `0`
+- Offroad: `1`
+- Severe early offroad: `0`
+- Stuck: `0`
+- Max route progress: `0.461538`
+- Mean route progress: `0.191294`
+- Mean action jitter L1: `0.147069`
+- Mean longitudinal jitter: `0.066491`
+- Visual-center correction rate: `0.524862`
+- PPO gate: `BLOCK`
+
+2048 route-bin detail:
+
+| route bin | rows | speed mean | target mean | policy longitudinal mean | done |
+| --- | ---: | ---: | ---: | ---: | --- |
+| `0.25-0.30` | 267 | `7.083` | `9.109` | `-0.717` | `{"offroad": 1}` |
+| `0.30-0.35` | 182 | `7.935` | `9.952` | `-0.641` | none |
+| `0.35-0.40` | 163 | `8.230` | `10.798` | `-0.564` | `{"max_steps": 1}` |
+
+## Verdict
+
+BLOCK.
+
+Round103 improved the 512 visual-center correction rate and reduced the `0.30-0.35` target mean versus Round102, but it moved the remaining 2048 offroad into `0.25-0.30` and increased action/longitudinal jitter. Do not promote Round103 over Round90.
+
+## Interpretation
+
+The remaining failure is not solved by simply lowering longitudinal output in the broad route window. The offroad can shift earlier while jitter increases. This suggests the late-window issue couples longitudinal timing with lateral recovery state, not just target-speed magnitude.
+
+The next useful round should avoid another scalar-only longitudinal row update unless it explicitly conditions on lateral state or episode phase. Candidate directions:
+
+- Audit the exact 2048 offroad episode rows around route `0.25-0.30` for lane offset, heading error, applied steer, target speed, and maneuver command.
+- Build a failure-window relabel/filter dataset around the actual terminal context instead of applying a broad route-only mask.
+- If adding a loss, condition it on `abs(lane_offset)`/`abs(heading_error)` and keep it offline-only; do not add a runtime override.
