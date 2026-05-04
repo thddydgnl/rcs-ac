@@ -133,6 +133,10 @@ BC_LOG_FIELDS: tuple[str, ...] = (
     "route_progress_longitudinal_ceiling_rate",
     "route_progress_longitudinal_ceiling_mask_rate",
     "route_progress_longitudinal_ceiling_mean",
+    "route_progress_longitudinal_teacher_loss",
+    "route_progress_longitudinal_teacher_l1",
+    "route_progress_longitudinal_teacher_mask_rate",
+    "route_progress_longitudinal_teacher_target_mean",
     "estimated_scalar_loss",
     "estimated_lane_offset_loss",
     "estimated_heading_error_loss",
@@ -1689,6 +1693,10 @@ def _zero_route_progress_longitudinal_losses(reference: torch.Tensor) -> dict[st
         "route_progress_longitudinal_ceiling_rate": zero,
         "route_progress_longitudinal_ceiling_mask_rate": zero,
         "route_progress_longitudinal_ceiling_mean": zero,
+        "route_progress_longitudinal_teacher_loss": zero,
+        "route_progress_longitudinal_teacher_l1": zero,
+        "route_progress_longitudinal_teacher_mask_rate": zero,
+        "route_progress_longitudinal_teacher_target_mean": zero,
     }
 
 
@@ -1784,6 +1792,59 @@ def _compute_route_progress_longitudinal_losses(
             ceiling_mask.mean() if ceiling_mask.numel() else ceiling_loss.new_zeros(())
         ),
         "route_progress_longitudinal_ceiling_mean": ceiling_longitudinal_mean,
+    }
+
+
+def _compute_route_progress_longitudinal_teacher_losses(
+    action_mean: torch.Tensor,
+    teacher_action_mean: torch.Tensor | None,
+    batch: dict[str, torch.Tensor],
+    *,
+    route_min: float | None = None,
+    route_max: float | None = None,
+    speed_min_mps: float | None = None,
+    speed_max_mps: float | None = None,
+    longitudinal_ceiling: float = 1.0,
+    valid_mask: torch.Tensor | None = None,
+) -> dict[str, torch.Tensor]:
+    route_progress = batch.get("route_progress")
+    if route_progress is None or teacher_action_mean is None:
+        return _zero_route_progress_longitudinal_losses(action_mean)
+    longitudinal = action_mean[..., 1]
+    teacher_longitudinal = teacher_action_mean[..., 1].to(device=action_mean.device, dtype=action_mean.dtype)
+    if tuple(teacher_longitudinal.shape) != tuple(longitudinal.shape):
+        teacher_longitudinal = teacher_longitudinal.reshape_as(longitudinal)
+    route_tensor = route_progress.to(device=action_mean.device, dtype=action_mean.dtype)
+    if tuple(route_tensor.shape) != tuple(longitudinal.shape):
+        route_tensor = route_tensor.reshape_as(longitudinal)
+    mask = torch.ones_like(longitudinal, dtype=action_mean.dtype)
+    if valid_mask is not None:
+        mask = mask * valid_mask.to(device=action_mean.device, dtype=action_mean.dtype).clamp(0.0, 1.0)
+    if route_min is not None:
+        mask = mask * (route_tensor >= float(route_min)).to(action_mean.dtype)
+    if route_max is not None:
+        mask = mask * (route_tensor <= float(route_max)).to(action_mean.dtype)
+    speed = None
+    if speed_min_mps is not None or speed_max_mps is not None:
+        speed = _auxiliary_speed_mps(batch, tuple(longitudinal.shape))
+    if speed_min_mps is not None and speed is not None:
+        speed = speed.to(device=action_mean.device, dtype=action_mean.dtype)
+        mask = mask * (speed >= float(speed_min_mps)).to(action_mean.dtype)
+    if speed_max_mps is not None and speed is not None:
+        speed = speed.to(device=action_mean.device, dtype=action_mean.dtype)
+        mask = mask * (speed <= float(speed_max_mps)).to(action_mean.dtype)
+    ceiling = longitudinal.new_tensor(float(longitudinal_ceiling))
+    target = torch.minimum(teacher_longitudinal, ceiling) if float(longitudinal_ceiling) < 1.0 else teacher_longitudinal
+    values = F.smooth_l1_loss(longitudinal, target, reduction="none")
+    denom = mask.sum().clamp_min(1.0)
+    loss = (values * mask).sum() / denom
+    l1 = ((longitudinal - target).abs() * mask).sum() / denom
+    target_mean = (target * mask).sum() / denom
+    return {
+        "route_progress_longitudinal_teacher_loss": loss,
+        "route_progress_longitudinal_teacher_l1": l1,
+        "route_progress_longitudinal_teacher_mask_rate": mask.mean() if mask.numel() else loss.new_zeros(()),
+        "route_progress_longitudinal_teacher_target_mean": target_mean,
     }
 
 
@@ -2160,6 +2221,18 @@ def _metric_row(
         "route_progress_longitudinal_ceiling_mean": float(
             losses.get("route_progress_longitudinal_ceiling_mean", fusion.new_zeros(())).detach().cpu().item()
         ),
+        "route_progress_longitudinal_teacher_loss": float(
+            losses.get("route_progress_longitudinal_teacher_loss", fusion.new_zeros(())).detach().cpu().item()
+        ),
+        "route_progress_longitudinal_teacher_l1": float(
+            losses.get("route_progress_longitudinal_teacher_l1", fusion.new_zeros(())).detach().cpu().item()
+        ),
+        "route_progress_longitudinal_teacher_mask_rate": float(
+            losses.get("route_progress_longitudinal_teacher_mask_rate", fusion.new_zeros(())).detach().cpu().item()
+        ),
+        "route_progress_longitudinal_teacher_target_mean": float(
+            losses.get("route_progress_longitudinal_teacher_target_mean", fusion.new_zeros(())).detach().cpu().item()
+        ),
         "estimated_scalar_loss": float(
             losses.get("estimated_scalar_loss", fusion.new_zeros(())).detach().cpu().item()
         ),
@@ -2216,6 +2289,7 @@ def _evaluate(
     model: RCSACFirstModel,
     loader: DataLoader[dict[str, torch.Tensor]],
     device: torch.device,
+    teacher_model: RCSACFirstModel | None,
     use_auxiliary: bool,
     steer_loss_weight: float,
     longitudinal_loss_weight: float,
@@ -2290,8 +2364,15 @@ def _evaluate(
     route_progress_longitudinal_ceiling_speed_min_mps: float | None,
     route_progress_longitudinal_ceiling_speed_max_mps: float | None,
     route_progress_longitudinal_ceiling: float,
+    route_progress_longitudinal_teacher_route_min: float | None,
+    route_progress_longitudinal_teacher_route_max: float | None,
+    route_progress_longitudinal_teacher_speed_min_mps: float | None,
+    route_progress_longitudinal_teacher_speed_max_mps: float | None,
+    route_progress_longitudinal_teacher_ceiling: float,
 ) -> tuple[dict[str, torch.Tensor], dict[str, torch.Tensor | None]]:
     model.eval()
+    if teacher_model is not None:
+        teacher_model.eval()
     totals = {
         "bc_loss": 0.0,
         "steer_mse": 0.0,
@@ -2392,6 +2473,10 @@ def _evaluate(
         "route_progress_longitudinal_ceiling_rate": 0.0,
         "route_progress_longitudinal_ceiling_mask_rate": 0.0,
         "route_progress_longitudinal_ceiling_mean": 0.0,
+        "route_progress_longitudinal_teacher_loss": 0.0,
+        "route_progress_longitudinal_teacher_l1": 0.0,
+        "route_progress_longitudinal_teacher_mask_rate": 0.0,
+        "route_progress_longitudinal_teacher_target_mean": 0.0,
         "estimated_scalar_loss": 0.0,
         "estimated_lane_offset_loss": 0.0,
         "estimated_heading_error_loss": 0.0,
@@ -2668,6 +2753,27 @@ def _evaluate(
                         valid_mask=batch.get("valid_mask"),
                     )
                 )
+                teacher_action_mean = None
+                if teacher_model is not None:
+                    teacher_action_mean, _ = _forward_sequence_outputs(
+                        teacher_model,
+                        batch,
+                        use_auxiliary=use_auxiliary,
+                        track_diagnostics=False,
+                    )
+                losses.update(
+                    _compute_route_progress_longitudinal_teacher_losses(
+                        action_mean,
+                        teacher_action_mean,
+                        batch,
+                        route_min=route_progress_longitudinal_teacher_route_min,
+                        route_max=route_progress_longitudinal_teacher_route_max,
+                        speed_min_mps=route_progress_longitudinal_teacher_speed_min_mps,
+                        speed_max_mps=route_progress_longitudinal_teacher_speed_max_mps,
+                        longitudinal_ceiling=route_progress_longitudinal_teacher_ceiling,
+                        valid_mask=batch.get("valid_mask"),
+                    )
+                )
             else:
                 auxiliary = batch["auxiliary"] if use_auxiliary else None
                 outputs = model.forward_policy_outputs(
@@ -2900,6 +3006,29 @@ def _evaluate(
                         speed_min_mps=route_progress_longitudinal_ceiling_speed_min_mps,
                         speed_max_ceiling_mps=route_progress_longitudinal_ceiling_speed_max_mps,
                         longitudinal_ceiling=route_progress_longitudinal_ceiling,
+                    )
+                )
+                teacher_action_mean = None
+                if teacher_model is not None:
+                    teacher_outputs = teacher_model.forward_policy_outputs(
+                        batch["obs"],
+                        auxiliary=auxiliary,
+                        hidden_state=None,
+                        track_diagnostics=False,
+                    )
+                    raw_teacher_action_mean = teacher_outputs.get("action_mean")
+                    if isinstance(raw_teacher_action_mean, torch.Tensor):
+                        teacher_action_mean = raw_teacher_action_mean
+                losses.update(
+                    _compute_route_progress_longitudinal_teacher_losses(
+                        action_mean,
+                        teacher_action_mean,
+                        batch,
+                        route_min=route_progress_longitudinal_teacher_route_min,
+                        route_max=route_progress_longitudinal_teacher_route_max,
+                        speed_min_mps=route_progress_longitudinal_teacher_speed_min_mps,
+                        speed_max_mps=route_progress_longitudinal_teacher_speed_max_mps,
+                        longitudinal_ceiling=route_progress_longitudinal_teacher_ceiling,
                     )
                 )
             batch_size = int(batch["obs"].shape[0])
@@ -3226,6 +3355,21 @@ def main() -> int:
         "route_progress_longitudinal_ceiling_speed_max_mps"
     )
     route_progress_longitudinal_ceiling = float(bc_raw.get("route_progress_longitudinal_ceiling", 1.0))
+    route_progress_longitudinal_teacher_loss_weight = float(
+        bc_raw.get("route_progress_longitudinal_teacher_loss_weight", 0.0)
+    )
+    route_progress_longitudinal_teacher_route_min = bc_raw.get("route_progress_longitudinal_teacher_route_min")
+    route_progress_longitudinal_teacher_route_max = bc_raw.get("route_progress_longitudinal_teacher_route_max")
+    route_progress_longitudinal_teacher_speed_min_mps = bc_raw.get(
+        "route_progress_longitudinal_teacher_speed_min_mps"
+    )
+    route_progress_longitudinal_teacher_speed_max_mps = bc_raw.get(
+        "route_progress_longitudinal_teacher_speed_max_mps"
+    )
+    route_progress_longitudinal_teacher_ceiling = float(
+        bc_raw.get("route_progress_longitudinal_teacher_ceiling", 1.0)
+    )
+    route_progress_longitudinal_teacher_checkpoint = bc_raw.get("route_progress_longitudinal_teacher_checkpoint")
     road_mask_weight = float(bc_raw.get("road_mask_weight", config.loss.aux_road_mask_loss_weight))
     lane_edge_weight = float(bc_raw.get("lane_edge_weight", config.loss.aux_lane_edge_mask_loss_weight))
     lane_edge_pos_weight = float(bc_raw.get("lane_edge_pos_weight", config.loss.aux_lane_edge_pos_weight))
@@ -3291,6 +3435,21 @@ def main() -> int:
             strict=_parse_bool(args.init_strict, default=True),
             device=device,
         )
+    teacher_model: RCSACFirstModel | None = None
+    if route_progress_longitudinal_teacher_loss_weight > 0.0:
+        checkpoint_for_teacher = route_progress_longitudinal_teacher_checkpoint or args.init_checkpoint
+        if checkpoint_for_teacher is None:
+            raise ValueError("route_progress_longitudinal_teacher_loss_weight requires a teacher checkpoint or --init-checkpoint")
+        teacher_model = RCSACFirstModel(config.model, config.fusion).to(device)
+        _load_init_checkpoint(
+            teacher_model,
+            _project_path(str(checkpoint_for_teacher)),
+            strict=_parse_bool(args.init_strict, default=True),
+            device=device,
+        )
+        teacher_model.eval()
+        for parameter in teacher_model.parameters():
+            parameter.requires_grad_(False)
     trainable_parameters = _select_trainable_parameters(model, trainable_module_names)
     optimizer = torch.optim.Adam(trainable_parameters, lr=learning_rate, weight_decay=weight_decay)
     restore_frozen_actor_output_rows = _actor_head_output_row_restorer(
@@ -3569,6 +3728,28 @@ def main() -> int:
                             valid_mask=batch.get("valid_mask"),
                         )
                     )
+                    teacher_action_mean = None
+                    if teacher_model is not None:
+                        with torch.no_grad():
+                            teacher_action_mean, _ = _forward_sequence_outputs(
+                                teacher_model,
+                                batch,
+                                use_auxiliary=use_auxiliary,
+                                track_diagnostics=False,
+                            )
+                    losses.update(
+                        _compute_route_progress_longitudinal_teacher_losses(
+                            action_mean,
+                            teacher_action_mean,
+                            batch,
+                            route_min=route_progress_longitudinal_teacher_route_min,
+                            route_max=route_progress_longitudinal_teacher_route_max,
+                            speed_min_mps=route_progress_longitudinal_teacher_speed_min_mps,
+                            speed_max_mps=route_progress_longitudinal_teacher_speed_max_mps,
+                            longitudinal_ceiling=route_progress_longitudinal_teacher_ceiling,
+                            valid_mask=batch.get("valid_mask"),
+                        )
+                    )
                 else:
                     auxiliary = batch["auxiliary"] if use_auxiliary else None
                     outputs = model.forward_policy_outputs(
@@ -3807,6 +3988,30 @@ def main() -> int:
                             longitudinal_ceiling=route_progress_longitudinal_ceiling,
                         )
                     )
+                    teacher_action_mean = None
+                    if teacher_model is not None:
+                        with torch.no_grad():
+                            teacher_outputs = teacher_model.forward_policy_outputs(
+                                batch["obs"],
+                                auxiliary=auxiliary,
+                                hidden_state=None,
+                                track_diagnostics=False,
+                            )
+                            raw_teacher_action_mean = teacher_outputs.get("action_mean")
+                            if isinstance(raw_teacher_action_mean, torch.Tensor):
+                                teacher_action_mean = raw_teacher_action_mean
+                    losses.update(
+                        _compute_route_progress_longitudinal_teacher_losses(
+                            action_mean,
+                            teacher_action_mean,
+                            batch,
+                            route_min=route_progress_longitudinal_teacher_route_min,
+                            route_max=route_progress_longitudinal_teacher_route_max,
+                            speed_min_mps=route_progress_longitudinal_teacher_speed_min_mps,
+                            speed_max_mps=route_progress_longitudinal_teacher_speed_max_mps,
+                            longitudinal_ceiling=route_progress_longitudinal_teacher_ceiling,
+                        )
+                    )
                 total_loss = losses["bc_loss"] * bc_loss_weight
                 total_loss = total_loss + losses.get("perception_aux_loss", total_loss.new_zeros(())) * perception_aux_loss_weight
                 total_loss = (
@@ -3922,6 +4127,11 @@ def main() -> int:
                     + losses.get("route_progress_longitudinal_ceiling_loss", total_loss.new_zeros(()))
                     * route_progress_longitudinal_ceiling_loss_weight
                 )
+                total_loss = (
+                    total_loss
+                    + losses.get("route_progress_longitudinal_teacher_loss", total_loss.new_zeros(()))
+                    * route_progress_longitudinal_teacher_loss_weight
+                )
                 if not torch.isfinite(total_loss):
                     raise RuntimeError(f"Non-finite BC loss at step {global_step}: {float(total_loss.detach().cpu())}")
                 total_loss.backward()
@@ -3948,6 +4158,7 @@ def main() -> int:
                 model=model,
                 loader=val_loader,
                 device=device,
+                teacher_model=teacher_model,
                 use_auxiliary=use_auxiliary,
                 steer_loss_weight=steer_loss_weight,
                 longitudinal_loss_weight=longitudinal_loss_weight,
@@ -4022,6 +4233,11 @@ def main() -> int:
                 route_progress_longitudinal_ceiling_speed_min_mps=route_progress_longitudinal_ceiling_speed_min_mps,
                 route_progress_longitudinal_ceiling_speed_max_mps=route_progress_longitudinal_ceiling_speed_max_mps,
                 route_progress_longitudinal_ceiling=route_progress_longitudinal_ceiling,
+                route_progress_longitudinal_teacher_route_min=route_progress_longitudinal_teacher_route_min,
+                route_progress_longitudinal_teacher_route_max=route_progress_longitudinal_teacher_route_max,
+                route_progress_longitudinal_teacher_speed_min_mps=route_progress_longitudinal_teacher_speed_min_mps,
+                route_progress_longitudinal_teacher_speed_max_mps=route_progress_longitudinal_teacher_speed_max_mps,
+                route_progress_longitudinal_teacher_ceiling=route_progress_longitudinal_teacher_ceiling,
             )
             last_val_loss = float(val_losses["bc_loss"].detach().cpu().item())
             writer.writerow(
