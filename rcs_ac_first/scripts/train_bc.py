@@ -129,6 +129,10 @@ BC_LOG_FIELDS: tuple[str, ...] = (
     "route_progress_longitudinal_floor_rate",
     "route_progress_longitudinal_mask_rate",
     "route_progress_longitudinal_mean",
+    "route_progress_longitudinal_ceiling_loss",
+    "route_progress_longitudinal_ceiling_rate",
+    "route_progress_longitudinal_ceiling_mask_rate",
+    "route_progress_longitudinal_ceiling_mean",
     "estimated_scalar_loss",
     "estimated_lane_offset_loss",
     "estimated_heading_error_loss",
@@ -1681,6 +1685,10 @@ def _zero_route_progress_longitudinal_losses(reference: torch.Tensor) -> dict[st
         "route_progress_longitudinal_floor_rate": zero,
         "route_progress_longitudinal_mask_rate": zero,
         "route_progress_longitudinal_mean": zero,
+        "route_progress_longitudinal_ceiling_loss": zero,
+        "route_progress_longitudinal_ceiling_rate": zero,
+        "route_progress_longitudinal_ceiling_mask_rate": zero,
+        "route_progress_longitudinal_ceiling_mean": zero,
     }
 
 
@@ -1702,6 +1710,11 @@ def _compute_route_progress_longitudinal_losses(
     route_max: float | None = None,
     speed_max_mps: float | None = None,
     longitudinal_floor: float = 0.0,
+    ceiling_route_min: float | None = None,
+    ceiling_route_max: float | None = None,
+    speed_min_mps: float | None = None,
+    speed_max_ceiling_mps: float | None = None,
+    longitudinal_ceiling: float = 1.0,
     valid_mask: torch.Tensor | None = None,
 ) -> dict[str, torch.Tensor]:
     route_progress = batch.get("route_progress")
@@ -1732,11 +1745,45 @@ def _compute_route_progress_longitudinal_losses(
         floor_loss = longitudinal.new_zeros(())
     floor_rate = ((longitudinal >= longitudinal.new_tensor(floor)).to(action_mean.dtype) * mask).sum() / denom
     longitudinal_mean = (longitudinal * mask).sum() / denom
+    ceiling_mask = torch.ones_like(longitudinal, dtype=action_mean.dtype)
+    if valid_mask is not None:
+        ceiling_mask = ceiling_mask * valid_mask.to(device=action_mean.device, dtype=action_mean.dtype).clamp(0.0, 1.0)
+    if ceiling_route_min is not None:
+        ceiling_mask = ceiling_mask * (route_tensor >= float(ceiling_route_min)).to(action_mean.dtype)
+    if ceiling_route_max is not None:
+        ceiling_mask = ceiling_mask * (route_tensor <= float(ceiling_route_max)).to(action_mean.dtype)
+    speed = None
+    if speed_min_mps is not None or speed_max_ceiling_mps is not None:
+        speed = _auxiliary_speed_mps(batch, tuple(longitudinal.shape))
+    if speed_min_mps is not None and speed is not None:
+        speed = speed.to(device=action_mean.device, dtype=action_mean.dtype)
+        ceiling_mask = ceiling_mask * (speed >= float(speed_min_mps)).to(action_mean.dtype)
+    if speed_max_ceiling_mps is not None and speed is not None:
+        if speed is None:
+            speed = _auxiliary_speed_mps(batch, tuple(longitudinal.shape))
+        if speed is not None:
+            speed = speed.to(device=action_mean.device, dtype=action_mean.dtype)
+            ceiling_mask = ceiling_mask * (speed <= float(speed_max_ceiling_mps)).to(action_mean.dtype)
+    ceiling_denom = ceiling_mask.sum().clamp_min(1.0)
+    ceiling = float(longitudinal_ceiling)
+    if ceiling < 1.0:
+        ceiling_loss_values = F.relu(longitudinal - longitudinal.new_tensor(ceiling))
+        ceiling_loss = (ceiling_loss_values * ceiling_mask).sum() / ceiling_denom
+    else:
+        ceiling_loss = longitudinal.new_zeros(())
+    ceiling_rate = ((longitudinal <= longitudinal.new_tensor(ceiling)).to(action_mean.dtype) * ceiling_mask).sum() / ceiling_denom
+    ceiling_longitudinal_mean = (longitudinal * ceiling_mask).sum() / ceiling_denom
     return {
         "route_progress_longitudinal_floor_loss": floor_loss,
         "route_progress_longitudinal_floor_rate": floor_rate,
         "route_progress_longitudinal_mask_rate": mask.mean() if mask.numel() else floor_loss.new_zeros(()),
         "route_progress_longitudinal_mean": longitudinal_mean,
+        "route_progress_longitudinal_ceiling_loss": ceiling_loss,
+        "route_progress_longitudinal_ceiling_rate": ceiling_rate,
+        "route_progress_longitudinal_ceiling_mask_rate": (
+            ceiling_mask.mean() if ceiling_mask.numel() else ceiling_loss.new_zeros(())
+        ),
+        "route_progress_longitudinal_ceiling_mean": ceiling_longitudinal_mean,
     }
 
 
@@ -2101,6 +2148,18 @@ def _metric_row(
         "route_progress_longitudinal_mean": float(
             losses.get("route_progress_longitudinal_mean", fusion.new_zeros(())).detach().cpu().item()
         ),
+        "route_progress_longitudinal_ceiling_loss": float(
+            losses.get("route_progress_longitudinal_ceiling_loss", fusion.new_zeros(())).detach().cpu().item()
+        ),
+        "route_progress_longitudinal_ceiling_rate": float(
+            losses.get("route_progress_longitudinal_ceiling_rate", fusion.new_zeros(())).detach().cpu().item()
+        ),
+        "route_progress_longitudinal_ceiling_mask_rate": float(
+            losses.get("route_progress_longitudinal_ceiling_mask_rate", fusion.new_zeros(())).detach().cpu().item()
+        ),
+        "route_progress_longitudinal_ceiling_mean": float(
+            losses.get("route_progress_longitudinal_ceiling_mean", fusion.new_zeros(())).detach().cpu().item()
+        ),
         "estimated_scalar_loss": float(
             losses.get("estimated_scalar_loss", fusion.new_zeros(())).detach().cpu().item()
         ),
@@ -2226,6 +2285,11 @@ def _evaluate(
     route_progress_longitudinal_floor_route_max: float | None,
     route_progress_longitudinal_floor_speed_max_mps: float | None,
     route_progress_longitudinal_floor: float,
+    route_progress_longitudinal_ceiling_route_min: float | None,
+    route_progress_longitudinal_ceiling_route_max: float | None,
+    route_progress_longitudinal_ceiling_speed_min_mps: float | None,
+    route_progress_longitudinal_ceiling_speed_max_mps: float | None,
+    route_progress_longitudinal_ceiling: float,
 ) -> tuple[dict[str, torch.Tensor], dict[str, torch.Tensor | None]]:
     model.eval()
     totals = {
@@ -2324,6 +2388,10 @@ def _evaluate(
         "route_progress_longitudinal_floor_rate": 0.0,
         "route_progress_longitudinal_mask_rate": 0.0,
         "route_progress_longitudinal_mean": 0.0,
+        "route_progress_longitudinal_ceiling_loss": 0.0,
+        "route_progress_longitudinal_ceiling_rate": 0.0,
+        "route_progress_longitudinal_ceiling_mask_rate": 0.0,
+        "route_progress_longitudinal_ceiling_mean": 0.0,
         "estimated_scalar_loss": 0.0,
         "estimated_lane_offset_loss": 0.0,
         "estimated_heading_error_loss": 0.0,
@@ -2592,6 +2660,11 @@ def _evaluate(
                         route_max=route_progress_longitudinal_floor_route_max,
                         speed_max_mps=route_progress_longitudinal_floor_speed_max_mps,
                         longitudinal_floor=route_progress_longitudinal_floor,
+                        ceiling_route_min=route_progress_longitudinal_ceiling_route_min,
+                        ceiling_route_max=route_progress_longitudinal_ceiling_route_max,
+                        speed_min_mps=route_progress_longitudinal_ceiling_speed_min_mps,
+                        speed_max_ceiling_mps=route_progress_longitudinal_ceiling_speed_max_mps,
+                        longitudinal_ceiling=route_progress_longitudinal_ceiling,
                         valid_mask=batch.get("valid_mask"),
                     )
                 )
@@ -2822,6 +2895,11 @@ def _evaluate(
                         route_max=route_progress_longitudinal_floor_route_max,
                         speed_max_mps=route_progress_longitudinal_floor_speed_max_mps,
                         longitudinal_floor=route_progress_longitudinal_floor,
+                        ceiling_route_min=route_progress_longitudinal_ceiling_route_min,
+                        ceiling_route_max=route_progress_longitudinal_ceiling_route_max,
+                        speed_min_mps=route_progress_longitudinal_ceiling_speed_min_mps,
+                        speed_max_ceiling_mps=route_progress_longitudinal_ceiling_speed_max_mps,
+                        longitudinal_ceiling=route_progress_longitudinal_ceiling,
                     )
                 )
             batch_size = int(batch["obs"].shape[0])
@@ -3136,6 +3214,18 @@ def main() -> int:
     route_progress_longitudinal_floor_route_max = bc_raw.get("route_progress_longitudinal_floor_route_max")
     route_progress_longitudinal_floor_speed_max_mps = bc_raw.get("route_progress_longitudinal_floor_speed_max_mps")
     route_progress_longitudinal_floor = float(bc_raw.get("route_progress_longitudinal_floor", -1.0))
+    route_progress_longitudinal_ceiling_loss_weight = float(
+        bc_raw.get("route_progress_longitudinal_ceiling_loss_weight", 0.0)
+    )
+    route_progress_longitudinal_ceiling_route_min = bc_raw.get("route_progress_longitudinal_ceiling_route_min")
+    route_progress_longitudinal_ceiling_route_max = bc_raw.get("route_progress_longitudinal_ceiling_route_max")
+    route_progress_longitudinal_ceiling_speed_min_mps = bc_raw.get(
+        "route_progress_longitudinal_ceiling_speed_min_mps"
+    )
+    route_progress_longitudinal_ceiling_speed_max_mps = bc_raw.get(
+        "route_progress_longitudinal_ceiling_speed_max_mps"
+    )
+    route_progress_longitudinal_ceiling = float(bc_raw.get("route_progress_longitudinal_ceiling", 1.0))
     road_mask_weight = float(bc_raw.get("road_mask_weight", config.loss.aux_road_mask_loss_weight))
     lane_edge_weight = float(bc_raw.get("lane_edge_weight", config.loss.aux_lane_edge_mask_loss_weight))
     lane_edge_pos_weight = float(bc_raw.get("lane_edge_pos_weight", config.loss.aux_lane_edge_pos_weight))
@@ -3471,6 +3561,11 @@ def main() -> int:
                             route_max=route_progress_longitudinal_floor_route_max,
                             speed_max_mps=route_progress_longitudinal_floor_speed_max_mps,
                             longitudinal_floor=route_progress_longitudinal_floor,
+                            ceiling_route_min=route_progress_longitudinal_ceiling_route_min,
+                            ceiling_route_max=route_progress_longitudinal_ceiling_route_max,
+                            speed_min_mps=route_progress_longitudinal_ceiling_speed_min_mps,
+                            speed_max_ceiling_mps=route_progress_longitudinal_ceiling_speed_max_mps,
+                            longitudinal_ceiling=route_progress_longitudinal_ceiling,
                             valid_mask=batch.get("valid_mask"),
                         )
                     )
@@ -3705,6 +3800,11 @@ def main() -> int:
                             route_max=route_progress_longitudinal_floor_route_max,
                             speed_max_mps=route_progress_longitudinal_floor_speed_max_mps,
                             longitudinal_floor=route_progress_longitudinal_floor,
+                            ceiling_route_min=route_progress_longitudinal_ceiling_route_min,
+                            ceiling_route_max=route_progress_longitudinal_ceiling_route_max,
+                            speed_min_mps=route_progress_longitudinal_ceiling_speed_min_mps,
+                            speed_max_ceiling_mps=route_progress_longitudinal_ceiling_speed_max_mps,
+                            longitudinal_ceiling=route_progress_longitudinal_ceiling,
                         )
                     )
                 total_loss = losses["bc_loss"] * bc_loss_weight
@@ -3817,6 +3917,11 @@ def main() -> int:
                     + losses.get("route_progress_longitudinal_floor_loss", total_loss.new_zeros(()))
                     * route_progress_longitudinal_floor_loss_weight
                 )
+                total_loss = (
+                    total_loss
+                    + losses.get("route_progress_longitudinal_ceiling_loss", total_loss.new_zeros(()))
+                    * route_progress_longitudinal_ceiling_loss_weight
+                )
                 if not torch.isfinite(total_loss):
                     raise RuntimeError(f"Non-finite BC loss at step {global_step}: {float(total_loss.detach().cpu())}")
                 total_loss.backward()
@@ -3912,6 +4017,11 @@ def main() -> int:
                 route_progress_longitudinal_floor_route_max=route_progress_longitudinal_floor_route_max,
                 route_progress_longitudinal_floor_speed_max_mps=route_progress_longitudinal_floor_speed_max_mps,
                 route_progress_longitudinal_floor=route_progress_longitudinal_floor,
+                route_progress_longitudinal_ceiling_route_min=route_progress_longitudinal_ceiling_route_min,
+                route_progress_longitudinal_ceiling_route_max=route_progress_longitudinal_ceiling_route_max,
+                route_progress_longitudinal_ceiling_speed_min_mps=route_progress_longitudinal_ceiling_speed_min_mps,
+                route_progress_longitudinal_ceiling_speed_max_mps=route_progress_longitudinal_ceiling_speed_max_mps,
+                route_progress_longitudinal_ceiling=route_progress_longitudinal_ceiling,
             )
             last_val_loss = float(val_losses["bc_loss"].detach().cpu().item())
             writer.writerow(
