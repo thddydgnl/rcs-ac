@@ -121,6 +121,19 @@ Shared reward 2048-step revalidation:
   under the fresh revalidation, so this baseline should be treated as under
   revalidation rather than fully locked for robustness comparison.
 
+Target-speed wrapper sweep after runtime metadata restore:
+
+- Source: `round90_results/targetspeed18_20_probe_20260504/README.md`
+- max target speed `16`: 2048 strict clean safety `PASS`, but max route only
+  `0.282051`
+- max target speed `18`: 2048 strict clean safety `PASS`, but max route only
+  `0.333333`
+- max target speed `20`: 2048 strict clean safety `FAIL` with `offroad: 1`
+- interpretation: current Round90 long-horizon safety is highly sensitive to
+  the shared target-speed wrapper. Lowering the global target-speed cap can
+  remove offroad, but the resulting route progress is too conservative to
+  promote as the final comparison baseline.
+
 Original no-shaping 2048-step revalidation:
 
 - Source: `round90_results/original_reverify_20260504/README.md`
