@@ -50,6 +50,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--accept-lateral-branch-only", action="store_true")
     parser.add_argument("--require-turn-boost", action="store_true")
     parser.add_argument("--require-speed-gate-active", action="store_true")
+    parser.add_argument("--use-speed-gate-longitudinal-target", action="store_true")
     return parser.parse_args()
 
 
@@ -141,6 +142,27 @@ def _apply_collection_bias(action: np.ndarray, info: dict[str, Any], args: argpa
     return biased.astype(np.float32, copy=False), float(biased[0] - float(action[0]))
 
 
+def _target_speed_to_longitudinal(config: Any, target_speed_kmh: float) -> float:
+    env_raw = dict(getattr(config, "raw", {}).get("env", {}))
+    control = dict(env_raw.get("longitudinal_control", {}))
+    min_speed = float(control.get("min_target_speed_kmh", 0.0))
+    max_speed = float(control.get("max_target_speed_kmh", 28.0))
+    if max_speed <= min_speed:
+        return -1.0
+    ratio = (float(target_speed_kmh) - min_speed) / (max_speed - min_speed)
+    return float(np.clip(2.0 * ratio - 1.0, -1.0, 1.0))
+
+
+def _speed_gate_longitudinal_target(config: Any, info: dict[str, Any], fallback: float) -> tuple[float, bool]:
+    if not bool(info.get("lateral_recovery_speed_gate_active", False)):
+        return float(fallback), False
+    env_raw = dict(getattr(config, "raw", {}).get("env", {}))
+    lateral_recovery = dict(env_raw.get("lateral_recovery", {}))
+    if "speed_gate_target_speed_kmh" not in lateral_recovery:
+        return float(fallback), False
+    return _target_speed_to_longitudinal(config, float(lateral_recovery["speed_gate_target_speed_kmh"])), True
+
+
 def main() -> int:
     args = parse_args()
     if int(args.num_transitions) <= 0:
@@ -195,8 +217,10 @@ def main() -> int:
         "policy_action_steer": [],
         "policy_action_longitudinal": [],
         "target_corrected_steer": [],
+        "target_corrected_longitudinal": [],
         "target_corrective_delta": [],
         "target_corrective_delta_available": [],
+        "target_longitudinal_available": [],
         "collection_steer_bias_applied": [],
         "source_dataset": [],
         "source_dataset_index": [],
@@ -250,10 +274,16 @@ def main() -> int:
                 if not bool(args.require_corrective_sign_aligned) or _corrective_sign_aligned(
                     info, env_action, corrected_steer
                 ):
+                    policy_longitudinal = float(policy_action.get("longitudinal", env_action[1]))
+                    target_longitudinal, target_longitudinal_available = (
+                        _speed_gate_longitudinal_target(config, info, policy_longitudinal)
+                        if bool(args.use_speed_gate_longitudinal_target)
+                        else (policy_longitudinal, False)
+                    )
                     target_action = np.asarray(
                         [
                             np.clip(corrected_steer, -1.0, 1.0),
-                            np.clip(float(policy_action.get("longitudinal", env_action[1])), -1.0, 1.0),
+                            np.clip(target_longitudinal, -1.0, 1.0),
                         ],
                         dtype=np.float32,
                     )
@@ -320,8 +350,10 @@ def main() -> int:
                         "policy_action_steer",
                         "policy_action_longitudinal",
                         "target_corrected_steer",
+                        "target_corrected_longitudinal",
                         "target_corrective_delta",
                         "target_corrective_delta_available",
+                        "target_longitudinal_available",
                     ):
                         if key == "done_reason":
                             _append(arrays, key, str(info.get("done_reason", "running")))
@@ -331,10 +363,14 @@ def main() -> int:
                             _append(arrays, key, float(policy_action.get("longitudinal", env_action[1])))
                         elif key == "target_corrected_steer":
                             _append(arrays, key, float(target_action[0]))
+                        elif key == "target_corrected_longitudinal":
+                            _append(arrays, key, float(target_action[1]))
                         elif key == "target_corrective_delta":
                             _append(arrays, key, float(target_action[0]) - float(policy_action.get("steer", action[0])))
                         elif key == "target_corrective_delta_available":
                             _append(arrays, key, 1.0)
+                        elif key == "target_longitudinal_available":
+                            _append(arrays, key, float(target_longitudinal_available))
                         elif key in {
                             "junction_branch_choice_active",
                             "lateral_recovery_branch_active",
@@ -400,8 +436,10 @@ def main() -> int:
         "policy_action_steer": np.asarray(arrays["policy_action_steer"], dtype=np.float32),
         "policy_action_longitudinal": np.asarray(arrays["policy_action_longitudinal"], dtype=np.float32),
         "target_corrected_steer": np.asarray(arrays["target_corrected_steer"], dtype=np.float32),
+        "target_corrected_longitudinal": np.asarray(arrays["target_corrected_longitudinal"], dtype=np.float32),
         "target_corrective_delta": np.asarray(arrays["target_corrective_delta"], dtype=np.float32),
         "target_corrective_delta_available": np.asarray(arrays["target_corrective_delta_available"], dtype=np.float32),
+        "target_longitudinal_available": np.asarray(arrays["target_longitudinal_available"], dtype=np.float32),
         "collection_steer_bias_applied": np.asarray(arrays["collection_steer_bias_applied"], dtype=np.float32),
         "source_dataset": np.asarray(arrays["source_dataset"], dtype="<U512"),
         "source_dataset_index": np.asarray(arrays["source_dataset_index"], dtype=np.int32),
@@ -445,6 +483,12 @@ def main() -> int:
         "target_corrective_delta_abs_mean": float(np.mean(np.abs(stacked["target_corrective_delta"]))),
         "target_corrective_delta_sign_rate": float(
             np.mean(stacked["target_corrective_delta"] * (-stacked["lane_offset"]) > 0.0)
+        ),
+        "use_speed_gate_longitudinal_target": bool(args.use_speed_gate_longitudinal_target),
+        "target_longitudinal_available_rate": float(np.mean(stacked["target_longitudinal_available"] > 0.0)),
+        "target_corrected_longitudinal_mean": float(np.mean(stacked["target_corrected_longitudinal"])),
+        "target_corrected_longitudinal_delta_abs_mean": float(
+            np.mean(np.abs(stacked["target_corrected_longitudinal"] - stacked["policy_action_longitudinal"]))
         ),
     }
     summary_path = output_path.with_suffix(".summary.json")
