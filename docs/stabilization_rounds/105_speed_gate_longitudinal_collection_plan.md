@@ -44,13 +44,28 @@ This is privileged offline collection supervision. It is not a runtime override 
   - min target speed `6 km/h`, max target speed `28 km/h`, speed-gate target `10 km/h`
   - normalized longitudinal target: `-0.636364`
 
+## Round105 Collection Fixes
+
+Two collection blockers were found before generating the Round105 dataset:
+
+- `info["speed_kmh"]` was not always present in the CARLA env info, while `env_step_log.csv` records speed as `speed`. The collector now falls back from `speed_kmh` to `speed` so `--speed-kmh-min` does not silently reject every row.
+- The Windows `shared_core` currently exposes speed-gate log columns, but the observed env info did not set `lateral_recovery_speed_gate_active`. The collector now computes speed-gate label eligibility from the collection config when generating offline longitudinal targets. This remains privileged offline supervision, not a runtime steering or speed override.
+
+The original collection config had `speed_gate_min_speed_kmh: 16.0`, but Round90’s route-window failures and candidates often occur below that speed. Round105 therefore uses:
+
+```text
+configs/bc_frame_rgb_perception_actor_features_v2_recovery_collect_round105_speed_gate_labels.yaml
+```
+
+with `speed_gate_min_speed_kmh: 8.0` for offline label collection only.
+
 ## Next Run
 
 Collect a small high-risk recovery dataset before another BC round:
 
 ```powershell
 py -3.12 -B -m rcs_ac_first.scripts.collect_recovery_dataset `
-  --config configs/bc_frame_rgb_perception_actor_features_v2_recovery_collect_round70.yaml `
+  --config configs/bc_frame_rgb_perception_actor_features_v2_recovery_collect_round105_speed_gate_labels.yaml `
   --checkpoint checkpoints/rgb_perception_actor_features_v2_sustain_late_recovery_bc_round90/last.pt `
   --output data/expert/rgb_perception_actor_features_v2_speed_gate_longitudinal_round105.npz `
   --num-transitions 256 `
@@ -75,4 +90,3 @@ Acceptance criteria before BC:
 - `target_longitudinal_available_rate >= 0.95`
 - collected route range overlaps `0.25-0.35`
 - collected rows include `abs(lane_offset) >= 1.5` and `abs(heading_error) >= 8`
-
