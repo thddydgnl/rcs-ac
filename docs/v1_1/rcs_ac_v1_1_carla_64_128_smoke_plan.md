@@ -693,6 +693,24 @@ git pull
 .\scripts\windows\ensure_carla_ready.ps1
 ```
 
+통합 runner:
+
+```powershell
+.\scripts\windows\run_v1_1_smoke.ps1 `
+  -EnvConfig configs\<existing-clean-carla-config>.yaml `
+  -Stage all
+```
+
+단계별 runner:
+
+```powershell
+.\scripts\windows\run_v1_1_smoke.ps1 -EnvConfig configs\<existing-clean-carla-config>.yaml -Stage health
+.\scripts\windows\run_v1_1_smoke.ps1 -EnvConfig configs\<existing-clean-carla-config>.yaml -Stage collect
+.\scripts\windows\run_v1_1_smoke.ps1 -EnvConfig configs\<existing-clean-carla-config>.yaml -Stage train
+.\scripts\windows\run_v1_1_smoke.ps1 -EnvConfig configs\<existing-clean-carla-config>.yaml -Stage eval64
+.\scripts\windows\run_v1_1_smoke.ps1 -EnvConfig configs\<existing-clean-carla-config>.yaml -Stage eval128
+```
+
 64 smoke:
 
 ```powershell
@@ -890,6 +908,7 @@ temporal smoothness loss나 corruption training도 시작하지 않는다
 [x] carla_map_actor_adapter.py
 [x] collect_bev_expert_dataset.py
 [x] evaluate_bev_pure_pursuit.py --mode carla
+[x] scripts/windows/run_v1_1_smoke.ps1
 [x] adapter contract unit tests
 [x] Mac pytest pass
 [ ] Windows git pull

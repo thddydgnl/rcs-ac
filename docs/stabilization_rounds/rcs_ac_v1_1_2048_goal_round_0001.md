@@ -150,6 +150,24 @@ py -3.12 -B -m rcs_ac_v1_1.scripts.evaluate_bev_pure_pursuit `
 
 Do not promote to 128/256/512/2048 until the previous step has logs and `summary.json`.
 
+Convenience runner added after the initial remote blocker:
+
+```powershell
+.\scripts\windows\run_v1_1_smoke.ps1 `
+  -EnvConfig configs\<existing-clean-carla-config>.yaml `
+  -Stage all
+```
+
+Individual stages:
+
+```powershell
+.\scripts\windows\run_v1_1_smoke.ps1 -EnvConfig configs\<existing-clean-carla-config>.yaml -Stage health
+.\scripts\windows\run_v1_1_smoke.ps1 -EnvConfig configs\<existing-clean-carla-config>.yaml -Stage collect
+.\scripts\windows\run_v1_1_smoke.ps1 -EnvConfig configs\<existing-clean-carla-config>.yaml -Stage train
+.\scripts\windows\run_v1_1_smoke.ps1 -EnvConfig configs\<existing-clean-carla-config>.yaml -Stage eval64
+.\scripts\windows\run_v1_1_smoke.ps1 -EnvConfig configs\<existing-clean-carla-config>.yaml -Stage eval128
+```
+
 ## Fairness Checklist
 
 ```text
