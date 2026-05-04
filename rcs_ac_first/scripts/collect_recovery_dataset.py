@@ -86,7 +86,7 @@ def _should_accept(info: dict[str, Any], args: argparse.Namespace) -> bool:
         return False
     if bool(args.require_speed_gate_active) and not bool(info.get("lateral_recovery_speed_gate_active", False)):
         return False
-    speed_kmh = float(info.get("speed_kmh", 0.0))
+    speed_kmh = _speed_kmh(info)
     if args.speed_kmh_min is not None and speed_kmh < float(args.speed_kmh_min):
         return False
     if args.speed_kmh_max is not None and speed_kmh > float(args.speed_kmh_max):
@@ -106,6 +106,10 @@ def _should_accept(info: dict[str, Any], args: argparse.Namespace) -> bool:
         or lane_offset >= float(args.lane_offset_threshold)
         or heading_error >= float(args.heading_error_threshold)
     )
+
+
+def _speed_kmh(info: dict[str, Any]) -> float:
+    return float(info.get("speed_kmh", info.get("speed", 0.0)))
 
 
 def _corrective_sign_aligned(info: dict[str, Any], raw_action: np.ndarray, corrected_steer: float) -> bool:
@@ -371,6 +375,8 @@ def main() -> int:
                             _append(arrays, key, 1.0)
                         elif key == "target_longitudinal_available":
                             _append(arrays, key, float(target_longitudinal_available))
+                        elif key == "speed_kmh":
+                            _append(arrays, key, _speed_kmh(info))
                         elif key in {
                             "junction_branch_choice_active",
                             "lateral_recovery_branch_active",
