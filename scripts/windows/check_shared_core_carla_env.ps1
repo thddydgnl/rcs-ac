@@ -18,6 +18,11 @@ $requiredPatterns = @(
     @{ Name = "advanced observation inputs"; Pattern = "PolicyObservationInputs" },
     @{ Name = "full env step log file"; Pattern = "env_step_log.csv" },
     @{ Name = "full env step log schema"; Pattern = "ENV_STEP_LOG_FIELDS" },
+    @{ Name = "policy diagnostics logging"; Pattern = "policy_diagnostics" },
+    @{ Name = "append env step log across episodes"; Pattern = '"a" if log_exists else "w"' },
+    @{ Name = "fusion weight runtime logging"; Pattern = "fusion_weight_rgb" },
+    @{ Name = "sensor quality runtime logging"; Pattern = "rgb_brightness" },
+    @{ Name = "target-speed action resolution logging"; Pattern = "speed_error_kmh" },
     @{ Name = "route target x logging"; Pattern = "target_x_local" },
     @{ Name = "route metadata logging"; Pattern = "route_waypoint_count" },
     @{ Name = "route turn delta logging"; Pattern = "lookahead_turn_delta_rad" }
