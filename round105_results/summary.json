@@ -1,0 +1,78 @@
+{
+  "round": 105,
+  "status": "BLOCK",
+  "purpose": "Speed-gate longitudinal recovery label probe for Round90 clean 2048 offroad window.",
+  "commits": [
+    "44bb8c9",
+    "e4879eb",
+    "604fb02"
+  ],
+  "collection": {
+    "attempted_transitions": 12000,
+    "accepted_transitions": 65,
+    "acceptance_rate": 0.005416666666666667,
+    "route_progress_min": 0.25641027092933655,
+    "route_progress_max": 0.3076923191547394,
+    "target_corrective_delta_sign_rate": 1.0,
+    "target_longitudinal_available_rate": 1.0,
+    "target_corrected_longitudinal_mean": -0.6363635659217834,
+    "target_corrected_longitudinal_delta_abs_mean": 0.303448349237442
+  },
+  "bc": {
+    "dataset": "data/expert/rgb_perception_actor_features_v2_round105_speed_gate_mix_4776.npz",
+    "input_counts": [
+      4256,
+      65,
+      65,
+      65,
+      65,
+      65,
+      65,
+      65,
+      65
+    ],
+    "init_checkpoint": "checkpoints/rgb_perception_actor_features_v2_sustain_late_recovery_bc_round90/last.pt",
+    "checkpoint": "checkpoints/rgb_perception_actor_features_v2_speed_gate_longitudinal_bc_round105/last.pt",
+    "trainable_parameters": 514,
+    "trainable_actor_head_rows": [
+      1
+    ],
+    "train_loss": 0.371574,
+    "val_loss": 0.26681
+  },
+  "eval_512": {
+    "collision": 0,
+    "offroad": 0,
+    "severe_early_offroad": 0,
+    "stuck": 0,
+    "done_reason_counts": {
+      "max_steps": 1
+    },
+    "max_route_progress": 0.46153846153846156,
+    "mean_action_jitter_l1": 0.13426527147396428,
+    "mean_longitudinal_jitter": 0.05457883227245475,
+    "visual_center_correction_rate": 1.0
+  },
+  "eval_2048": {
+    "collision": 0,
+    "offroad": 1,
+    "severe_early_offroad": 0,
+    "stuck": 0,
+    "done_reason_counts": {
+      "max_steps": 3,
+      "offroad": 1
+    },
+    "max_route_progress": 0.46153846153846156,
+    "mean_action_jitter_l1": 0.14772142600325822,
+    "mean_longitudinal_jitter": 0.06722088978806084,
+    "visual_center_correction_rate": 0.39759036144578314,
+    "offroad_terminal": {
+      "route_progress": 0.28205128205128205,
+      "lane_offset": -2.7620443535101775,
+      "heading_error": 52.321483083007905,
+      "longitudinal": -0.9881567358970642,
+      "speed_kmh": 4.792938222253581
+    }
+  },
+  "decision": "Do not promote. Speed target worked, but lateral heading recovery still fails at route 0.282."
+}
