@@ -69,3 +69,47 @@ rounds:
 
 This does not complete the stabilization goal; it removes a diagnostic ambiguity
 so the next longitudinal/action-contract fix can be judged correctly.
+
+## Route-Bin Target-Speed Diagnostic
+
+Added `tools/analyze_target_speed_contract.py` and generated:
+
+`round90_results/action_log_contract_fix_20260504/target_speed_route_bins.json`
+
+Important: this diagnostic should use `env_step_log.csv` for pre-fix runs,
+because old `bc_eval_log.csv` direct-decoded policy longitudinal as brake.
+
+Current max-target-speed `28` run, route `0.30-0.35`:
+
+- rows: `112`
+- speed mean: `8.836 km/h`
+- target speed mean: `10.090 km/h`
+- actual throttle mean: `0.127`
+- actual brake mean: `0.029`
+- route fusion mean: `0.144`
+- done reasons in this bin: `offroad: 2`
+
+Target-speed `18` run, route `0.30-0.35`:
+
+- rows: `73`
+- speed mean: `7.124 km/h`
+- target speed mean: `9.726 km/h`
+- actual throttle mean: `0.183`
+- actual brake mean: `0.001`
+- route fusion mean: `0.205`
+- done reasons in this bin: `max_steps: 1`
+
+Target-speed `20` still fails, but the offroad appears earlier in the
+`0.25-0.30` bin:
+
+- rows: `308`
+- speed mean: `5.552 km/h`
+- target speed mean: `7.531 km/h`
+- actual throttle mean: `0.138`
+- actual brake mean: `0.002`
+- route fusion mean: `0.187`
+- done reasons in this bin: `max_steps: 1`, `offroad: 1`
+
+This suggests the next training-time fix should not be a broad global speed cap.
+It should target route-window/action-contract consistency around the route
+`0.25-0.35` transition while preserving route progress and steering recovery.
