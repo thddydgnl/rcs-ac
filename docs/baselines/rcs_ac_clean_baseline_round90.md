@@ -121,13 +121,27 @@ Shared reward 2048-step revalidation:
   under the fresh revalidation, so this baseline should be treated as under
   revalidation rather than fully locked for robustness comparison.
 
+Original no-shaping 2048-step revalidation:
+
+- Source: `round90_results/original_reverify_20260504/README.md`
+- 512-step reverify: strict clean safety `PASS`
+- 2048-step reverify: strict clean safety `FAIL`
+- 2048 retry after CARLA `-ForceRestart`: strict clean safety `FAIL`
+- repeated failure mode: original no-shaping Round90 also produced later-route
+  offroad terminations in the fresh revalidation.
+- interpretation: the shared-reward revalidation failure is not isolated to the
+  reward-shaping config; current Round90 long-horizon safety is not reproducible
+  under this fresh CARLA/runtime condition.
+
 ## Interpretation
 
 Round90 shared reward remains the active reward-contract reference, but the
-fresh 2048 revalidation found repeated later-route offroad terminations. It is
-therefore not safe to call this a fully locked long-horizon clean baseline until
-the 2048 variability is explained or a replacement candidate passes repeated
-strict clean checks.
+fresh 2048 revalidation found repeated later-route offroad terminations. A
+fresh original no-shaping re-run also failed strict 2048 safety, so the current
+evidence points to a Round90 long-horizon reproducibility problem rather than a
+reward-shaping-only regression. It is therefore not safe to call this a fully
+locked long-horizon clean baseline until the 2048 variability is explained or a
+replacement candidate passes repeated strict clean checks.
 
 The stable parts of the evidence are:
 
