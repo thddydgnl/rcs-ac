@@ -243,6 +243,17 @@ def _safe_info_float(info: dict[str, Any], *names: str, default: float = 0.0) ->
     return default
 
 
+def _safe_control_float(info: dict[str, Any], name: str, *, default: float = 0.0) -> float:
+    control = info.get("control")
+    if isinstance(control, dict) and name in control:
+        try:
+            value = float(control[name])
+        except (TypeError, ValueError):
+            return float(default)
+        return value if math.isfinite(value) else float(default)
+    return float(default)
+
+
 def _safe_info_str(info: dict[str, Any], *names: str, default: str = "") -> str:
     for name in names:
         value = info.get(name)
@@ -338,6 +349,9 @@ def _enrich_rows_from_env_step_log(rows: list[dict[str, Any]], output_dir: Path)
         "first_offroad_step",
         "target_speed_kmh",
         "speed_error_kmh",
+        "smoothed_steer",
+        "throttle",
+        "brake",
         "requested_action_steer",
         "requested_action_throttle",
         "requested_action_brake",
@@ -361,6 +375,9 @@ def _enrich_rows_from_env_step_log(rows: list[dict[str, Any]], output_dir: Path)
             target_field = {
                 "target_x_local": "route_target_x",
                 "target_y_local": "route_target_y",
+                "steer": "applied_steer",
+                "throttle": "applied_throttle",
+                "brake": "applied_brake",
             }.get(field, field)
             row[target_field] = _coerce_env_step_value(env_row[field])
         lane_offset = float(row.get("offroad_candidate_lane_offset", row.get("lane_offset", 0.0)))
@@ -440,19 +457,28 @@ def _build_log_row(
         lane_risk_active and visual_center_active and lane_offset * visual_center_error > 0.0
     )
     corrective_steer_delta = visual_zero_steer_delta if route_offset_corrective_sign else 0.0
+    actual_steer = _safe_control_float(
+        info,
+        "steer",
+        default=_safe_info_float(info, "applied_steer", "control_steer", "carla_steer", default=float(decoded["steer"])),
+    )
+    actual_throttle = _safe_control_float(
+        info,
+        "throttle",
+        default=_safe_info_float(info, "applied_throttle", "control_throttle", "throttle", default=float(decoded["throttle"])),
+    )
+    actual_brake = _safe_control_float(
+        info,
+        "brake",
+        default=_safe_info_float(info, "applied_brake", "control_brake", "brake", default=float(decoded["brake"])),
+    )
     row: dict[str, Any] = {
         "step": int(step),
         "episode_step": int(episode_step),
         "episode": int(episode),
         "steer": float(decoded["steer"]),
         "raw_steer": _safe_info_float(info, "raw_steer", "policy_steer", "action_steer", default=float(decoded["steer"])),
-        "applied_steer": _safe_info_float(
-            info,
-            "applied_steer",
-            "control_steer",
-            "carla_steer",
-            default=float(decoded["steer"]),
-        ),
+        "applied_steer": actual_steer,
         "smoothed_steer": _safe_info_float(info, "smoothed_steer", "filtered_steer", default=float(decoded["steer"])),
         "longitudinal": float(decoded["longitudinal"]),
         "raw_longitudinal": _safe_info_float(
@@ -468,22 +494,10 @@ def _build_log_row(
             "control_longitudinal",
             default=float(decoded["longitudinal"]),
         ),
-        "throttle": float(decoded["throttle"]),
-        "applied_throttle": _safe_info_float(
-            info,
-            "applied_throttle",
-            "control_throttle",
-            "throttle",
-            default=float(decoded["throttle"]),
-        ),
-        "brake": float(decoded["brake"]),
-        "applied_brake": _safe_info_float(
-            info,
-            "applied_brake",
-            "control_brake",
-            "brake",
-            default=float(decoded["brake"]),
-        ),
+        "throttle": actual_throttle,
+        "applied_throttle": actual_throttle,
+        "brake": actual_brake,
+        "applied_brake": actual_brake,
         "reward": float(reward),
         "done": bool(done),
         "done_reason": str(info.get("done_reason", "running")),

@@ -574,6 +574,11 @@ def _write_training_log_row(
             float(action.get("longitudinal", 0.0)),
         ]
     )
+    actual_steer = float(control.get("steer", decoded["steer"])) if isinstance(control, dict) else float(decoded["steer"])
+    actual_throttle = (
+        float(control.get("throttle", decoded["throttle"])) if isinstance(control, dict) else float(decoded["throttle"])
+    )
+    actual_brake = float(control.get("brake", decoded["brake"])) if isinstance(control, dict) else float(decoded["brake"])
     row: dict[str, Any] = {field: "" for field in TRAINING_LOG_FIELDS}
     row.update(
         {
@@ -598,10 +603,10 @@ def _write_training_log_row(
             "collision": bool(info.get("collision", False)),
             "offroad": bool(info.get("offroad", False)),
             "stuck": bool(info.get("stuck", False)),
-            "steer": float(decoded["steer"]),
+            "steer": actual_steer,
             "longitudinal": float(decoded["longitudinal"]),
-            "throttle": float(decoded["throttle"]),
-            "brake": float(decoded["brake"]),
+            "throttle": actual_throttle,
+            "brake": actual_brake,
             "speed_kmh": float(info.get("speed_kmh", 0.0)),
             "lane_offset": float(info.get("lane_offset", 0.0)),
             "heading_error": float(info.get("heading_error", 0.0)),

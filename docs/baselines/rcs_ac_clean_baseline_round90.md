@@ -133,6 +133,10 @@ Target-speed wrapper sweep after runtime metadata restore:
   the shared target-speed wrapper. Lowering the global target-speed cap can
   remove offroad, but the resulting route progress is too conservative to
   promote as the final comparison baseline.
+- action-log warning: pre-fix `bc_eval_log.csv` `brake` columns decoded negative
+  policy longitudinal directly. For actual CARLA throttle/brake, use
+  `env_step_log.csv` or post-fix eval logs documented in
+  `round90_results/action_log_contract_fix_20260504/README.md`.
 
 Original no-shaping 2048-step revalidation:
 

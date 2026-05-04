@@ -44,6 +44,12 @@ Safety means collision/offroad/severe early offroad/stuck all zero.
 
 ## Interpretation
 
+Note on log semantics: this sweep was run before
+`round90_results/action_log_contract_fix_20260504`. In the sweep logs,
+`bc_eval_log.csv` columns named `brake` still represent direct decoding of the
+2D policy longitudinal output, not actual CARLA brake. Use `env_step_log.csv`
+for actual CARLA throttle/brake in these runs.
+
 Lowering only the global target-speed wrapper is enough to remove the current
 2048 offroad at max `16` and max `18`, while max `20` still produces a late
 offroad. This strongly supports the latest diagnosis:
