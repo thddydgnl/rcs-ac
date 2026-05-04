@@ -1,0 +1,142 @@
+{
+  "previous_probe_512": {
+    "pass_status": "PASS",
+    "completed_steps": 512,
+    "episode_count": 1,
+    "done_reason_counts": {
+      "max_steps": 1
+    },
+    "collision_count": 0,
+    "offroad_rate": 0.0,
+    "early_offroad_count": 0,
+    "severe_early_offroad_count": 0,
+    "stuck_rate": 0.0,
+    "max_route_progress": 0.38461538461538464,
+    "mean_route_progress": 0.19245793269230768,
+    "final_route_progress": 0.38461538461538464,
+    "mean_action_jitter_l1": 0.1332099523206125,
+    "mean_steer_jitter": 0.08892505883704871,
+    "mean_longitudinal_jitter": 0.04428489348356379,
+    "visual_center_correction_rate": 0.0,
+    "route_offset_corrective_sign_rate": 0.0,
+    "ppo_gate_status": "BLOCK",
+    "ppo_gate_fail_reasons": [
+      "mean_action_jitter_l1 0.133210 > 0.070000",
+      "corrective_need_count 0 < 32",
+      "mean_corrective_visual_zero_steer_delta 0.000000 < 0.004000",
+      "visual_center_correction_rate 0.000000 < 0.700000"
+    ],
+    "strict_clean_safety_pass": true
+  },
+  "previous_probe_2048": {
+    "pass_status": "PASS",
+    "completed_steps": 2048,
+    "episode_count": 4,
+    "done_reason_counts": {
+      "max_steps": 4
+    },
+    "collision_count": 0,
+    "offroad_rate": 0.0,
+    "early_offroad_count": 0,
+    "severe_early_offroad_count": 0,
+    "stuck_rate": 0.0,
+    "max_route_progress": 0.4358974358974359,
+    "mean_route_progress": 0.19255809294871795,
+    "final_route_progress": 0.38461538461538464,
+    "mean_action_jitter_l1": 0.15177277273664913,
+    "mean_steer_jitter": 0.08323799993991088,
+    "mean_longitudinal_jitter": 0.06853477279673825,
+    "visual_center_correction_rate": 0.47096774193548385,
+    "route_offset_corrective_sign_rate": 0.8774193548387097,
+    "ppo_gate_status": "BLOCK",
+    "ppo_gate_fail_reasons": [
+      "mean_action_jitter_l1 0.151773 > 0.070000",
+      "visual_center_correction_rate 0.470968 < 0.700000"
+    ],
+    "strict_clean_safety_pass": true
+  },
+  "reverify_512": {
+    "pass_status": "PASS",
+    "completed_steps": 512,
+    "episode_count": 1,
+    "done_reason_counts": {
+      "max_steps": 1
+    },
+    "collision_count": 0,
+    "offroad_rate": 0.0,
+    "early_offroad_count": 0,
+    "severe_early_offroad_count": 0,
+    "stuck_rate": 0.0,
+    "max_route_progress": 0.46153846153846156,
+    "mean_route_progress": 0.22626201923076922,
+    "final_route_progress": 0.46153846153846156,
+    "mean_action_jitter_l1": 0.13453953599878332,
+    "mean_steer_jitter": 0.0800043161418671,
+    "mean_longitudinal_jitter": 0.05453521985691623,
+    "visual_center_correction_rate": 0.6470588235294118,
+    "route_offset_corrective_sign_rate": 0.6470588235294118,
+    "ppo_gate_status": "BLOCK",
+    "ppo_gate_fail_reasons": [
+      "mean_action_jitter_l1 0.134540 > 0.070000",
+      "corrective_need_count 17 < 32",
+      "visual_center_correction_rate 0.647059 < 0.700000"
+    ],
+    "strict_clean_safety_pass": true
+  },
+  "reverify_2048": {
+    "pass_status": "PASS",
+    "completed_steps": 2048,
+    "episode_count": 5,
+    "done_reason_counts": {
+      "max_steps": 2,
+      "offroad": 2
+    },
+    "collision_count": 0,
+    "offroad_rate": 0.0009765625,
+    "early_offroad_count": 0,
+    "severe_early_offroad_count": 0,
+    "stuck_rate": 0.0,
+    "max_route_progress": 0.46153846153846156,
+    "mean_route_progress": 0.18662359775641024,
+    "final_route_progress": 0.28205128205128205,
+    "mean_action_jitter_l1": 0.13625951344499754,
+    "mean_steer_jitter": 0.07884147232914529,
+    "mean_longitudinal_jitter": 0.05741804111585225,
+    "visual_center_correction_rate": 0.4851063829787234,
+    "route_offset_corrective_sign_rate": 0.6851063829787234,
+    "ppo_gate_status": "BLOCK",
+    "ppo_gate_fail_reasons": [
+      "mean_action_jitter_l1 0.136260 > 0.070000",
+      "visual_center_correction_rate 0.485106 < 0.700000"
+    ],
+    "strict_clean_safety_pass": false
+  },
+  "reverify_2048_retry1": {
+    "pass_status": "PASS",
+    "completed_steps": 2048,
+    "episode_count": 5,
+    "done_reason_counts": {
+      "max_steps": 2,
+      "offroad": 2
+    },
+    "collision_count": 0,
+    "offroad_rate": 0.0009765625,
+    "early_offroad_count": 0,
+    "severe_early_offroad_count": 0,
+    "stuck_rate": 0.0,
+    "max_route_progress": 0.46153846153846156,
+    "mean_route_progress": 0.1965645032051282,
+    "final_route_progress": 0.1794871794871795,
+    "mean_action_jitter_l1": 0.13711794906976138,
+    "mean_steer_jitter": 0.07872663316402395,
+    "mean_longitudinal_jitter": 0.05839131590573743,
+    "visual_center_correction_rate": 0.4748603351955307,
+    "route_offset_corrective_sign_rate": 0.7541899441340782,
+    "ppo_gate_status": "BLOCK",
+    "ppo_gate_fail_reasons": [
+      "mean_action_jitter_l1 0.137118 > 0.070000",
+      "visual_center_correction_rate 0.474860 < 0.700000"
+    ],
+    "strict_clean_safety_pass": false
+  }
+}

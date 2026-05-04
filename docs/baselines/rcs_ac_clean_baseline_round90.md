@@ -1,10 +1,12 @@
 # RCS-AC Clean Baseline: Round90 Shared Reward
 
-Status: **active fixed clean-safe RCS-AC baseline**
+Status: **active shared-reward baseline under revalidation**
 
 Original Round90 fixed on: 2026-05-02
 
 Shared-reward baseline promoted on: 2026-05-04
+
+Revalidation warning added on: 2026-05-04
 
 ## Baseline Identity
 
@@ -107,21 +109,40 @@ Shared reward 2048-step clean eval:
 - visual-center correction rate: `0.470968`
 - PPO gate: `BLOCK`
 
+Shared reward 2048-step revalidation:
+
+- Source: `round90_results/shared_reward_reverify_20260504/README.md`
+- 512-step reverify: strict clean safety `PASS`
+- 2048-step reverify: strict clean safety `FAIL`
+- 2048 retry after CARLA `-ForceRestart`: strict clean safety `FAIL`
+- repeated failure mode: `done_reason_counts {"max_steps": 2, "offroad": 2}`
+- collision/stuck/severe early offroad: still `0`
+- interpretation: the previous clean 2048 shared-reward pass did not reproduce
+  under the fresh revalidation, so this baseline should be treated as under
+  revalidation rather than fully locked for robustness comparison.
+
 ## Interpretation
 
-Round90 shared reward is fixed as the active RCS-AC clean-safe baseline because
-the unchanged Round90 checkpoint remains clean-safe after enabling the shared
-reward contract:
+Round90 shared reward remains the active reward-contract reference, but the
+fresh 2048 revalidation found repeated later-route offroad terminations. It is
+therefore not safe to call this a fully locked long-horizon clean baseline until
+the 2048 variability is explained or a replacement candidate passes repeated
+strict clean checks.
+
+The stable parts of the evidence are:
 
 - no collision
-- no offroad
 - no severe early offroad
 - no stuck
-- 512 and 2048 clean eval complete with finite in-range actions
+- 512 clean eval completes with finite in-range actions
+- 2048 eval completes, but strict offroad-zero safety is not currently
+  reproducible
 
 The historical original Round90 no-shaping evals remain preserved as reference
 evidence, but future comparison runs should use the shared-reward config unless
-a later shared-contract baseline replacement is explicitly promoted.
+a later shared-contract baseline replacement is explicitly promoted. Do not run
+robustness comparison from this checkpoint/config until the repeated 2048 offroad
+result is resolved.
 
 Round90 shared reward is **not** the final completed RCS-AC result:
 
@@ -137,7 +158,7 @@ For future stabilization or comparison work:
 2. Any replacement candidate must be compared against this manifest and documented with matching result files.
 3. Rounds 93-100 are blocked probes and must not be used as the clean baseline.
 4. PPO fine-tuned candidates must be reported separately until they preserve this baseline's clean safety.
-5. Weather, corruption, and sensor-dropout robustness experiments should use Round90 shared reward as the fixed RCS-AC clean checkpoint/config pair.
+5. Weather, corruption, and sensor-dropout robustness experiments must wait until Round90 shared reward or its replacement passes repeated strict 2048 clean checks.
 6. If PPO/SAC use this reward contract for training, RCS-AC fine-tuning candidates must use the same contract before clean/robustness comparison claims.
 
 ## Next Comparison Use

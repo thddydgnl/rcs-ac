@@ -2,13 +2,13 @@
 
 This directory records fixed experiment baselines that future stabilization and comparison rounds must reference.
 
-## Current Fixed Baseline
+## Current Shared Reward Baseline
 
 - RCS-AC clean-safe baseline: `rcs_ac_clean_baseline_round90_shared_reward`
 - Manifest: `docs/baselines/rcs_ac_clean_baseline_round90.md`
 - Active config: `configs/bc_frame_rgb_perception_actor_features_v2_sustain_late_recovery_round90_shared_reward_baseline.yaml`
 
-Round90 with shared reward shaping is fixed as the current RCS-AC clean baseline for weather, corruption, and sensor-dropout comparison work. It should not be replaced by later probes unless they pass the same offline, 512-step, and 2048-step clean safety checks and are explicitly documented as a baseline replacement.
+Round90 with shared reward shaping is the current RCS-AC shared reward baseline reference, but a fresh 2026-05-04 revalidation found repeated 2048-step offroad terminations. Treat it as under revalidation, not as a locked robustness-comparison baseline, until repeated strict 2048 clean safety passes again.
 
 The original no-shaping Round90 result remains preserved as historical evidence, but new PPO/SAC matched-baseline work should treat the shared reward block as the common reward contract, not a PPO-only shaping change.
 
