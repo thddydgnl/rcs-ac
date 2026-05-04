@@ -20,6 +20,11 @@ Escalate to Full Subagent Workflow if a high-risk condition appears.
 
 ## Required Every Round
 
+0. `00_goal_bootstrap_summary.md`
+   - Short bootstrap for long `/goal` runs.
+   - Read this first when the task is a long autonomous goal or overnight stabilization run.
+   - It routes to longer remote/sub-agent references only when needed.
+
 1. `00_agent_workflow_rules.md`
    - Short core rules, reading router, barriers, gate rules, and global safety rules.
 
