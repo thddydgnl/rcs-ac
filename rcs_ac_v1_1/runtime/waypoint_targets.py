@@ -38,10 +38,12 @@ def validate_waypoint_target(
     arr = np.asarray(waypoints, dtype=np.float32)
     if arr.ndim != 2 or arr.shape[1] != 2 or not np.isfinite(arr).all():
         return np.float32(0.0)
-    if not np.all(arr[:, 0] > 0.0):
+    if not np.any(arr[:, 0] > 0.0) or arr[0, 0] <= 0.0:
         return np.float32(0.0)
-    if arr.shape[0] > 1 and not np.all(np.diff(arr[:, 0]) >= float(min_gap_m)):
-        return np.float32(0.0)
+    if arr.shape[0] > 1:
+        segment_lengths = np.linalg.norm(np.diff(arr, axis=0), axis=1)
+        if not np.all(segment_lengths >= float(min_gap_m)):
+            return np.float32(0.0)
     if not np.all(np.abs(arr[:, 1]) <= float(max_abs_lateral_m)):
         return np.float32(0.0)
     return np.float32(1.0)
@@ -51,15 +53,18 @@ def build_expert_target_speed(
     *,
     expert_speed_kmh: float | None,
     route_target_speed_kmh: float | None,
+    observed_speed_kmh: float | None = None,
     default_speed_kmh: float = 12.0,
     min_speed_kmh: float = 0.0,
     max_speed_kmh: float = 28.0,
 ) -> np.ndarray:
     value = default_speed_kmh
-    if expert_speed_kmh is not None and np.isfinite(float(expert_speed_kmh)):
+    if expert_speed_kmh is not None and np.isfinite(float(expert_speed_kmh)) and float(expert_speed_kmh) > 0.0:
         value = float(expert_speed_kmh)
-    elif route_target_speed_kmh is not None and np.isfinite(float(route_target_speed_kmh)):
+    elif route_target_speed_kmh is not None and np.isfinite(float(route_target_speed_kmh)) and float(route_target_speed_kmh) > 0.0:
         value = float(route_target_speed_kmh)
+    elif observed_speed_kmh is not None and np.isfinite(float(observed_speed_kmh)) and float(observed_speed_kmh) > 0.0:
+        value = float(observed_speed_kmh)
     return np.asarray([np.clip(value, float(min_speed_kmh), float(max_speed_kmh))], dtype=np.float32)
 
 

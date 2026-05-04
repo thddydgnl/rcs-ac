@@ -53,6 +53,15 @@ def test_waypoint_target_and_speed_builders() -> None:
     speed = build_expert_target_speed(expert_speed_kmh=None, route_target_speed_kmh=50.0)
     assert speed.shape == (1,)
     assert speed[0] == 28.0
+    observed_speed = build_expert_target_speed(expert_speed_kmh=0.0, route_target_speed_kmh=0.0, observed_speed_kmh=16.0)
+    assert observed_speed[0] == 16.0
+
+
+def test_curved_waypoint_target_allows_lateral_progress() -> None:
+    path = np.asarray([[2.0, 0.0], [4.0, 1.0], [4.5, 3.0], [4.5, 6.0]], dtype=np.float32)
+    waypoints, available = build_distance_based_expert_waypoints(path)
+    assert available == 1.0
+    assert validate_waypoint_target(waypoints) == 1.0
 
 
 def test_bev_and_waypoint_losses() -> None:

@@ -37,6 +37,9 @@ REQUIRED_LOG_COLUMNS: tuple[str, ...] = (
     "brake",
     "target_speed_kmh_raw",
     "target_speed_capped_kmh",
+    *tuple(f"policy_waypoint_{idx}_{axis}" for idx in range(4) for axis in ("x", "y")),
+    "controller_target_x_m",
+    "controller_target_y_m",
     "waypoint_valid",
     "path_valid",
     "used_route_fallback",
@@ -182,6 +185,7 @@ def run_carla_eval(args: argparse.Namespace) -> dict[str, Any]:
                     ego_state=ego_state,
                     control=control,
                     target_speed_raw=target_speed_raw,
+                    waypoints=waypoints,
                     fusion=fusion,
                     adapter_debug=adapter_debug,
                     sensor_health=_sensor_health_from_obs(runtime_config, obs_flat),
@@ -318,6 +322,7 @@ def _build_log_row(
     ego_state: Any,
     control: dict[str, Any],
     target_speed_raw: float,
+    waypoints: np.ndarray,
     fusion: np.ndarray,
     adapter_debug: dict[str, Any],
     sensor_health: np.ndarray,
@@ -341,6 +346,8 @@ def _build_log_row(
         "brake": float(control["brake"]),
         "target_speed_kmh_raw": float(target_speed_raw),
         "target_speed_capped_kmh": float(debug.get("target_speed_capped_kmh", 0.0)),
+        "controller_target_x_m": float(debug.get("target_x_m", 0.0)),
+        "controller_target_y_m": float(debug.get("target_y_m", 0.0)),
         "waypoint_valid": bool(debug.get("waypoint_valid", False)),
         "path_valid": bool(debug.get("path_valid", False)),
         "used_route_fallback": bool(debug.get("used_route_fallback", False)),
@@ -362,6 +369,10 @@ def _build_log_row(
         "route_point_count": int(adapter_debug.get("adapter_route_point_count", 0)),
         "lidar_point_count": int(adapter_debug.get("adapter_lidar_point_count", adapter_debug.get("lidar_point_count", 0))),
     }
+    wp = np.asarray(waypoints, dtype=np.float32)
+    for idx in range(4):
+        row[f"policy_waypoint_{idx}_x"] = float(wp[idx, 0]) if wp.ndim == 2 and wp.shape[0] > idx else 0.0
+        row[f"policy_waypoint_{idx}_y"] = float(wp[idx, 1]) if wp.ndim == 2 and wp.shape[0] > idx else 0.0
     for idx in range(15):
         row[f"sensor_health_{idx}"] = float(sensor_health[idx]) if idx < sensor_health.shape[0] else 0.0
     return row

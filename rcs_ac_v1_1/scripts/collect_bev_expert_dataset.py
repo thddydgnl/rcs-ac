@@ -30,6 +30,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--run-name", default="v1_1_bev_expert_tiny")
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=2000)
+    parser.add_argument("--driver", choices=("autopilot", "heuristic"), default="autopilot")
+    parser.add_argument("--steer-noise-amplitude", type=float, default=0.0)
+    parser.add_argument("--steer-noise-period-steps", type=int, default=80)
+    parser.add_argument("--steer-noise-start-step", type=int, default=16)
     return parser.parse_args()
 
 
@@ -65,9 +69,10 @@ def main() -> int:
     try:
         reset = env.reset()
         current_info = dict(reset.get("info", {}))
-        _enable_expert_control(env)
+        if str(args.driver) == "autopilot":
+            _enable_expert_control(env)
         for step in range(int(args.num_steps)):
-            result = _step_expert(env)
+            result = _step_expert(env, args=args, step=step)
             obs = dict(result.get("obs", {}))
             info = dict(result.get("info", current_info))
             packet, ego_state, route_context, _ = build_v11_state_from_carla_step(
@@ -89,14 +94,17 @@ def main() -> int:
                 actors_ego=None,
                 route_context=route_context,
             )
-            route_points = None if route_context is None else route_context.route_points_ego
+            route_points = _expert_path_from_env(env, info)
+            if route_points is None and route_context is not None:
+                route_points = route_context.route_points_ego
             expert_waypoints, waypoint_available = build_distance_based_expert_waypoints(
                 route_points,
-                fallback_route_ego=route_points,
+                fallback_route_ego=None if route_context is None else route_context.route_points_ego,
             )
             expert_speed = build_expert_target_speed(
-                expert_speed_kmh=_safe_optional_float(info.get("target_speed_kmh")),
+                expert_speed_kmh=_safe_optional_positive_float(info.get("target_speed_kmh")),
                 route_target_speed_kmh=None if route_context is None else route_context.target_speed_kmh,
+                observed_speed_kmh=_safe_optional_positive_float(info.get("speed_kmh")),
             )
             for key in ("rgb", "lidar_bev", "route_bev", "ego_bev", "ego_scalar", "route_scalar", "sensor_health"):
                 arrays[key].append(components[key])
@@ -130,6 +138,9 @@ def main() -> int:
     np.savez_compressed(output, **stacked)
     summary = {key: list(value.shape) for key, value in stacked.items() if hasattr(value, "shape")}
     summary["num_samples"] = int(accepted)
+    summary["waypoint_target_available_rate"] = float(np.mean(stacked["waypoint_target_available"]))
+    summary["bev_target_available_rate"] = float(np.mean(stacked["bev_target_available"]))
+    summary["expert_target_speed_mean"] = float(np.mean(stacked["expert_target_speed"]))
     summary_path = output.with_suffix(".summary.json")
     summary_path.write_text(json.dumps(summary, indent=2, sort_keys=True), encoding="utf-8")
     print(json.dumps(summary, indent=2, sort_keys=True))
@@ -146,16 +157,41 @@ def _build_carla_env(args: argparse.Namespace) -> tuple[Any, Any]:
     return config, env
 
 
-def _step_expert(env: Any) -> dict[str, Any]:
-    if hasattr(env, "step_expert_autopilot"):
+def _step_expert(env: Any, *, args: argparse.Namespace, step: int) -> dict[str, Any]:
+    if str(args.driver) == "autopilot" and hasattr(env, "step_expert_autopilot"):
         result = env.step_expert_autopilot()
         return _normalize_expert_step_result(result)
     if hasattr(env, "_compute_heuristic_action"):
         action = np.asarray(env._compute_heuristic_action(), dtype=np.float32)
+        action = _apply_steer_noise(
+            action,
+            step=step,
+            amplitude=float(args.steer_noise_amplitude),
+            period_steps=int(args.steer_noise_period_steps),
+            start_step=int(args.steer_noise_start_step),
+        )
         result = env.step(action)
         result["expert_action"] = action
         return _normalize_expert_step_result(result)
     raise AttributeError("CarlaEnv does not expose step_expert_autopilot() or _compute_heuristic_action()")
+
+
+def _apply_steer_noise(
+    action: np.ndarray,
+    *,
+    step: int,
+    amplitude: float,
+    period_steps: int,
+    start_step: int,
+) -> np.ndarray:
+    arr = np.asarray(action, dtype=np.float32).reshape(-1).copy()
+    if arr.size == 0 or float(amplitude) <= 0.0 or int(step) < int(start_step):
+        return arr
+    period = max(4, int(period_steps))
+    phase = 2.0 * np.pi * float(int(step) - int(start_step)) / float(period)
+    bias = float(amplitude) * float(np.sin(phase))
+    arr[0] = np.float32(np.clip(float(arr[0]) + bias, -1.0, 1.0))
+    return arr
 
 
 def _normalize_expert_step_result(result: dict[str, Any]) -> dict[str, Any]:
@@ -196,12 +232,56 @@ def _get_ego_vehicle(env: Any) -> Any:
     return None
 
 
+def _expert_path_from_env(env: Any, info: dict[str, Any], *, count: int = 16) -> np.ndarray | None:
+    route_manager = getattr(env, "route_manager", None)
+    vehicle = _get_ego_vehicle(env)
+    if route_manager is None or vehicle is None:
+        return None
+    if not hasattr(route_manager, "get_lookahead_waypoints"):
+        return None
+    try:
+        waypoints = route_manager.get_lookahead_waypoints(count=int(count))
+    except Exception:
+        return None
+    points: list[tuple[float, float]] = []
+    transform = vehicle.get_transform() if hasattr(vehicle, "get_transform") else None
+    for waypoint in waypoints:
+        try:
+            if hasattr(route_manager, "vehicle_to_waypoint_local_point") and transform is not None:
+                x_local, y_local = route_manager.vehicle_to_waypoint_local_point(transform, waypoint)
+                y_local = -float(y_local)
+            else:
+                loc = waypoint.transform.location
+                x_local = _safe_float(getattr(loc, "x", np.nan), default=np.nan) - _safe_float(
+                    info.get("vehicle_x", info.get("x")), default=np.nan
+                )
+                y_local = _safe_float(getattr(loc, "y", np.nan), default=np.nan) - _safe_float(
+                    info.get("vehicle_y", info.get("y")), default=np.nan
+                )
+            x = float(x_local)
+            y = float(y_local)
+        except Exception:
+            continue
+        if np.isfinite(x) and np.isfinite(y):
+            points.append((x, y))
+    if len(points) < 2:
+        return None
+    return np.asarray(points, dtype=np.float32)
+
+
 def _safe_optional_float(value: Any) -> float | None:
     try:
         result = float(value)
     except (TypeError, ValueError):
         return None
     return result if np.isfinite(result) else None
+
+
+def _safe_optional_positive_float(value: Any, *, min_positive: float = 1.0e-3) -> float | None:
+    result = _safe_optional_float(value)
+    if result is None or result <= float(min_positive):
+        return None
+    return result
 
 
 def _previous_control_from_info(info: dict[str, Any]) -> dict[str, float]:

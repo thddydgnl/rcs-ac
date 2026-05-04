@@ -87,8 +87,8 @@ class PurePursuitControllerConfig:
     lookahead_gain_per_mps: float = 0.45
     max_steer: float = 1.0
     steer_gain: float = 1.0
-    steer_lowpass_tau_s: float = 0.25
-    max_steer_rate_per_s: float = 1.2
+    steer_lowpass_tau_s: float = 0.10
+    max_steer_rate_per_s: float = 3.0
     max_abs_target_y_m: float = 8.0
     min_valid_target_x_m: float = 0.5
     min_valid_path_length_m: float = 2.0
@@ -165,7 +165,7 @@ def compute_pure_pursuit_steer(
     config: PurePursuitControllerConfig,
 ) -> tuple[float, float]:
     ld2 = max(float(target_x_m) ** 2 + float(target_y_m) ** 2, 1.0e-6)
-    curvature = 2.0 * float(target_y_m) / ld2
+    curvature = -2.0 * float(target_y_m) / ld2
     steer_rad = math.atan(float(config.wheel_base_m) * curvature)
     steer = float(config.steer_gain) * steer_rad
     return float(np.clip(steer, -float(config.max_steer), float(config.max_steer))), float(curvature)

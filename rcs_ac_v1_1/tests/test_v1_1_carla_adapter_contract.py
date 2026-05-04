@@ -36,6 +36,16 @@ def test_build_route_context_can_fallback_to_obs_route_vector() -> None:
     assert debug["adapter_route_source"] == "obs_route_vector"
 
 
+def test_route_context_uses_lookahead_when_current_target_is_behind() -> None:
+    route = np.asarray([-0.5, -1.0, 3.0, -0.2, 6.0, -0.3, -0.3, -0.1, 0.0, 0.0], dtype=np.float32)
+    context, debug = build_route_context_from_obs_info({"route": route}, {"target_x_local": -0.5, "target_y_local": -1.0})
+    assert context is not None
+    assert context.route_points_ego.shape[0] >= 2
+    assert context.target_point_ego is not None
+    assert context.target_point_ego[0] > 0.0
+    assert debug["adapter_route_source"] == "obs_route_vector_lookahead"
+
+
 def test_lidar_adapter_accepts_flat_xyzi_buffer() -> None:
     raw = np.asarray([1.0, 0.0, 0.1, 0.5, 2.0, 1.0, 0.2, 0.5], dtype=np.float32)
     points = coerce_lidar_points(raw)

@@ -92,6 +92,20 @@ def build_route_context_from_obs_info(
             "route_lookahead_points_ego",
             "route_local_points",
             "route_points_local",
+        )
+    ):
+        route_vector_points = _extract_points_from_route_vector(obs.get("route"))
+        if route_vector_points.shape[0] >= 2:
+            merged["route_points_ego"] = route_vector_points
+            merged["adapter_route_source"] = "obs_route_vector_lookahead"
+    if not any(
+        key in merged
+        for key in (
+            "route_points_ego",
+            "route_waypoints_ego",
+            "route_lookahead_points_ego",
+            "route_local_points",
+            "route_points_local",
             "target_x_local",
             "target_y_local",
             "route_target_x",
@@ -144,6 +158,34 @@ def _extract_target_from_route_vector(value: Any) -> tuple[float, float] | None:
     return x, y
 
 
+def _extract_points_from_route_vector(value: Any) -> np.ndarray:
+    if value is None:
+        return np.zeros((0, 2), dtype=np.float32)
+    arr = np.asarray(value, dtype=np.float32).reshape(-1)
+    if arr.size < 2 or not np.isfinite(arr).all():
+        return np.zeros((0, 2), dtype=np.float32)
+    points: list[tuple[float, float]] = []
+    target = _extract_target_from_route_vector(arr[:2])
+    if target is not None:
+        points.append(target)
+    for idx in (2, 4):
+        if arr.size <= idx + 1:
+            continue
+        distance = float(arr[idx])
+        heading = float(arr[idx + 1])
+        if distance <= 0.0 or not np.isfinite(distance) or not np.isfinite(heading):
+            continue
+        points.append((distance * math.cos(heading), distance * math.sin(heading)))
+    if len(points) < 2:
+        return np.zeros((0, 2), dtype=np.float32)
+    result = np.asarray(points, dtype=np.float32)
+    result = result[np.isfinite(result).all(axis=1)]
+    result = result[result[:, 0] > 0.0]
+    if result.shape[0] < 2:
+        return np.zeros((0, 2), dtype=np.float32)
+    return result
+
+
 def _coerce_points(value: Any) -> np.ndarray:
     if value is None:
         return np.zeros((0, 2), dtype=np.float32)
@@ -170,7 +212,7 @@ def _extract_target_point(info: dict[str, Any], route_points: np.ndarray) -> tup
         if x_key in info and y_key in info:
             x = _safe_float(info.get(x_key), default=np.nan)
             y = _safe_float(info.get(y_key), default=np.nan)
-            if np.isfinite(x) and np.isfinite(y):
+            if np.isfinite(x) and np.isfinite(y) and x > 0.0:
                 return float(x), float(y)
     if route_points.shape[0] == 0:
         return None

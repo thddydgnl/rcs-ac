@@ -17,7 +17,7 @@ def test_pure_pursuit_straight_waypoints_near_zero_steer() -> None:
     assert abs(float(control["steer"])) < 1.0e-6
 
 
-def test_pure_pursuit_left_waypoints_positive_steer() -> None:
+def test_pure_pursuit_positive_y_waypoints_negative_carla_steer() -> None:
     controller = V11SpeedAdaptivePurePursuitController()
     control = controller.control(
         [(2.0, 0.5), (4.0, 1.0), (6.0, 1.5), (8.0, 2.0)],
@@ -25,7 +25,7 @@ def test_pure_pursuit_left_waypoints_positive_steer() -> None:
         current_speed_kmh=8.0,
         dt=0.05,
     )
-    assert float(control["steer"]) > 0.0
+    assert float(control["steer"]) < 0.0
 
 
 def test_pure_pursuit_rate_limit_respected() -> None:
