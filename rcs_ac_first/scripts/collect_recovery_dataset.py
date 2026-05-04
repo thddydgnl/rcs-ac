@@ -72,7 +72,7 @@ def _load_model(config: Any, checkpoint_path: Path, device: torch.device) -> RCS
     return model
 
 
-def _should_accept(info: dict[str, Any], args: argparse.Namespace) -> bool:
+def _should_accept(config: Any, info: dict[str, Any], args: argparse.Namespace) -> bool:
     if bool(info.get("collision", False)) or bool(info.get("stuck", False)) or bool(info.get("offroad", False)):
         return False
     progress = float(info.get("route_progress", 0.0))
@@ -84,7 +84,7 @@ def _should_accept(info: dict[str, Any], args: argparse.Namespace) -> bool:
         return False
     if bool(args.require_turn_boost) and not bool(info.get("lateral_recovery_turn_boost_active", False)):
         return False
-    if bool(args.require_speed_gate_active) and not bool(info.get("lateral_recovery_speed_gate_active", False)):
+    if bool(args.require_speed_gate_active) and not _speed_gate_active(config, info):
         return False
     speed_kmh = _speed_kmh(info)
     if args.speed_kmh_min is not None and speed_kmh < float(args.speed_kmh_min):
@@ -110,6 +110,33 @@ def _should_accept(info: dict[str, Any], args: argparse.Namespace) -> bool:
 
 def _speed_kmh(info: dict[str, Any]) -> float:
     return float(info.get("speed_kmh", info.get("speed", 0.0)))
+
+
+def _lateral_recovery_config(config: Any) -> dict[str, Any]:
+    env_raw = dict(getattr(config, "raw", {}).get("env", {}))
+    return dict(env_raw.get("lateral_recovery", {}))
+
+
+def _speed_gate_active(config: Any, info: dict[str, Any]) -> bool:
+    if bool(info.get("lateral_recovery_speed_gate_active", False)):
+        return True
+    lateral_recovery = _lateral_recovery_config(config)
+    if not bool(lateral_recovery.get("speed_gate_enabled", False)):
+        return False
+    if bool(lateral_recovery.get("speed_gate_branch_only", False)) and not bool(
+        info.get("lateral_recovery_branch_active", False)
+    ):
+        return False
+    curve_threshold = float(lateral_recovery.get("speed_gate_curve_threshold", 0.0))
+    curve_ok = abs(float(info.get("curve_proxy", 0.0))) >= curve_threshold
+    lane_ok = abs(float(info.get("lane_offset", 0.0))) >= float(
+        lateral_recovery.get("speed_gate_lane_offset_threshold_m", 0.0)
+    )
+    heading_ok = abs(float(info.get("heading_error", 0.0))) >= float(
+        lateral_recovery.get("speed_gate_heading_error_threshold_deg", 0.0)
+    )
+    speed_ok = _speed_kmh(info) >= float(lateral_recovery.get("speed_gate_min_speed_kmh", 0.0))
+    return bool(curve_ok and (lane_ok or heading_ok) and speed_ok)
 
 
 def _corrective_sign_aligned(info: dict[str, Any], raw_action: np.ndarray, corrected_steer: float) -> bool:
@@ -158,10 +185,9 @@ def _target_speed_to_longitudinal(config: Any, target_speed_kmh: float) -> float
 
 
 def _speed_gate_longitudinal_target(config: Any, info: dict[str, Any], fallback: float) -> tuple[float, bool]:
-    if not bool(info.get("lateral_recovery_speed_gate_active", False)):
+    if not _speed_gate_active(config, info):
         return float(fallback), False
-    env_raw = dict(getattr(config, "raw", {}).get("env", {}))
-    lateral_recovery = dict(env_raw.get("lateral_recovery", {}))
+    lateral_recovery = _lateral_recovery_config(config)
     if "speed_gate_target_speed_kmh" not in lateral_recovery:
         return float(fallback), False
     return _target_speed_to_longitudinal(config, float(lateral_recovery["speed_gate_target_speed_kmh"])), True
@@ -272,7 +298,7 @@ def main() -> int:
             attempted += 1
             info = dict(step_result.get("info", {}))
             last_info = info
-            if _should_accept(info, args):
+            if _should_accept(config, info, args):
                 policy_action = dict(info.get("policy_action", {}))
                 corrected_steer = float(info.get("lateral_recovery_corrected_steer", policy_action.get("steer", env_action[0])))
                 if not bool(args.require_corrective_sign_aligned) or _corrective_sign_aligned(
@@ -384,7 +410,10 @@ def main() -> int:
                             "lateral_recovery_turn_boost_active",
                             "lateral_recovery_speed_gate_active",
                         }:
-                            _append(arrays, key, bool(info.get(key, False)))
+                            if key == "lateral_recovery_speed_gate_active":
+                                _append(arrays, key, _speed_gate_active(config, info))
+                            else:
+                                _append(arrays, key, bool(info.get(key, False)))
                         else:
                             _append(arrays, key, float(info.get(key, 0.0)))
                     arrays["source_dataset"].append(str(output_path))
