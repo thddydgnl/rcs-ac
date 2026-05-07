@@ -2,9 +2,9 @@
 
 ## Status
 
-Candidate only. This checkpoint passed the first single-start 512/2048 clean
-gate, but it is not yet the final PPO clean matched-r7j baseline because the
-primary 9-start multistart, generalization, and hidden gates have not run.
+Primary clean candidate. This checkpoint passed primary 512 and primary 2048
+9-start clean multistart gates. It is not yet the final paper-ready PPO clean
+matched-r7j baseline because the generalization and hidden gates have not run.
 
 ## Candidate
 
@@ -70,32 +70,61 @@ The combined 512/2048 jitter analysis is in
 | policy_waypoint_y_jitter | 0.0419311782 | <= 0.080 |
 | mean_speed_kmh | 13.5839716900 | 13.5-15.0 |
 
+## Primary Multistart Clean Eval
+
+Primary start set:
+
+```text
+seed 7, spawn indices 22, 160, 161, 162, 176, 192, 193, 232, 234
+```
+
+| Gate | Safety | Route progress | Speed | Jitter |
+| --- | --- | --- | --- | --- |
+| Primary 512 | 9/9 pass, collision/offroad/stuck 0 | avg 0.8205128205, min 0.8205128205 | avg 13.5316192179 | steer 0.0096486062, raw 0.0186091452 |
+| Primary 2048 | 9/9 pass, collision/offroad/stuck 0 | avg 1.0, 9/9 goal | avg 13.6367680177 | steer 0.0083660715, raw 0.0173332023 |
+
+Validity/fallback was clean across all primary runs:
+
+```text
+obs_finite_rate=1.0
+waypoint_valid_rate=1.0
+path_valid_rate=1.0
+used_synthetic_fallback_rate=0.0
+used_route_fallback_rate=0.0
+CARLA crash/timeout=0
+```
+
+Primary evidence files:
+
+```text
+PPO/results/candidate_summaries/ppo_matched_r7j_imitation_teacher_20260507/primary_512
+PPO/results/candidate_summaries/ppo_matched_r7j_imitation_teacher_20260507/primary_2048
+```
+
 ## RCS-AC r7j Comparison
 
 | Metric | RCS-AC r7j reference | PPO candidate |
 | --- | ---: | ---: |
-| Primary 512 safety | 9/9 | single-start PASS |
+| Primary 512 safety | 9/9 | 9/9 |
 | Primary 512 avg max_route_progress | 0.840456 | 0.820513 |
 | Primary 512 min max_route_progress | 0.794872 | 0.820513 |
-| Primary 2048 safety | 9/9 | single-start PASS |
+| Primary 2048 safety | 9/9 | 9/9 |
 | Primary 2048 avg max_route_progress | 1.0 | 1.0 |
-| Primary 2048 route goal | 9/9 | single-start goal |
+| Primary 2048 route goal | 9/9 | 9/9 |
 | Mean speed | 13.74-14.07 | 13.53-13.64 |
 | steer_jitter | 0.019-0.020 | 0.008-0.010 |
 
-The PPO candidate is close enough on the first start to justify primary
-multistart testing. It is not yet a paper-ready clean baseline.
+The PPO candidate now matches the primary clean safety/progress gate. It is not
+yet a paper-ready clean baseline because the generalization and hidden gates are
+still pending.
 
 ## Next Gates
 
-1. Build or reuse a PPO-only multistart runner that writes results under
-   `PPO/results`.
-2. Run primary 512 9-start clean gate.
-3. If 9/9 safety passes, run primary 2048 9-start clean gate.
-4. Only after primary gates pass, run generalization 512, hidden 512, and
-   generalization 2048 subset gates.
-5. Write the final PPO clean matched-r7j baseline manifest only after these
-   gates pass.
+1. Run generalization 512 36-start clean gate.
+2. If 36/36 safety passes, run hidden 512 18-start clean gate.
+3. Run generalization 2048 subset gate.
+4. Only after these pass, write the final PPO clean matched-r7j baseline
+   manifest.
 
 ## Notes For Paper Wording
 
