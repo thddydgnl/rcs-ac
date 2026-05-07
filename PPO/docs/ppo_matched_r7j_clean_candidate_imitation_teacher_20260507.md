@@ -2,9 +2,9 @@
 
 ## Status
 
-Primary clean candidate. This checkpoint passed primary 512 and primary 2048
-9-start clean multistart gates. It is not yet the final paper-ready PPO clean
-matched-r7j baseline because the generalization and hidden gates have not run.
+Clean matched-r7j baseline candidate. This checkpoint passed primary 512,
+primary 2048, generalization 512, hidden 512, and generalization 2048 subset
+clean gates under the PPO matched-r7j contract.
 
 ## Candidate
 
@@ -130,6 +130,78 @@ Evidence:
 PPO/results/candidate_summaries/ppo_matched_r7j_imitation_teacher_20260507/hidden_quick_512_seed2
 ```
 
+## Hidden Full Gate
+
+Hidden full set:
+
+```text
+seed 2, spawn indices 24, 163, 177, 190, 230, 364
+seed 5, spawn indices 151, 174, 191, 233, 366, 369
+seed 9, spawn indices 20, 23, 164, 178, 231, 370
+```
+
+| Gate | Safety | Route progress | Speed | Jitter |
+| --- | --- | --- | --- | --- |
+| Hidden 512 full | 18/18 pass, collision/offroad/stuck 0 | avg 0.8205128205, min 0.8205128205 | avg 13.5332448681 | steer 0.0096917216, raw 0.0185869402 |
+
+Validity/fallback was clean across all hidden full runs:
+
+```text
+obs_finite_rate=1.0
+waypoint_valid_rate=1.0
+path_valid_rate=1.0
+used_synthetic_fallback_rate=0.0
+used_route_fallback_rate=0.0
+CARLA crash/timeout=0
+```
+
+Evidence:
+
+```text
+PPO/results/candidate_summaries/ppo_matched_r7j_imitation_teacher_20260507/hidden_512_full
+```
+
+## Generalization Gates
+
+Generalization 512 set:
+
+```text
+seed 1, spawn indices 23, 24, 151, 163, 164, 174, 175, 177, 178, 190, 191, 194
+seed 3, spawn indices 230, 231, 233, 363, 364, 365, 366, 367, 368, 369, 370, 20
+seed 8, spawn indices 1, 9, 21, 23, 151, 164, 175, 178, 191, 194, 231, 365
+```
+
+Generalization 2048 subset:
+
+```text
+seed 1, spawn indices 174, 23
+seed 3, spawn indices 368, 230
+seed 8, spawn indices 1, 365
+```
+
+| Gate | Safety | Route progress | Speed | Jitter |
+| --- | --- | --- | --- | --- |
+| Generalization 512 | 36/36 pass, collision/offroad/stuck 0 | avg 0.8205128205, min 0.8205128205 | avg 13.5308524831 | steer 0.0097225591, raw 0.0186434548 |
+| Generalization 2048 subset | 6/6 pass, collision/offroad/stuck 0 | avg 1.0, 6/6 goal | avg 13.6321007498 | steer 0.0084267295, raw 0.0167460605 |
+
+Validity/fallback was clean across all generalization runs:
+
+```text
+obs_finite_rate=1.0
+waypoint_valid_rate=1.0
+path_valid_rate=1.0
+used_synthetic_fallback_rate=0.0
+used_route_fallback_rate=0.0
+CARLA crash/timeout=0
+```
+
+Evidence:
+
+```text
+PPO/results/candidate_summaries/ppo_matched_r7j_imitation_teacher_20260507/generalization_512
+PPO/results/candidate_summaries/ppo_matched_r7j_imitation_teacher_20260507/generalization_2048_subset
+```
+
 ## RCS-AC r7j Comparison
 
 | Metric | RCS-AC r7j reference | PPO candidate |
@@ -142,19 +214,21 @@ PPO/results/candidate_summaries/ppo_matched_r7j_imitation_teacher_20260507/hidde
 | Primary 2048 route goal | 9/9 | 9/9 |
 | Mean speed | 13.74-14.07 | 13.53-13.64 |
 | steer_jitter | 0.019-0.020 | 0.008-0.010 |
+| Hidden 512 safety | 18/18 | 18/18 |
+| Generalization 512 safety | 36/36 | 36/36 |
+| Generalization 2048 subset safety | 6/6 | 6/6 |
+| Generalization 2048 subset route goal | 6/6 | 6/6 |
 
-The PPO candidate now matches the primary clean safety/progress gate. It is not
-yet a paper-ready clean baseline because the generalization and hidden gates are
-still pending.
+The PPO candidate now matches the clean safety/progress gates needed for the
+matched baseline. It is slower than RCS-AC r7j, but it stays inside the
+13.5-15.0 km/h paper-comparison band and keeps lower measured steering jitter.
 
 ## Next Gates
 
-1. Run generalization 512 36-start clean gate.
-2. Run hidden 512 full gate seed5 and seed9 groups. Seed2 quick group has
-   already passed and can be reused unless the checkpoint/contract changes.
-3. Run generalization 2048 subset gate.
-4. Only after these pass, write the final PPO clean matched-r7j baseline
-   manifest.
+1. Use this checkpoint as the PPO clean matched-r7j baseline for the next
+   robustness phase.
+2. Start weather, sensor-dropout, and sensor-noise comparison only with the
+   same matched runtime/controller/eval protocol.
 
 ## Notes For Paper Wording
 

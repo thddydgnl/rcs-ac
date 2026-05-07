@@ -114,12 +114,21 @@ performance under the matched contract, not identical algorithm internals.
 
 ## Pending Gates
 
-The next gates after the current candidate state are:
+The current candidate has completed all clean gates. The next phase is
+weather/corruption/sensor-dropout robustness comparison, unless the checkpoint,
+inference path, controller, action wrapper, runtime config, CARLA environment,
+reward, termination, or logging schema changes.
 
-1. Hidden 512 quick gate: seed2, spawn indices 24, 163, 177, 190, 230, 364.
-2. Hidden 512 full gate: seed2/seed5/seed9, total 18 starts.
-3. Generalization 2048 subset: 6 starts.
-4. Final PPO clean matched-r7j baseline manifest.
+Completed gates that can be reused unless the checkpoint, inference path,
+controller, action wrapper, runtime config, CARLA environment, reward,
+termination, or logging schema changes:
+
+```text
+primary 512 9/9 safety pass
+primary 2048 9/9 safety pass and route goal
+generalization 512 36/36 safety pass
+hidden 512 18/18 safety pass
+```
 
 ## Completion Criteria
 
@@ -139,4 +148,5 @@ results stored under PPO only
 git commit/push complete
 ```
 
-If hidden/generalization 2048 is pending, the checkpoint is a strong clean candidate but not a final paper-ready baseline.
+The final baseline manifest is
+`PPO/docs/ppo_clean_matched_r7j_baseline_manifest_20260507.md`.
