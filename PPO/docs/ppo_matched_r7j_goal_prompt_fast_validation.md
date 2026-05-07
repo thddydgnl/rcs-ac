@@ -42,6 +42,22 @@ CARLA/shared env behavior
 eval logging schema
 ```
 
+This is the default execution policy. The purpose is not to give PPO any easier
+condition than RCS-AC r7j, but to avoid rerunning evidence that is already valid
+under the unchanged matched-r7j contract.
+
+Current clean evidence must be treated as reusable unless invalidated:
+
+```text
+primary 512: 9/9 safety pass
+primary 2048: 9/9 safety pass, 9/9 route goal
+generalization 512: 36/36 safety pass
+```
+
+Therefore, after this point, do not restart from primary gates unless the
+checkpoint, inference path, controller/action wrapper, runtime config, CARLA env
+behavior, or logging schema changed.
+
 ## Reduced Round Workflow
 
 When the user says `/goal 진행` or asks to continue stabilization:
@@ -49,11 +65,12 @@ When the user says `/goal 진행` or asks to continue stabilization:
 1. Check current process state and stop stale Windows eval/train processes before starting new runs.
 2. Confirm the latest completed gate from PPO docs/results.
 3. Prefer the next pending gate, not a full rerun.
-4. Use quick gates before full gates:
+4. If a quick gate fails, stop and analyze that failed start only. Do not run the full gate.
+5. Use quick gates before full gates:
    - hidden quick: seed2 6-start only
    - if pass, hidden full: seed2 + seed5 + seed9, 18-start
    - if pass, generalization 2048 subset: 6-start
-5. Use full expensive gates only for final candidate confirmation.
+6. Use full expensive gates only for final candidate confirmation.
 
 ## CARLA Time Saving
 
@@ -70,6 +87,30 @@ For full final gates:
 ```
 
 If CARLA crash/timeout occurs, record it separately from model failure, restart CARLA, and rerun only the failed start or failed seed group.
+
+If a model driving failure occurs, do not hide it by deleting the start or
+changing the start set. Record the exact seed/spawn/run directory and analyze
+the local step log before changing training or evaluation settings.
+
+## RCS-AC r7j Equivalence Meaning
+
+The goal is not to make PPO use RCS-AC-specific modules. The goal is to make PPO
+reach RCS-AC r7j-level clean driving under the same sensor/action/controller/eval
+conditions:
+
+```text
+same CARLA/Town04/clean weather/fixed-delta conditions
+same route/start/seed sets
+same sensor and observation preprocessing contract
+same waypoint+target_speed output contract
+same shared pure-pursuit direct_3d action path
+same reward/termination/eval/logging protocol
+no RCS-AC reliability/fusion/Shapley/risk module in PPO
+no PPO-only runtime steering override or privileged inference input
+```
+
+When this document says "same as RCS-AC r7j", it means comparable clean
+performance under the matched contract, not identical algorithm internals.
 
 ## Pending Gates
 
