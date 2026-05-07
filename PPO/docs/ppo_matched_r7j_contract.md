@@ -71,6 +71,32 @@ RCS-AC-v1.1/configs/v1_1/full_bev_smoke_shared_agile_midbalanced_route_geometry_
 | Multistart PowerShell wrapper | r7j already has a wrapper; PPO can get an equivalent wrapper after the first synthetic/import smoke passes. |
 | BC/imitation initialization for PPO | Fairness depends on comparing final protocols clearly. If PPO receives imitation pretraining, SAC and paper text must label it as imitation-initialized PPO. |
 
+## First Windows Smoke Result
+
+The first scratch PPO matched-r7j smoke confirmed the runtime contract but did
+not meet clean safety:
+
+```text
+train config: PPO/configs/matched_r7j/ppo_matched_r7j_train_seed7.yaml
+train steps: 2048
+eval: PPO/results/windows_eval/ppo_matched_r7j_seed7_train_eval512_20260507
+512 result: offroad_count=1, first_done_step=120, max_route_progress=0.153846
+validity: obs_finite_rate=1.0, waypoint_valid_rate=1.0, path_valid_rate=1.0,
+          used_synthetic_fallback_rate=0.0, used_route_fallback_rate=0.0
+```
+
+Diagnosis: the scratch PPO policy produced nearly fixed small lateral waypoints
+and weak steering, so the failure is policy quality rather than a broken r7j
+contract. Because r7j itself is a frozen r6 imitation/BC checkpoint plus shared
+controller config, the next fair candidate is explicitly labeled:
+
+```text
+imitation-initialized PPO matched-r7j
+```
+
+using r6 teacher waypoint/target-speed distillation without adding RCS-AC
+reliability, source-level reliability fusion, Shapley, or risk-context modules.
+
 ## Paper Wording
 
 Use wording like:

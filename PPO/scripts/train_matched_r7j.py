@@ -18,6 +18,7 @@ for candidate in (REPO_ROOT, REPO_ROOT / "RCS-AC-v1.1" / "code"):
         sys.path.insert(0, str(candidate))
 
 from PPO.ppo_r7j.models import PPOMatchedR7JPolicy, PPOMatchedR7JPolicyConfig
+from rcs_ac_v1_1.models.bev_policy import load_v11_policy_state_dict_compatible
 from rcs_ac_v1_1.adapters.carla_observation_adapter import build_v11_flat_obs_from_carla_step
 from rcs_ac_v1_1.runtime.config import load_v11_runtime_config
 from rcs_ac_v1_1.scripts.evaluate_bev_pure_pursuit import (
@@ -60,6 +61,14 @@ def train_from_config(config_path: str | Path) -> dict[str, Any]:
         ),
     ).to(device)
     optimizer = torch.optim.AdamW(model.parameters(), lr=float(ppo_cfg.get("learning_rate", 3.0e-5)))
+    imitation_cfg = dict(cfg.get("imitation", {}))
+    teacher_model = _load_teacher_model(
+        runtime_config=runtime_config,
+        checkpoint_path=_cfg_path(cfg_path, imitation_cfg["teacher_checkpoint"]) if imitation_cfg.get("teacher_checkpoint") else None,
+        device=device,
+    )
+    imitation_loss_weight = float(imitation_cfg.get("loss_weight", 0.0))
+    imitation_speed_scale = float(imitation_cfg.get("target_speed_scale_kmh", 20.0))
 
     output_dir = Path(str(cfg.get("output_dir", "PPO/results/ppo_matched_r7j_train")))
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -112,6 +121,7 @@ def train_from_config(config_path: str | Path) -> dict[str, Any]:
                     "value_loss",
                     "entropy",
                     "approx_kl",
+                    "imitation_loss",
                 ],
             )
             writer.writeheader()
@@ -138,6 +148,9 @@ def train_from_config(config_path: str | Path) -> dict[str, Any]:
                     model=model,
                     optimizer=optimizer,
                     rollout=rollout,
+                    teacher_model=teacher_model,
+                    imitation_loss_weight=imitation_loss_weight,
+                    imitation_speed_scale=imitation_speed_scale,
                     update_epochs=update_epochs,
                     minibatch_size=minibatch_size,
                     clip_coef=clip_coef,
@@ -293,6 +306,9 @@ def _ppo_update(
     model: PPOMatchedR7JPolicy,
     optimizer: torch.optim.Optimizer,
     rollout: dict[str, Any],
+    teacher_model: torch.nn.Module | None,
+    imitation_loss_weight: float,
+    imitation_speed_scale: float,
     update_epochs: int,
     minibatch_size: int,
     clip_coef: float,
@@ -312,11 +328,13 @@ def _ppo_update(
     last_value_loss = torch.tensor(0.0, device=obs.device)
     last_entropy = torch.tensor(0.0, device=obs.device)
     last_kl = torch.tensor(0.0, device=obs.device)
+    last_imitation = torch.tensor(0.0, device=obs.device)
     for _ in range(int(update_epochs)):
         permutation = torch.randperm(count, device=obs.device)
         for start in range(0, count, int(minibatch_size)):
             idx = permutation[start : start + int(minibatch_size)]
             outputs = model.evaluate_raw_action(obs[idx], raw_actions[idx])
+            mean_outputs = model(obs[idx])
             new_log_probs = outputs["log_prob"].reshape(-1)
             entropy = outputs["entropy"].reshape(-1).mean()
             values = outputs["value"].reshape(-1)
@@ -326,7 +344,22 @@ def _ppo_update(
             clipped = -advantages[idx] * torch.clamp(ratio, 1.0 - clip_coef, 1.0 + clip_coef)
             policy_loss = torch.maximum(unclipped, clipped).mean()
             value_loss = 0.5 * torch.square(values - returns[idx]).mean()
-            loss = policy_loss + value_coef * value_loss - entropy_coef * entropy
+            imitation_loss = torch.tensor(0.0, device=obs.device)
+            if teacher_model is not None and float(imitation_loss_weight) > 0.0:
+                with torch.no_grad():
+                    teacher_outputs = teacher_model(obs[idx])
+                waypoint_loss = torch.nn.functional.smooth_l1_loss(
+                    mean_outputs["waypoints"],
+                    teacher_outputs["waypoints"].to(mean_outputs["waypoints"]),
+                    reduction="mean",
+                )
+                speed_loss = torch.nn.functional.smooth_l1_loss(
+                    mean_outputs["target_speed_kmh"] / float(imitation_speed_scale),
+                    teacher_outputs["target_speed_kmh"].to(mean_outputs["target_speed_kmh"]) / float(imitation_speed_scale),
+                    reduction="mean",
+                )
+                imitation_loss = waypoint_loss + speed_loss
+            loss = policy_loss + value_coef * value_loss - entropy_coef * entropy + float(imitation_loss_weight) * imitation_loss
             optimizer.zero_grad(set_to_none=True)
             loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=max_grad_norm)
@@ -335,12 +368,32 @@ def _ppo_update(
             last_value_loss = value_loss.detach()
             last_entropy = entropy.detach()
             last_kl = ((ratio - 1.0) - log_ratio).mean().detach()
+            last_imitation = imitation_loss.detach()
     return {
         "policy_loss": float(last_policy_loss.cpu()),
         "value_loss": float(last_value_loss.cpu()),
         "entropy": float(last_entropy.cpu()),
         "approx_kl": float(last_kl.cpu()),
+        "imitation_loss": float(last_imitation.cpu()),
     }
+
+
+def _load_teacher_model(
+    *,
+    runtime_config: Any,
+    checkpoint_path: Path | None,
+    device: torch.device,
+) -> torch.nn.Module | None:
+    if checkpoint_path is None:
+        return None
+    teacher = runtime_config.build_policy().to(device)
+    checkpoint = torch.load(checkpoint_path, map_location=device)
+    state = checkpoint.get("model_state_dict", checkpoint)
+    load_v11_policy_state_dict_compatible(teacher, state)
+    teacher.eval()
+    for param in teacher.parameters():
+        param.requires_grad = False
+    return teacher
 
 
 def _save_checkpoint(
