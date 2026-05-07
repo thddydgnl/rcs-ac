@@ -66,15 +66,13 @@ def parse_args() -> argparse.Namespace:
 def synthetic_eval_step(config_path: str | Path, checkpoint_path: str | Path | None = None, device: str = "cpu") -> dict[str, Any]:
     runtime_config = load_v11_runtime_config(config_path)
     torch_device = _resolve_device(device)
+    checkpoint = _read_checkpoint(checkpoint_path, torch_device) if checkpoint_path is not None else None
     model = PPOMatchedR7JPolicy(
         runtime_config,
-        PPOMatchedR7JPolicyConfig(
-            feature_dim=int(runtime_config.policy_config.feature_dim),
-            log_std_init=-1.5,
-        ),
+        _policy_config_from_checkpoint(runtime_config, checkpoint, fallback_log_std_init=-1.5),
     ).to(torch_device)
-    if checkpoint_path is not None:
-        _load_checkpoint(model, checkpoint_path, torch_device)
+    if checkpoint is not None:
+        _load_checkpoint(model, checkpoint)
     model.eval()
     obs = {
         "rgb": np.zeros(runtime_config.observation_spec.modal("rgb").shape, dtype=np.float32),
@@ -111,15 +109,13 @@ def run_carla_eval(args: argparse.Namespace) -> dict[str, Any]:
         raise ValueError("--mode carla requires --env-config")
     runtime_config = load_v11_runtime_config(args.config)
     device = _resolve_device(args.device)
+    checkpoint = _read_checkpoint(args.checkpoint, device) if args.checkpoint else None
     model = PPOMatchedR7JPolicy(
         runtime_config,
-        PPOMatchedR7JPolicyConfig(
-            feature_dim=int(runtime_config.policy_config.feature_dim),
-            log_std_init=float(args.log_std_init),
-        ),
+        _policy_config_from_checkpoint(runtime_config, checkpoint, fallback_log_std_init=float(args.log_std_init)),
     ).to(device)
-    if args.checkpoint:
-        _load_checkpoint(model, args.checkpoint, device)
+    if checkpoint is not None:
+        _load_checkpoint(model, checkpoint)
     elif not args.allow_random_policy_smoke:
         raise ValueError("--mode carla requires --checkpoint unless --allow-random-policy-smoke is set")
     model.eval()
@@ -225,8 +221,33 @@ def run_carla_eval(args: argparse.Namespace) -> dict[str, Any]:
     return summary
 
 
-def _load_checkpoint(model: torch.nn.Module, checkpoint_path: str | Path, device: torch.device) -> None:
+def _read_checkpoint(checkpoint_path: str | Path, device: torch.device) -> dict[str, Any]:
     checkpoint = torch.load(checkpoint_path, map_location=device)
+    if not isinstance(checkpoint, dict):
+        raise RuntimeError(f"unsupported PPO matched-r7j checkpoint type: {type(checkpoint).__name__}")
+    return checkpoint
+
+
+def _policy_config_from_checkpoint(
+    runtime_config: Any,
+    checkpoint: dict[str, Any] | None,
+    *,
+    fallback_log_std_init: float,
+) -> PPOMatchedR7JPolicyConfig:
+    checkpoint_cfg = checkpoint.get("config", {}) if checkpoint is not None else {}
+    model_cfg = checkpoint_cfg.get("model", {}) if isinstance(checkpoint_cfg, dict) else {}
+    if not isinstance(model_cfg, dict):
+        model_cfg = {}
+    return PPOMatchedR7JPolicyConfig(
+        feature_dim=int(model_cfg.get("feature_dim", runtime_config.policy_config.feature_dim)),
+        hidden_dim=int(model_cfg.get("hidden_dim", 256)),
+        log_std_init=float(model_cfg.get("log_std_init", fallback_log_std_init)),
+        min_log_std=float(model_cfg.get("min_log_std", -4.0)),
+        max_log_std=float(model_cfg.get("max_log_std", 0.0)),
+    )
+
+
+def _load_checkpoint(model: torch.nn.Module, checkpoint: dict[str, Any]) -> None:
     state = checkpoint.get("model_state_dict", checkpoint)
     model.load_state_dict(state, strict=True)
 
