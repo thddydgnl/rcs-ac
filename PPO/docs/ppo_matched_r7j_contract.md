@@ -97,6 +97,27 @@ imitation-initialized PPO matched-r7j
 using r6 teacher waypoint/target-speed distillation without adding RCS-AC
 reliability, source-level reliability fusion, Shapley, or risk-context modules.
 
+## Imitation-Initialized Candidate Result
+
+The first imitation-initialized PPO matched-r7j candidate passed the single-start
+512/2048 clean gate:
+
+```text
+train config: PPO/configs/matched_r7j/ppo_matched_r7j_train_seed7_imitation_teacher.yaml
+checkpoint: PPO/results/windows_pullback/ppo_matched_r7j_seed7_imitation_teacher_train/last.pt
+512: collision=0, offroad=0, stuck=0, max_route_progress=0.8205128205
+2048: collision=0, offroad=0, stuck=0, max_route_progress=1.0, goal_step=619
+validity: obs_finite_rate=1.0, waypoint_valid_rate=1.0, path_valid_rate=1.0,
+          used_synthetic_fallback_rate=0.0, used_route_fallback_rate=0.0
+jitter avg: steer=0.009018, raw_steer=0.017699,
+            controller_target_y=0.051281, policy_waypoint_y=0.041931
+```
+
+This is still a candidate, not the final paper baseline. The next required gate
+is primary 9-start multistart 512/2048 under the same matched-r7j contract.
+Detailed notes are in
+`PPO/docs/ppo_matched_r7j_clean_candidate_imitation_teacher_20260507.md`.
+
 ## Paper Wording
 
 Use wording like:
