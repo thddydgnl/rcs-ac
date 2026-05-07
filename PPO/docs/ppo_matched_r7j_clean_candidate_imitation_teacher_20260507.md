@@ -101,6 +101,35 @@ PPO/results/candidate_summaries/ppo_matched_r7j_imitation_teacher_20260507/prima
 PPO/results/candidate_summaries/ppo_matched_r7j_imitation_teacher_20260507/primary_2048
 ```
 
+## Hidden Quick Gate
+
+Hidden quick seed2 set:
+
+```text
+seed 2, spawn indices 24, 163, 177, 190, 230, 364
+```
+
+| Gate | Safety | Route progress | Speed | Jitter |
+| --- | --- | --- | --- | --- |
+| Hidden quick 512 | 6/6 pass, collision/offroad/stuck 0 | avg 0.8205128205, min 0.8205128205 | avg 13.5333655915 | steer 0.0094685034, raw 0.0182670101 |
+
+Validity/fallback was clean across all hidden quick runs:
+
+```text
+obs_finite_rate=1.0
+waypoint_valid_rate=1.0
+path_valid_rate=1.0
+used_synthetic_fallback_rate=0.0
+used_route_fallback_rate=0.0
+CARLA crash/timeout=0
+```
+
+Evidence:
+
+```text
+PPO/results/candidate_summaries/ppo_matched_r7j_imitation_teacher_20260507/hidden_quick_512_seed2
+```
+
 ## RCS-AC r7j Comparison
 
 | Metric | RCS-AC r7j reference | PPO candidate |
@@ -121,7 +150,8 @@ still pending.
 ## Next Gates
 
 1. Run generalization 512 36-start clean gate.
-2. If 36/36 safety passes, run hidden 512 18-start clean gate.
+2. Run hidden 512 full gate seed5 and seed9 groups. Seed2 quick group has
+   already passed and can be reused unless the checkpoint/contract changes.
 3. Run generalization 2048 subset gate.
 4. Only after these pass, write the final PPO clean matched-r7j baseline
    manifest.
