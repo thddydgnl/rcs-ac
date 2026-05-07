@@ -1,0 +1,20 @@
+baseline_family: ppo_matched_r7j
+run_name: ppo_matched_r7j_seed7_eval_512
+seed: 7
+steps: 512
+device: auto
+host: 127.0.0.1
+port: 2000
+dt: 0.05
+fixed_delta_seconds: 0.05
+action_format: direct_3d
+
+runtime_config: RCS-AC-v1.1/configs/v1_1/full_bev_smoke_shared_agile_midbalanced_route_geometry_cc4_r7j_target_y_lowpass_light.yaml
+env_config: RCS-AC-v1.1/portable_snapshots/r7j_generalized_20260507/configs/v1_1/bc_clean_v1_1_2048_eval.yaml
+checkpoint: PPO/results/ppo_matched_r7j_seed7_train/last.pt
+output_dir: PPO/results/ppo_matched_r7j_seed7_eval_512
+
+logging_schema:
+  step_log: v1_1_eval_steps.csv
+  summary: summary.json
+  analyzer: RCS-AC-v1.1/code/rcs_ac_v1_1/scripts/analyze_eval_jitter.py
