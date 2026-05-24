@@ -110,7 +110,11 @@ dominant action fraction 0.85 이하, action_id=8 fraction 0.05 이하일 때만
 probe_stage2_candidate_cross_replays.ps1는 후보 checkpoint를 primary replay와
 secondary replay 양쪽에서 action probe + latent probe로 교차 검증한다.
 target-24 후보는 target-24 replay만 통과했다고 512 clean으로 보내지 말고,
-기존 steer2 replay에서도 collapse하지 않는지 이 wrapper로 확인한다.
+기존 steer2 replay에서도 collapse하지 않는지 이 wrapper로 확인한다. probe가
+끝나면 `stage2_candidate_cross_replay_gate.json`을 만들고, 모든 replay에서
+action probe `recommended_for_clean_rerun=true` 및 latent probe 기준
+`linear_probe_test_accuracy >= 0.80`, majority 대비 margin `>= 0.15`를
+만족할 때만 512 clean 후보로 본다.
 run_stage2_target24_candidate_cycle.ps1는 target-24 후보 재개용 orchestration
 script이며, `-CandidateName`/`-PrimaryReplayName`을 바꿔 target-22 후보에도
 재사용할 수 있다. 먼저 기존 OutputDir을 check_stage2_replay_training_detached.ps1로

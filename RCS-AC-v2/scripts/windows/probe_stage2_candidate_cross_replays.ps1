@@ -15,6 +15,8 @@ param(
     [double]$MaxDominantActionFraction = 0.85,
     [double]$MaxPreviousStuckAction8Fraction = 0.05,
     [int]$LatentProbeTrainSteps = 400,
+    [double]$MinLatentAccuracyMargin = 0.15,
+    [double]$MinLatentTestAccuracy = 0.80,
     [string]$Device = "cpu"
 )
 
@@ -105,3 +107,18 @@ if ($SecondaryReplayManifestPath -ne "") {
 }
 
 Write-Host "STAGE2_CANDIDATE_CROSS_REPLAY_PROBES_COMPLETE=True"
+
+$GatePath = Join-Path $OutputDir "stage2_candidate_cross_replay_gate.json"
+$GateArgs = @(
+    "-3.12", "-B", "-m", "rcs_ac_v2.evaluation.candidate_cross_replay_gate",
+    "--output-dir", $OutputDir,
+    "--replay-name", $PrimaryReplayName,
+    "--min-latent-accuracy-margin", $MinLatentAccuracyMargin,
+    "--min-latent-test-accuracy", $MinLatentTestAccuracy,
+    "--output", $GatePath
+)
+if ($SecondaryReplayManifestPath -ne "") {
+    $GateArgs += @("--replay-name", $SecondaryReplayName)
+}
+& py @GateArgs
+exit $LASTEXITCODE

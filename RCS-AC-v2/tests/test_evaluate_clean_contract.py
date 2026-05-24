@@ -513,6 +513,10 @@ def test_cross_replay_candidate_probe_runner_static_contract() -> None:
     assert "$SecondaryReplayName" in text
     assert "-MaxNonzeroSteerFraction" in text
     assert "$LatentProbeTrainSteps" in text
+    assert "rcs_ac_v2.evaluation.candidate_cross_replay_gate" in text
+    assert "stage2_candidate_cross_replay_gate.json" in text
+    assert "--min-latent-accuracy-margin" in text
+    assert "--min-latent-test-accuracy" in text
 
 
 def test_target24_candidate_cycle_runner_static_contract() -> None:

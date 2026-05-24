@@ -14,6 +14,7 @@ from rcs_ac_v2.evaluation.checkpoint_action_probe import (
     build_checkpoint_filled_config,
     probe_checkpoint_actions,
 )
+from rcs_ac_v2.evaluation.candidate_cross_replay_gate import evaluate_candidate_cross_replay_gate
 from rcs_ac_v2.env.discrete_actions import get_discrete_action
 from rcs_ac_v2.evaluation.privileged_observation import (
     EGO8_SCHEMA_VERSION,
@@ -86,6 +87,60 @@ def test_privileged_replay_sampler_can_prioritize_steering_sequences(tmp_path) -
     assert stats["priority_window_count"] == 4
     assert stats["priority_window_fraction"] == pytest.approx(4 / 17)
     assert stats["effective_priority_sample_fraction"] == 1.0
+
+
+def test_candidate_cross_replay_gate_requires_action_and_latent_margins(tmp_path) -> None:
+    for replay_name in ("target24", "steer2"):
+        replay_dir = tmp_path / replay_name
+        replay_dir.mkdir()
+        (replay_dir / "stage2_checkpoint_action_probe.json").write_text(
+            json.dumps(
+                {
+                    "recommended_for_clean_rerun": True,
+                    "action_counts": {"7": 8, "10": 4},
+                    "moving_steer_fraction": 0.1,
+                    "dominant_action_fraction": 0.66,
+                    "nonzero_throttle_fraction": 1.0,
+                    "reverse_action_count": 0,
+                }
+            )
+        )
+        (replay_dir / "stage2_replay_latent_probe.json").write_text(
+            json.dumps(
+                {
+                    "majority_action_fraction": 0.68,
+                    "linear_probe_train_accuracy": 0.93,
+                    "linear_probe_test_accuracy": 0.91,
+                }
+            )
+        )
+
+    result = evaluate_candidate_cross_replay_gate(
+        output_dir=tmp_path,
+        replay_names=["target24", "steer2"],
+        output_path=tmp_path / "stage2_candidate_cross_replay_gate.json",
+    )
+
+    assert result["ready_for_clean_eval"] is True
+    assert result["clean_gate_evidence"] is False
+    assert result["replays"]["target24"]["latent_probe"]["accuracy_margin_over_majority"] == pytest.approx(0.23)
+    assert (tmp_path / "stage2_candidate_cross_replay_gate.json").exists()
+
+
+def test_candidate_cross_replay_gate_rejects_weak_latent_probe(tmp_path) -> None:
+    replay_dir = tmp_path / "target24"
+    replay_dir.mkdir()
+    (replay_dir / "stage2_checkpoint_action_probe.json").write_text(
+        json.dumps({"recommended_for_clean_rerun": True})
+    )
+    (replay_dir / "stage2_replay_latent_probe.json").write_text(
+        json.dumps({"majority_action_fraction": 0.68, "linear_probe_test_accuracy": 0.73})
+    )
+
+    result = evaluate_candidate_cross_replay_gate(output_dir=tmp_path, replay_names=["target24"])
+
+    assert result["ready_for_clean_eval"] is False
+    assert "latent probe" in result["failures"][0]
 
 
 class _FakeCollectorEnv:
