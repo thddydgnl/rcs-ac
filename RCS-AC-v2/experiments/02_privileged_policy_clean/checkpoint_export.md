@@ -126,6 +126,16 @@ stage2_privileged_policy_replay.pt
 stage2_privileged_replay_checkpoint_manifest.json
 ```
 
+Scratch verification:
+
+```text
+2026-05-24 Windows archive runtime at commit e1c9c86 collected 1 episode x 8 steps into replay/tiny_probe.
+Replay manifest source was windows_carla_privileged_replay and clean_gate_evidence=false.
+2-step replay training exported world_model/policy checkpoints plus sha256 manifest.
+Strict load_stage2_policy_runner accepted the replay-source checkpoints.
+This was path validation only, not clean-performance evidence.
+```
+
 Do not claim PASS from synthetic smoke checkpoints. PASS requires the Windows
 CARLA clean gate summary and metrics to validate with `source=windows_carla`,
 `steps=horizon`, `done_reason=horizon_reached`, zero safety violations,

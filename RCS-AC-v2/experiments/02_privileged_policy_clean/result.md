@@ -334,7 +334,7 @@ privileged provenance: source=carla_simulator_state, schema=carla_simulator_sema
 privileged tensors: BEV [1,1,43,16,16] finite, ego [1,1,8] finite, neutral step collision/offroad/stuck false
 replay checkpoint path: replay IO/sampler, fake collector test, two-step replay training export, and strict checkpoint loader all pass locally
 checkpoint provenance gate: local_synthetic_smoke_not_carla checkpoints are rejected by the official clean config
-Windows replay path import: commit e1c9c86 archive dependency probe passed and replay modules imported under Windows Python 3.12
+Windows replay path scratch: commit e1c9c86 archive dependency probe passed, replay modules imported under Windows Python 3.12, 1x8-step privileged replay collection produced source=windows_carla_privileged_replay manifest, 2-step replay training produced world_model/policy sha256 manifest, and strict checkpoint loader accepted the replay-source checkpoints
 ```
 
 ## Blockers
