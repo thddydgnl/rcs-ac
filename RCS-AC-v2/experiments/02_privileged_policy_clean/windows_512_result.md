@@ -360,3 +360,38 @@ clean eval only if the offline gates pass. The Windows peer disconnected during
 the first target-24 checkpoint training attempt, so checkpoint/probe status for
 this replay is still pending.
 ```
+
+## Target-24 Decision Log
+
+This log exists to prevent an offline probe result from being mistaken for
+clean performance. `stage2_candidate_cross_replay_gate.json` can only promote a
+candidate to "ready for 512 clean eval"; it is not a clean PASS.
+
+```text
+2026-05-24:
+  state: pending_windows_resume
+  replay: windows_privileged_7f87656_t24_failure_window
+  checkpoint_output_dir: windows_replay_7f87656_t24_aux1_balpow05_iw5
+  latest_pointer: windows_replay_7f87656_t24_aux1_balpow05_iw5.latest.json
+  clean_gate_evidence: false
+  next_command: run_stage2_target24_candidate_cycle.ps1 -StartIfMissing -ProbeWhenReady
+```
+
+Decision rules:
+
+```text
+if target-24 detached training is still running:
+  leave status as running and do not start target-22 yet
+
+if target-24 cross replay gate rejects:
+  record the action/latent probe paths and rejection reason here
+  then run target-22 with run_stage2_target_speed_replay_cycle.ps1
+
+if target-24 cross replay gate passes:
+  record ready_for_clean_eval=true here
+  run exactly one official 512 clean eval from the clean clone
+  classify the resulting windows_carla summary.json and metrics.csv
+
+only source=windows_carla, clean_gate_pass=true, 512/512 metrics rows,
+horizon_reached, and zero collision/offroad/stuck can close the clean gate
+```

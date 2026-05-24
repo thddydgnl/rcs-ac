@@ -11,6 +11,9 @@ __pycache__/
 .venv/
 venv/
 env/
+!RCS-AC-v2/code/rcs_ac_v2/env/
+!RCS-AC-v2/code/rcs_ac_v2/env/**
+RCS-AC-v2/code/rcs_ac_v2/env/__pycache__/
 
 # OS/editor noise
 .DS_Store
@@ -62,8 +65,89 @@ data/**/*.pth
 data/**/*.pkl
 data/**/*.jsonl
 
+# RCS-AC v1.1 generated experiment artifacts.
+# Keep source/config/docs/manifests in git; keep heavy generated outputs local
+# or in an external artifact archive.
+RCS-AC-v1.1/data/**/*.npz
+RCS-AC-v1.1/data/**/*.npy
+RCS-AC-v1.1/data/**/*.pt
+RCS-AC-v1.1/data/**/*.pth
+RCS-AC-v1.1/data/**/*.pkl
+RCS-AC-v1.1/data/**/*.jsonl
+RCS-AC-v1.1/results/**/bc_eval_log.csv
+RCS-AC-v1.1/results/**/env_step_log.csv
+RCS-AC-v1.1/results/**/logs.csv
+RCS-AC-v1.1/results/**/frames/
+RCS-AC-v1.1/results/**/rgb/
+RCS-AC-v1.1/results/**/videos/
+RCS-AC-v1.1/results/**/checkpoints/
+RCS-AC-v1.1/results/**/last.pt
+RCS-AC-v1.1/results/**/best.pt
+RCS-AC-v1.1/results/windows_pullback/**/bc_eval_log.csv
+RCS-AC-v1.1/results/windows_pullback/**/env_step_log.csv
+RCS-AC-v1.1/results/windows_pullback/**/logs.csv
+RCS-AC-v1.1/results/windows_pullback/**/frames/
+RCS-AC-v1.1/results/windows_pullback/**/rgb/
+RCS-AC-v1.1/results/windows_pullback/**/videos/
+
+# RCS-AC v2 generated experiment artifacts.
+# Keep docs/configs/scripts/tests/small summaries in git. Keep CARLA frames,
+# replay buffers, checkpoints, and per-step streams local or in artifact storage.
+RCS-AC-v2/checkpoints/
+RCS-AC-v2/outputs/
+RCS-AC-v2/logs/**/*.log
+RCS-AC-v2/data/**/*.npz
+RCS-AC-v2/data/**/*.npy
+RCS-AC-v2/data/**/*.pt
+RCS-AC-v2/data/**/*.pth
+RCS-AC-v2/data/**/*.ckpt
+RCS-AC-v2/data/**/*.pkl
+RCS-AC-v2/data/**/*.jsonl
+RCS-AC-v2/experiments/**/*.npz
+RCS-AC-v2/experiments/**/*.npy
+RCS-AC-v2/experiments/**/*.pt
+RCS-AC-v2/experiments/**/*.pth
+RCS-AC-v2/experiments/**/*.ckpt
+RCS-AC-v2/experiments/**/*.jsonl
+RCS-AC-v2/experiments/**/checkpoints/
+RCS-AC-v2/experiments/**/frames/
+RCS-AC-v2/experiments/**/raw_frames/
+RCS-AC-v2/experiments/**/sensor_frames/
+RCS-AC-v2/experiments/**/rgb/
+RCS-AC-v2/experiments/**/videos/
+RCS-AC-v2/experiments/**/replay_buffers/
+RCS-AC-v2/experiments/**/env_step_log.csv
+RCS-AC-v2/experiments/**/logs.csv
+RCS-AC-v2/remote_runs/**/frames/
+RCS-AC-v2/remote_runs/**/raw_frames/
+RCS-AC-v2/remote_runs/**/sensor_frames/
+RCS-AC-v2/remote_runs/**/rgb/
+RCS-AC-v2/remote_runs/**/videos/
+RCS-AC-v2/remote_runs/**/checkpoints/
+
+# PPO generated experiment artifacts. Small docs/configs/scripts stay trackable;
+# model weights and raw per-step logs should live in artifact storage.
+PPO/results/**/*.pt
+PPO/results/**/*.pth
+PPO/results/**/*.npz
+PPO/results/**/*.npy
+PPO/results/**/bc_eval_log.csv
+PPO/results/**/env_step_log.csv
+PPO/results/**/logs.csv
+PPO/results/**/frames/
+PPO/results/**/rgb/
+PPO/results/**/videos/
+PPO/remote_runs/**/frames/
+PPO/remote_runs/**/rgb/
+PPO/remote_runs/**/videos/
+
 # Keep small hand-authored metadata/docs, but not huge raw captures.
 *.log
+
+# Local cleanup/archive folders. These are for disk management only and should
+# not be committed.
+_archive_local_not_git/
+_cleanup_snapshots/
 
 # Local secrets/config overrides
 .env

@@ -119,13 +119,45 @@ run_stage2_target24_candidate_cycle.ps1는 target-24 후보 재개용 orchestrat
 script이며, `-CandidateName`/`-PrimaryReplayName`을 바꿔 target-22 후보에도
 재사용할 수 있다. 먼저 기존 OutputDir을 check_stage2_replay_training_detached.ps1로
 검사하고, 준비되지 않았으면 fresh rerun OutputDir으로 detached training을
-시작한다. `-ProbeWhenReady`를 붙이면 TRAIN_READY_FOR_PROBE=True일 때
-cross replay probe까지 이어서 실행한다.
+시작한다. fresh rerun을 만든 경우 `${OutputDir}.latest.json`에 active
+OutputDir을 기록하고, 다음 재개 명령은 이 포인터를 먼저 읽는다. 따라서
+Windows/Tailscale 중단 후 같은 명령을 반복해도 이미 시작한 rerun manifest를
+우선 검사하고 불필요한 rerun 폴더 증식을 피한다. `-ProbeWhenReady`를 붙이면
+TRAIN_READY_FOR_PROBE=True일 때 cross replay probe까지 이어서 실행한다.
 run_stage2_target_speed_replay_cycle.ps1는 target speed별 replay 수집과
 candidate cycle을 한 번에 이어주는 wrapper다. 기본값은 target-22이며,
 replay manifest가 없으면 `-CollectIfMissing`일 때만 CARLA replay를 수집하고,
 그 뒤 `run_stage2_target24_candidate_cycle.ps1`로 detached training/cross probe
 단계를 넘긴다.
+
+Target-24 재개 명령:
+
+```powershell
+Set-Location C:\Users\thddy\Documents\code\RCS-AC-first-official-v2-7f87656
+git pull --ff-only
+
+powershell -ExecutionPolicy Bypass -File RCS-AC-v2\scripts\windows\run_stage2_target24_candidate_cycle.ps1 `
+  -ProjectRoot C:\Users\thddy\Documents\code\RCS-AC-first-official-v2-7f87656 `
+  -StartIfMissing `
+  -ProbeWhenReady
+```
+
+Target-24가 cross replay gate에서 reject되거나 여전히 512 후보로 불안정하면
+target-22를 다음 speed-timing 후보로 수집/학습/probe한다:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File RCS-AC-v2\scripts\windows\run_stage2_target_speed_replay_cycle.ps1 `
+  -ProjectRoot C:\Users\thddy\Documents\code\RCS-AC-first-official-v2-7f87656 `
+  -CandidateName target22 `
+  -TargetSpeedKmh 22 `
+  -CollectIfMissing `
+  -StartIfMissing `
+  -ProbeWhenReady
+```
+
+두 명령 모두 offline gate만 만든다. 512 clean eval은
+`stage2_candidate_cross_replay_gate.json`의 `ready_for_clean_eval=true`를 확인한
+뒤 별도 `run_stage2_clean_eval.ps1`로 실행한다.
 check_stage2_windows_dependencies.ps1는 CARLA 실행 전에 v2 code,
 shared_core, env config, readiness script 의존성을 검사한다.
 base config의 checkpoint path/sha256은 아직 null이므로 그대로 real mode를

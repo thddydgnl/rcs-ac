@@ -531,6 +531,9 @@ def test_target24_candidate_cycle_runner_static_contract() -> None:
     assert "CANDIDATE_TRAIN_READY_FOR_PROBE=True" in text
     assert "CANDIDATE_TRAIN_RUNNING=True" in text
     assert "CANDIDATE_RERUN_OUTPUT_DIR=$RerunOutputDir" in text
+    assert "CANDIDATE_LATEST_POINTER_PATH=$LatestPointerPath" in text
+    assert "CANDIDATE_USING_LATEST_OUTPUT_DIR=$OutputDir" in text
+    assert "CANDIDATE_LATEST_POINTER_UPDATED=True" in text
     assert "[switch]$StartIfMissing" in text
     assert "[switch]$ProbeWhenReady" in text
     assert '[string]$CandidateName = "target24"' in text

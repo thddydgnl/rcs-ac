@@ -39,6 +39,22 @@ if (-not $SkipGitPull) {
     git pull --ff-only
 }
 
+$RequestedOutputDir = $OutputDir
+$LatestPointerPath = "${RequestedOutputDir}.latest.json"
+if (Test-Path $LatestPointerPath) {
+    try {
+        $LatestPointer = Get-Content $LatestPointerPath -Raw | ConvertFrom-Json
+        if ($null -ne $LatestPointer.active_output_dir -and (Test-Path ([string]$LatestPointer.active_output_dir))) {
+            $OutputDir = [string]$LatestPointer.active_output_dir
+            Write-Host "CANDIDATE_LATEST_POINTER_PATH=$LatestPointerPath"
+            Write-Host "CANDIDATE_USING_LATEST_OUTPUT_DIR=$OutputDir"
+        }
+    }
+    catch {
+        Write-Host "CANDIDATE_LATEST_POINTER_PARSE_ERROR=$($_.Exception.Message)"
+    }
+}
+
 $CheckScript = Join-Path $ProjectRoot "RCS-AC-v2\scripts\windows\check_stage2_replay_training_detached.ps1"
 $StartScript = Join-Path $ProjectRoot "RCS-AC-v2\scripts\windows\start_stage2_replay_training_detached.ps1"
 $CrossProbeScript = Join-Path $ProjectRoot "RCS-AC-v2\scripts\windows\probe_stage2_candidate_cross_replays.ps1"
@@ -50,7 +66,9 @@ Write-Host "PROJECT_ROOT=$ProjectRoot"
 Write-Host "CONFIG_PATH=$ConfigPath"
 Write-Host "REPLAY_PATH=$ReplayPath"
 Write-Host "REPLAY_MANIFEST_PATH=$ReplayManifestPath"
+Write-Host "REQUESTED_OUTPUT_DIR=$RequestedOutputDir"
 Write-Host "OUTPUT_DIR=$OutputDir"
+Write-Host "CANDIDATE_LATEST_POINTER_PATH=$LatestPointerPath"
 Write-Host "CHECKPOINT_MANIFEST_PATH=$CheckpointManifestPath"
 Write-Host "TASK_NAME=$TaskName"
 
@@ -92,10 +110,26 @@ if (-not $StartIfMissing) {
 
 $RerunOutputDir = $OutputDir
 if (Test-Path $OutputDir) {
-    $RerunOutputDir = "${OutputDir}_rerun_$(Get-Date -Format yyyyMMddTHHmmss)"
+    $RerunOutputDir = "${RequestedOutputDir}_rerun_$(Get-Date -Format yyyyMMddTHHmmss)"
     Write-Host "CANDIDATE_EXISTING_OUTPUT_DIR_NOT_READY=$OutputDir"
     Write-Host "CANDIDATE_RERUN_OUTPUT_DIR=$RerunOutputDir"
 }
+$PointerParent = Split-Path -Parent $LatestPointerPath
+if ($PointerParent -ne "") {
+    New-Item -ItemType Directory -Force -Path $PointerParent | Out-Null
+}
+$LatestPointer = [ordered]@{
+    candidate_name = $CandidateName
+    primary_replay_name = $PrimaryReplayName
+    requested_output_dir = $RequestedOutputDir
+    active_output_dir = $RerunOutputDir
+    replay_manifest_path = $ReplayManifestPath
+    task_name = $TaskName
+    updated_at = (Get-Date -Format o)
+}
+$LatestPointer | ConvertTo-Json -Depth 4 | Set-Content -Path $LatestPointerPath
+Write-Host "CANDIDATE_LATEST_POINTER_UPDATED=True"
+Write-Host "CANDIDATE_LATEST_POINTER_ACTIVE_OUTPUT_DIR=$RerunOutputDir"
 
 powershell -ExecutionPolicy Bypass -File $StartScript `
     -ProjectRoot $ProjectRoot `
