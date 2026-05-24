@@ -57,20 +57,22 @@ if (-not (Test-Path $ReplayManifestPath)) {
         Write-Host "TARGET_SPEED_NEXT_ACTION=rerun with -CollectIfMissing"
         exit 2
     }
-    $CollectArgs = @{
-        ProjectRoot = $ProjectRoot
-        ConfigPath = $ConfigPath
-        OutputDir = $ReplayOutputDir
-        Episodes = $Episodes
-        MaxSteps = $MaxSteps
-        TargetSpeedKmh = $TargetSpeedKmh
-        SteerSign = $SteerSign
-        SkipGitPull = $true
-    }
+    $CollectArgs = @(
+        "-ExecutionPolicy", "Bypass",
+        "-File", $CollectScript,
+        "-ProjectRoot", $ProjectRoot,
+        "-ConfigPath", $ConfigPath,
+        "-OutputDir", $ReplayOutputDir,
+        "-Episodes", $Episodes,
+        "-MaxSteps", $MaxSteps,
+        "-TargetSpeedKmh", $TargetSpeedKmh,
+        "-SteerSign", $SteerSign,
+        "-SkipGitPull"
+    )
     if ($SkipCarlaReady) {
-        $CollectArgs.SkipCarlaReady = $true
+        $CollectArgs += "-SkipCarlaReady"
     }
-    powershell -ExecutionPolicy Bypass -File $CollectScript @CollectArgs
+    powershell @CollectArgs
     if ($LASTEXITCODE -ne 0) {
         exit $LASTEXITCODE
     }
@@ -82,24 +84,26 @@ if (-not (Test-Path $ReplayManifestPath)) {
 }
 Write-Host "TARGET_SPEED_REPLAY_MANIFEST_EXISTS=True"
 
-$CycleArgs = @{
-    ProjectRoot = $ProjectRoot
-    ConfigPath = $ConfigPath
-    ReplayPath = $ReplayOutputDir
-    ReplayManifestPath = $ReplayManifestPath
-    SecondaryReplayManifestPath = $SecondaryReplayManifestPath
-    OutputDir = $CheckpointOutputDir
-    CrossProbeOutputDir = $CrossProbeOutputDir
-    TaskName = $TaskName
-    CandidateName = $CandidateName
-    PrimaryReplayName = $CandidateName
-    SkipGitPull = $true
-}
+$CycleArgs = @(
+    "-ExecutionPolicy", "Bypass",
+    "-File", $CycleScript,
+    "-ProjectRoot", $ProjectRoot,
+    "-ConfigPath", $ConfigPath,
+    "-ReplayPath", $ReplayOutputDir,
+    "-ReplayManifestPath", $ReplayManifestPath,
+    "-SecondaryReplayManifestPath", $SecondaryReplayManifestPath,
+    "-OutputDir", $CheckpointOutputDir,
+    "-CrossProbeOutputDir", $CrossProbeOutputDir,
+    "-TaskName", $TaskName,
+    "-CandidateName", $CandidateName,
+    "-PrimaryReplayName", $CandidateName,
+    "-SkipGitPull"
+)
 if ($StartIfMissing) {
-    $CycleArgs.StartIfMissing = $true
+    $CycleArgs += "-StartIfMissing"
 }
 if ($ProbeWhenReady) {
-    $CycleArgs.ProbeWhenReady = $true
+    $CycleArgs += "-ProbeWhenReady"
 }
-powershell -ExecutionPolicy Bypass -File $CycleScript @CycleArgs
+powershell @CycleArgs
 exit $LASTEXITCODE

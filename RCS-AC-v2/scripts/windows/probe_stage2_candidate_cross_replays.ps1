@@ -23,6 +23,7 @@ param(
 $ErrorActionPreference = "Stop"
 
 Set-Location $ProjectRoot
+$env:PYTHONPATH = "$ProjectRoot\RCS-AC-v2\code;$env:PYTHONPATH"
 if ($CheckpointManifestPath -eq "") {
     throw "CheckpointManifestPath is required"
 }

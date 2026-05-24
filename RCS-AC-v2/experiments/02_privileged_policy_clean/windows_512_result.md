@@ -376,6 +376,19 @@ candidate to "ready for 512 clean eval"; it is not a clean PASS.
   decision_summary: summarize_stage2_candidate_gate.ps1 after cross replay gate exists
   clean_gate_evidence: false
   next_command: run_stage2_target24_candidate_cycle.ps1 -StartIfMissing -ProbeWhenReady
+
+2026-05-25:
+  state: rejected_by_cross_replay_gate
+  commit: 610a590
+  checkpoint_output_dir: windows_replay_7f87656_t24_aux1_balpow05_iw5_rerun_20260525T021559
+  target24_action_probe: recommended_for_clean_rerun=true, action_counts={7:398,10:26,13:8,15:62,16:20,19:6}, moving_steer_fraction=0.11538461538461539, dominant_action_fraction=0.7653846153846153
+  target24_latent_probe: linear_probe_test_accuracy=0.9807692170143127, majority_action_fraction=0.7423076923076923, margin=0.2384615247066204
+  steer2_action_probe: recommended_for_clean_rerun=false, action_counts={7:377,10:134,13:19,15:57,16:57,19:3}, moving_steer_fraction=0.32921174652241114, dominant_action_fraction=0.5826893353941267
+  steer2_latent_probe: linear_probe_test_accuracy=0.800000011920929, majority_action_fraction=0.6831530139103554, margin=0.11684699801057352
+  gate_failures: steer2 action probe recommended_for_clean_rerun is not true; steer2 latent margin below 0.15
+  decision_summary: run_target22_fallback
+  clean_gate_evidence: false
+  target22_status: replay collected and detached training started as RCSV2Stage2target22Aux1BalPow05; Windows SSH/Tailscale became unreachable before completion check
 ```
 
 Decision rules:

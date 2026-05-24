@@ -52,11 +52,30 @@ if ($TaskName -ne "") {
 }
 
 $ExitCode = "UNSET"
+$LogReadError = "none"
 if ($LogExists) {
-    $LogText = [System.IO.File]::ReadAllText((Resolve-Path $LogPath).Path) -replace "`0", ""
-    $ExitLine = $LogText -split "\r?\n" | Where-Object { $_ -like "TRAIN_EXIT_CODE=*" } | Select-Object -Last 1
-    if ($null -ne $ExitLine) {
-        $ExitCode = ($ExitLine -replace "^TRAIN_EXIT_CODE=", "").Trim()
+    try {
+        $ResolvedLogPath = (Resolve-Path $LogPath).Path
+        $Stream = [System.IO.File]::Open($ResolvedLogPath, [System.IO.FileMode]::Open, [System.IO.FileAccess]::Read, [System.IO.FileShare]::ReadWrite)
+        try {
+            $Reader = New-Object System.IO.StreamReader($Stream)
+            try {
+                $LogText = $Reader.ReadToEnd() -replace "`0", ""
+            }
+            finally {
+                $Reader.Dispose()
+            }
+        }
+        finally {
+            $Stream.Dispose()
+        }
+        $ExitLine = $LogText -split "\r?\n" | Where-Object { $_ -like "TRAIN_EXIT_CODE=*" } | Select-Object -Last 1
+        if ($null -ne $ExitLine) {
+            $ExitCode = ($ExitLine -replace "^TRAIN_EXIT_CODE=", "").Trim()
+        }
+    }
+    catch {
+        $LogReadError = $_.Exception.Message
     }
 }
 
@@ -112,6 +131,7 @@ Write-Host "TRAIN_TASK_NAME=$TaskName"
 Write-Host "TRAIN_TASK_STATE=$TaskState"
 Write-Host "TRAIN_RUNNING=$Running"
 Write-Host "TRAIN_EXIT_CODE=$ExitCode"
+Write-Host "TRAIN_LOG_READ_ERROR=$LogReadError"
 Write-Host "TRAIN_READY_FOR_PROBE=$ReadyForProbe"
 if ($LogExists -and $Tail -gt 0) {
     Write-Host "TRAIN_LOG_TAIL_BEGIN"

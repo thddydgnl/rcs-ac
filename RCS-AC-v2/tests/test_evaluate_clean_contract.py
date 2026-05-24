@@ -492,8 +492,10 @@ def test_detached_replay_training_check_static_contract() -> None:
     assert "TRAIN_MANIFEST_VALID=$ManifestValid" in text
     assert "TRAIN_CHECKPOINT_FILES_VALID=$CheckpointFilesValid" in text
     assert "Get-FileHash -Algorithm SHA256" in text
-    assert '[System.IO.File]::ReadAllText((Resolve-Path $LogPath).Path) -replace "`0", ""' in text
+    assert "[System.IO.File]::Open" in text
+    assert "[System.IO.FileShare]::ReadWrite" in text
     assert "TRAIN_EXIT_CODE=$ExitCode" in text
+    assert "TRAIN_LOG_READ_ERROR=$LogReadError" in text
     assert "TRAIN_READY_FOR_PROBE=$ReadyForProbe" in text
     assert "TRAIN_LOG_TAIL_BEGIN" in text
     assert "exit 3" in text
@@ -505,6 +507,7 @@ def test_cross_replay_candidate_probe_runner_static_contract() -> None:
     text = script.read_text()
     assert "probe_stage2_checkpoint_actions.ps1" in text
     assert "probe_stage2_replay_latents.ps1" in text
+    assert '$env:PYTHONPATH = "$ProjectRoot\\RCS-AC-v2\\code;$env:PYTHONPATH"' in text
     assert "PrimaryReplayManifestPath is required" in text
     assert "STAGE2_CANDIDATE_CROSS_REPLAY_PROBES_READY=True" in text
     assert "STAGE2_CROSS_REPLAY_PROBE_BEGIN=$ReplayName" in text
@@ -566,11 +569,12 @@ def test_target_speed_replay_cycle_runner_static_contract() -> None:
     assert "[switch]$CollectIfMissing" in text
     assert "TARGET_SPEED_REPLAY_MANIFEST_EXISTS=False" in text
     assert "TARGET_SPEED_REPLAY_MANIFEST_EXISTS=True" in text
-    assert "TargetSpeedKmh = $TargetSpeedKmh" in text
-    assert "CandidateName = $CandidateName" in text
-    assert "PrimaryReplayName = $CandidateName" in text
-    assert "StartIfMissing" in text
-    assert "ProbeWhenReady" in text
+    assert '"-TargetSpeedKmh", $TargetSpeedKmh' in text
+    assert '"-CandidateName", $CandidateName' in text
+    assert '"-PrimaryReplayName", $CandidateName' in text
+    assert '$CollectArgs += "-SkipCarlaReady"' in text
+    assert '$CycleArgs += "-StartIfMissing"' in text
+    assert '$CycleArgs += "-ProbeWhenReady"' in text
 
 
 def test_windows_dependency_probe_static_contract() -> None:
