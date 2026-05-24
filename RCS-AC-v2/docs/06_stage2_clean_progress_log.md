@@ -55,47 +55,60 @@ clean PASS evidence.
     - dominant action fraction: `0.6414219474`.
 - Decision: close but reject, do not run official 512 clean eval.
 
+### mixed target22 + steer2, ssf015
+
+- Training output:
+  - requested:
+    `RCS-AC-v2\experiments\02_privileged_policy_clean\checkpoints\windows_replay_7f87656_mixed_target22_steer2_aux1_balpow05_iw5_ssf015`
+  - active rerun:
+    `RCS-AC-v2\experiments\02_privileged_policy_clean\checkpoints\windows_replay_7f87656_mixed_target22_steer2_aux1_balpow05_iw5_ssf015_rerun_20260525T071329`
+  - `SteerSequenceFraction=0.15`
+  - `ImitationWeight=5.0`
+  - `ImitationBalancePower=0.5`
+  - `WorldModelActionAuxWeight=1.0`
+- Training completed:
+  - `TRAIN_EXIT_CODE=0`
+  - checkpoint manifest sha256:
+    `33a3598409240770b7e4687a1177ab64689e277b96fecb6bd239f331d0a2a3db`
+- Cross replay gate evidence received before Windows went offline:
+  - target22 action probe passed:
+    - moving steer fraction: `0.1187739464`
+    - dominant action fraction: `0.5019157088`
+    - recommended: `true`
+  - target22 latent probe passed:
+    - test accuracy: `0.9904761910`
+    - majority: `0.7931034483`
+    - margin: `0.1973727428`
+  - steer2 action probe rejected:
+    - moving steer fraction: `0.3323029366`, gate max `0.20`.
+    - dominant action fraction: `0.3786707883`
+    - recommended: `false`
+- The SSH session dropped while steer2 latent probe was running, so the final
+  gate JSON status was not observed. The action probe alone already rejects this
+  candidate; do not run official 512 clean eval from ssf015.
+- Decision: reject. Lowering steer oversampling from `0.25` to `0.15` did not
+  reduce steer2 over-steer; it made it worse. Next offline candidate should keep
+  mixed replay but reduce class-balance strength instead of only changing
+  `SteerSequenceFraction`.
+
 ## Active restart point
 
-The next candidate lowers steer oversampling while keeping the mixed replay and
-class balancing:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File RCS-AC-v2\scripts\windows\start_stage2_replay_training_detached.ps1 `
-  -ProjectRoot C:\Users\thddy\Documents\code\RCS-AC-first-official-v2-7f87656 `
-  -ReplayPath RCS-AC-v2\experiments\02_privileged_policy_clean\replay\windows_privileged_7f87656_mixed_target22_steer2 `
-  -OutputDir RCS-AC-v2\experiments\02_privileged_policy_clean\checkpoints\windows_replay_7f87656_mixed_target22_steer2_aux1_balpow05_iw5_ssf015 `
-  -SequenceLength 16 `
-  -BatchSize 8 `
-  -WorldModelSteps 1500 `
-  -PolicySteps 1500 `
-  -LearningRate 0.0003 `
-  -ImitationWeight 5.0 `
-  -BehaviorWeight 0.0 `
-  -ImitationClassBalance `
-  -ImitationBalancePower 0.5 `
-  -SteerSequenceFraction 0.15 `
-  -WorldModelActionAuxWeight 1.0 `
-  -HiddenDim 128 `
-  -Device cpu `
-  -TaskName RCSV2Stage2MixedT22Steer2Ssf015
-```
-
-After Windows reconnects, use the mixed wrapper first. It checks the detached
-training state and only probes when the checkpoint manifest is ready:
+The next candidate keeps `SteerSequenceFraction=0.25` because it was closer to
+the steer2 action gate, but lowers class-balance power from `0.5` to `0.25`.
+This is still a CARLA-free replay training/probe step:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File RCS-AC-v2\scripts\windows\run_stage2_mixed_candidate_cycle.ps1 `
   -ProjectRoot C:\Users\thddy\Documents\code\RCS-AC-first-official-v2-7f87656 `
-  -OutputDir RCS-AC-v2\experiments\02_privileged_policy_clean\checkpoints\windows_replay_7f87656_mixed_target22_steer2_aux1_balpow05_iw5_ssf015 `
-  -CrossProbeOutputDir RCS-AC-v2\experiments\02_privileged_policy_clean\windows_512\7f87656_mixed_target22_steer2_aux1_balpow05_iw5_ssf015_cross_probe `
-  -TaskName RCSV2Stage2MixedT22Steer2Ssf015 `
-  -SteerSequenceFraction 0.15 `
+  -OutputDir RCS-AC-v2\experiments\02_privileged_policy_clean\checkpoints\windows_replay_7f87656_mixed_target22_steer2_aux1_balpow025_iw5_ssf025 `
+  -CrossProbeOutputDir RCS-AC-v2\experiments\02_privileged_policy_clean\windows_512\7f87656_mixed_target22_steer2_aux1_balpow025_iw5_ssf025_cross_probe `
+  -TaskName RCSV2Stage2MixedT22Steer2Bal025Ssf025 `
+  -SteerSequenceFraction 0.25 `
+  -ImitationBalancePower 0.25 `
   -MakeReplayIfMissing `
   -StartIfMissing `
   -ProbeWhenReady
 ```
 
-If `TRAIN_READY_FOR_PROBE=True`, run cross replay probe against original target22
-and original steer2 manifests. Promote to official 512 clean eval only if
-`stage2_candidate_cross_replay_gate.json` has `ready_for_clean_eval=true`.
+Promote to official 512 clean eval only if `stage2_candidate_cross_replay_gate.json`
+has `ready_for_clean_eval=true`.
