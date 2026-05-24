@@ -536,6 +536,24 @@ def test_target24_candidate_cycle_runner_static_contract() -> None:
     assert "-SecondaryReplayName \"steer2\"" in text
 
 
+def test_target_speed_replay_cycle_runner_static_contract() -> None:
+    script = Path(__file__).resolve().parents[1] / "scripts" / "windows" / "run_stage2_target_speed_replay_cycle.ps1"
+    text = script.read_text()
+    assert "collect_stage2_privileged_replay.ps1" in text
+    assert "run_stage2_target24_candidate_cycle.ps1" in text
+    assert "STAGE2_TARGET_SPEED_REPLAY_CYCLE_READY=True" in text
+    assert '[string]$CandidateName = "target22"' in text
+    assert "[double]$TargetSpeedKmh = 22.0" in text
+    assert "[switch]$CollectIfMissing" in text
+    assert "TARGET_SPEED_REPLAY_MANIFEST_EXISTS=False" in text
+    assert "TARGET_SPEED_REPLAY_MANIFEST_EXISTS=True" in text
+    assert "TargetSpeedKmh = $TargetSpeedKmh" in text
+    assert "CandidateName = $CandidateName" in text
+    assert "PrimaryReplayName = $CandidateName" in text
+    assert "StartIfMissing" in text
+    assert "ProbeWhenReady" in text
+
+
 def test_windows_dependency_probe_static_contract() -> None:
     script = Path(__file__).resolve().parents[1] / "scripts" / "windows" / "check_stage2_windows_dependencies.ps1"
     text = script.read_text()

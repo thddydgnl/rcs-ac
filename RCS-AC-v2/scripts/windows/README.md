@@ -48,6 +48,7 @@ check_stage2_replay_training_detached.ps1
 probe_stage2_checkpoint_actions.ps1
 probe_stage2_candidate_cross_replays.ps1
 run_stage2_target24_candidate_cycle.ps1
+run_stage2_target_speed_replay_cycle.ps1
 run_stage2_clean_eval.ps1
 ensure_carla_ready.ps1
 start_carla_interactive.ps1
@@ -116,6 +117,11 @@ script이며, `-CandidateName`/`-PrimaryReplayName`을 바꿔 target-22 후보�
 검사하고, 준비되지 않았으면 fresh rerun OutputDir으로 detached training을
 시작한다. `-ProbeWhenReady`를 붙이면 TRAIN_READY_FOR_PROBE=True일 때
 cross replay probe까지 이어서 실행한다.
+run_stage2_target_speed_replay_cycle.ps1는 target speed별 replay 수집과
+candidate cycle을 한 번에 이어주는 wrapper다. 기본값은 target-22이며,
+replay manifest가 없으면 `-CollectIfMissing`일 때만 CARLA replay를 수집하고,
+그 뒤 `run_stage2_target24_candidate_cycle.ps1`로 detached training/cross probe
+단계를 넘긴다.
 check_stage2_windows_dependencies.ps1는 CARLA 실행 전에 v2 code,
 shared_core, env config, readiness script 의존성을 검사한다.
 base config의 checkpoint path/sha256은 아직 null이므로 그대로 real mode를
