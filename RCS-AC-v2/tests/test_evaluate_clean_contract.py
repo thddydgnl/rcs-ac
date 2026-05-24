@@ -521,15 +521,18 @@ def test_target24_candidate_cycle_runner_static_contract() -> None:
     assert "check_stage2_replay_training_detached.ps1" in text
     assert "start_stage2_replay_training_detached.ps1" in text
     assert "probe_stage2_candidate_cross_replays.ps1" in text
-    assert "STAGE2_TARGET24_CANDIDATE_CYCLE_READY=True" in text
-    assert "TARGET24_CHECK_EXIT_CODE=$CheckExitCode" in text
-    assert "TARGET24_TRAIN_READY_FOR_PROBE=True" in text
-    assert "TARGET24_TRAIN_RUNNING=True" in text
-    assert "TARGET24_RERUN_OUTPUT_DIR=$RerunOutputDir" in text
+    assert "STAGE2_REPLAY_CANDIDATE_CYCLE_READY=True" in text
+    assert "CANDIDATE_NAME=$CandidateName" in text
+    assert "CANDIDATE_CHECK_EXIT_CODE=$CheckExitCode" in text
+    assert "CANDIDATE_TRAIN_READY_FOR_PROBE=True" in text
+    assert "CANDIDATE_TRAIN_RUNNING=True" in text
+    assert "CANDIDATE_RERUN_OUTPUT_DIR=$RerunOutputDir" in text
     assert "[switch]$StartIfMissing" in text
     assert "[switch]$ProbeWhenReady" in text
+    assert '[string]$CandidateName = "target24"' in text
+    assert '$PrimaryReplayName = $CandidateName' in text
     assert "-WorldModelActionAuxWeight $WorldModelActionAuxWeight" in text
-    assert "-PrimaryReplayName \"target24\"" in text
+    assert "-PrimaryReplayName $PrimaryReplayName" in text
     assert "-SecondaryReplayName \"steer2\"" in text
 
 

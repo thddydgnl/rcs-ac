@@ -7,6 +7,8 @@ param(
     [string]$OutputDir = "RCS-AC-v2\experiments\02_privileged_policy_clean\checkpoints\windows_replay_7f87656_t24_aux1_balpow05_iw5",
     [string]$CrossProbeOutputDir = "RCS-AC-v2\experiments\02_privileged_policy_clean\windows_512\7f87656_t24_aux1_balpow05_iw5_cross_probe",
     [string]$TaskName = "RCSV2Stage2T24Aux1BalPow05",
+    [string]$CandidateName = "target24",
+    [string]$PrimaryReplayName = "",
     [switch]$SkipGitPull,
     [switch]$StartIfMissing,
     [switch]$ProbeWhenReady,
@@ -30,6 +32,9 @@ Set-Location $ProjectRoot
 if ($ReplayManifestPath -eq "") {
     $ReplayManifestPath = Join-Path $ReplayPath "stage2_privileged_replay_manifest.json"
 }
+if ($PrimaryReplayName -eq "") {
+    $PrimaryReplayName = $CandidateName
+}
 if (-not $SkipGitPull) {
     git pull --ff-only
 }
@@ -39,7 +44,8 @@ $StartScript = Join-Path $ProjectRoot "RCS-AC-v2\scripts\windows\start_stage2_re
 $CrossProbeScript = Join-Path $ProjectRoot "RCS-AC-v2\scripts\windows\probe_stage2_candidate_cross_replays.ps1"
 $CheckpointManifestPath = Join-Path $OutputDir "stage2_privileged_replay_checkpoint_manifest.json"
 
-Write-Host "STAGE2_TARGET24_CANDIDATE_CYCLE_READY=True"
+Write-Host "STAGE2_REPLAY_CANDIDATE_CYCLE_READY=True"
+Write-Host "CANDIDATE_NAME=$CandidateName"
 Write-Host "PROJECT_ROOT=$ProjectRoot"
 Write-Host "CONFIG_PATH=$ConfigPath"
 Write-Host "REPLAY_PATH=$ReplayPath"
@@ -53,17 +59,17 @@ Write-Host "TASK_NAME=$TaskName"
     -OutputDir $OutputDir `
     -TaskName $TaskName
 $CheckExitCode = $LASTEXITCODE
-Write-Host "TARGET24_CHECK_EXIT_CODE=$CheckExitCode"
+Write-Host "CANDIDATE_CHECK_EXIT_CODE=$CheckExitCode"
 
 if ($CheckExitCode -eq 0) {
-    Write-Host "TARGET24_TRAIN_READY_FOR_PROBE=True"
+    Write-Host "CANDIDATE_TRAIN_READY_FOR_PROBE=True"
     if ($ProbeWhenReady) {
         powershell -ExecutionPolicy Bypass -File $CrossProbeScript `
             -ProjectRoot $ProjectRoot `
             -ConfigPath $ConfigPath `
             -CheckpointManifestPath $CheckpointManifestPath `
             -OutputDir $CrossProbeOutputDir `
-            -PrimaryReplayName "target24" `
+            -PrimaryReplayName $PrimaryReplayName `
             -PrimaryReplayManifestPath $ReplayManifestPath `
             -SecondaryReplayName "steer2" `
             -SecondaryReplayManifestPath $SecondaryReplayManifestPath `
@@ -74,21 +80,21 @@ if ($CheckExitCode -eq 0) {
 }
 
 if ($CheckExitCode -eq 3) {
-    Write-Host "TARGET24_TRAIN_RUNNING=True"
+    Write-Host "CANDIDATE_TRAIN_RUNNING=True"
     exit 3
 }
 
 if (-not $StartIfMissing) {
-    Write-Host "TARGET24_TRAIN_READY_FOR_PROBE=False"
-    Write-Host "TARGET24_NEXT_ACTION=rerun with -StartIfMissing to launch detached training"
+    Write-Host "CANDIDATE_TRAIN_READY_FOR_PROBE=False"
+    Write-Host "CANDIDATE_NEXT_ACTION=rerun with -StartIfMissing to launch detached training"
     exit 2
 }
 
 $RerunOutputDir = $OutputDir
 if (Test-Path $OutputDir) {
     $RerunOutputDir = "${OutputDir}_rerun_$(Get-Date -Format yyyyMMddTHHmmss)"
-    Write-Host "TARGET24_EXISTING_OUTPUT_DIR_NOT_READY=$OutputDir"
-    Write-Host "TARGET24_RERUN_OUTPUT_DIR=$RerunOutputDir"
+    Write-Host "CANDIDATE_EXISTING_OUTPUT_DIR_NOT_READY=$OutputDir"
+    Write-Host "CANDIDATE_RERUN_OUTPUT_DIR=$RerunOutputDir"
 }
 
 powershell -ExecutionPolicy Bypass -File $StartScript `
