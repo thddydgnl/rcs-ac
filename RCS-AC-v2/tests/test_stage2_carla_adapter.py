@@ -16,6 +16,7 @@ from rcs_ac_v2.evaluation.carla_adapter import (
 )
 from rcs_ac_v2.evaluation.evaluate_clean import CleanEvalRuntimeFailure, run_clean_eval_loop, run_real_carla_eval
 from rcs_ac_v2.evaluation.probe_stage2_windows_env import probe_stage2_env_once, write_probe_result
+from rcs_ac_v2.evaluation.privileged_observation import SEMANTIC43_CHANNEL_NAMES_SHA256, SEMANTIC43_SCHEMA_VERSION
 from rcs_ac_v2.privileged_stream.policy import PrivilegedPolicy, PrivilegedPolicyConfig
 from rcs_ac_v2.privileged_stream.world_model import PrivilegedWorldModel, PrivilegedWorldModelConfig
 from rcs_ac_v2.utils.checkpoint import save_checkpoint
@@ -119,6 +120,127 @@ class FakeRawEnvWithoutPrivilegedObs(FakeRawEnv):
             "rgb": torch.zeros(3, 64, 64),
             "speed_kmh": 0.0,
         }
+
+
+class _FakeLocation:
+    def __init__(self, x: float, y: float, z: float = 0.0) -> None:
+        self.x = x
+        self.y = y
+        self.z = z
+
+    def distance(self, other: "_FakeLocation") -> float:
+        return float(((self.x - other.x) ** 2 + (self.y - other.y) ** 2 + (self.z - other.z) ** 2) ** 0.5)
+
+
+class _FakeRotation:
+    def __init__(self, yaw: float = 0.0) -> None:
+        self.yaw = yaw
+
+
+class _FakeTransform:
+    def __init__(self, x: float, y: float, yaw: float = 0.0) -> None:
+        self.location = _FakeLocation(x, y)
+        self.rotation = _FakeRotation(yaw)
+
+
+class _FakeWaypoint:
+    lane_type = "Driving"
+    lane_width = 3.5
+    is_junction = False
+
+    def __init__(self, x: float, y: float, yaw: float = 0.0) -> None:
+        self.transform = _FakeTransform(x, y, yaw)
+
+
+class _FakeMap:
+    def get_waypoint(self, location: _FakeLocation, project_to_road: bool = False) -> _FakeWaypoint:
+        del project_to_road
+        return _FakeWaypoint(float(location.x), 0.0)
+
+
+class _FakeExtent:
+    x = 2.0
+    y = 0.9
+
+
+class _FakeBoundingBox:
+    extent = _FakeExtent()
+
+
+class _FakeControl:
+    steer = 0.1
+    throttle = 0.2
+    brake = 0.0
+
+
+class _FakeVelocity:
+    x = 3.0
+    y = 0.0
+    z = 0.0
+
+
+class _FakeActor:
+    bounding_box = _FakeBoundingBox()
+
+    def __init__(self, actor_id: int, type_id: str, x: float, y: float, yaw: float = 0.0) -> None:
+        self.id = actor_id
+        self.type_id = type_id
+        self._transform = _FakeTransform(x, y, yaw)
+
+    def get_transform(self) -> _FakeTransform:
+        return self._transform
+
+
+class _FakeVehicle(_FakeActor):
+    def get_control(self) -> _FakeControl:
+        return _FakeControl()
+
+    def get_velocity(self) -> _FakeVelocity:
+        return _FakeVelocity()
+
+
+class _FakeWorld:
+    def __init__(self, ego: _FakeVehicle) -> None:
+        self.ego = ego
+        self.actor = _FakeActor(22, "vehicle.tesla.model3", 12.0, 2.0)
+
+    def get_map(self) -> _FakeMap:
+        return _FakeMap()
+
+    def get_actors(self) -> list[_FakeActor]:
+        return [self.ego, self.actor]
+
+
+class _FakeRouteMetrics:
+    route_progress = 0.25
+    lane_offset = 0.1
+    heading_error = 2.0
+
+
+class _FakeRouteManager:
+    target_index = 0
+
+    def __init__(self) -> None:
+        self.route = [_FakeWaypoint(8.0, 0.0), _FakeWaypoint(16.0, 0.0), _FakeWaypoint(24.0, 2.0)]
+
+    def build_metrics(self, transform: _FakeTransform) -> _FakeRouteMetrics:
+        del transform
+        return _FakeRouteMetrics()
+
+    def get_current_target_waypoint(self) -> _FakeWaypoint:
+        return self.route[0]
+
+    def get_maneuver_command(self) -> str:
+        return "straight"
+
+
+class FakeSimulatorRawEnvWithoutPrivilegedObs(FakeRawEnvWithoutPrivilegedObs):
+    def __init__(self) -> None:
+        super().__init__()
+        self.vehicle = _FakeVehicle(11, "vehicle.ego", 0.0, 0.0)
+        self.world = _FakeWorld(self.vehicle)
+        self.map = self.world.get_map()
+        self.route_manager = _FakeRouteManager()
 
 
 def test_observation_adapter_accepts_stage2_privileged_shapes(tmp_path) -> None:
@@ -365,6 +487,34 @@ def test_stage4_v2_adapter_collapses_raw2drive_control_for_v11_shared_core(tmp_p
     assert env_action.tolist() == pytest.approx([-0.25, 0.4])
 
 
+def test_stage2_simulator_state_builder_supplies_semantic43_when_privileged_keys_missing(tmp_path) -> None:
+    config = _base_config(tmp_path)
+    config["carla"]["privileged_observation"]["mode"] = "auto_existing_or_simulator_state_semantic43"
+    adapter = SharedCoreCarlaEnvAdapter(FakeSimulatorRawEnvWithoutPrivilegedObs(), config)
+
+    result = adapter.reset()
+
+    assert tuple(result["obs"]["privileged_bev"].shape) == (1, 1, 43, 16, 16)
+    assert tuple(result["obs"]["privileged_ego"].shape) == (1, 1, 8)
+    assert result["info"]["privileged_observation_source"] == "carla_simulator_state"
+    assert result["info"]["privileged_observation_schema"] == SEMANTIC43_SCHEMA_VERSION
+    assert result["info"]["privileged_bev_channel_names_sha256"] == SEMANTIC43_CHANNEL_NAMES_SHA256
+    assert result["info"]["privileged_observation_clean_gate_eligible"] is True
+    assert "drivable_road" in result["info"]["semantic_nonzero_channel_names"]
+    assert "ego_vehicle" in result["info"]["semantic_nonzero_channel_names"]
+
+
+def test_observation_adapter_strict_rejects_windows_raw_obs_without_privileged(tmp_path) -> None:
+    config = _base_config(tmp_path)
+    config["carla"]["privileged_observation"]["mode"] = "strict"
+    adapter = Stage2CarlaObservationAdapter(config)
+
+    with pytest.raises(CleanEvalRuntimeFailure) as excinfo:
+        adapter.adapt(FakeRawEnvWithoutPrivilegedObs._obs(), {})
+
+    assert excinfo.value.done_reason == "privileged_bev_missing"
+
+
 def test_privileged_obs_probe_is_not_clean_gate_evidence(tmp_path) -> None:
     config = _base_config(tmp_path)
     config["carla"]["env_action_format"] = "stage4_v2"
@@ -388,6 +538,7 @@ def test_privileged_obs_probe_is_not_clean_gate_evidence(tmp_path) -> None:
 
 def test_privileged_obs_probe_records_raw_keys_on_adapter_failure(tmp_path) -> None:
     config = _base_config(tmp_path)
+    config["carla"]["privileged_observation"]["mode"] = "strict"
     raw_env = FakeRawEnvWithoutPrivilegedObs()
 
     result = probe_stage2_env_once(raw_env=raw_env, config=config)

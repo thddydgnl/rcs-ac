@@ -16,6 +16,12 @@ import numpy as np
 import torch
 
 from rcs_ac_v2.evaluation.errors import CleanEvalRuntimeFailure
+from rcs_ac_v2.evaluation.privileged_observation import (
+    EGO8_SCHEMA_VERSION,
+    SEMANTIC43_CHANNEL_NAMES_SHA256,
+    SEMANTIC43_SCHEMA_VERSION,
+    build_carla_simulator_semantic43_observation,
+)
 from rcs_ac_v2.privileged_stream.policy import PrivilegedPolicy, PrivilegedPolicyConfig
 from rcs_ac_v2.privileged_stream.world_model import PrivilegedWorldModel, PrivilegedWorldModelConfig
 from rcs_ac_v2.utils.checkpoint import load_checkpoint
@@ -41,22 +47,44 @@ class Stage2CarlaObservationAdapter:
     def __init__(self, config: dict[str, Any]) -> None:
         self.config = config
         obs_config = config.get("carla", {}).get("privileged_observation", {})
+        self.mode = str(obs_config.get("mode", "existing_keys"))
         self.bev_keys = tuple(obs_config.get("bev_keys", DEFAULT_BEV_KEYS))
         self.ego_keys = tuple(obs_config.get("ego_keys", DEFAULT_EGO_KEYS))
         contract = config.get("observation_contract", {})
         self.expected_bev_shape = tuple(contract.get("privileged_bev_shape", (1, 1, 43, 16, 16)))
         self.expected_ego_shape = tuple(contract.get("privileged_ego_shape", (1, 1, 8)))
+        self.last_diagnostics: dict[str, Any] = {}
 
-    def adapt(self, obs: dict[str, Any], info: dict[str, Any]) -> dict[str, Any]:
+    def adapt(self, obs: dict[str, Any], info: dict[str, Any], *, simulator_context: Any | None = None) -> dict[str, Any]:
         bev_value = _first_present(obs, info, self.bev_keys)
         ego_value = _first_present(obs, info, self.ego_keys)
-        if bev_value is None:
-            raise CleanEvalRuntimeFailure(
-                "adapter",
-                "privileged_bev_missing",
-                f"CARLA obs/info missing privileged BEV keys {self.bev_keys}",
-            )
-        if ego_value is None:
+        if bev_value is None or ego_value is None:
+            simulator_modes = {"auto_existing_or_simulator_state_semantic43", "simulator_state_semantic43"}
+            if self.mode in simulator_modes:
+                try:
+                    simulator_obs = build_carla_simulator_semantic43_observation(
+                        raw_env=simulator_context,
+                        expected_bev_shape=self.expected_bev_shape,
+                        expected_ego_shape=self.expected_ego_shape,
+                    )
+                except Exception as exc:
+                    missing = "privileged_bev_missing" if bev_value is None else "privileged_ego_missing"
+                    raise CleanEvalRuntimeFailure(
+                        "adapter",
+                        "privileged_simulator_state_observation_failed",
+                        f"{missing}; simulator schema {SEMANTIC43_SCHEMA_VERSION} failed: {type(exc).__name__}: {exc}",
+                    ) from exc
+                adapted = dict(obs)
+                adapted["privileged_bev"] = simulator_obs.privileged_bev
+                adapted["privileged_ego"] = simulator_obs.privileged_ego
+                self.last_diagnostics = dict(simulator_obs.diagnostics)
+                return adapted
+            if bev_value is None:
+                raise CleanEvalRuntimeFailure(
+                    "adapter",
+                    "privileged_bev_missing",
+                    f"CARLA obs/info missing privileged BEV keys {self.bev_keys}",
+                )
             raise CleanEvalRuntimeFailure(
                 "adapter",
                 "privileged_ego_missing",
@@ -67,6 +95,17 @@ class Stage2CarlaObservationAdapter:
         adapted = dict(obs)
         adapted["privileged_bev"] = bev
         adapted["privileged_ego"] = ego
+        contract = self.config.get("observation_contract", {})
+        self.last_diagnostics = {
+            "privileged_observation_schema": str(contract.get("privileged_bev_schema_version", SEMANTIC43_SCHEMA_VERSION)),
+            "privileged_observation_mode": self.mode,
+            "privileged_observation_source": "existing_env_keys",
+            "privileged_observation_clean_gate_eligible": True,
+            "privileged_bev_channel_names_sha256": str(
+                contract.get("privileged_bev_channel_names_sha256", SEMANTIC43_CHANNEL_NAMES_SHA256)
+            ),
+            "privileged_ego_schema": str(contract.get("privileged_ego_schema_version", EGO8_SCHEMA_VERSION)),
+        }
         return adapted
 
 
@@ -82,7 +121,10 @@ class SharedCoreCarlaEnvAdapter:
     def reset(self) -> dict[str, Any]:
         result = self.raw_env.reset()
         obs, info = _split_env_result(result, context="reset")
-        return {"obs": self.observation_adapter.adapt(obs, info), "info": info}
+        adapted = self.observation_adapter.adapt(obs, info, simulator_context=self.raw_env)
+        info = dict(info)
+        info.update(self.observation_adapter.last_diagnostics)
+        return {"obs": adapted, "info": info}
 
     def step(self, control: dict[str, float | bool], policy_diagnostics: dict[str, Any] | None = None) -> dict[str, Any]:
         env_action = self._control_to_env_action(control)
@@ -91,8 +133,11 @@ class SharedCoreCarlaEnvAdapter:
         except TypeError:
             result = self.raw_env.step(env_action)
         obs, info, reward, done, truncated = _split_step_result(result)
+        adapted = self.observation_adapter.adapt(obs, info, simulator_context=self.raw_env)
+        info = dict(info)
+        info.update(self.observation_adapter.last_diagnostics)
         return {
-            "obs": self.observation_adapter.adapt(obs, info),
+            "obs": adapted,
             "info": info,
             "reward": reward,
             "done": done,

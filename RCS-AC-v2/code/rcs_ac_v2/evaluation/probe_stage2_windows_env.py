@@ -54,7 +54,8 @@ def probe_stage2_env_once(
         raw_reset = raw_env.reset()
         obs, info = _split_reset_result(raw_reset)
         probe.update(_summarize_raw_reset(raw_reset=raw_reset, obs=obs, info=info))
-        adapted = observation_adapter.adapt(obs, info)
+        adapted = observation_adapter.adapt(obs, info, simulator_context=raw_env)
+        probe.update(observation_adapter.last_diagnostics)
         bev = adapted["privileged_bev"]
         ego = adapted["privileged_ego"]
         probe.update(

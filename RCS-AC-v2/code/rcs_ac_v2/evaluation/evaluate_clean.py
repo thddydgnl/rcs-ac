@@ -27,6 +27,7 @@ from rcs_ac_v2.env.discrete_actions import (
     to_carla_control,
 )
 from rcs_ac_v2.evaluation.errors import CleanEvalRuntimeFailure
+from rcs_ac_v2.evaluation.privileged_observation import SEMANTIC43_CHANNEL_NAMES_SHA256, SEMANTIC43_SCHEMA_VERSION
 
 
 ALLOWED_FAILURE_CLASSES = {
@@ -552,7 +553,7 @@ def run_clean_eval_loop(
         obs, info = _split_reset(env.reset())
         last_info = info
         previous_route_progress = _finite_float(info.get("route_progress", 0.0), "route_progress")
-        obs_shape = _validate_stage2_obs(obs, config)
+        obs_shape = _validate_stage2_obs(obs, config, info)
 
         for step in range(horizon):
             action_id, logits_finite = _select_action_id(policy, obs, info, deterministic=deterministic)
@@ -568,7 +569,7 @@ def run_clean_eval_loop(
             route_progress = _finite_float(next_info.get("route_progress", previous_route_progress), "route_progress")
             speed_kmh = _finite_float(next_info.get("speed_kmh", 0.0), "speed_kmh")
             cont = _continue_value(done=done, truncated=truncated, info=next_info, config=config)
-            next_obs_shape = _validate_stage2_obs(next_obs, config)
+            next_obs_shape = _validate_stage2_obs(next_obs, config, next_info)
             route_progress_delta = route_progress - previous_route_progress
             row = {
                 "step": step,
@@ -846,7 +847,7 @@ def _step_env(env: Any, control: dict[str, float | bool], *, action_id: int) -> 
         return env.step(control)
 
 
-def _validate_stage2_obs(obs: dict[str, Any], config: dict[str, Any]) -> dict[str, str]:
+def _validate_stage2_obs(obs: dict[str, Any], config: dict[str, Any], info: dict[str, Any] | None = None) -> dict[str, str]:
     contract = config.get("observation_contract", {"require_privileged": True})
     if not contract.get("require_privileged", True):
         return {"privileged_bev_shape": "", "privileged_ego_shape": ""}
@@ -875,7 +876,34 @@ def _validate_stage2_obs(obs: dict[str, Any], config: dict[str, Any]) -> dict[st
         raise CleanEvalRuntimeFailure("adapter", "privileged_bev_shape_invalid", f"got {tuple(bev.shape)}")
     if expected_ego_shape and tuple(ego.shape) != expected_ego_shape:
         raise CleanEvalRuntimeFailure("adapter", "privileged_ego_shape_invalid", f"got {tuple(ego.shape)}")
+    if contract.get("require_true_privileged_for_clean_gate", False):
+        _validate_privileged_provenance(info or {}, contract)
     return {"privileged_bev_shape": str(tuple(bev.shape)), "privileged_ego_shape": str(tuple(ego.shape))}
+
+
+def _validate_privileged_provenance(info: dict[str, Any], contract: dict[str, Any]) -> None:
+    if info.get("privileged_observation_clean_gate_eligible") is not True:
+        raise CleanEvalRuntimeFailure(
+            "adapter",
+            "privileged_observation_provenance_missing",
+            "Stage 2 clean gate requires simulator-state privileged observation provenance.",
+        )
+    expected_schema = str(contract.get("privileged_bev_schema_version", SEMANTIC43_SCHEMA_VERSION))
+    actual_schema = str(info.get("privileged_observation_schema", "UNSET"))
+    if actual_schema != expected_schema:
+        raise CleanEvalRuntimeFailure(
+            "adapter",
+            "privileged_semantic_schema_mismatch",
+            f"expected {expected_schema}, got {actual_schema}",
+        )
+    expected_hash = str(contract.get("privileged_bev_channel_names_sha256", SEMANTIC43_CHANNEL_NAMES_SHA256))
+    actual_hash = str(info.get("privileged_bev_channel_names_sha256", "UNSET"))
+    if actual_hash != expected_hash:
+        raise CleanEvalRuntimeFailure(
+            "adapter",
+            "privileged_semantic_channel_hash_mismatch",
+            f"expected {expected_hash}, got {actual_hash}",
+        )
 
 
 def _select_action_id(policy: Any, obs: dict[str, Any], info: dict[str, Any], *, deterministic: bool) -> tuple[int, bool]:

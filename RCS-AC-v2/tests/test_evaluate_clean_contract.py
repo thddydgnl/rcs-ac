@@ -20,6 +20,10 @@ from rcs_ac_v2.evaluation.evaluate_clean import (
     validate_clean_summary,
     write_step_metrics,
 )
+from rcs_ac_v2.evaluation.privileged_observation import (
+    SEMANTIC43_CHANNEL_NAMES_SHA256,
+    SEMANTIC43_SCHEMA_VERSION,
+)
 
 
 def _test_config(tmp_path: Path, *, horizon: int = 3) -> dict:
@@ -115,17 +119,19 @@ class FakeEnv:
         collision_step: int | None = None,
         continue_value: float | None = None,
         missing_privileged_obs: bool = False,
+        privileged_clean_gate_eligible: bool = True,
     ) -> None:
         self.step_count = 0
         self.done_step = done_step
         self.collision_step = collision_step
         self.continue_value = continue_value
         self.missing_privileged_obs = missing_privileged_obs
+        self.privileged_clean_gate_eligible = privileged_clean_gate_eligible
         self.received_controls: list[dict] = []
         self.closed = False
 
     def reset(self) -> dict:
-        return {"obs": self._obs(), "info": {"route_progress": 0.0, "speed_kmh": 0.0}}
+        return {"obs": self._obs(), "info": {"route_progress": 0.0, "speed_kmh": 0.0, **self._privileged_info()}}
 
     def step(self, control: dict, policy_diagnostics: dict | None = None) -> dict:
         del policy_diagnostics
@@ -144,6 +150,7 @@ class FakeEnv:
             "reward_collision": -1.0 if collision else 0.0,
             "reward_offroad": 0.0,
             "reward_stuck": 0.0,
+            **self._privileged_info(),
         }
         if self.continue_value is not None:
             info["continue"] = self.continue_value
@@ -166,6 +173,26 @@ class FakeEnv:
             "privileged_ego": torch.zeros(1, 1, 8),
         }
 
+    def _privileged_info(self) -> dict:
+        return _privileged_info(clean_gate_eligible=self.privileged_clean_gate_eligible)
+
+
+def _privileged_info(*, clean_gate_eligible: bool) -> dict:
+    return {
+        "privileged_observation_clean_gate_eligible": clean_gate_eligible,
+        "privileged_observation_schema": SEMANTIC43_SCHEMA_VERSION,
+        "privileged_bev_channel_names_sha256": SEMANTIC43_CHANNEL_NAMES_SHA256,
+    }
+
+class FakeEnvWithDerivedDebugPrivileged(FakeEnv):
+    @staticmethod
+    def _privileged_info() -> dict:
+        return {
+            "privileged_observation_clean_gate_eligible": False,
+            "privileged_observation_schema": "derived_debug_from_raw_v1",
+            "privileged_bev_channel_names_sha256": SEMANTIC43_CHANNEL_NAMES_SHA256,
+        }
+
 
 def test_clean_128_config_loads_and_pins_contracts() -> None:
     config_path = Path(__file__).resolve().parents[1] / "configs" / "eval" / "clean_128_stage2_privileged.yaml"
@@ -182,6 +209,9 @@ def test_clean_128_config_loads_and_pins_contracts() -> None:
     assert config["reward_contract_version"] == "stage0_route_progress_penalty_v1"
     assert "none" in config["failure_classes"]
     assert config["gate"]["source_required_for_pass"] == "windows_carla"
+    assert config["observation_contract"]["require_true_privileged_for_clean_gate"] is True
+    assert config["observation_contract"]["privileged_bev_schema_version"] == SEMANTIC43_SCHEMA_VERSION
+    assert config["observation_contract"]["privileged_bev_channel_names_sha256"] == SEMANTIC43_CHANNEL_NAMES_SHA256
     assert "action_id" in config["per_step_log_fields"]
     assert "reward_total" in config["per_step_log_fields"]
 
@@ -500,6 +530,24 @@ def test_fake_adapter_loop_classifies_adapter_and_contract_failures(tmp_path) ->
     assert contract_summary.status == "FAIL"
     assert contract_summary.failure_class == "contract"
     validate_clean_summary(contract_summary)
+
+
+def test_clean_loop_rejects_derived_debug_privileged_obs(tmp_path) -> None:
+    config = _test_config(tmp_path, horizon=3)
+    env = FakeEnvWithDerivedDebugPrivileged()
+    summary = run_clean_eval_loop(
+        env=env,
+        policy=FakePolicy(action_id=37),
+        config=config,
+        config_path=tmp_path / "clean_128.yaml",
+        metadata=_metadata(),
+    )
+
+    assert summary.status == "FAIL"
+    assert summary.failure_class == "adapter"
+    assert summary.done_reason == "privileged_observation_provenance_missing"
+    assert not summary.clean_gate_pass
+    assert env.closed
 
 
 def test_fake_adapter_loop_classifies_non_finite_logits_as_model_failure(tmp_path) -> None:
