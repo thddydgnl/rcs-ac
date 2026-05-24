@@ -105,9 +105,9 @@ Completed Windows clean-eval preparation:
 - Added v2-local `ensure_carla_ready.ps1` and `start_carla_interactive.ps1`
   so Stage 2 no longer depends on untracked `shared/scripts/windows` for CARLA
   readiness.
-- Added `check_stage2_windows_dependencies.ps1`, which checks v2 code,
-  v1.1 support/code, env config, v2 readiness scripts, workspace parent, and
-  sibling `shared_core` before CARLA starts.
+- Added `check_stage2_windows_dependencies.ps1`, which checks v2 code, env
+  config, v2 readiness scripts, workspace parent, and sibling `shared_core`
+  before CARLA starts.
 - Added `run_stage2_privileged_obs_probe.ps1` and
   `rcs_ac_v2.evaluation.probe_stage2_windows_env`, a shape-only probe that
   writes `privileged_obs_probe.json` with `clean_gate_evidence=false`.
@@ -151,14 +151,16 @@ Completed Windows clean-eval preparation:
   `failure_class=model`.
 - Added direct tests for unreadable checkpoint paths, invalid policy config,
   policy latent-dim mismatch, and bad policy state-dict load failures.
-- Windows runner `PYTHONPATH` now includes v2 code plus the v1.1 support/code
-  paths needed by the shared-core env builder.
+- Windows runner `PYTHONPATH` now includes v2 code and the workspace root needed
+  by the shared-core env builder. Legacy v1.1 support/code paths can still be
+  supplied as overrides for local experiments.
 - Added `RCS-AC-v2/.gitignore` so v2 artifact policy is self-contained even if
   root `.gitignore` changes are not part of the v2 commit.
 - Hardened `check_git_hygiene.sh` so v2 nested `.git`, v2 heavy artifacts, or
   v2 files larger than 50 MB fail with a nonzero exit.
-- Updated `scripts/windows/README.md` to reflect that Stage 2 real-mode runner
-  exists, but still depends temporarily on v1.1/shared Windows runtime pieces.
+- Updated `scripts/windows/README.md` to reflect that Stage 2 real-mode runner,
+  privileged obs probe, replay collector, replay trainer, and v2-local minimal
+  shared_core env builder bridge exist.
 - Created and pushed the dedicated v2 branch
   `codex/rcs-ac-v2-raw2drive`. The commit scope was limited to the
   `RCS-AC-v2/` subtree; unrelated root worktree changes were not staged.
@@ -335,7 +337,7 @@ privileged tensors: BEV [1,1,43,16,16] finite, ego [1,1,8] finite, neutral step 
 replay checkpoint path: replay IO/sampler, fake collector test, two-step replay training export, and strict checkpoint loader all pass locally
 checkpoint provenance gate: local_synthetic_smoke_not_carla checkpoints are rejected by the official clean config
 Windows replay path scratch: commit e1c9c86 archive dependency probe passed, replay modules imported under Windows Python 3.12, 1x8-step privileged replay collection produced source=windows_carla_privileged_replay manifest, 2-step replay training produced world_model/policy sha256 manifest, and strict checkpoint loader accepted the replay-source checkpoints
-official sync lane: Windows SSH git access works, clean clone path C:\Users\thddy\Documents\code\RCS-AC-first-official-v2-ac11c90 is at ac11c90 after core.longpaths=true, and runners now accept explicit v1.1/shared_core dependency path overrides
+official sync lane: Windows SSH git access works, clean clone path C:\Users\thddy\Documents\code\RCS-AC-first-official-v2-ac11c90 is at ac11c90 after core.longpaths=true, and the adapter now owns the minimal shared_core env builder; sibling shared_core remains external
 ```
 
 ## Blockers
@@ -354,16 +356,13 @@ current null checkpoint paths still exits nonzero with `failure_class=model`
 and a valid failure summary.
 
 The current Stage 2 runner still has a temporary reproducibility dependency on
-`RCS-AC-v1.1` shared-core env builder code and sibling `shared_core`. The
-scratch archive probe verified those dependencies on Windows for this run, but
-official Windows execution should still use a clean checkout/git pull lane or a
-documented clean clone before claiming performance evidence. The existing
-Windows repo was dirty and GitHub credential fetch failed, so it was not used
-as the official sync source in this round.
-The clean clone initially lacked tracked v1.1 support/code dependencies. Until
-the v1.1 env builder is ported into v2, official commands from the clean clone
-must pass explicit `-EnvConfigPathOverride`, `-SupportCodePath`, `-V11CodePath`,
-and `-SharedCorePath` values.
+sibling `shared_core`. The adapter now owns the minimal shared_core env builder
+and the v1.1 env config is copied under `RCS-AC-v2`, so untracked
+`RCS-AC-v1.1` support/code is no longer needed for the clean clone lane.
+Official Windows execution should use the clean checkout/git pull lane before
+claiming performance evidence. The existing Windows repo was dirty and GitHub
+HTTPS credential fetch failed, so it was not used as the official sync source
+in this round.
 
 ## Next Action
 

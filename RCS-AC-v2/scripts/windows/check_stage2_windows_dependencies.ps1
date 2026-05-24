@@ -21,10 +21,16 @@ if ($StartCarlaScript -eq "") {
     $StartCarlaScript = Join-Path $ProjectRoot "RCS-AC-v2\scripts\windows\start_carla_interactive.ps1"
 }
 if ($SupportCodePath -eq "") {
-    $SupportCodePath = Join-Path $ProjectRoot "RCS-AC-v1.1\goal_achieved_round_0002_execution\support_code"
+    $DefaultSupportCodePath = Join-Path $ProjectRoot "RCS-AC-v1.1\goal_achieved_round_0002_execution\support_code"
+    if (Test-Path $DefaultSupportCodePath) {
+        $SupportCodePath = $DefaultSupportCodePath
+    }
 }
 if ($V11CodePath -eq "") {
-    $V11CodePath = Join-Path $ProjectRoot "RCS-AC-v1.1\code"
+    $DefaultV11CodePath = Join-Path $ProjectRoot "RCS-AC-v1.1\code"
+    if (Test-Path $DefaultV11CodePath) {
+        $V11CodePath = $DefaultV11CodePath
+    }
 }
 if ($SharedCorePath -eq "") {
     $SharedCorePath = Join-Path (Split-Path -Parent $ProjectRoot) "shared_core"
@@ -53,11 +59,21 @@ $requiredPaths = @(
     @{ Name = "STAGE2_RUNNER"; Path = (Join-Path $ProjectRoot "RCS-AC-v2\scripts\windows\run_stage2_clean_eval.ps1") },
     @{ Name = "CARLA_READY_SCRIPT"; Path = $EnsureCarlaScript },
     @{ Name = "CARLA_START_SCRIPT"; Path = $StartCarlaScript },
-    @{ Name = "V11_SUPPORT_CODE"; Path = $SupportCodePath },
-    @{ Name = "V11_CODE"; Path = $V11CodePath },
     @{ Name = "WORKSPACE_ROOT"; Path = $WorkspaceRoot },
     @{ Name = "SHARED_CORE"; Path = $SharedCorePath }
 )
+if ($SupportCodePath -ne "") {
+    $requiredPaths += @{ Name = "V11_SUPPORT_CODE"; Path = $SupportCodePath }
+}
+else {
+    Write-Host "STAGE2_DEPENDENCY_V11_SUPPORT_CODE=SKIPPED:not configured"
+}
+if ($V11CodePath -ne "") {
+    $requiredPaths += @{ Name = "V11_CODE"; Path = $V11CodePath }
+}
+else {
+    Write-Host "STAGE2_DEPENDENCY_V11_CODE=SKIPPED:not configured"
+}
 
 $missing = @()
 foreach ($entry in $requiredPaths) {
@@ -75,7 +91,15 @@ if ($missing.Count -gt 0) {
     exit 2
 }
 
-$env:PYTHONPATH = "$V2CodePath;$SupportCodePath;$V11CodePath;$WorkspaceRoot;$env:PYTHONPATH"
+$pythonPathParts = @($V2CodePath)
+if ($SupportCodePath -ne "") {
+    $pythonPathParts += $SupportCodePath
+}
+if ($V11CodePath -ne "") {
+    $pythonPathParts += $V11CodePath
+}
+$pythonPathParts += $WorkspaceRoot
+$env:PYTHONPATH = (($pythonPathParts + @($env:PYTHONPATH)) -join ";")
 Write-Host "STAGE2_PYTHONPATH=$env:PYTHONPATH"
 
 if (-not $SkipPythonImportProbe) {
@@ -84,8 +108,6 @@ import importlib
 modules = [
     'rcs_ac_v2.evaluation.evaluate_clean',
     'rcs_ac_v2.evaluation.carla_adapter',
-    'rcs_ac_first.runtime.config',
-    'rcs_ac_first.scripts.train',
     'shared_core.env.carla_env',
 ]
 for module in modules:

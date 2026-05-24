@@ -17,10 +17,16 @@ $ErrorActionPreference = "Stop"
 Set-Location $ProjectRoot
 $WorkspaceRoot = Split-Path -Parent $ProjectRoot
 if ($SupportCodePath -eq "") {
-    $SupportCodePath = "$ProjectRoot\RCS-AC-v1.1\goal_achieved_round_0002_execution\support_code"
+    $DefaultSupportCodePath = "$ProjectRoot\RCS-AC-v1.1\goal_achieved_round_0002_execution\support_code"
+    if (Test-Path $DefaultSupportCodePath) {
+        $SupportCodePath = $DefaultSupportCodePath
+    }
 }
 if ($V11CodePath -eq "") {
-    $V11CodePath = "$ProjectRoot\RCS-AC-v1.1\code"
+    $DefaultV11CodePath = "$ProjectRoot\RCS-AC-v1.1\code"
+    if (Test-Path $DefaultV11CodePath) {
+        $V11CodePath = $DefaultV11CodePath
+    }
 }
 if ($SharedCorePath -eq "") {
     $SharedCorePath = "$WorkspaceRoot\shared_core"
@@ -28,7 +34,15 @@ if ($SharedCorePath -eq "") {
 if ($EnvConfigPathOverride -ne "") {
     $env:RCS_AC_V2_CARLA_ENV_CONFIG_PATH = $EnvConfigPathOverride
 }
-$env:PYTHONPATH = "$ProjectRoot\RCS-AC-v2\code;$SupportCodePath;$V11CodePath;$WorkspaceRoot;$env:PYTHONPATH"
+$pythonPathParts = @("$ProjectRoot\RCS-AC-v2\code")
+if ($SupportCodePath -ne "") {
+    $pythonPathParts += $SupportCodePath
+}
+if ($V11CodePath -ne "") {
+    $pythonPathParts += $V11CodePath
+}
+$pythonPathParts += $WorkspaceRoot
+$env:PYTHONPATH = (($pythonPathParts + @($env:PYTHONPATH)) -join ";")
 
 if ($EnsureCarlaScript -eq "") {
     $EnsureCarlaScript = "$ProjectRoot\RCS-AC-v2\scripts\windows\ensure_carla_ready.ps1"

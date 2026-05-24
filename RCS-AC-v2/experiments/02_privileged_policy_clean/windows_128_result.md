@@ -151,11 +151,11 @@ the expected setup failure before real checkpoints are promoted.
 
 The v2 readiness scripts now live under `RCS-AC-v2/scripts/windows`, and the
 Stage 2 runner has a dependency probe. One reproducibility blocker remains
-before an official run: the current runner still uses `RCS-AC-v1.1` shared-core
-env builder code plus a sibling `shared_core` package as temporary Windows
-dependencies. The scratch archive probe confirmed these paths are available on
-Windows, but official performance evidence should still come from a clean
-checkout/git-pull lane or a documented clean clone.
+before an official run: the current runner still uses sibling `shared_core` as
+an external Windows runtime dependency. The adapter now owns the minimal
+shared_core env builder and the v1.1 env config is copied under `RCS-AC-v2`.
+Official performance evidence should come from the clean checkout/git-pull lane
+or a documented clean clone.
 
 The existing Windows checkout was not used for this probe because it was on an
 unrelated dirty branch and `git fetch` hit interactive GitHub credential
@@ -170,10 +170,8 @@ C:\Users\thddy\Documents\code\RCS-AC-first-official-v2-ac11c90
 
 Windows HTTPS GitHub access still prompts for credentials, but SSH
 `git@github.com:thddydgnl/RCS-AC-first.git` works. The clean clone needed
-`core.longpaths=true` to finish checkout. Because the clone does not contain
-the temporary v1.1 support/code runtime dependency, official commands from this
-lane must pass explicit v1.1/shared_core path overrides until that env builder
-is ported into v2.
+`core.longpaths=true` to finish checkout. The remaining external dependency for
+this lane is sibling `shared_core`.
 
 Before running clean eval, run the non-clean shape probe:
 

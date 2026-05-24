@@ -592,22 +592,20 @@ RCS-AC-v2/scripts/windows/ensure_carla_ready.ps1
 RCS-AC-v2/scripts/windows/start_carla_interactive.ps1
 ```
 
-The remaining temporary external dependency is the v1.1/shared-core env
-builder chain:
+The remaining temporary dependency is the shared-core env runtime:
 
 ```text
-RCS-AC-v1.1\goal_achieved_round_0002_execution\support_code
-RCS-AC-v1.1\code
 <workspace root>\shared_core
 ```
 
 `check_stage2_windows_dependencies.ps1` must pass before CARLA starts. Official
-clean PASS should not be claimed until this dependency chain is either verified
-in the Windows checkout or replaced by v2-local env-builder code.
+clean PASS should not be claimed until this dependency is verified. The adapter
+now owns the minimal shared_core env builder and the v1.1 env config is copied
+under v2 for the clean clone lane. The sibling `shared_core` package must still
+be available next to the checkout or replaced by v2-local env code.
 
-If the official v2 clean clone does not contain `RCS-AC-v1.1`, keep the v2
-code clean-cloned from GitHub and pass the temporary dependency paths
-explicitly:
+If a local run needs to override the v2 defaults, keep the v2 code clean-cloned
+from GitHub and pass the temporary dependency paths explicitly:
 
 ```powershell
 -EnvConfigPathOverride C:\Users\thddy\Documents\code\RCS-AC-first\RCS-AC-v1.1\configs\v1_1\bc_clean_v1_1_2048_eval.yaml `
@@ -617,5 +615,6 @@ explicitly:
 ```
 
 This keeps the official v2 source tied to the GitHub branch while making the
-temporary runtime dependency explicit. It is still a temporary bridge; port the
-minimum env builder into v2 before final reproducibility claims if possible.
+temporary runtime dependency explicit. It is still a temporary bridge; replace
+sibling shared_core with v2-local env code before final reproducibility claims
+if possible.

@@ -7,14 +7,17 @@ called by the runner.
 
 from __future__ import annotations
 
+from dataclasses import dataclass, fields
 from pathlib import Path
 from typing import Any
 import hashlib
+import inspect
 import os
 import sys
 
 import numpy as np
 import torch
+import yaml
 
 from rcs_ac_v2.evaluation.errors import CleanEvalRuntimeFailure
 from rcs_ac_v2.evaluation.privileged_observation import (
@@ -42,6 +45,19 @@ DEFAULT_EGO_KEYS = (
     "ego_state",
     "state",
 )
+
+
+@dataclass(frozen=True)
+class _MinimalTrainConfig:
+    seed: int
+    town: str
+    max_episode_steps: int
+
+
+@dataclass(frozen=True)
+class _MinimalPhase1Config:
+    raw: dict[str, Any]
+    train: _MinimalTrainConfig
 
 
 class Stage2CarlaObservationAdapter:
@@ -268,28 +284,16 @@ def _build_shared_core_env(config: dict[str, Any]) -> Any:
         raise CleanEvalRuntimeFailure("adapter", "carla_env_config_missing", "carla.env_config_path is required")
 
     try:
-        from rcs_ac_first.runtime.config import load_phase1_config
-        from rcs_ac_first.scripts.train import _build_env, _resolve_config_path
-    except Exception as exc:  # pragma: no cover - Windows dependency boundary.
-        raise CleanEvalRuntimeFailure(
-            "infrastructure",
-            "rcs_ac_first_import_failed",
-            f"{type(exc).__name__}: {exc}",
-        ) from exc
-
-    try:
-        env_config = load_phase1_config(_resolve_config_path(env_config_path))
+        env_config = _load_minimal_phase1_config(_resolve_config_path(env_config_path))
         output_dir = Path(config["output_dir"])
         run_name = str(carla_config.get("run_name", "rcs_ac_v2_stage2_clean_128"))
-        env = _build_env(
+        env = _build_minimal_shared_core_env(
             env_config,
             host=str(carla_config.get("host", "127.0.0.1")),
             port=int(carla_config.get("port", 2000)),
             output_dir=output_dir,
             run_name=run_name,
         )
-    except CleanEvalRuntimeFailure:
-        raise
     except Exception as exc:  # pragma: no cover - Windows dependency boundary.
         raise CleanEvalRuntimeFailure(
             "CARLA",
@@ -300,6 +304,141 @@ def _build_shared_core_env(config: dict[str, Any]) -> Any:
     if fixed_delta_seconds is not None:
         setattr(env, "fixed_delta_seconds", float(fixed_delta_seconds))
     return env
+
+
+def _resolve_config_path(raw_path: str) -> Path:
+    candidate = Path(raw_path)
+    if candidate.is_absolute():
+        return candidate
+    if candidate.exists():
+        return candidate.resolve()
+    project_candidate = Path.cwd() / candidate
+    if project_candidate.exists():
+        return project_candidate.resolve()
+    raise FileNotFoundError(f"config path not found: {raw_path}")
+
+
+def _load_minimal_phase1_config(path: Path) -> _MinimalPhase1Config:
+    raw = yaml.safe_load(path.read_text()) or {}
+    if not isinstance(raw, dict):
+        raise ValueError(f"env config must be a mapping: {path}")
+    return _MinimalPhase1Config(
+        raw=raw,
+        train=_MinimalTrainConfig(
+            seed=int(raw.get("seed", 7)),
+            town=str(raw.get("town", "Town04")),
+            max_episode_steps=int(raw.get("max_episode_steps", raw.get("total_timesteps", 2048))),
+        ),
+    )
+
+
+def _build_minimal_shared_core_env(
+    config: _MinimalPhase1Config,
+    *,
+    host: str,
+    port: int,
+    output_dir: Path,
+    run_name: str,
+) -> Any:
+    _bootstrap_carla()
+    from shared_core.env.carla_env import CarlaEnv
+    from shared_core.env.reward import RewardConfig
+    from shared_core.env.state_builder import ObservationConfig
+
+    env_raw = dict(config.raw.get("env") or {})
+    corruption_raw = env_raw.get("corruption")
+    if isinstance(corruption_raw, dict) and str(corruption_raw.get("enabled", "")).strip().lower() == "auto":
+        corruption_raw = dict(corruption_raw)
+        lower_run_name = str(run_name).lower()
+        corruption_raw["enabled"] = "corruption" in lower_run_name or "mild" in lower_run_name
+    reward_raw = dict(config.raw.get("reward") or {})
+    observation_config = ObservationConfig(
+        route_representation=str(env_raw.get("route_representation", "single_target_point_xy")),
+        route_lookahead_count=int(env_raw.get("route_lookahead_count", 3)),
+    )
+    reward_config = RewardConfig(**_filter_dataclass_kwargs(RewardConfig, reward_raw))
+    env_kwargs: dict[str, Any] = {
+        "host": host,
+        "port": int(port),
+        "town": str(config.train.town),
+        "weather": str(env_raw.get("weather", "default")),
+        "traffic_mode": str(env_raw.get("traffic_mode", "none")),
+        "traffic_vehicle_count": int(env_raw.get("traffic_vehicle_count", 0)),
+        "traffic_seed": int(env_raw.get("traffic_seed", config.train.seed)),
+        "output_dir": str(output_dir),
+        "image_every": int(env_raw.get("image_every", 50)),
+        "client_timeout": float(env_raw.get("client_timeout", 30.0)),
+        "route_length": int(env_raw.get("route_length", 40)),
+        "route_spacing": float(env_raw.get("route_spacing", 3.0)),
+        "max_steps": int(config.train.max_episode_steps),
+        "observation_config": observation_config,
+        "reward_config": reward_config,
+        "stuck_speed_threshold_mps": float(env_raw.get("stuck_speed_threshold_mps", 0.3)),
+        "stuck_min_steps": int(env_raw.get("stuck_min_steps", 60)),
+        "offroad_min_steps": int(env_raw.get("offroad_min_steps", 5)),
+        "offroad_grace_steps": int(env_raw.get("offroad_grace_steps", 8)),
+        "offroad_lane_offset_threshold": env_raw.get("offroad_lane_offset_threshold"),
+        "goal_radius": float(env_raw.get("goal_radius", 3.0)),
+        "action_contract_version": "stage4_v2",
+        "suppress_conflicting_pedals": bool(env_raw.get("suppress_conflicting_pedals", True)),
+        "low_speed_brake_suppression": bool(env_raw.get("low_speed_brake_suppression", True)),
+        "low_speed_brake_speed_threshold_kmh": float(env_raw.get("low_speed_brake_speed_threshold_kmh", 3.0)),
+        "low_speed_brake_max": float(env_raw.get("low_speed_brake_max", 0.05)),
+        "longitudinal_control": env_raw.get("longitudinal_control"),
+        "action_smoothing": env_raw.get("action_smoothing"),
+        "lateral_recovery": env_raw.get("lateral_recovery"),
+        "rgb_sensor": env_raw.get("rgb_sensor"),
+        "lidar_sensor": env_raw.get("lidar_sensor"),
+        "semantic_aux_camera_enabled": bool(env_raw.get("semantic_aux_camera_enabled", False)),
+        "semantic_sensor": env_raw.get("semantic_sensor"),
+        "aux_mask_width": int(env_raw.get("aux_mask_width", 80)),
+        "aux_mask_height": int(env_raw.get("aux_mask_height", 45)),
+        "maneuver_command_enabled": bool(env_raw.get("maneuver_command_enabled", False)),
+        "maneuver_command_mode": str(env_raw.get("maneuver_command_mode", "cycle")),
+        "maneuver_command_values": env_raw.get("maneuver_command_values"),
+        "corruption_config": corruption_raw,
+    }
+    carla_env_parameters = inspect.signature(CarlaEnv).parameters
+    if "spawn_point_index" in carla_env_parameters and env_raw.get("spawn_point_index") is not None:
+        env_kwargs["spawn_point_index"] = int(env_raw["spawn_point_index"])
+    return CarlaEnv(**env_kwargs)
+
+
+def _filter_dataclass_kwargs(dataclass_type: type[Any], raw: dict[str, Any]) -> dict[str, Any]:
+    names = {field.name for field in fields(dataclass_type)}
+    return {key: value for key, value in raw.items() if key in names}
+
+
+def _bootstrap_carla() -> None:
+    try:
+        import carla  # noqa: F401
+
+        return
+    except ModuleNotFoundError:
+        pass
+    py_tag = f"cp{sys.version_info.major}{sys.version_info.minor}"
+    search_roots: list[Path] = []
+    if os.environ.get("CARLA_ROOT"):
+        search_roots.append(Path(os.environ["CARLA_ROOT"]))
+    search_roots.extend([Path.home() / "Downloads" / "CARLA_0.9.16", Path("C:/CARLA_0.9.16")])
+    for root in search_roots:
+        dist_dir = root / "PythonAPI" / "carla" / "dist"
+        if not dist_dir.exists():
+            continue
+        matching = sorted(dist_dir.glob(f"carla-*-{py_tag}-{py_tag}-win_amd64.whl"))
+        if matching:
+            sys.path.append(str(matching[-1]))
+            import carla  # noqa: F401
+
+            return
+        available = sorted(dist_dir.glob("carla-*.whl"))
+        if available:
+            versions = ", ".join(item.name for item in available)
+            raise RuntimeError(
+                "Found CARLA Python API, but no wheel matches this Python version. "
+                f"Current Python is {sys.version.split()[0]}; available wheels: {versions}."
+            )
+    raise RuntimeError("CARLA Python API was not found. Set CARLA_ROOT or install the matching wheel.")
 
 
 def _extend_pythonpath(entries: Any) -> None:

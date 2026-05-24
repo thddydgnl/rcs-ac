@@ -18,12 +18,10 @@ adapter_factory: rcs_ac_v2.evaluation.carla_adapter:create_stage2_carla_adapter
 carla:
   host: 127.0.0.1
   port: 2000
-  env_config_path: RCS-AC-v1.1/configs/v1_1/bc_clean_v1_1_2048_eval.yaml
+  env_config_path: RCS-AC-v2/configs/external/v1_1/bc_clean_v1_1_2048_eval.yaml
   run_name: rcs_ac_v2_stage2_clean_128
   pythonpath_entries:
     - RCS-AC-v2/code
-    - RCS-AC-v1.1/goal_achieved_round_0002_execution/support_code
-    - RCS-AC-v1.1/code
     - ..
   env_action_format: stage4_v2
   allow_reverse_direct_3d: false

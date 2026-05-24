@@ -431,8 +431,8 @@ def test_windows_dependency_probe_static_contract() -> None:
     assert "STAGE2_WINDOWS_DEPENDENCIES_OK=False" in text
     assert "STAGE2_WINDOWS_DEPENDENCIES_OK=True" in text
     assert "rcs_ac_v2.evaluation.carla_adapter" in text
-    assert "rcs_ac_first.scripts.train" in text
     assert "shared_core.env.carla_env" in text
+    assert "SKIPPED:not configured" in text
     assert "exit 2" in text
     assert "exit 3" in text
 
