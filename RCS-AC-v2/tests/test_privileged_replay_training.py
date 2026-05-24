@@ -119,6 +119,7 @@ def test_replay_collector_explicit_target_speed_overrides_env_default() -> None:
     )
 
     assert get_discrete_action(action_id).throttle > 0.0
+    assert action_id != 34
 
 
 def test_replay_collector_waypoint_distance_does_not_force_zero_throttle() -> None:

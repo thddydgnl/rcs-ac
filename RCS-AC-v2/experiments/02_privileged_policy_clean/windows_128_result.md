@@ -1,7 +1,7 @@
 # Stage 2 Windows 128-Step Clean Result
 
 Date: 2026-05-24
-Status: `FIRST_128_CLEAN_FAIL_STUCK__BC_RETRAIN_PENDING_VERIFY`
+Status: `FIRST_128_CLEAN_FAIL_STUCK__BC_PROBE_COLLAPSE__FAST35_REPLAY_READY__RETRAIN_PENDING_RETRY`
 
 ## Objective
 
@@ -125,8 +125,63 @@ Follow-up already implemented:
 db1e8b6: masked reverse logits for direct_3d/stage4_v2 when allow_reverse_direct_3d=false
 b20d8eb: added replay imitation warm-start to policy training
 Windows retraining completed to windows_replay_b20d8eb_bc_pilot
-pending: action probe and clean rerun after Windows SSH/Tailscale recovers
+70ae8d9: added checkpoint action probe gate before clean rerun
+f3c515d: added clean eval artifact auto-copy after summary validation
+30b7313: fixed replay collector so explicit TargetSpeedKmh overrides env target_speed_kmh
+9c24ff7: removed waypoint target_distance<2 as a zero-throttle replay label source
+pending: retrain from the 9c24ff7 fast35 replay, rerun action probe, then clean rerun only if recommended_for_clean_rerun=true
 ```
+
+## Post-BC Action Probe
+
+The BC-retrained checkpoint did not qualify for another clean run.
+
+```text
+run_id: b20d8eb_bc_pilot
+checkpoint: windows_replay_b20d8eb_bc_pilot
+probed_actions: 512
+action_counts: {34: 512}
+reverse_action_count: 0
+nonzero_throttle_fraction: 0.0
+previous_stuck_action8_fraction: 0.0
+single_action_collapse: true
+recommended_for_clean_rerun: false
+clean rerun attempted: false
+```
+
+Diagnosis:
+
+```text
+Original official replay labels were dominated by zero-throttle action_id=34:
+action_id=2 count=16 throttle=0.0
+action_id=7 count=108 throttle=0.3
+action_id=34 count=388 throttle=0.0
+The collector had two label-collapse causes: explicit -TargetSpeedKmh was
+overridden by env info.target_speed_kmh, and small waypoint target_distance was
+treated as a stop/zero-throttle signal. Neither replay diagnostics nor action
+probe output is clean PASS evidence.
+```
+
+## Fast35 Replay Relabeling
+
+After commits `30b7313` and `9c24ff7`, a fresh Windows replay was collected from
+the official clean clone:
+
+```text
+run_id: windows_privileged_9c24ff7_fast35_pilot
+commit: 9c24ff70346b7683cd1c0ed5ef961ce16419bad7
+episodes: 4
+steps_per_episode: 128
+total_steps: 512
+action_counts: {7: 264, 15: 248}
+nonzero_throttle_fraction: 1.0
+reverse_fraction: 0.0
+clean_gate_evidence: false
+```
+
+This replay is a better training input, not performance evidence. The next
+required step is to retrain from it, probe the checkpoint, and only then decide
+whether to run the official 128-step clean eval.
 
 ## Privileged Probe Metrics
 
