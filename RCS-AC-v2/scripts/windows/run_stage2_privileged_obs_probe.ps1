@@ -56,15 +56,25 @@ if (-not $SkipGitPull) {
 }
 
 $DependencyCheckScript = "$ProjectRoot\RCS-AC-v2\scripts\windows\check_stage2_windows_dependencies.ps1"
-& powershell -ExecutionPolicy Bypass -File $DependencyCheckScript `
-    -ProjectRoot $ProjectRoot `
-    -ConfigPath $ConfigPath `
-    -EnsureCarlaScript $EnsureCarlaScript `
-    -StartCarlaScript $StartCarlaScript `
-    -EnvConfigPathOverride $EnvConfigPathOverride `
-    -SupportCodePath $SupportCodePath `
-    -V11CodePath $V11CodePath `
-    -SharedCorePath $SharedCorePath
+$DependencyArgs = @{
+    ProjectRoot = $ProjectRoot
+    ConfigPath = $ConfigPath
+    EnsureCarlaScript = $EnsureCarlaScript
+    StartCarlaScript = $StartCarlaScript
+}
+if ($EnvConfigPathOverride -ne "") {
+    $DependencyArgs.EnvConfigPathOverride = $EnvConfigPathOverride
+}
+if ($SupportCodePath -ne "") {
+    $DependencyArgs.SupportCodePath = $SupportCodePath
+}
+if ($V11CodePath -ne "") {
+    $DependencyArgs.V11CodePath = $V11CodePath
+}
+if ($SharedCorePath -ne "") {
+    $DependencyArgs.SharedCorePath = $SharedCorePath
+}
+& powershell -ExecutionPolicy Bypass -File $DependencyCheckScript @DependencyArgs
 if ($LASTEXITCODE -ne 0) {
     exit $LASTEXITCODE
 }
