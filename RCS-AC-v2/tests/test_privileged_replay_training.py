@@ -8,7 +8,11 @@ import torch
 import yaml
 
 from rcs_ac_v2.evaluation.carla_adapter import load_stage2_policy_runner
-from rcs_ac_v2.evaluation.checkpoint_action_probe import build_checkpoint_filled_config, probe_checkpoint_actions
+from rcs_ac_v2.evaluation.checkpoint_action_probe import (
+    _is_forward_steer_action,
+    build_checkpoint_filled_config,
+    probe_checkpoint_actions,
+)
 from rcs_ac_v2.env.discrete_actions import get_discrete_action
 from rcs_ac_v2.evaluation.privileged_observation import (
     EGO8_SCHEMA_VERSION,
@@ -212,6 +216,8 @@ def test_replay_training_exports_clean_eval_loadable_checkpoints(tmp_path) -> No
     assert "nonzero_throttle_fraction" in action_probe
     assert action_probe["minimum_nonzero_throttle_fraction"] == 0.5
     assert "nonzero_steer_fraction" in action_probe
+    assert "moving_steer_fraction" in action_probe
+    assert "zero_throttle_steer_fraction" in action_probe
     assert action_probe["minimum_nonzero_steer_fraction"] == 0.02
     assert action_probe["minimum_nonzero_steer_count"] == 12
     assert "previous_stuck_action8_fraction" in action_probe
@@ -229,6 +235,12 @@ def test_imitation_class_weights_favor_rare_actions(tmp_path) -> None:
     assert weights[4] > weights[7]
     assert weights[7] > 0
     assert weights[0] == 0
+
+
+def test_checkpoint_action_probe_counts_only_forward_steering() -> None:
+    assert _is_forward_steer_action(get_discrete_action(4)) is True
+    assert _is_forward_steer_action(get_discrete_action(8)) is False
+    assert _is_forward_steer_action(get_discrete_action(17)) is False
 
 
 def _simulator_privileged_info() -> dict:

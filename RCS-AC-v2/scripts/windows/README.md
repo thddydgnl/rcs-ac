@@ -78,11 +78,13 @@ summary.json, metrics.csv, 실제 입력 config를 지정한 증거 폴더로 �
 canonical summary.json/metrics.csv만 지운 뒤 새 결과만 검증/복사한다.
 probe_stage2_checkpoint_actions.ps1는 checkpoint manifest를 base clean config에
 적용한 runtime config를 만들고, replay observation에서 deterministic action
-분포를 점검한다. reverse_count=0, throttle 있는 action, 이전 stuck 실패의
-action_id=8 단일 반복 여부를 clean rerun 전에 확인한다. `-MaxStepsPerFile 128`
-로 전체 4x128 replay를 확인하고, `recommended_for_clean_rerun=true`는
-reverse 0, single-action collapse 없음, nonzero-throttle fraction 0.5 이상,
-action_id=8 fraction 0.05 이하일 때만 나온다.
+분포를 점검한다. reverse_count=0, throttle 있는 action, 전진 throttle이 있는
+조향 action, 이전 stuck 실패의 action_id=8 반복 여부를 clean rerun 전에
+확인한다. `-MaxStepsPerFile 128`로 전체 4x128 replay를 확인하고,
+`recommended_for_clean_rerun=true`는 reverse 0, single-action collapse 없음,
+nonzero-throttle fraction 0.5 이상, moving/nonzero steer fraction 0.02 이상,
+moving/nonzero steer count 12 이상, action_id=8 fraction 0.05 이하일 때만
+나온다.
 check_stage2_windows_dependencies.ps1는 CARLA 실행 전에 v2 code,
 shared_core, env config, readiness script 의존성을 검사한다.
 base config의 checkpoint path/sha256은 아직 null이므로 그대로 real mode를

@@ -83,9 +83,10 @@ def probe_checkpoint_actions(
     action_counts: Counter[int] = Counter()
     reverse_count = 0
     nonzero_throttle_count = 0
-    nonzero_steer_count = 0
-    left_steer_count = 0
-    right_steer_count = 0
+    moving_steer_count = 0
+    left_moving_steer_count = 0
+    right_moving_steer_count = 0
+    zero_throttle_steer_count = 0
     zero_throttle_count = 0
     probed_files: list[dict[str, Any]] = []
     for file_entry in replay_manifest["files"]:
@@ -109,17 +110,25 @@ def probe_checkpoint_actions(
             action_counts[action_id] += 1
             reverse_count += int(action.reverse)
             nonzero_throttle_count += int(float(action.throttle) > 0.0 and not action.reverse)
-            nonzero_steer_count += int(abs(float(action.steer)) > 0.0 and not action.reverse)
-            left_steer_count += int(float(action.steer) < 0.0 and not action.reverse)
-            right_steer_count += int(float(action.steer) > 0.0 and not action.reverse)
+            moving_steer_count += int(_is_forward_steer_action(action))
+            left_moving_steer_count += int(
+                _is_forward_steer_action(action) and float(action.steer) < 0.0
+            )
+            right_moving_steer_count += int(
+                _is_forward_steer_action(action) and float(action.steer) > 0.0
+            )
+            zero_throttle_steer_count += int(
+                abs(float(action.steer)) > 0.0 and float(action.throttle) == 0.0 and not action.reverse
+            )
             zero_throttle_count += int(float(action.throttle) == 0.0)
         probed_files.append({"path": str(replay_path), "steps": steps})
 
     total = sum(action_counts.values())
     unique_action_ids = sorted(action_counts)
     nonzero_throttle_fraction = float(nonzero_throttle_count) / float(total) if total else 0.0
-    nonzero_steer_fraction = float(nonzero_steer_count) / float(total) if total else 0.0
+    moving_steer_fraction = float(moving_steer_count) / float(total) if total else 0.0
     zero_throttle_fraction = float(zero_throttle_count) / float(total) if total else 0.0
+    zero_throttle_steer_fraction = float(zero_throttle_steer_count) / float(total) if total else 0.0
     previous_action8_count = int(action_counts.get(8, 0))
     previous_action8_fraction = float(previous_action8_count) / float(total) if total else 0.0
     recommended = bool(
@@ -127,8 +136,8 @@ def probe_checkpoint_actions(
         and reverse_count == 0
         and len(unique_action_ids) > 1
         and nonzero_throttle_fraction >= float(min_nonzero_throttle_fraction)
-        and nonzero_steer_count >= int(min_nonzero_steer_count)
-        and nonzero_steer_fraction >= float(min_nonzero_steer_fraction)
+        and moving_steer_count >= int(min_nonzero_steer_count)
+        and moving_steer_fraction >= float(min_nonzero_steer_fraction)
         and previous_action8_fraction <= float(max_previous_stuck_action8_fraction)
     )
     result = {
@@ -151,10 +160,14 @@ def probe_checkpoint_actions(
         "reverse_action_count": int(reverse_count),
         "nonzero_throttle_action_count": int(nonzero_throttle_count),
         "nonzero_throttle_fraction": nonzero_throttle_fraction,
-        "nonzero_steer_action_count": int(nonzero_steer_count),
-        "nonzero_steer_fraction": nonzero_steer_fraction,
-        "left_steer_action_count": int(left_steer_count),
-        "right_steer_action_count": int(right_steer_count),
+        "moving_steer_action_count": int(moving_steer_count),
+        "moving_steer_fraction": moving_steer_fraction,
+        "nonzero_steer_action_count": int(moving_steer_count),
+        "nonzero_steer_fraction": moving_steer_fraction,
+        "left_moving_steer_action_count": int(left_moving_steer_count),
+        "right_moving_steer_action_count": int(right_moving_steer_count),
+        "zero_throttle_steer_action_count": int(zero_throttle_steer_count),
+        "zero_throttle_steer_fraction": zero_throttle_steer_fraction,
         "zero_throttle_action_count": int(zero_throttle_count),
         "zero_throttle_fraction": zero_throttle_fraction,
         "single_action_collapse": len(unique_action_ids) == 1,
@@ -216,6 +229,10 @@ def _load_checkpoint_manifest(path: Path) -> dict[str, Any]:
     if not isinstance(payload, dict):
         raise ValueError("checkpoint manifest must be a JSON object")
     return payload
+
+
+def _is_forward_steer_action(action: Any) -> bool:
+    return bool(abs(float(action.steer)) > 0.0 and float(action.throttle) > 0.0 and not action.reverse)
 
 
 def _resolve_path(raw: str | Path, *, root: Path, fallback_dir: Path) -> Path:
