@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 from dataclasses import dataclass
 import json
+import os
 from pathlib import Path
 from typing import Any
 
@@ -277,7 +278,7 @@ def train_stage2_privileged_from_replay(
         "warning": "Replay-trained checkpoints are inputs for clean eval, not clean PASS evidence.",
     }
     manifest_path = output / "stage2_privileged_replay_checkpoint_manifest.json"
-    manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n")
+    _write_json_atomic(manifest_path, manifest)
     return ReplayTrainingResult(
         output_dir=output,
         world_model_checkpoint_path=world_model_checkpoint_path,
@@ -381,6 +382,17 @@ def _world_model_action_auxiliary_loss(
         action.reshape(-1),
         weight=class_weights,
     )
+
+
+def _write_json_atomic(path: Path, payload: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp_path = path.with_name(f".{path.name}.tmp")
+    try:
+        tmp_path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
+        os.replace(tmp_path, path)
+    finally:
+        if tmp_path.exists():
+            tmp_path.unlink()
 
 
 if __name__ == "__main__":

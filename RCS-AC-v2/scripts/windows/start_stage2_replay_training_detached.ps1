@@ -41,6 +41,7 @@ New-Item -ItemType Directory -Force -Path (Split-Path -Parent $LogPath) | Out-Nu
 $ResolvedOutputDir = (Resolve-Path $OutputDir).Path
 $ResolvedLogPath = (Resolve-Path (Split-Path -Parent $LogPath)).Path
 $ResolvedLogPath = Join-Path $ResolvedLogPath (Split-Path -Leaf $LogPath)
+$LaunchManifestPath = Join-Path $ResolvedOutputDir "train_stage2_privileged_from_replay.launch.json"
 
 $TrainingScript = Join-Path $ProjectRoot "RCS-AC-v2\scripts\windows\train_stage2_privileged_from_replay.ps1"
 $QuotedProjectRoot = Quote-PowerShellString $ProjectRoot
@@ -76,12 +77,47 @@ exit `$Code
 
 $InnerCommand | Set-Content -Path $InnerScriptPath
 $TaskArgument = "-NoProfile -ExecutionPolicy Bypass -File `"$InnerScriptPath`""
+$GitCommit = (git rev-parse HEAD).Trim()
+$GitBranch = (git rev-parse --abbrev-ref HEAD).Trim()
+$PythonVersion = (& py -3.12 --version 2>&1 | Out-String).Trim()
+$HostName = [System.Net.Dns]::GetHostName()
+
+$LaunchManifest = [ordered]@{
+    project_root = $ProjectRoot
+    git_commit = $GitCommit
+    git_branch = $GitBranch
+    python_version = $PythonVersion
+    host = $HostName
+    started_by = [System.Security.Principal.WindowsIdentity]::GetCurrent().Name
+    replay_path = $ReplayPath
+    replay_manifest_path = $ReplayManifestPath
+    output_dir = $ResolvedOutputDir
+    log_path = $ResolvedLogPath
+    inner_script_path = $InnerScriptPath
+    task_name = $TaskName
+    sequence_length = $SequenceLength
+    batch_size = $BatchSize
+    world_model_steps = $WorldModelSteps
+    policy_steps = $PolicySteps
+    learning_rate = $LearningRate
+    imitation_weight = $ImitationWeight
+    behavior_weight = $BehaviorWeight
+    imitation_class_balance = [bool]$ImitationClassBalance
+    imitation_balance_power = $ImitationBalancePower
+    steer_sequence_fraction = $SteerSequenceFraction
+    world_model_action_aux_weight = $WorldModelActionAuxWeight
+    hidden_dim = $HiddenDim
+    device = $Device
+    created_at = (Get-Date -Format o)
+}
+$LaunchManifest | ConvertTo-Json -Depth 4 | Set-Content -Path $LaunchManifestPath
 
 Write-Host "STAGE2_DETACHED_REPLAY_TRAIN_READY=True"
 Write-Host "REPLAY_PATH=$ReplayPath"
 Write-Host "REPLAY_MANIFEST_PATH=$ReplayManifestPath"
 Write-Host "OUTPUT_DIR=$ResolvedOutputDir"
 Write-Host "TRAIN_LOG_PATH=$ResolvedLogPath"
+Write-Host "TRAIN_LAUNCH_MANIFEST_PATH=$LaunchManifestPath"
 Write-Host "TRAIN_SCRIPT_PATH=$InnerScriptPath"
 Write-Host "TRAIN_TASK_NAME=$TaskName"
 if ($NoStart) {
@@ -89,6 +125,13 @@ if ($NoStart) {
     exit 0
 }
 
+$ExistingTask = Get-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue
+if ($null -ne $ExistingTask -and [string]$ExistingTask.State -eq "Running") {
+    Write-Host "TRAIN_TASK_ALREADY_RUNNING=True"
+    Write-Host "TRAIN_TASK_NAME=$TaskName"
+    Write-Host "TRAIN_LAUNCH_MANIFEST_PATH=$LaunchManifestPath"
+    exit 3
+}
 Unregister-ScheduledTask -TaskName $TaskName -Confirm:$false -ErrorAction SilentlyContinue
 $Action = New-ScheduledTaskAction -Execute "powershell.exe" -Argument $TaskArgument -WorkingDirectory $ProjectRoot
 $Trigger = New-ScheduledTaskTrigger -Once -At (Get-Date).AddMinutes(1)

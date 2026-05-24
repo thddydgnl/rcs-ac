@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 import hashlib
+import os
 
 import torch
 
@@ -12,7 +13,13 @@ import torch
 def save_checkpoint(path: str | Path, payload: dict[str, Any]) -> Path:
     output_path = Path(path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    torch.save(payload, output_path)
+    tmp_path = output_path.with_name(f".{output_path.name}.tmp")
+    try:
+        torch.save(payload, tmp_path)
+        os.replace(tmp_path, output_path)
+    finally:
+        if tmp_path.exists():
+            tmp_path.unlink()
     return output_path
 
 

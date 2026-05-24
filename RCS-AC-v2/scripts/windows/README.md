@@ -75,13 +75,20 @@ replay에 steering window가 있는데도 정책이 straight/steer 한쪽으로 
 latent가 action 조건을 보존하도록 훈련 중에만 사용한다.
 checkpoint manifest의 `sampler` 필드는 priority window 수와 effective sampling
 fraction을 기록하므로, replay 자체에 steering window가 충분한지 먼저 확인한다.
-start_stage2_replay_training_detached.ps1는 긴 replay training을 별도 Windows
-PowerShell 프로세스로 띄우고 train log path와 process id를 출력한다. SSH가
-끊길 수 있는 원격 실행에서는 이 wrapper를 우선 사용하고, 완료 여부는 log의
-TRAIN_EXIT_CODE와 checkpoint manifest 존재 여부로 확인한다.
+start_stage2_replay_training_detached.ps1는 긴 replay training을 Windows
+scheduled task로 띄우고 train log path, task name, launch manifest path를
+출력한다. SSH가 끊길 수 있는 원격 실행에서는 이 wrapper를 우선 사용하고,
+완료 여부는 log의 TRAIN_EXIT_CODE와 checkpoint manifest 검증 결과로
+확인한다. 같은 TaskName의 기존 task가 아직 Running이면 새 task를 덮어쓰지
+않고 실패한다.
+이 wrapper는 checkpoint output dir에
+`train_stage2_privileged_from_replay.launch.json`도 남긴다. 재연결 후에는
+TaskName/LogPath를 기억하지 못해도 OutputDir만으로 check script가 launch
+manifest를 읽어 log/task 상태를 복구할 수 있다.
 check_stage2_replay_training_detached.ps1는 detached training log, process id,
 checkpoint manifest를 확인하고 TRAIN_READY_FOR_PROBE=True일 때만 action
-probe 단계로 넘어가게 한다.
+probe 단계로 넘어가게 한다. 준비 판정은 manifest 존재, TRAIN_EXIT_CODE=0,
+world_model/policy checkpoint 파일 존재, manifest sha256 일치까지 포함한다.
 run_stage2_clean_eval.ps1의 `-RunOutputDir` 옵션은 validated Windows run의
 summary.json, metrics.csv, 실제 입력 config를 지정한 증거 폴더로 복사한다.
 이 옵션은 artifact mirror 편의 기능일 뿐 PASS/FAIL을 바꾸거나 summary 필드를
