@@ -19,7 +19,7 @@ Stage 2: Privileged policy clean
 Status:
 
 ```text
-V2_BRANCH_PUSHED__WINDOWS_PRIVILEGED_OBS_PROBE_PASS__REPLAY_TRAINING_PATH_READY__REAL_TRAINED_CHECKPOINTS_PENDING__CARLA_CLEAN_PENDING
+V2_BRANCH_PUSHED__OFFICIAL_CLEAN_CLONE_PRIVILEGED_OBS_PROBE_PASS__REPLAY_TRAINING_PATH_READY__REAL_TRAINED_CHECKPOINTS_PENDING__CARLA_CLEAN_PENDING
 ```
 
 Last completed stage:
@@ -65,7 +65,7 @@ Integrated into docs/02_persistent_subagent_goal_protocol.md and runbook.
 Pending brief:
 
 ```text
-Stage 2 local smoke, Windows dry-run prep, fake-env adapter-loop contract, Stage 2 shared-core CARLA adapter factory, local checkpoint export/manifest path, v2 branch push, v2-local readiness scripts, dependency probe, simulator-state privileged observation builder, Windows privileged obs probe, privileged replay collector, replay trainer, and checkpoint provenance gate are complete. Next work packet must collect enough Windows CARLA privileged replay, train real replay-source checkpoints, resolve the official Windows git-pull lane, and run/classify the 128-step clean gate.
+Stage 2 local smoke, Windows dry-run prep, fake-env adapter-loop contract, Stage 2 shared-core CARLA adapter factory, local checkpoint export/manifest path, v2 branch push, v2-local readiness scripts, dependency probe, simulator-state privileged observation builder, Windows privileged obs probe, privileged replay collector, replay trainer, checkpoint provenance gate, and the official Windows clean-clone privileged-observation probe are complete. Next work packet must collect enough Windows CARLA privileged replay, train real replay-source checkpoints, fill checkpoint paths/sha256 in the clean config, and run/classify the 128-step clean gate.
 ```
 
 Escalation triggers checked:
@@ -90,6 +90,7 @@ Stage 2 Windows archive probe at commit 5b00347 passed dependency check, CARLA T
 Stage 2 replay path now exists: collect_stage2_privileged_replay.ps1 writes simulator-state semantic43/ego8 .npz episodes, train_stage2_privileged_from_replay.ps1 exports replay-source world_model/policy checkpoints and manifest, and clean eval rejects synthetic smoke checkpoints by provenance.
 Stage 2 replay path Windows scratch check at commit e1c9c86 passed dependency probe, replay module imports, 1x8-step privileged replay collection, 2-step replay checkpoint training, and strict replay-source checkpoint loading. This remains clean_gate_evidence=false and is not clean performance evidence.
 Windows official sync lane now uses SSH GitHub access, not HTTPS. Clean clone path C:\Users\thddy\Documents\code\RCS-AC-first-official-v2-ac11c90 was created at commit ac11c90 after enabling core.longpaths. The v1.1 env config is now copied under RCS-AC-v2 and the adapter owns the minimal shared_core env builder, so the clean clone should only need sibling shared_core as an external runtime dependency.
+Official Windows clean clone was pulled to commit e42dc6a after fixing optional PowerShell dependency arguments. From that clean clone, dependency check, CARLA Town04 readiness, simulator-state privileged observation provenance, BEV/ego shape/finite checks, and neutral-step safety checks all passed with clean_gate_evidence=false.
 First Windows CARLA run must follow docs/03_windows_carla_remote_execution_workflow.md.
 GitHub/Windows sync and .git cleanup rules must follow docs/04_git_sync_artifact_cleanup_policy.md.
 Clean-performance goal start/resume prompt is docs/05_clean_performance_goal_prompt.md.
@@ -140,6 +141,7 @@ The existing Windows checkout was dirty and GitHub credential fetch failed, so t
 Stage 2 training is no longer limited to synthetic smoke plumbing: v2 has replay IO/sampler, Windows privileged replay collection, replay-based world-model/policy training, and checkpoint manifests with source=windows_carla_privileged_replay. Synthetic smoke checkpoints now carry source=local_synthetic_smoke_not_carla and are rejected by the official clean config.
 Windows archive scratch check for commit e1c9c86 confirmed replay modules import under Python 3.12, tiny CARLA privileged replay collection writes source=windows_carla_privileged_replay manifest, tiny replay training writes world_model/policy sha256 manifest, and load_stage2_policy_runner accepts those replay-source checkpoints under the strict provenance gate.
 HTTPS GitHub access on Windows still fails due credential prompt, but SSH git@github.com works for origin/codex/rcs-ac-v2-raw2drive. A clean official clone is available after core.longpaths=true. Stage 2 scripts no longer require untracked RCS-AC-v1.1 support/code; they still support EnvConfigPathOverride/SupportCodePath/V11CodePath/SharedCorePath for local overrides.
+Official clean clone probe at commit e42dc6a passed without override paths: source=carla_simulator_state, schema=carla_simulator_semantic43_v1, hash=382e53122998198ad8f392c7298465057d364b23cf1fedb32465872ae43320a3, BEV [1,1,43,16,16], ego [1,1,8], finite tensors, neutral step running/collision=false/offroad=false/stuck=false. This remains infrastructure evidence, not clean performance evidence.
 Real mode with missing checkpoints is now classified as failure_class model / done_reason world_model_checkpoint_missing before CARLA env construction.
 Checkpoint loader now requires path and sha256, validates payload config/state_dict, rejects 8x8 world-model checkpoints for the 16x16 clean config, rejects missing policy config, and keeps checkpoint failures in failure_class model.
 Windows runner PYTHONPATH now includes v2 code, optional legacy support/code overrides, and workspace root needed by the shared-core env builder.
@@ -170,12 +172,12 @@ replace synthetic smoke checkpoints with real Stage 1 world-model and Stage 2 pr
 collect Windows CARLA privileged replay with scripts/windows/collect_stage2_privileged_replay.ps1
 train replay-source checkpoints with scripts/windows/train_stage2_privileged_from_replay.ps1
 fill Windows-local clean config checkpoints.world_model/path+sha256 and checkpoints.policy/path+sha256
-resolve the official Windows sync lane: clean checkout or clean clone plus git pull --ff-only of origin/codex/rcs-ac-v2-raw2drive
+use the official Windows clean clone C:\Users\thddy\Documents\code\RCS-AC-first-official-v2-ac11c90 plus git pull --ff-only of origin/codex/rcs-ac-v2-raw2drive
 use SSH remote on Windows; HTTPS prompts for credentials
 use the v2-local minimal shared_core env builder by default; pass explicit dependency overrides only for local experiments
 keep the archive-runtime lane only for scratch infrastructure probes, not official clean PASS evidence
 run scripts/windows/check_stage2_windows_dependencies.ps1 to verify the v2-local env config and sibling shared_core remain available
-rerun scripts/windows/run_stage2_privileged_obs_probe.ps1 -StepNeutral if checkpoints/config/env wiring changes
+rerun scripts/windows/run_stage2_privileged_obs_probe.ps1 -StepNeutral if checkpoints/config/env wiring changes; clean clone commit e42dc6a already passed the current probe
 run scripts/windows/run_stage2_clean_eval.ps1 official execution after git pull --ff-only
 verify clean summary source=windows_carla and metrics.csv has exactly 128 rows before any PASS claim
 experiments/02_privileged_policy_clean/windows_128_result.md official run update with summary+metrics pulled files
@@ -241,7 +243,7 @@ LOCAL_ADAPTER_LOOP_PASS
 LOCAL_CARLA_FACTORY_PASS
 LOCAL_CHECKPOINT_EXPORT_PASS
 WINDOWS_DEPENDENCY_PROBE_PASS
-WINDOWS_PRIVILEGED_OBS_PROBE_PASS
+OFFICIAL_CLEAN_CLONE_PRIVILEGED_OBS_PROBE_PASS
 REPLAY_TRAINING_PATH_READY
 SYNTHETIC_CHECKPOINT_REJECTION_PASS
 ```
@@ -255,7 +257,7 @@ PYTHONDONTWRITEBYTECODE=1 python -m pytest RCS-AC-v2/tests -q -p no:cacheprovide
 Local result:
 
 ```text
-97 passed in 2.30s
+97 passed in 3.07s
 ```
 
 Local policy smoke:
@@ -280,7 +282,7 @@ Full clean status:
 ```text
 REAL_TRAINED_CHECKPOINTS_PENDING
 WINDOWS_PRIVILEGED_REPLAY_COLLECTION_PENDING
-WINDOWS_PRIVILEGED_OBS_PROBE_PASS
+OFFICIAL_CLEAN_CLONE_PRIVILEGED_OBS_PROBE_PASS
 CARLA_CLEAN_PENDING
 ```
 

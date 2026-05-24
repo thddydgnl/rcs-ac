@@ -1,7 +1,7 @@
 # Stage 2 Windows 128-Step Clean Result
 
 Date: 2026-05-24
-Status: `PRIVILEGED_OBS_PROBE_PASS__OFFICIAL_CLEAN_NOT_RUN`
+Status: `OFFICIAL_CLEAN_CLONE_PRIVILEGED_OBS_PROBE_PASS__OFFICIAL_CLEAN_NOT_RUN`
 
 ## Objective
 
@@ -12,7 +12,7 @@ readiness guard passes.
 ## Required Command Shape
 
 ```powershell
-Set-Location C:\Users\thddy\Documents\code\RCS-AC-first
+Set-Location C:\Users\thddy\Documents\code\RCS-AC-first-official-v2-ac11c90
 powershell -ExecutionPolicy Bypass -File RCS-AC-v2\scripts\windows\run_stage2_clean_eval.ps1 `
   -ConfigPath RCS-AC-v2\configs\eval\clean_128_stage2_privileged.yaml
 ```
@@ -65,18 +65,18 @@ pulled files include summary.json and metrics.csv
 ## Metrics
 
 ```text
-commit: 5b00347722c161c41bed62db731230d163513a1b
+commit: e42dc6a8861146dd40c671c439061e1de622f918
 branch: codex/rcs-ac-v2-raw2drive
-Windows command: scratch archive runtime; run_stage2_privileged_obs_probe.ps1 -StepNeutral -SkipGitPull
+Windows command: official clean clone; run_stage2_privileged_obs_probe.ps1 -StepNeutral -SkipGitPull
 config: RCS-AC-v2/configs/eval/clean_128_stage2_privileged.yaml
 CARLA version: 0.9.16
 CARLA town: Town04
 stage: stage2_privileged_policy_clean
 gate: privileged observation probe only; clean_gate_evidence=false
 output path: RCS-AC-v2/experiments/02_privileged_policy_clean/windows_128/privileged_obs_probe.json
-pulled files: privileged_obs_probe.json
+pulled files: clean_clone_e42dc6a/privileged_obs_probe.json, clean_clone_e42dc6a/privileged_obs_probe.log
 failure class: none
-next action: promote real checkpoints and run official 128-step clean eval from a clean Windows sync lane
+next action: promote real checkpoints and run official 128-step clean eval from the clean clone
 CARLA readiness result: PASS, target already loaded
 summary.json: not produced by probe
 steps: neutral reset + one neutral step only
@@ -93,16 +93,16 @@ failure_class: none
 
 This is non-clean infrastructure evidence, not a clean-performance PASS.
 
-Local archive:
+Local evidence:
 
 ```text
-/Users/song-yonghwi/code/windows_results/rcs-ac-v2/stage2_archive_probe_20260524_160752_5b003477/
+/Users/song-yonghwi/code/RCS-AC-first/RCS-AC-v2/experiments/02_privileged_policy_clean/windows_128/clean_clone_e42dc6a/
 ```
 
 Windows runtime:
 
 ```text
-C:\Users\thddy\Documents\code\RCS-AC-v2-runtime-20260524_160752-5b003477
+C:\Users\thddy\Documents\code\RCS-AC-first-official-v2-ac11c90
 ```
 
 Result:
@@ -132,16 +132,20 @@ The probe confirmed that the current shared-core raw observation lacks
 pinned simulator-state semantic43/ego8 observation from CARLA state. Raw-derived
 or debug privileged tensors remain ineligible for clean PASS.
 
+Earlier scratch archive evidence exists at commit `5b003477`, but the current
+reproducibility reference is the official clean clone at commit `e42dc6a`.
+
 ## Current Blocker
 
 The locally testable Stage 2 clean-eval adapter loop, metrics CSV writer,
 summary validator, Windows runner invocation path, shared-core CARLA adapter
 factory, simulator-state privileged observation builder, and Windows privileged
-obs probe are implemented. The replay collection/training path is also present:
-collect privileged CARLA replay, train replay-source world-model/policy
-checkpoints, and fill config paths/sha from the generated manifest. The local
-synthetic checkpoint export path remains plumbing evidence only, and the clean
-config rejects it by provenance. The official run is still not run because real
+obs probe are implemented and reproduced from the official clean clone. The
+replay collection/training path is also present: collect privileged CARLA
+replay, train replay-source world-model/policy checkpoints, and fill config
+paths/sha from the generated manifest. The local synthetic checkpoint export
+path remains plumbing evidence only, and the clean config rejects it by
+provenance. The official clean run is still not run because real
 world-model/policy checkpoint paths are still null.
 
 A local real-mode probe with the base null-checkpoint config exits with code 2,
@@ -150,12 +154,10 @@ writes a valid failure summary, and classifies the setup as
 the expected setup failure before real checkpoints are promoted.
 
 The v2 readiness scripts now live under `RCS-AC-v2/scripts/windows`, and the
-Stage 2 runner has a dependency probe. One reproducibility blocker remains
-before an official run: the current runner still uses sibling `shared_core` as
-an external Windows runtime dependency. The adapter now owns the minimal
-shared_core env builder and the v1.1 env config is copied under `RCS-AC-v2`.
-Official performance evidence should come from the clean checkout/git-pull lane
-or a documented clean clone.
+Stage 2 runner has a dependency probe. The remaining reproducibility dependency
+is sibling `shared_core`. The adapter now owns the minimal shared_core env
+builder and the v1.1 env config is copied under `RCS-AC-v2`. Official
+performance evidence should continue to come from the documented clean clone.
 
 The existing Windows checkout was not used for this probe because it was on an
 unrelated dirty branch and `git fetch` hit interactive GitHub credential
@@ -170,10 +172,10 @@ C:\Users\thddy\Documents\code\RCS-AC-first-official-v2-ac11c90
 
 Windows HTTPS GitHub access still prompts for credentials, but SSH
 `git@github.com:thddydgnl/RCS-AC-first.git` works. The clean clone needed
-`core.longpaths=true` to finish checkout. The remaining external dependency for
-this lane is sibling `shared_core`.
+`core.longpaths=true` to finish checkout and is now at commit `e42dc6a`. The
+remaining external dependency for this lane is sibling `shared_core`.
 
-Before running clean eval, run the non-clean shape probe:
+If checkpoint/config/env wiring changes, rerun the non-clean shape probe:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File RCS-AC-v2\scripts\windows\run_stage2_privileged_obs_probe.ps1 `
@@ -181,12 +183,12 @@ powershell -ExecutionPolicy Bypass -File RCS-AC-v2\scripts\windows\run_stage2_pr
   -StepNeutral
 ```
 
-This must produce `privileged_obs_probe.json` with `clean_gate_evidence=false`,
-strict privileged BEV/ego shapes, finite tensors, raw obs/info keys,
-simulator-state provenance, schema/hash evidence, and neutral-step info. It
-must not be interpreted as clean PASS.
+The current clean clone already produces `privileged_obs_probe.json` with
+`clean_gate_evidence=false`, strict privileged BEV/ego shapes, finite tensors,
+raw obs/info keys, simulator-state provenance, schema/hash evidence, and
+neutral-step info. It must not be interpreted as clean PASS.
 
-Local adapter-loop tests are not clean evidence. This file can move to PASS
-only after Windows runs the command above after `git pull --ff-only`, the CARLA
-readiness guard passes, and the resulting `summary.json` validates with
-`source=windows_carla`.
+Local adapter-loop tests and privileged observation probes are not clean
+evidence. This file can move to PASS only after Windows runs the clean eval
+command after `git pull --ff-only`, the CARLA readiness guard passes, and the
+resulting `summary.json` validates with `source=windows_carla`.

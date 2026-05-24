@@ -166,6 +166,16 @@ Completed Windows clean-eval preparation:
   `RCS-AC-v2/` subtree; unrelated root worktree changes were not staged.
 - Added `windows_128_result.md` template for the first official Windows clean
   result.
+- Fixed the Windows Stage 2 wrappers so optional dependency overrides are passed
+  only when non-empty. This lets the official clean clone run the dependency
+  probe and privileged-observation probe without local override arguments.
+- Pulled the official clean clone
+  `C:\Users\thddy\Documents\code\RCS-AC-first-official-v2-ac11c90` to commit
+  `e42dc6a` and reran `run_stage2_privileged_obs_probe.ps1 -StepNeutral
+  -SkipGitPull` with no override paths. The clean clone passed dependency
+  checks, CARLA Town04 readiness, simulator-state privileged provenance,
+  BEV/ego shape and finite checks, and neutral-step safety checks. The result
+  remains `clean_gate_evidence=false`.
 
 ## Tests
 
@@ -178,7 +188,7 @@ PYTHONDONTWRITEBYTECODE=1 python -m pytest RCS-AC-v2/tests -q -p no:cacheprovide
 Result:
 
 ```text
-97 passed in 2.30s
+97 passed in 3.07s
 ```
 
 Additional policy-driven rollout smoke:
@@ -303,7 +313,7 @@ mistaken for official Windows evidence.
 
 ## Gate
 
-Status: `V2_BRANCH_PUSHED__WINDOWS_PRIVILEGED_OBS_PROBE_PASS__REPLAY_TRAINING_PATH_READY__REAL_TRAINED_CHECKPOINTS_PENDING__CARLA_CLEAN_PENDING`
+Status: `V2_BRANCH_PUSHED__OFFICIAL_CLEAN_CLONE_PRIVILEGED_OBS_PROBE_PASS__REPLAY_TRAINING_PATH_READY__REAL_TRAINED_CHECKPOINTS_PENDING__CARLA_CLEAN_PENDING`
 
 Required local evidence:
 
@@ -330,22 +340,23 @@ checkpoint export: synthetic world_model/policy `.pt` files plus sha256 manifest
 real-mode missing checkpoint: classified as model/world_model_checkpoint_missing with a valid failure summary
 artifact hygiene: v2 heavy file negative probe fails; clean hygiene pass has no v2 heavy files, no v2 nested .git, and no >50MB v2 files
 git sync: origin/codex/rcs-ac-v2-raw2drive exists and contains the RCS-AC-v2 subtree for Windows pull
-Windows dependency probe: PASS on scratch archive runtime at commit 5b00347; v2-local readiness scripts, v1.1 support/code, and sibling shared_core were present
-privileged obs probe: PASS on Windows CARLA Town04 at commit 5b00347 with clean_gate_evidence=false before any clean PASS attempt
+Windows dependency probe: PASS on scratch archive runtime at commit 5b00347 and official clean clone at commit e42dc6a; v2-local readiness scripts, v2-local env config, and sibling shared_core were present
+privileged obs probe: PASS on Windows CARLA Town04 at commit 5b00347 scratch archive and commit e42dc6a official clean clone with clean_gate_evidence=false before any clean PASS attempt
 privileged provenance: source=carla_simulator_state, schema=carla_simulator_semantic43_v1, hash=382e53122998198ad8f392c7298465057d364b23cf1fedb32465872ae43320a3
 privileged tensors: BEV [1,1,43,16,16] finite, ego [1,1,8] finite, neutral step collision/offroad/stuck false
 replay checkpoint path: replay IO/sampler, fake collector test, two-step replay training export, and strict checkpoint loader all pass locally
 checkpoint provenance gate: local_synthetic_smoke_not_carla checkpoints are rejected by the official clean config
 Windows replay path scratch: commit e1c9c86 archive dependency probe passed, replay modules imported under Windows Python 3.12, 1x8-step privileged replay collection produced source=windows_carla_privileged_replay manifest, 2-step replay training produced world_model/policy sha256 manifest, and strict checkpoint loader accepted the replay-source checkpoints
-official sync lane: Windows SSH git access works, clean clone path C:\Users\thddy\Documents\code\RCS-AC-first-official-v2-ac11c90 is at ac11c90 after core.longpaths=true, and the adapter now owns the minimal shared_core env builder; sibling shared_core remains external
+official sync lane: Windows SSH git access works, clean clone path C:\Users\thddy\Documents\code\RCS-AC-first-official-v2-ac11c90 is at e42dc6a after core.longpaths=true, and the adapter now owns the minimal shared_core env builder; sibling shared_core remains external
+official clean clone probe: source=carla_simulator_state, schema=carla_simulator_semantic43_v1, hash=382e53122998198ad8f392c7298465057d364b23cf1fedb32465872ae43320a3, BEV [1,1,43,16,16], ego [1,1,8], finite tensors, neutral step running/collision=false/offroad=false/stuck=false
 ```
 
 ## Blockers
 
 Windows CARLA clean eval is intentionally not run yet. Stage 2 cannot be
-promoted to full clean PASS until real trained checkpoints are promoted, a
-clean official Windows sync lane is used, CARLA readiness guard passes, and
-128/512/2048 clean evidence is recorded.
+promoted to full clean PASS until real trained checkpoints are promoted, CARLA
+readiness guard passes from the clean clone, and 128/512/2048 clean evidence is
+recorded.
 
 The generic Stage 2 adapter loop, shared-core CARLA factory, checkpoint loader,
 local synthetic checkpoint export path, simulator-state privileged observation
@@ -359,16 +370,15 @@ The current Stage 2 runner still has a temporary reproducibility dependency on
 sibling `shared_core`. The adapter now owns the minimal shared_core env builder
 and the v1.1 env config is copied under `RCS-AC-v2`, so untracked
 `RCS-AC-v1.1` support/code is no longer needed for the clean clone lane.
-Official Windows execution should use the clean checkout/git pull lane before
-claiming performance evidence. The existing Windows repo was dirty and GitHub
-HTTPS credential fetch failed, so it was not used as the official sync source
-in this round.
+Official Windows execution should continue using the clean clone/git pull lane
+before claiming performance evidence. The existing Windows repo was dirty and
+GitHub HTTPS credential fetch failed, so it was not used as the official sync
+source in this round.
 
 ## Next Action
 
 Produce/promote real Stage 1 world-model and Stage 2 privileged-policy
 checkpoints by collecting Windows CARLA privileged replay, training replay-source
 checkpoints, filling checkpoint paths and sha256 in the clean-128 config,
-resolving the official Windows git-pull/clean-clone lane, then running the
-official Windows sequence: 128-step single-start first, then 512 primary subset,
-then 2048 subset if safe.
+then running the official Windows clean-clone sequence: 128-step single-start
+first, then 512 primary subset, then 2048 subset if safe.
