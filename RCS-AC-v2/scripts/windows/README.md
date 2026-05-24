@@ -47,6 +47,7 @@ start_stage2_replay_training_detached.ps1
 check_stage2_replay_training_detached.ps1
 probe_stage2_checkpoint_actions.ps1
 probe_stage2_candidate_cross_replays.ps1
+run_stage2_target24_candidate_cycle.ps1
 run_stage2_clean_eval.ps1
 ensure_carla_ready.ps1
 start_carla_interactive.ps1
@@ -109,6 +110,11 @@ probe_stage2_candidate_cross_replays.ps1는 후보 checkpoint를 primary replay�
 secondary replay 양쪽에서 action probe + latent probe로 교차 검증한다.
 target-24 후보는 target-24 replay만 통과했다고 512 clean으로 보내지 말고,
 기존 steer2 replay에서도 collapse하지 않는지 이 wrapper로 확인한다.
+run_stage2_target24_candidate_cycle.ps1는 target-24 후보 재개용 orchestration
+script다. 먼저 기존 OutputDir을 check_stage2_replay_training_detached.ps1로
+검사하고, 준비되지 않았으면 fresh rerun OutputDir으로 detached training을
+시작한다. `-ProbeWhenReady`를 붙이면 TRAIN_READY_FOR_PROBE=True일 때
+cross replay probe까지 이어서 실행한다.
 check_stage2_windows_dependencies.ps1는 CARLA 실행 전에 v2 code,
 shared_core, env config, readiness script 의존성을 검사한다.
 base config의 checkpoint path/sha256은 아직 null이므로 그대로 real mode를

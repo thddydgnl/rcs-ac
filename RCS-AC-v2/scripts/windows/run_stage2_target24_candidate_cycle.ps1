@@ -1,0 +1,113 @@
+param(
+    [string]$ProjectRoot = "C:\Users\thddy\Documents\code\RCS-AC-first",
+    [string]$ConfigPath = "RCS-AC-v2\experiments\02_privileged_policy_clean\windows_512\7f87656_steer2_seq010_aux1_balpow05_iw5\clean_512_stage2_privileged_7f87656_steer2_seq010_aux1_balpow05_iw5_with_checkpoints.yaml",
+    [string]$ReplayPath = "RCS-AC-v2\experiments\02_privileged_policy_clean\replay\windows_privileged_7f87656_t24_failure_window",
+    [string]$ReplayManifestPath = "",
+    [string]$SecondaryReplayManifestPath = "RCS-AC-v2\experiments\02_privileged_policy_clean\replay\windows_privileged_6e74d9e_long512_t25_steer2_probe\stage2_privileged_replay_manifest.json",
+    [string]$OutputDir = "RCS-AC-v2\experiments\02_privileged_policy_clean\checkpoints\windows_replay_7f87656_t24_aux1_balpow05_iw5",
+    [string]$CrossProbeOutputDir = "RCS-AC-v2\experiments\02_privileged_policy_clean\windows_512\7f87656_t24_aux1_balpow05_iw5_cross_probe",
+    [string]$TaskName = "RCSV2Stage2T24Aux1BalPow05",
+    [switch]$SkipGitPull,
+    [switch]$StartIfMissing,
+    [switch]$ProbeWhenReady,
+    [int]$SequenceLength = 16,
+    [int]$BatchSize = 8,
+    [int]$WorldModelSteps = 1200,
+    [int]$PolicySteps = 1200,
+    [double]$LearningRate = 0.0003,
+    [double]$ImitationWeight = 5.0,
+    [double]$BehaviorWeight = 0.0,
+    [double]$ImitationBalancePower = 0.5,
+    [double]$SteerSequenceFraction = 0.10,
+    [double]$WorldModelActionAuxWeight = 1.0,
+    [int]$HiddenDim = 128,
+    [string]$Device = "cpu"
+)
+
+$ErrorActionPreference = "Stop"
+
+Set-Location $ProjectRoot
+if ($ReplayManifestPath -eq "") {
+    $ReplayManifestPath = Join-Path $ReplayPath "stage2_privileged_replay_manifest.json"
+}
+if (-not $SkipGitPull) {
+    git pull --ff-only
+}
+
+$CheckScript = Join-Path $ProjectRoot "RCS-AC-v2\scripts\windows\check_stage2_replay_training_detached.ps1"
+$StartScript = Join-Path $ProjectRoot "RCS-AC-v2\scripts\windows\start_stage2_replay_training_detached.ps1"
+$CrossProbeScript = Join-Path $ProjectRoot "RCS-AC-v2\scripts\windows\probe_stage2_candidate_cross_replays.ps1"
+$CheckpointManifestPath = Join-Path $OutputDir "stage2_privileged_replay_checkpoint_manifest.json"
+
+Write-Host "STAGE2_TARGET24_CANDIDATE_CYCLE_READY=True"
+Write-Host "PROJECT_ROOT=$ProjectRoot"
+Write-Host "CONFIG_PATH=$ConfigPath"
+Write-Host "REPLAY_PATH=$ReplayPath"
+Write-Host "REPLAY_MANIFEST_PATH=$ReplayManifestPath"
+Write-Host "OUTPUT_DIR=$OutputDir"
+Write-Host "CHECKPOINT_MANIFEST_PATH=$CheckpointManifestPath"
+Write-Host "TASK_NAME=$TaskName"
+
+& powershell -ExecutionPolicy Bypass -File $CheckScript `
+    -ProjectRoot $ProjectRoot `
+    -OutputDir $OutputDir `
+    -TaskName $TaskName
+$CheckExitCode = $LASTEXITCODE
+Write-Host "TARGET24_CHECK_EXIT_CODE=$CheckExitCode"
+
+if ($CheckExitCode -eq 0) {
+    Write-Host "TARGET24_TRAIN_READY_FOR_PROBE=True"
+    if ($ProbeWhenReady) {
+        powershell -ExecutionPolicy Bypass -File $CrossProbeScript `
+            -ProjectRoot $ProjectRoot `
+            -ConfigPath $ConfigPath `
+            -CheckpointManifestPath $CheckpointManifestPath `
+            -OutputDir $CrossProbeOutputDir `
+            -PrimaryReplayName "target24" `
+            -PrimaryReplayManifestPath $ReplayManifestPath `
+            -SecondaryReplayName "steer2" `
+            -SecondaryReplayManifestPath $SecondaryReplayManifestPath `
+            -Device $Device
+        exit $LASTEXITCODE
+    }
+    exit 0
+}
+
+if ($CheckExitCode -eq 3) {
+    Write-Host "TARGET24_TRAIN_RUNNING=True"
+    exit 3
+}
+
+if (-not $StartIfMissing) {
+    Write-Host "TARGET24_TRAIN_READY_FOR_PROBE=False"
+    Write-Host "TARGET24_NEXT_ACTION=rerun with -StartIfMissing to launch detached training"
+    exit 2
+}
+
+$RerunOutputDir = $OutputDir
+if (Test-Path $OutputDir) {
+    $RerunOutputDir = "${OutputDir}_rerun_$(Get-Date -Format yyyyMMddTHHmmss)"
+    Write-Host "TARGET24_EXISTING_OUTPUT_DIR_NOT_READY=$OutputDir"
+    Write-Host "TARGET24_RERUN_OUTPUT_DIR=$RerunOutputDir"
+}
+
+powershell -ExecutionPolicy Bypass -File $StartScript `
+    -ProjectRoot $ProjectRoot `
+    -ReplayPath $ReplayPath `
+    -ReplayManifestPath $ReplayManifestPath `
+    -OutputDir $RerunOutputDir `
+    -SequenceLength $SequenceLength `
+    -BatchSize $BatchSize `
+    -WorldModelSteps $WorldModelSteps `
+    -PolicySteps $PolicySteps `
+    -LearningRate $LearningRate `
+    -ImitationWeight $ImitationWeight `
+    -BehaviorWeight $BehaviorWeight `
+    -ImitationClassBalance `
+    -ImitationBalancePower $ImitationBalancePower `
+    -SteerSequenceFraction $SteerSequenceFraction `
+    -WorldModelActionAuxWeight $WorldModelActionAuxWeight `
+    -HiddenDim $HiddenDim `
+    -Device $Device `
+    -TaskName $TaskName
+exit $LASTEXITCODE

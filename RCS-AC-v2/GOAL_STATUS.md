@@ -166,6 +166,7 @@ Action-aux replay training at commit 7f87656 added WorldModelActionAuxWeight and
 Target-24 failure-window replay was collected from the 7f87656 clean clone with 2 episodes / 520 steps / target_speed_kmh=24.0 and action_counts={7:386,10:26,13:8,15:74,16:20,19:6}. Windows/Tailscale disconnected during the first target-24 action-aux checkpoint training attempt, so checkpoint/probe status is pending; resume by checking whether windows_replay_7f87656_t24_aux1_balpow05_iw5 has a manifest, then run action+latent probes before any new 512 clean eval.
 Detached replay training resume support was hardened after the Windows disconnect: start_stage2_replay_training_detached.ps1 now writes train_stage2_privileged_from_replay.launch.json in the checkpoint output directory, and check_stage2_replay_training_detached.ps1 can recover LogPath/TaskName from that launch manifest using only OutputDir. Local RCS-AC-v2 tests still pass with 109 passed.
 Candidate cross-replay probing was added so target-24 candidates must pass action+latent probes on both the target-24 replay and the existing steer2 replay before any new 512 clean eval.
+Target-24 candidate resume orchestration was added: run_stage2_target24_candidate_cycle.ps1 checks the interrupted OutputDir first, starts a fresh detached rerun OutputDir if needed, and can run cross replay probes automatically once TRAIN_READY_FOR_PROBE=True.
 Windows scripts README now reflects the implemented Stage 2 runner, v2-local readiness scripts, dependency probe, privileged obs probe, replay collector, replay trainer, detached replay training start/check wrappers, and v2-local minimal shared_core env builder bridge.
 RCS-AC-v2 subtree was committed and pushed to origin/codex/rcs-ac-v2-raw2drive. Unrelated root worktree changes were not staged.
 ```
@@ -197,7 +198,7 @@ do not move to raw/fusion; privileged 512 clean is still failing
 the representation/objective collapse patch worked offline, so keep WorldModelActionAuxWeight available for the next candidate
 patch speed/turn timing around the 0.59-0.64 route-progress segment: collect/relabel a failure-window replay with safer target speed or earlier brake/steer timing, then train a new candidate
 Windows peer was offline at the latest check; first resume action is to reconnect to 100.87.219.58 and check C:\Users\thddy\Documents\code\RCS-AC-first-official-v2-7f87656\RCS-AC-v2\experiments\02_privileged_policy_clean\checkpoints\windows_replay_7f87656_t24_aux1_balpow05_iw5\stage2_privileged_replay_checkpoint_manifest.json
-if target-24 training needs to be restarted, use start_stage2_replay_training_detached.ps1 with a unique TaskName and then check_stage2_replay_training_detached.ps1 by OutputDir; the launch manifest now preserves LogPath/TaskName for reconnects
+if target-24 training needs to be restarted, prefer run_stage2_target24_candidate_cycle.ps1 -StartIfMissing -ProbeWhenReady; it will check the old OutputDir, avoid reusing stale partial artifacts, and start a fresh detached rerun OutputDir
 rerun probe_stage2_candidate_cross_replays.ps1 before any new 512 clean gate; require action probes to pass on target-24 and steer2, and latent probes to remain materially stronger than majority baseline
 do not treat the 128 PASS as full clean completion
 use SSH remote on Windows; HTTPS prompts for credentials
