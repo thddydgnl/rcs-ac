@@ -462,6 +462,7 @@ def test_detached_replay_training_wrapper_static_contract() -> None:
     assert "New-ScheduledTaskPrincipal" in text
     assert "Start-ScheduledTask" in text
     assert "ImitationClassBalance" in text
+    assert "BehaviorWeight" in text
     assert "TRAIN_LOG_PATH=$ResolvedLogPath" in text
     assert "TRAIN_SCRIPT_PATH=$InnerScriptPath" in text
     assert "TRAIN_TASK_NAME=$TaskName" in text

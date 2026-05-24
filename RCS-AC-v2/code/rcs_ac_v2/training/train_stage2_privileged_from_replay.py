@@ -47,6 +47,7 @@ def train_stage2_privileged_from_replay(
     learning_rate: float = 3e-4,
     policy_learning_rate: float | None = None,
     imitation_weight: float = 1.0,
+    behavior_weight: float = 1.0,
     imitation_class_balance: bool = False,
     hidden_dim: int = 128,
     device: str = "auto",
@@ -132,7 +133,7 @@ def train_stage2_privileged_from_replay(
             batch.action.reshape(-1),
             weight=imitation_class_weights,
         )
-        total_loss = losses.total + float(imitation_weight) * imitation_loss
+        total_loss = float(behavior_weight) * losses.total + float(imitation_weight) * imitation_loss
         total_loss.backward()
         torch.nn.utils.clip_grad_norm_(policy.parameters(), max_norm=10.0)
         policy_optimizer.step()
@@ -157,6 +158,7 @@ def train_stage2_privileged_from_replay(
         "world_model_steps": int(world_model_steps),
         "policy_steps": int(policy_steps),
         "imitation_weight": float(imitation_weight),
+        "behavior_weight": float(behavior_weight),
         "imitation_class_balance": bool(imitation_class_balance),
         "replay_manifest": {
             "path": str(replay_manifest_path),
@@ -262,6 +264,7 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--learning-rate", type=float, default=3e-4)
     parser.add_argument("--policy-learning-rate", type=float, default=None)
     parser.add_argument("--imitation-weight", type=float, default=1.0)
+    parser.add_argument("--behavior-weight", type=float, default=1.0)
     parser.add_argument("--imitation-class-balance", action="store_true")
     parser.add_argument("--hidden-dim", type=int, default=128)
     parser.add_argument("--device", default="auto")
@@ -278,6 +281,7 @@ def main(argv: list[str] | None = None) -> None:
         learning_rate=args.learning_rate,
         policy_learning_rate=args.policy_learning_rate,
         imitation_weight=args.imitation_weight,
+        behavior_weight=args.behavior_weight,
         imitation_class_balance=args.imitation_class_balance,
         hidden_dim=args.hidden_dim,
         device=args.device,
@@ -302,7 +306,7 @@ def _make_imitation_class_weights(episodes: list[Any], *, action_dim: int, devic
     weights = torch.zeros(action_dim, dtype=torch.float32)
     if present.any():
         present_counts = counts[present]
-        weights[present] = torch.sqrt(present_counts.mean() / present_counts)
+        weights[present] = present_counts.mean() / present_counts
     return weights.to(device)
 
 

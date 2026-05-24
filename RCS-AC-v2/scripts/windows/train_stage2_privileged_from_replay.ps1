@@ -9,6 +9,7 @@ param(
     [int]$PolicySteps = 200,
     [double]$LearningRate = 0.0003,
     [double]$ImitationWeight = 1.0,
+    [double]$BehaviorWeight = 1.0,
     [switch]$ImitationClassBalance,
     [int]$HiddenDim = 128,
     [string]$Device = "auto"
@@ -37,6 +38,7 @@ $TrainArgs = @(
     "--policy-steps", $PolicySteps,
     "--learning-rate", $LearningRate,
     "--imitation-weight", $ImitationWeight,
+    "--behavior-weight", $BehaviorWeight,
     "--hidden-dim", $HiddenDim,
     "--device", $Device
 )
