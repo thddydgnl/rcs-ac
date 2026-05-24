@@ -81,13 +81,19 @@ powershell -ExecutionPolicy Bypass -File RCS-AC-v2\scripts\windows\start_stage2_
   -TaskName RCSV2Stage2MixedT22Steer2Ssf015
 ```
 
-After Windows reconnects, check it first:
+After Windows reconnects, use the mixed wrapper first. It checks the detached
+training state and only probes when the checkpoint manifest is ready:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File RCS-AC-v2\scripts\windows\check_stage2_replay_training_detached.ps1 `
+powershell -ExecutionPolicy Bypass -File RCS-AC-v2\scripts\windows\run_stage2_mixed_candidate_cycle.ps1 `
   -ProjectRoot C:\Users\thddy\Documents\code\RCS-AC-first-official-v2-7f87656 `
   -OutputDir RCS-AC-v2\experiments\02_privileged_policy_clean\checkpoints\windows_replay_7f87656_mixed_target22_steer2_aux1_balpow05_iw5_ssf015 `
-  -TaskName RCSV2Stage2MixedT22Steer2Ssf015
+  -CrossProbeOutputDir RCS-AC-v2\experiments\02_privileged_policy_clean\windows_512\7f87656_mixed_target22_steer2_aux1_balpow05_iw5_ssf015_cross_probe `
+  -TaskName RCSV2Stage2MixedT22Steer2Ssf015 `
+  -SteerSequenceFraction 0.15 `
+  -MakeReplayIfMissing `
+  -StartIfMissing `
+  -ProbeWhenReady
 ```
 
 If `TRAIN_READY_FOR_PROBE=True`, run cross replay probe against original target22

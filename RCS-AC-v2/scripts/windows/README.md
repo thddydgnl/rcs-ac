@@ -61,6 +61,7 @@ train_stage2_privileged_from_replay.ps1
 start_stage2_replay_training_detached.ps1
 check_stage2_replay_training_detached.ps1
 make_stage2_mixed_replay_manifest.ps1
+run_stage2_mixed_candidate_cycle.ps1
 probe_stage2_checkpoint_actions.ps1
 probe_stage2_candidate_cross_replays.ps1
 summarize_stage2_candidate_gate.ps1
@@ -160,6 +161,11 @@ train_stage2_privileged_from_replay의 `--replay` 파일 목록 검증과 1:1로
 episode 파일을 mixed 디렉터리 안에 둔다. mixed 후보도 clean 증거가 아니며,
 원본 target replay와 원본 steer2 replay 양쪽 cross replay gate가 true일 때만
 512 clean eval로 승격한다.
+run_stage2_mixed_candidate_cycle.ps1는 이 mixed 후보 전용 재개 wrapper다.
+학습 replay는 mixed manifest를 쓰되, probe는 원본 target replay와 원본 steer2
+replay manifest를 따로 넘긴다. 따라서 target-22/steer2 양쪽 일반화 gate를
+깨지 않고 Windows 재부팅 후 같은 명령으로 check, start, probe를 이어갈 수
+있다.
 
 Target-24 재개 명령:
 
@@ -190,29 +196,27 @@ Target-22도 steer2 cross replay에서 reject되면, CARLA 부하를 늘리기 �
 리플레이 두 개를 섞은 offline 후보를 만든다:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File RCS-AC-v2\scripts\windows\make_stage2_mixed_replay_manifest.ps1 `
+powershell -ExecutionPolicy Bypass -File RCS-AC-v2\scripts\windows\run_stage2_mixed_candidate_cycle.ps1 `
   -ProjectRoot C:\Users\thddy\Documents\code\RCS-AC-first-official-v2-7f87656 `
-  -OutputDir RCS-AC-v2\experiments\02_privileged_policy_clean\replay\windows_privileged_7f87656_mixed_target22_steer2 `
-  -Force
-
-powershell -ExecutionPolicy Bypass -File RCS-AC-v2\scripts\windows\start_stage2_replay_training_detached.ps1 `
-  -ProjectRoot C:\Users\thddy\Documents\code\RCS-AC-first-official-v2-7f87656 `
-  -ReplayPath RCS-AC-v2\experiments\02_privileged_policy_clean\replay\windows_privileged_7f87656_mixed_target22_steer2 `
-  -OutputDir RCS-AC-v2\experiments\02_privileged_policy_clean\checkpoints\windows_replay_7f87656_mixed_target22_steer2_aux1_balpow05_iw5 `
-  -SequenceLength 16 `
-  -BatchSize 8 `
-  -WorldModelSteps 1500 `
-  -PolicySteps 1500 `
-  -LearningRate 0.0003 `
-  -ImitationWeight 5.0 `
-  -BehaviorWeight 0.0 `
-  -ImitationClassBalance `
-  -ImitationBalancePower 0.5 `
   -SteerSequenceFraction 0.25 `
-  -WorldModelActionAuxWeight 1.0 `
-  -HiddenDim 128 `
-  -Device cpu `
-  -TaskName RCSV2Stage2MixedT22Steer2
+  -MakeReplayIfMissing `
+  -StartIfMissing `
+  -ProbeWhenReady
+```
+
+`SteerSequenceFraction=0.25`가 steer2 action gate에서 `0.20`을 살짝 넘으면
+같은 wrapper로 `0.15` 후보를 이어간다:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File RCS-AC-v2\scripts\windows\run_stage2_mixed_candidate_cycle.ps1 `
+  -ProjectRoot C:\Users\thddy\Documents\code\RCS-AC-first-official-v2-7f87656 `
+  -OutputDir RCS-AC-v2\experiments\02_privileged_policy_clean\checkpoints\windows_replay_7f87656_mixed_target22_steer2_aux1_balpow05_iw5_ssf015 `
+  -CrossProbeOutputDir RCS-AC-v2\experiments\02_privileged_policy_clean\windows_512\7f87656_mixed_target22_steer2_aux1_balpow05_iw5_ssf015_cross_probe `
+  -TaskName RCSV2Stage2MixedT22Steer2Ssf015 `
+  -SteerSequenceFraction 0.15 `
+  -MakeReplayIfMissing `
+  -StartIfMissing `
+  -ProbeWhenReady
 ```
 
 두 명령 모두 offline gate만 만든다. 512 clean eval은

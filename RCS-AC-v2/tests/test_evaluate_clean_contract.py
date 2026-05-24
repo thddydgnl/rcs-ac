@@ -538,6 +538,30 @@ def test_mixed_replay_manifest_runner_static_contract() -> None:
     assert "[switch]$Force" in text
 
 
+def test_mixed_candidate_cycle_runner_static_contract() -> None:
+    script = Path(__file__).resolve().parents[1] / "scripts" / "windows" / "run_stage2_mixed_candidate_cycle.ps1"
+    text = script.read_text()
+    assert "make_stage2_mixed_replay_manifest.ps1" in text
+    assert "check_stage2_replay_training_detached.ps1" in text
+    assert "start_stage2_replay_training_detached.ps1" in text
+    assert "probe_stage2_candidate_cross_replays.ps1" in text
+    assert "STAGE2_MIXED_CANDIDATE_CYCLE_READY=True" in text
+    assert "MIXED_REPLAY_MANIFEST_PATH=$MixedManifestPath" in text
+    assert "PRIMARY_REPLAY_MANIFEST_PATH=$PrimaryReplayManifestPath" in text
+    assert "SECONDARY_REPLAY_MANIFEST_PATH=$SecondaryReplayManifestPath" in text
+    assert "[switch]$MakeReplayIfMissing" in text
+    assert "[switch]$ForceMixedReplay" in text
+    assert "[switch]$StartIfMissing" in text
+    assert "[switch]$ProbeWhenReady" in text
+    assert "MIXED_CANDIDATE_LATEST_POINTER_UPDATED=True" in text
+    assert "MIXED_CANDIDATE_TRAIN_RUNNING=True" in text
+    assert "MIXED_CANDIDATE_TRAIN_READY_FOR_PROBE=True" in text
+    assert "-ReplayPath $MixedReplayDir" in text
+    assert "-PrimaryReplayManifestPath $PrimaryReplayManifestPath" in text
+    assert "-SecondaryReplayManifestPath $SecondaryReplayManifestPath" in text
+    assert "[double]$SteerSequenceFraction = 0.15" in text
+
+
 def test_candidate_gate_summary_runner_static_contract() -> None:
     script = Path(__file__).resolve().parents[1] / "scripts" / "windows" / "summarize_stage2_candidate_gate.ps1"
     text = script.read_text()
