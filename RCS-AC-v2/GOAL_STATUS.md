@@ -19,7 +19,7 @@ Stage 2: Privileged policy clean
 Status:
 
 ```text
-FIRST_128_CLEAN_FAIL_STUCK__BC_PROBE_COLLAPSE__FAST35_REPLAY_READY__RETRAIN_PENDING_RETRY
+FAST35_128_CLEAN_PASS__512_PRIMARY_PENDING
 ```
 
 Last completed stage:
@@ -65,7 +65,7 @@ Integrated into docs/02_persistent_subagent_goal_protocol.md and runbook.
 Pending brief:
 
 ```text
-Stage 2 local smoke, Windows dry-run prep, fake-env adapter-loop contract, Stage 2 shared-core CARLA adapter factory, local checkpoint export/manifest path, v2 branch push, v2-local readiness scripts, dependency probe, simulator-state privileged observation builder, Windows privileged obs probe, privileged replay collector, replay trainer, checkpoint provenance gate, official Windows clean-clone privileged-observation probe, replay-source checkpoint promotion, first 128-step clean classification, BC checkpoint action probe, and fast35 replay relabeling are complete. The first clean run failed as driving/stuck after 64/128 steps. The BC checkpoint probe failed before clean rerun because it collapsed to action_id=34 for all 512 replay observations. Replay collection now honors explicit TargetSpeedKmh and no longer treats small waypoint target_distance as a zero-throttle label; the 9c24ff7 fast35 replay has nonzero_throttle_fraction=1.0 with action_ids 7/15 only. Next work packet must retrain from that replay, rerun action probe, and only run 128-step clean if recommended_for_clean_rerun=true.
+Stage 2 local smoke, Windows dry-run prep, fake-env adapter-loop contract, Stage 2 shared-core CARLA adapter factory, local checkpoint export/manifest path, v2 branch push, v2-local readiness scripts, dependency probe, simulator-state privileged observation builder, Windows privileged obs probe, privileged replay collector, replay trainer, checkpoint provenance gate, official Windows clean-clone privileged-observation probe, replay-source checkpoint promotion, first 128-step clean classification, BC checkpoint action probe, fast35 replay relabeling, fast35 replay retraining, checkpoint action probe, and official 128-step clean rerun are complete. The first clean run failed as driving/stuck after 64/128 steps, and the first BC checkpoint probe failed because it collapsed to action_id=34 for all 512 replay observations. The fast35 replay fixed the zero-throttle label collapse; the b4c8e58/37a0875 checkpoint probe covered 512 replay actions with action_ids 7/15, reverse_action_count=0, nonzero_throttle_fraction=1.0, and recommended_for_clean_rerun=true. The official clean clone then reached 128/128 steps with source=windows_carla, status=PASS, done_reason=horizon_reached, zero collision/offroad/stuck, and metrics.csv rows=128. Next work packet must run the 512-step primary subset from the same checkpoint evidence before starting raw/fusion work.
 ```
 
 Escalation triggers checked:
@@ -153,6 +153,9 @@ Windows runner PYTHONPATH now includes v2 code, optional legacy support/code ove
 Windows clean eval runner now accepts -RunOutputDir to copy validated summary.json, metrics.csv, and the exact input config into a run-id evidence directory after summary validation. This is transport-only mirroring and does not change clean gate status or PASS criteria.
 BC checkpoint action probe on windows_replay_b20d8eb_bc_pilot failed the pre-clean gate: probed_actions=512, action_counts={34:512}, reverse_action_count=0, nonzero_throttle_fraction=0.0, single_action_collapse=true, recommended_for_clean_rerun=false. No clean rerun was attempted for that checkpoint.
 Replay label diagnosis found the old official replay had 388/512 zero-throttle action_id=34 labels, and TargetSpeedKmh overrides were ignored because env info.target_speed_kmh took precedence. Commit 30b7313 fixed explicit TargetSpeedKmh precedence; commit 9c24ff7 removed waypoint target_distance<2 as a zero-throttle label source. The 9c24ff7 fast35 replay collected on Windows has action_counts={7:264,15:248}, nonzero_throttle_fraction=1.0, reverse_fraction=0.0, and clean_gate_evidence=false.
+Fast35 detached replay training now works through the scheduled-task wrapper. The b4c8e58/37a0875 checkpoint manifest has source=windows_carla_privileged_replay, valid_action_ids=true, policy_final_imitation=0.7903282642364502, and policy_final_total=1.0499897003173828.
+Fast35 checkpoint action probe passed the pre-clean gate with probed_actions=512, action_counts={7:500,15:12}, reverse_action_count=0, single_action_collapse=false, nonzero_throttle_fraction=1.0, previous_stuck_action8_count=0, and recommended_for_clean_rerun=true.
+Official 128-step clean rerun from the clean clone at commit 37a087516f7767bb297b8b5567590d7a316eb644 passed: source=windows_carla, status=PASS, clean_gate_pass=true, done_reason=horizon_reached, steps=128/128, collision/offroad/stuck counts all zero, route_progress=0.1794871794871795, episode_return=13.545934572121052, metrics_rows=128, action_counts={7:125,15:3}. This is the first Stage 2 clean PASS, not full clean-performance completion.
 Windows scripts README now reflects the implemented Stage 2 runner, v2-local readiness scripts, dependency probe, privileged obs probe, replay collector, replay trainer, detached replay training start/check wrappers, and v2-local minimal shared_core env builder bridge.
 RCS-AC-v2 subtree was committed and pushed to origin/codex/rcs-ac-v2-raw2drive. Unrelated root worktree changes were not staged.
 ```
@@ -172,28 +175,25 @@ If still unavailable, manually simulate Agent A/B/C roles and record fallback he
 
 ## Next Concrete Action
 
-Validate Windows privileged observations and promote real trained Stage 2 checkpoints before official Windows execution:
+Scale the fast35 Stage 2 clean PASS to the next Windows clean gate before raw/fusion work:
 
 ```text
 current local branch is codex/rcs-ac-v2-raw2drive
 use official clean clone C:\Users\thddy\Documents\code\RCS-AC-first-official-v2-ac11c90
 pull latest origin/codex/rcs-ac-v2-raw2drive before every Windows run
-retrain from RCS-AC-v2\experiments\02_privileged_policy_clean\replay\windows_privileged_9c24ff7_fast35_pilot after Windows SSH/Tailscale returns
-use scripts/windows/start_stage2_replay_training_detached.ps1 for long replay training because foreground SSH timed out during the first 9c24ff7 training attempt
-poll scripts/windows/check_stage2_replay_training_detached.ps1 until TRAIN_READY_FOR_PROBE=True before action probe
-detached training must use explicit clean-clone ProjectRoot, fast35 ReplayPath, fresh OutputDir, and LogPath; first run start_stage2_replay_training_detached.ps1 -NoStart and confirm echoed paths before starting
-run scripts/windows/probe_stage2_checkpoint_actions.ps1 against the new fast35 checkpoint with -MaxStepsPerFile 128 and confirm reverse_action_count=0, single_action_collapse=false, nonzero_throttle_fraction>=0.5, previous_stuck_action8_fraction<=0.05, and recommended_for_clean_rerun=true
-for the fast35 replay, action probe must cover probed_actions=512 and previous_stuck_action8_count<=25; preserve train log, checkpoint manifest, probe json/log, generated checkpoint-filled config, and fast35 replay manifest as small evidence
-rerun scripts/windows/run_stage2_clean_eval.ps1 with the generated fast35 checkpoint-filled config and -RunOutputDir pointing at experiments/02_privileged_policy_clean/windows_128/<fast35_run_id> only if the action probe recommends it
-classify the next 128-step clean result before changing raw/fusion stages
+reuse the fast35 checkpoint-filled config from RCS-AC-v2\experiments\02_privileged_policy_clean\windows_128\b4c8e58_fast35_task_pilot unless checkpoint wiring changes
+create a 512-step primary-subset runtime config by changing only the clean-eval horizon/output path metadata, not checkpoint paths or hashes
+run scripts/windows/run_stage2_clean_eval.ps1 with that 512 config and -RunOutputDir pointing at experiments/02_privileged_policy_clean/windows_512/<fast35_run_id>
+classify the 512-step result before changing raw/fusion stages
+if 512 fails, keep the failure class and metrics; do not treat the 128 PASS as full clean completion
 use SSH remote on Windows; HTTPS prompts for credentials
 use the v2-local minimal shared_core env builder by default; pass explicit dependency overrides only for local experiments
 keep the archive-runtime lane only for scratch infrastructure probes, not official clean PASS evidence
 run scripts/windows/check_stage2_windows_dependencies.ps1 to verify the v2-local env config and sibling shared_core remain available
 rerun scripts/windows/run_stage2_privileged_obs_probe.ps1 -StepNeutral if checkpoints/config/env wiring changes; clean clone commit e42dc6a already passed the current probe
 run scripts/windows/run_stage2_clean_eval.ps1 official execution after git pull --ff-only; use -RunOutputDir for summary/metrics/config mirroring, not PASS classification
-verify clean summary source=windows_carla and metrics.csv has exactly 128 rows before any PASS claim
-experiments/02_privileged_policy_clean/windows_128_result.md official run update with summary+metrics pulled files
+verify clean summary source=windows_carla and metrics.csv rows equal the configured horizon before any PASS claim
+experiments/02_privileged_policy_clean/windows_128_result.md and windows_512_result.md official run updates with summary+metrics pulled files
 commit/push RCS-AC-v2 work before Windows git pull --ff-only
 ```
 
@@ -270,7 +270,7 @@ PYTHONDONTWRITEBYTECODE=1 python -m pytest RCS-AC-v2/tests -q -p no:cacheprovide
 Local result:
 
 ```text
-98 passed in 2.25s
+105 passed in 2.65s
 ```
 
 Local policy smoke:
@@ -295,14 +295,17 @@ Full clean status:
 ```text
 WINDOWS_PRIVILEGED_REPLAY_COLLECTION_PASS
 REPLAY_CHECKPOINT_PROMOTED
-FIRST_128_CLEAN_FAIL_STUCK
-BC_RETRAINED_CHECKPOINT_PENDING_VERIFY
+BC_COLLAPSE_REJECTED_BY_ACTION_PROBE
+FAST35_REPLAY_CHECKPOINT_PROMOTED
+FAST35_ACTION_PROBE_PASS
+FAST35_128_CLEAN_PASS
+CARLA_512_PRIMARY_PENDING
 ```
 
 Do not start Stage 3 raw sensor work or any fusion ablation until:
 
 ```text
-CARLA 128-step single-start clean gate is run and classified
+CARLA 128-step single-start clean gate is PASS
 CARLA 512-step primary subset clean gate is run or explicitly blocked
 CARLA 2048-step subset clean gate is run or explicitly blocked
 collision/offroad/stuck/route-progress evidence is recorded

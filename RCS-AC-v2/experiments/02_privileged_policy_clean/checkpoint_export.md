@@ -1,7 +1,7 @@
 # Stage 2 Checkpoint Export
 
 Date: 2026-05-24
-Status: `SYNTHETIC_EXPORT_REJECTED_FOR_CLEAN__REPLAY_TRAINING_PATH_READY__REAL_CARLA_CHECKPOINTS_PENDING`
+Status: `FAST35_REPLAY_CHECKPOINT_PROMOTED__128_CLEAN_PASS__512_PRIMARY_PENDING`
 
 ## Purpose
 
@@ -136,6 +136,21 @@ Strict load_stage2_policy_runner accepted the replay-source checkpoints.
 This was path validation only, not clean-performance evidence.
 ```
 
+Fast35 official checkpoint evidence:
+
+```text
+run_id: b4c8e58_fast35_task_pilot
+checkpoint dir: RCS-AC-v2\experiments\02_privileged_policy_clean\checkpoints\windows_replay_b4c8e58_fast35_task_pilot
+replay source: RCS-AC-v2\experiments\02_privileged_policy_clean\replay\windows_privileged_9c24ff7_fast35_pilot
+checkpoint source: windows_carla_privileged_replay
+policy_final_imitation: 0.7903282642364502
+policy_final_total: 1.0499897003173828
+valid_action_ids: true
+action probe: probed_actions=512, action_counts={7:500,15:12}, reverse_action_count=0, single_action_collapse=false, recommended_for_clean_rerun=true
+128 clean rerun: source=windows_carla, status=PASS, steps=128/128, done_reason=horizon_reached, collision/offroad/stuck=0
+local small evidence: experiments/02_privileged_policy_clean/windows_128/b4c8e58_fast35_task_pilot/
+```
+
 Do not claim PASS from synthetic smoke checkpoints. PASS requires the Windows
 CARLA clean gate summary and metrics to validate with `source=windows_carla`,
 `steps=horizon`, `done_reason=horizon_reached`, zero safety violations,
@@ -143,7 +158,8 @@ CARLA clean gate summary and metrics to validate with `source=windows_carla`,
 
 ## Next Real Step
 
-Collect enough Windows CARLA privileged replay, train replay-source checkpoints,
-fill the clean config checkpoint paths/sha from
-`stage2_privileged_replay_checkpoint_manifest.json`, then run the Windows
-128-step clean gate after commit/push and a clean Windows sync lane.
+Run the 512-step primary subset from the promoted fast35 checkpoint lineage.
+Use the prepared 512 runtime config in
+`experiments/02_privileged_policy_clean/windows_512/b4c8e58_fast35_primary512/`,
+preserve the checkpoint paths and sha256 hashes, and classify the resulting
+Windows `summary.json` plus `metrics.csv` before starting raw/fusion work.

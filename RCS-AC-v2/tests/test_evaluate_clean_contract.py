@@ -440,6 +440,11 @@ def test_windows_runner_can_mirror_validated_artifacts_static() -> None:
     assert 'Join-Path $ResolvedRunOutputDir "metrics.csv"' in text
     assert "Split-Path -Leaf $ConfigPath" in text
     assert "$WindowsCommand = \"$WindowsCommand -RunOutputDir $RunOutputDir\"" in text
+    assert "RCS_AC_V2_EVAL_CONFIG_PATH" in text
+    assert "load_clean_eval_config" in text
+    assert '$SummaryPath = [string]$ConfiguredPaths[0]' in text
+    assert '$MetricsPath = [string]$ConfiguredPaths[1]' in text
+    assert '$SummaryPath = "RCS-AC-v2\\experiments\\02_privileged_policy_clean\\windows_128\\summary.json"' not in text
     assert validation_index < mirror_index
 
 
@@ -547,6 +552,25 @@ def test_fake_adapter_loop_can_produce_windows_carla_pass(tmp_path) -> None:
     validate_clean_summary(summary_from_dict(data))
     metrics_lines = Path(config["metrics_path"]).read_text().strip().splitlines()
     assert len(metrics_lines) == 4
+
+
+def test_fake_adapter_loop_512_pass_points_to_2048_next(tmp_path) -> None:
+    config = _test_config(tmp_path, horizon=512)
+    env = FakeEnv()
+    summary = run_clean_eval_loop(
+        env=env,
+        policy=FakePolicy(action_id=37),
+        config=config,
+        config_path=tmp_path / "clean_512.yaml",
+        metadata=_metadata(),
+    )
+
+    assert summary.status == "PASS"
+    assert summary.clean_gate_pass
+    assert summary.horizon == 512
+    assert summary.steps == 512
+    assert summary.next_action == "Run 2048-step subset."
+    validate_clean_summary(summary)
 
 
 def test_fake_adapter_loop_classifies_collision_as_driving_failure(tmp_path) -> None:

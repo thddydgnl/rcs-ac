@@ -763,11 +763,10 @@ def _summary_from_loop_result(
         done_reason = str(last_info.get("done_reason", "ended_before_horizon"))
         failure_message = "Valid runtime ended before horizon or had clean-driving violations."
 
-    next_action = (
-        "Run 512-step primary subset."
-        if status == "PASS"
-        else "Classify the failure, patch the smallest cause, then rerun 128-step clean."
-    )
+    if status == "PASS":
+        next_action = "Run 512-step primary subset." if horizon < 512 else "Run 2048-step subset."
+    else:
+        next_action = f"Classify the failure, patch the smallest cause, then rerun {horizon}-step clean."
     return CleanEvalSummary(
         horizon=horizon,
         steps=steps,

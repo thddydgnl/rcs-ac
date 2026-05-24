@@ -1,7 +1,7 @@
 # Stage 2 Windows 128-Step Clean Result
 
 Date: 2026-05-24
-Status: `FIRST_128_CLEAN_FAIL_STUCK__BC_PROBE_COLLAPSE__FAST35_REPLAY_READY__RETRAIN_PENDING_RETRY`
+Status: `FAST35_128_CLEAN_PASS__512_PRIMARY_PENDING`
 
 ## Objective
 
@@ -36,7 +36,7 @@ powershell -ExecutionPolicy Bypass -File RCS-AC-v2\scripts\windows\run_stage2_cl
 
 ## Gate
 
-This result is not a PASS until the summary source is `windows_carla`.
+A run is not a PASS until the summary source is `windows_carla`.
 
 PASS requires:
 
@@ -129,7 +129,7 @@ Windows retraining completed to windows_replay_b20d8eb_bc_pilot
 f3c515d: added clean eval artifact auto-copy after summary validation
 30b7313: fixed replay collector so explicit TargetSpeedKmh overrides env target_speed_kmh
 9c24ff7: removed waypoint target_distance<2 as a zero-throttle replay label source
-pending: retrain from the 9c24ff7 fast35 replay, rerun action probe, then clean rerun only if recommended_for_clean_rerun=true
+b4c8e58/37a0875: fast35 detached replay training, action probe, and official 128-step clean rerun completed
 ```
 
 ## Post-BC Action Probe
@@ -179,9 +179,8 @@ reverse_fraction: 0.0
 clean_gate_evidence: false
 ```
 
-This replay is a better training input, not performance evidence. The next
-required step is to retrain from it, probe the checkpoint, and only then decide
-whether to run the official 128-step clean eval.
+This replay is a better training input, not performance evidence. Performance
+evidence starts only at the clean eval summary/metrics below.
 
 ## Fast35 Retrain/Probe Gate
 
@@ -221,6 +220,98 @@ stage2_privileged_replay_manifest.json from the fast35 replay
 probe stdout/log with exact command
 ```
 
+## Fast35 Retrain, Probe, and 128-Step Clean PASS
+
+The fast35 replay was retrained in the official clean clone using the scheduled
+task detached wrapper, then accepted by the action probe before clean rerun.
+
+Training/checkpoint evidence:
+
+```text
+run_id: b4c8e58_fast35_task_pilot
+checkpoint dir: RCS-AC-v2\experiments\02_privileged_policy_clean\checkpoints\windows_replay_b4c8e58_fast35_task_pilot
+checkpoint source: windows_carla_privileged_replay
+trainer: train_stage2_privileged_from_replay
+policy_final_imitation: 0.7903282642364502
+policy_final_total: 1.0499897003173828
+valid_action_ids: true
+TRAIN_EXIT_CODE: 0
+TRAIN_READY_FOR_PROBE: true
+clean_gate_evidence: false
+```
+
+Action-probe gate:
+
+```text
+probed_actions: 512
+action_counts: {7: 500, 15: 12}
+reverse_action_count: 0
+single_action_collapse: false
+nonzero_throttle_fraction: 1.0
+previous_stuck_action8_count: 0
+previous_stuck_action8_fraction: 0.0
+recommended_for_clean_rerun: true
+clean_gate_evidence: false
+```
+
+Official 128-step clean rerun:
+
+```text
+commit: 37a087516f7767bb297b8b5567590d7a316eb644
+branch: codex/rcs-ac-v2-raw2drive
+source: windows_carla
+status: PASS
+clean_gate_pass: true
+horizon: 128
+steps: 128
+done_reason: horizon_reached
+failure_class: none
+collision_count: 0
+offroad_count: 0
+stuck_count: 0
+route_progress: 0.1794871794871795
+episode_return: 13.545934572121052
+metrics_rows: 128
+adapter_errors: 0
+runtime_errors: 0
+policy action_counts: {7: 125, 15: 3}
+next_action: Run 512-step primary subset.
+```
+
+Windows command:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File RCS-AC-v2\scripts\windows\run_stage2_clean_eval.ps1 `
+  -ConfigPath RCS-AC-v2\experiments\02_privileged_policy_clean\windows_128\b4c8e58_fast35_task_pilot\clean_128_stage2_privileged_with_checkpoints.yaml `
+  -RunOutputDir RCS-AC-v2\experiments\02_privileged_policy_clean\windows_128\b4c8e58_fast35_task_pilot `
+  -SkipGitPull
+```
+
+Local evidence:
+
+```text
+RCS-AC-v2/experiments/02_privileged_policy_clean/windows_128/b4c8e58_fast35_task_pilot/summary.json
+RCS-AC-v2/experiments/02_privileged_policy_clean/windows_128/b4c8e58_fast35_task_pilot/metrics.csv
+RCS-AC-v2/experiments/02_privileged_policy_clean/windows_128/b4c8e58_fast35_task_pilot/clean_eval.log
+RCS-AC-v2/experiments/02_privileged_policy_clean/windows_128/b4c8e58_fast35_task_pilot/stage2_checkpoint_action_probe.json
+RCS-AC-v2/experiments/02_privileged_policy_clean/windows_128/b4c8e58_fast35_task_pilot/stage2_checkpoint_action_probe.log
+RCS-AC-v2/experiments/02_privileged_policy_clean/windows_128/b4c8e58_fast35_task_pilot/stage2_privileged_replay_checkpoint_manifest.json
+RCS-AC-v2/experiments/02_privileged_policy_clean/windows_128/b4c8e58_fast35_task_pilot/stage2_privileged_replay_manifest.json
+RCS-AC-v2/experiments/02_privileged_policy_clean/windows_128/b4c8e58_fast35_task_pilot/train_stage2_privileged_from_replay.log
+RCS-AC-v2/experiments/02_privileged_policy_clean/windows_128/b4c8e58_fast35_task_pilot/clean_128_stage2_privileged_with_checkpoints.yaml
+```
+
+Local validation note: the Windows summary records the canonical Windows output
+path as `RCS-AC-v2/experiments/02_privileged_policy_clean/windows_128`, while
+this repository stores the pulled evidence under the run-id mirror directory
+above. To validate locally, temporarily place the mirrored `metrics.csv` at the
+canonical relative path, run `evaluate_clean --validate-summary`, then remove
+the temporary copy.
+
+This is the first Stage 2 128-step clean PASS. It is not full clean-performance
+completion until the 512-step primary subset and later broader clean gates are
+run or explicitly classified.
+
 ## Privileged Probe Metrics
 
 ```text
@@ -235,7 +326,7 @@ gate: privileged observation probe only; clean_gate_evidence=false
 output path: RCS-AC-v2/experiments/02_privileged_policy_clean/windows_128/privileged_obs_probe.json
 pulled files: clean_clone_e42dc6a/privileged_obs_probe.json, clean_clone_e42dc6a/privileged_obs_probe.log
 failure class: none
-next action: promote real checkpoints and run official 128-step clean eval from the clean clone
+next action: already superseded by fast35 128-step clean PASS; run 512-step primary subset next
 CARLA readiness result: PASS, target already loaded
 summary.json: not produced by probe
 steps: neutral reset + one neutral step only
@@ -294,19 +385,20 @@ or debug privileged tensors remain ineligible for clean PASS.
 Earlier scratch archive evidence exists at commit `5b003477`, but the current
 reproducibility reference is the official clean clone at commit `e42dc6a`.
 
-## Current Blocker
+## Current Blocker / Next Gate
 
 The locally testable Stage 2 clean-eval adapter loop, metrics CSV writer,
 summary validator, Windows runner invocation path, shared-core CARLA adapter
 factory, simulator-state privileged observation builder, Windows privileged
 obs probe, replay collection, replay checkpoint training, and checkpoint
-promotion path are implemented. The first official 128-step clean run has been
-classified as driving/stuck, not PASS.
+promotion path are implemented. The first official 128-step clean run failed as
+driving/stuck, but the fast35 replay/checkpoint path has now produced an
+official 128-step clean PASS from the clean clone.
 
-The immediate driving issue was action collapse to throttle-zero action id 8.
-BC warm-start has been added and Windows retraining completed, but the
-post-retrain action probe and clean rerun are pending because Windows SSH became
-temporarily unreachable through Tailscale.
+The immediate remaining gate is the 512-step primary subset. Use the same
+fast35 checkpoint manifest/runtime config lineage, change only the clean-eval
+horizon/output target needed for the 512 gate, and keep all checkpoint paths and
+hashes traceable to the b4c8e58/37a0875 evidence.
 
 The v2 readiness scripts now live under `RCS-AC-v2/scripts/windows`, and the
 Stage 2 runner has a dependency probe. The remaining reproducibility dependency
@@ -344,7 +436,8 @@ raw obs/info keys, simulator-state provenance, schema/hash evidence, and
 neutral-step info. It must not be interpreted as clean PASS.
 
 Local adapter-loop tests and privileged observation probes are not clean
-evidence. This file can move to PASS only after Windows runs the clean eval
-command after `git pull --ff-only`, the CARLA readiness guard passes, and the
-resulting `summary.json` validates with `source=windows_carla`,
-`done_reason=horizon_reached`, and zero collision/offroad/stuck.
+evidence. The 128-step status moved to PASS only because Windows ran the clean
+eval command from the official clean clone, the CARLA readiness guard passed,
+and the resulting `summary.json` validates with `source=windows_carla`,
+`done_reason=horizon_reached`, zero collision/offroad/stuck, and a matching
+128-row `metrics.csv`.
