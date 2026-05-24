@@ -19,7 +19,7 @@ Stage 2: Privileged policy clean
 Status:
 
 ```text
-V2_BRANCH_PUSHED__OFFICIAL_CLEAN_CLONE_PRIVILEGED_OBS_PROBE_PASS__REPLAY_TRAINING_PATH_READY__REAL_TRAINED_CHECKPOINTS_PENDING__CARLA_CLEAN_PENDING
+V2_BRANCH_PUSHED__OFFICIAL_CLEAN_CLONE_PRIVILEGED_OBS_PROBE_PASS__REPLAY_CHECKPOINT_PROMOTED__FIRST_128_CLEAN_FAIL_STUCK__BC_RETRAIN_PENDING_VERIFY
 ```
 
 Last completed stage:
@@ -65,7 +65,7 @@ Integrated into docs/02_persistent_subagent_goal_protocol.md and runbook.
 Pending brief:
 
 ```text
-Stage 2 local smoke, Windows dry-run prep, fake-env adapter-loop contract, Stage 2 shared-core CARLA adapter factory, local checkpoint export/manifest path, v2 branch push, v2-local readiness scripts, dependency probe, simulator-state privileged observation builder, Windows privileged obs probe, privileged replay collector, replay trainer, checkpoint provenance gate, and the official Windows clean-clone privileged-observation probe are complete. Next work packet must collect enough Windows CARLA privileged replay, train real replay-source checkpoints, fill checkpoint paths/sha256 in the clean config, and run/classify the 128-step clean gate.
+Stage 2 local smoke, Windows dry-run prep, fake-env adapter-loop contract, Stage 2 shared-core CARLA adapter factory, local checkpoint export/manifest path, v2 branch push, v2-local readiness scripts, dependency probe, simulator-state privileged observation builder, Windows privileged obs probe, privileged replay collector, replay trainer, checkpoint provenance gate, official Windows clean-clone privileged-observation probe, replay-source checkpoint promotion, and first 128-step clean classification are complete. The first clean run failed as driving/stuck after 64/128 steps. Next work packet must verify the BC-retrained checkpoint, rerun 128-step clean, and continue improving clean driving before any raw/fusion work.
 ```
 
 Escalation triggers checked:
@@ -144,6 +144,10 @@ HTTPS GitHub access on Windows still fails due credential prompt, but SSH git@gi
 Official clean clone probe at commit e42dc6a passed without override paths: source=carla_simulator_state, schema=carla_simulator_semantic43_v1, hash=382e53122998198ad8f392c7298465057d364b23cf1fedb32465872ae43320a3, BEV [1,1,43,16,16], ego [1,1,8], finite tensors, neutral step running/collision=false/offroad=false/stuck=false. This remains infrastructure evidence, not clean performance evidence.
 Real mode with missing checkpoints is now classified as failure_class model / done_reason world_model_checkpoint_missing before CARLA env construction.
 Checkpoint loader now requires path and sha256, validates payload config/state_dict, rejects 8x8 world-model checkpoints for the 16x16 clean config, rejects missing policy config, and keeps checkpoint failures in failure_class model.
+Replay provenance was hardened at commit 48c0543: clean/replay now require privileged_observation_source=carla_simulator_state, existing env privileged keys are clean-ineligible, replay trainer requires collector manifest/file sha validation, and checkpoint payloads must carry replay lineage, role, trainer, non-clean evidence, data_files, replay manifest, and valid_action_ids.
+Reverse-action masking was added at commit db1e8b6 for direct_3d/stage4_v2 when allow_reverse_direct_3d=false. The first replay checkpoint then loaded successfully and had REVERSE_ACTION_COUNT=0 on 64 replay observations.
+First official 128-step clean eval with promoted replay checkpoint ran from the clean clone at commit db1e8b6 and produced source=windows_carla, status=FAIL, failure_class=driving, done_reason=stuck, steps=64/128, collision_count=0, offroad_count=0, stuck_count=1, route_progress=0.02564102564102564, metrics_rows=64, adapter_errors=0, runtime_errors=0.
+BC warm-start for replay policy training was added at commit b20d8eb after the first clean failure showed action collapse to action_id=8 for all 64 clean steps. Windows BC retraining completed into windows_replay_b20d8eb_bc_pilot, but action probe and clean rerun are pending because the Windows Tailscale peer became temporarily unreachable.
 Windows runner PYTHONPATH now includes v2 code, optional legacy support/code overrides, and workspace root needed by the shared-core env builder.
 Windows scripts README now reflects the implemented Stage 2 runner, v2-local readiness scripts, dependency probe, privileged obs probe, replay collector, replay trainer, and v2-local minimal shared_core env builder bridge.
 RCS-AC-v2 subtree was committed and pushed to origin/codex/rcs-ac-v2-raw2drive. Unrelated root worktree changes were not staged.
@@ -168,10 +172,10 @@ Validate Windows privileged observations and promote real trained Stage 2 checkp
 
 ```text
 current local branch is codex/rcs-ac-v2-raw2drive
-replace synthetic smoke checkpoints with real Stage 1 world-model and Stage 2 privileged-policy checkpoints
-collect Windows CARLA privileged replay with scripts/windows/collect_stage2_privileged_replay.ps1
-train replay-source checkpoints with scripts/windows/train_stage2_privileged_from_replay.ps1
-fill Windows-local clean config checkpoints.world_model/path+sha256 and checkpoints.policy/path+sha256
+verify BC-retrained replay checkpoint at windows_replay_b20d8eb_bc_pilot once Windows SSH returns
+probe deterministic action distribution and confirm reverse_count=0 plus nonzero throttle actions
+rerun scripts/windows/run_stage2_clean_eval.ps1 with the BC checkpoint-filled config
+classify the next 128-step clean result before changing raw/fusion stages
 use the official Windows clean clone C:\Users\thddy\Documents\code\RCS-AC-first-official-v2-ac11c90 plus git pull --ff-only of origin/codex/rcs-ac-v2-raw2drive
 use SSH remote on Windows; HTTPS prompts for credentials
 use the v2-local minimal shared_core env builder by default; pass explicit dependency overrides only for local experiments
@@ -257,7 +261,7 @@ PYTHONDONTWRITEBYTECODE=1 python -m pytest RCS-AC-v2/tests -q -p no:cacheprovide
 Local result:
 
 ```text
-97 passed in 3.07s
+98 passed in 2.25s
 ```
 
 Local policy smoke:
@@ -280,10 +284,10 @@ generated dry-run summary removed after validation
 Full clean status:
 
 ```text
-REAL_TRAINED_CHECKPOINTS_PENDING
-WINDOWS_PRIVILEGED_REPLAY_COLLECTION_PENDING
-OFFICIAL_CLEAN_CLONE_PRIVILEGED_OBS_PROBE_PASS
-CARLA_CLEAN_PENDING
+WINDOWS_PRIVILEGED_REPLAY_COLLECTION_PASS
+REPLAY_CHECKPOINT_PROMOTED
+FIRST_128_CLEAN_FAIL_STUCK
+BC_RETRAINED_CHECKPOINT_PENDING_VERIFY
 ```
 
 Do not start Stage 3 raw sensor work or any fusion ablation until:

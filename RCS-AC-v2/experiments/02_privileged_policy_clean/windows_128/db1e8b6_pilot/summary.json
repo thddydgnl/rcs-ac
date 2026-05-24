@@ -1,0 +1,33 @@
+{
+  "action_table_sha256": "a4c1efa534cc9d75065c533cbd9860043088432f184c2ffb27a20679257b294d",
+  "action_table_version": "raw2drive_table12_row_major_v1",
+  "branch": "codex/rcs-ac-v2-raw2drive",
+  "carla_town": "Town04",
+  "carla_version": "0.9.16",
+  "clean_gate_pass": false,
+  "collision_count": 0,
+  "commit": "db1e8b6193202e122cc2a8a4c3d0de606d5c428e",
+  "config": "RCS-AC-v2\\experiments\\02_privileged_policy_clean\\checkpoints\\windows_replay_ef3b530_pilot\\clean_128_stage2_privileged_with_checkpoints.yaml",
+  "done_reason": "stuck",
+  "episode_return": 3.3699999988079017,
+  "failure_class": "driving",
+  "failure_message": "Valid runtime ended before horizon or had clean-driving violations.",
+  "horizon": 128,
+  "metrics_path": "RCS-AC-v2/experiments/02_privileged_policy_clean/windows_128/metrics.csv",
+  "next_action": "Classify the failure, patch the smallest cause, then rerun 128-step clean.",
+  "offroad_count": 0,
+  "output_path": "RCS-AC-v2/experiments/02_privileged_policy_clean/windows_128",
+  "pulled_files": [
+    "RCS-AC-v2/experiments/02_privileged_policy_clean/windows_128/summary.json",
+    "RCS-AC-v2/experiments/02_privileged_policy_clean/windows_128/metrics.csv"
+  ],
+  "reward_contract_version": "stage0_route_progress_penalty_v1",
+  "route_progress": 0.02564102564102564,
+  "safety_pass": false,
+  "source": "windows_carla",
+  "stage": "stage2_privileged_policy_clean",
+  "status": "FAIL",
+  "steps": 64,
+  "stuck_count": 1,
+  "windows_command": "powershell -ExecutionPolicy Bypass -File RCS-AC-v2\\scripts\\windows\\run_stage2_clean_eval.ps1 -ConfigPath RCS-AC-v2\\experiments\\02_privileged_policy_clean\\checkpoints\\windows_replay_ef3b530_pilot\\clean_128_stage2_privileged_with_checkpoints.yaml"
+}

@@ -176,6 +176,25 @@ Completed Windows clean-eval preparation:
   checks, CARLA Town04 readiness, simulator-state privileged provenance,
   BEV/ego shape and finite checks, and neutral-step safety checks. The result
   remains `clean_gate_evidence=false`.
+- Hardened replay/checkpoint provenance before clean promotion. Clean/replay
+  now require `privileged_observation_source=carla_simulator_state`; existing
+  env privileged keys are clean-ineligible; replay training requires collector
+  manifest/file sha validation; checkpoint payloads must record role, trainer,
+  replay manifest, data files, non-clean evidence, and valid action ids.
+- Collected the first official clean-clone privileged replay at commit
+  `ef3b530`: 4 episodes, 128 steps each, total 512 steps, source
+  `windows_carla_privileged_replay`, collector
+  `collect_stage2_privileged_replay`, privileged source
+  `carla_simulator_state`.
+- Trained replay-source checkpoints from that replay and ran the first official
+  128-step clean eval from the clean clone. The run reached `source=windows_carla`
+  but failed as `failure_class=driving` / `done_reason=stuck` after 64/128
+  steps. Collision/offroad were zero, reverse actions were masked out, and
+  adapter/runtime errors were zero.
+- Added replay imitation warm-start after the first failure showed action
+  collapse to action id 8 for all 64 clean steps. Windows retraining completed
+  into `windows_replay_b20d8eb_bc_pilot`; action probe and clean rerun are
+  pending because the Windows Tailscale peer became temporarily unreachable.
 
 ## Tests
 
@@ -188,7 +207,7 @@ PYTHONDONTWRITEBYTECODE=1 python -m pytest RCS-AC-v2/tests -q -p no:cacheprovide
 Result:
 
 ```text
-97 passed in 3.07s
+98 passed in 2.25s
 ```
 
 Additional policy-driven rollout smoke:
@@ -313,7 +332,7 @@ mistaken for official Windows evidence.
 
 ## Gate
 
-Status: `V2_BRANCH_PUSHED__OFFICIAL_CLEAN_CLONE_PRIVILEGED_OBS_PROBE_PASS__REPLAY_TRAINING_PATH_READY__REAL_TRAINED_CHECKPOINTS_PENDING__CARLA_CLEAN_PENDING`
+Status: `V2_BRANCH_PUSHED__OFFICIAL_CLEAN_CLONE_PRIVILEGED_OBS_PROBE_PASS__REPLAY_CHECKPOINT_PROMOTED__FIRST_128_CLEAN_FAIL_STUCK__BC_RETRAIN_PENDING_VERIFY`
 
 Required local evidence:
 
@@ -349,22 +368,27 @@ checkpoint provenance gate: local_synthetic_smoke_not_carla checkpoints are reje
 Windows replay path scratch: commit e1c9c86 archive dependency probe passed, replay modules imported under Windows Python 3.12, 1x8-step privileged replay collection produced source=windows_carla_privileged_replay manifest, 2-step replay training produced world_model/policy sha256 manifest, and strict checkpoint loader accepted the replay-source checkpoints
 official sync lane: Windows SSH git access works, clean clone path C:\Users\thddy\Documents\code\RCS-AC-first-official-v2-ac11c90 is at e42dc6a after core.longpaths=true, and the adapter now owns the minimal shared_core env builder; sibling shared_core remains external
 official clean clone probe: source=carla_simulator_state, schema=carla_simulator_semantic43_v1, hash=382e53122998198ad8f392c7298465057d364b23cf1fedb32465872ae43320a3, BEV [1,1,43,16,16], ego [1,1,8], finite tensors, neutral step running/collision=false/offroad=false/stuck=false
+official replay collection: commit ef3b530 clean clone, 4x128 episodes, total_steps=512, source=windows_carla_privileged_replay, privileged_observation_source=carla_simulator_state, collector manifest sha/file checks enforced
+first promoted replay checkpoint: world_model final_total 2.0421366691589355, policy final_total 0.058986030519008636, valid_action_ids=True, strict loader accepted checkpoint lineage, reverse action probe after mask had reverse_count=0 on 64 replay observations
+first 128 clean eval: commit db1e8b6, source=windows_carla, status=FAIL, failure_class=driving, done_reason=stuck, steps=64/128, collision_count=0, offroad_count=0, stuck_count=1, route_progress=0.02564102564102564, metrics_rows=64, adapter_errors=0, runtime_errors=0
+failure diagnosis: clean policy selected action_id=8 for all 64 steps; action 8 has throttle=0.0, brake=0.0, steer=0.6, so the car stopped with no route progress and triggered stuck
+BC warm-start: commit b20d8eb adds replay imitation loss to policy training; Windows retraining completed to windows_replay_b20d8eb_bc_pilot, but action probe/clean rerun are pending Windows SSH recovery
 ```
 
 ## Blockers
 
-Windows CARLA clean eval is intentionally not run yet. Stage 2 cannot be
-promoted to full clean PASS until real trained checkpoints are promoted, CARLA
-readiness guard passes from the clean clone, and 128/512/2048 clean evidence is
-recorded.
+Windows CARLA clean eval has now run once from the official clean clone and
+failed as driving/stuck after 64/128 steps. Stage 2 cannot be promoted to full
+clean PASS until the BC-retrained checkpoint or a later checkpoint reaches the
+128 horizon with zero collision/offroad/stuck and then scales to broader clean
+gates.
 
 The generic Stage 2 adapter loop, shared-core CARLA factory, checkpoint loader,
 local synthetic checkpoint export path, simulator-state privileged observation
 builder, Windows privileged-observation probe, replay collector, replay trainer,
-and checkpoint provenance gate are implemented. The official checkpoint paths
-are still intentionally null in the base clean config. A non-dry-run with
-current null checkpoint paths still exits nonzero with `failure_class=model`
-and a valid failure summary.
+and checkpoint provenance gate are implemented. The base clean config remains
+null-checkpoint for source control; runtime checkpoint-filled configs are
+generated from replay checkpoint manifests and kept as run artifacts.
 
 The current Stage 2 runner still has a temporary reproducibility dependency on
 sibling `shared_core`. The adapter now owns the minimal shared_core env builder
@@ -377,8 +401,8 @@ source in this round.
 
 ## Next Action
 
-Produce/promote real Stage 1 world-model and Stage 2 privileged-policy
-checkpoints by collecting Windows CARLA privileged replay, training replay-source
-checkpoints, filling checkpoint paths and sha256 in the clean-128 config,
-then running the official Windows clean-clone sequence: 128-step single-start
-first, then 512 primary subset, then 2048 subset if safe.
+When Windows SSH recovers, inspect `windows_replay_b20d8eb_bc_pilot`, confirm
+deterministic actions include nonzero throttle and reverse_count=0, generate a
+checkpoint-filled runtime config from its manifest, rerun the 128-step clean
+gate, and classify the result. Do not start raw/fusion work until the privileged
+clean gate is stable.

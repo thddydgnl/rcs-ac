@@ -1,7 +1,7 @@
 # Stage 2 Windows 128-Step Clean Result
 
 Date: 2026-05-24
-Status: `OFFICIAL_CLEAN_CLONE_PRIVILEGED_OBS_PROBE_PASS__OFFICIAL_CLEAN_NOT_RUN`
+Status: `FIRST_128_CLEAN_FAIL_STUCK__BC_RETRAIN_PENDING_VERIFY`
 
 ## Objective
 
@@ -62,7 +62,61 @@ commit, branch, Windows command, config, CARLA version, CARLA town, output path 
 pulled files include summary.json and metrics.csv
 ```
 
-## Metrics
+## First 128-Step Clean Eval
+
+This is an official clean-clone run, but it is **not** a PASS.
+
+```text
+commit: db1e8b6193202e122cc2a8a4c3d0de606d5c428e
+branch: codex/rcs-ac-v2-raw2drive
+source: windows_carla
+status: FAIL
+clean_gate_pass: false
+horizon: 128
+steps: 64
+done_reason: stuck
+failure_class: driving
+collision_count: 0
+offroad_count: 0
+stuck_count: 1
+route_progress: 0.02564102564102564
+episode_return: 3.3699999988079017
+metrics_rows: 64
+adapter_errors: 0
+runtime_errors: 0
+reverse_actions: 0
+```
+
+Local evidence:
+
+```text
+RCS-AC-v2/experiments/02_privileged_policy_clean/windows_128/db1e8b6_pilot/summary.json
+RCS-AC-v2/experiments/02_privileged_policy_clean/windows_128/db1e8b6_pilot/metrics.csv
+RCS-AC-v2/experiments/02_privileged_policy_clean/windows_128/db1e8b6_pilot/stage2_privileged_replay_manifest.json
+RCS-AC-v2/experiments/02_privileged_policy_clean/windows_128/db1e8b6_pilot/stage2_privileged_replay_checkpoint_manifest.json
+RCS-AC-v2/experiments/02_privileged_policy_clean/windows_128/db1e8b6_pilot/clean_128_stage2_privileged_with_checkpoints.yaml
+```
+
+Diagnosis:
+
+```text
+policy action_counts: action_id=8 for all 64 steps
+action_id=8: throttle=0.0, brake=0.0, steer=0.6
+speed_kmh mean: 0.29480263839785836
+route_progress_delta: 0.0 for all rows
+result: no forward progress, stuck at step 63
+```
+
+Follow-up already implemented:
+
+```text
+db1e8b6: masked reverse logits for direct_3d/stage4_v2 when allow_reverse_direct_3d=false
+b20d8eb: added replay imitation warm-start to policy training
+Windows retraining completed to windows_replay_b20d8eb_bc_pilot
+pending: action probe and clean rerun after Windows SSH/Tailscale recovers
+```
+
+## Privileged Probe Metrics
 
 ```text
 commit: e42dc6a8861146dd40c671c439061e1de622f918
@@ -139,19 +193,15 @@ reproducibility reference is the official clean clone at commit `e42dc6a`.
 
 The locally testable Stage 2 clean-eval adapter loop, metrics CSV writer,
 summary validator, Windows runner invocation path, shared-core CARLA adapter
-factory, simulator-state privileged observation builder, and Windows privileged
-obs probe are implemented and reproduced from the official clean clone. The
-replay collection/training path is also present: collect privileged CARLA
-replay, train replay-source world-model/policy checkpoints, and fill config
-paths/sha from the generated manifest. The local synthetic checkpoint export
-path remains plumbing evidence only, and the clean config rejects it by
-provenance. The official clean run is still not run because real
-world-model/policy checkpoint paths are still null.
+factory, simulator-state privileged observation builder, Windows privileged
+obs probe, replay collection, replay checkpoint training, and checkpoint
+promotion path are implemented. The first official 128-step clean run has been
+classified as driving/stuck, not PASS.
 
-A local real-mode probe with the base null-checkpoint config exits with code 2,
-writes a valid failure summary, and classifies the setup as
-`failure_class=model` / `done_reason=world_model_checkpoint_missing`. That is
-the expected setup failure before real checkpoints are promoted.
+The immediate driving issue was action collapse to throttle-zero action id 8.
+BC warm-start has been added and Windows retraining completed, but the
+post-retrain action probe and clean rerun are pending because Windows SSH became
+temporarily unreachable through Tailscale.
 
 The v2 readiness scripts now live under `RCS-AC-v2/scripts/windows`, and the
 Stage 2 runner has a dependency probe. The remaining reproducibility dependency
@@ -191,4 +241,5 @@ neutral-step info. It must not be interpreted as clean PASS.
 Local adapter-loop tests and privileged observation probes are not clean
 evidence. This file can move to PASS only after Windows runs the clean eval
 command after `git pull --ff-only`, the CARLA readiness guard passes, and the
-resulting `summary.json` validates with `source=windows_carla`.
+resulting `summary.json` validates with `source=windows_carla`,
+`done_reason=horizon_reached`, and zero collision/offroad/stuck.
