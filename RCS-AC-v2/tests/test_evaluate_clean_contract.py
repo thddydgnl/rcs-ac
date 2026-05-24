@@ -443,6 +443,20 @@ def test_windows_runner_can_mirror_validated_artifacts_static() -> None:
     assert validation_index < mirror_index
 
 
+def test_detached_replay_training_wrapper_static_contract() -> None:
+    script = Path(__file__).resolve().parents[1] / "scripts" / "windows" / "start_stage2_replay_training_detached.ps1"
+    text = script.read_text()
+    assert "train_stage2_privileged_from_replay.ps1" in text
+    assert "Start-Process" in text
+    assert "-EncodedCommand" in text
+    assert "-PassThru" in text
+    assert "TRAIN_LOG_PATH=$LogPath" in text
+    assert "TRAIN_PROCESS_ID=$($Process.Id)" in text
+    assert "TRAIN_EXIT_CODE=`$Code" in text
+    assert "[switch]$NoStart" in text
+    assert "TRAIN_DETACHED_DRY_RUN=True" in text
+
+
 def test_windows_dependency_probe_static_contract() -> None:
     script = Path(__file__).resolve().parents[1] / "scripts" / "windows" / "check_stage2_windows_dependencies.ps1"
     text = script.read_text()

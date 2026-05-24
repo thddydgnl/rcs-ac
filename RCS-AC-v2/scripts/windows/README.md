@@ -43,6 +43,7 @@ check_stage2_windows_dependencies.ps1
 run_stage2_privileged_obs_probe.ps1
 collect_stage2_privileged_replay.ps1
 train_stage2_privileged_from_replay.ps1
+start_stage2_replay_training_detached.ps1
 probe_stage2_checkpoint_actions.ps1
 run_stage2_clean_eval.ps1
 ensure_carla_ready.ps1
@@ -62,6 +63,10 @@ semantic43/ego8 replay .npz를 수집한다. replay는 학습 입력이지 clean
 train_stage2_privileged_from_replay.ps1는 replay로 world_model/policy
 checkpoint와 sha256 manifest를 만든다. 이 checkpoint는 clean eval 입력으로만
 사용하고, PASS 여부는 run_stage2_clean_eval.ps1 summary/metrics로만 판정한다.
+start_stage2_replay_training_detached.ps1는 긴 replay training을 별도 Windows
+PowerShell 프로세스로 띄우고 train log path와 process id를 출력한다. SSH가
+끊길 수 있는 원격 실행에서는 이 wrapper를 우선 사용하고, 완료 여부는 log의
+TRAIN_EXIT_CODE와 checkpoint manifest 존재 여부로 확인한다.
 run_stage2_clean_eval.ps1의 `-RunOutputDir` 옵션은 validated Windows run의
 summary.json, metrics.csv, 실제 입력 config를 지정한 증거 폴더로 복사한다.
 이 옵션은 artifact mirror 편의 기능일 뿐 PASS/FAIL을 바꾸거나 summary 필드를
