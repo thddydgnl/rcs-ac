@@ -31,33 +31,47 @@ if ($LogPath -eq "") {
 }
 New-Item -ItemType Directory -Force -Path $OutputDir | Out-Null
 New-Item -ItemType Directory -Force -Path (Split-Path -Parent $LogPath) | Out-Null
+$ResolvedOutputDir = (Resolve-Path $OutputDir).Path
+$ResolvedLogPath = (Resolve-Path (Split-Path -Parent $LogPath)).Path
+$ResolvedLogPath = Join-Path $ResolvedLogPath (Split-Path -Leaf $LogPath)
 
 $TrainingScript = Join-Path $ProjectRoot "RCS-AC-v2\scripts\windows\train_stage2_privileged_from_replay.ps1"
 $QuotedProjectRoot = Quote-PowerShellString $ProjectRoot
 $QuotedTrainingScript = Quote-PowerShellString $TrainingScript
 $QuotedReplayPath = Quote-PowerShellString $ReplayPath
 $QuotedReplayManifestPath = Quote-PowerShellString $ReplayManifestPath
-$QuotedOutputDir = Quote-PowerShellString $OutputDir
+$QuotedOutputDir = Quote-PowerShellString $ResolvedOutputDir
 $QuotedDevice = Quote-PowerShellString $Device
-$QuotedLogPath = Quote-PowerShellString $LogPath
+$QuotedLogPath = Quote-PowerShellString $ResolvedLogPath
+$InnerScriptPath = Join-Path $ResolvedOutputDir "train_stage2_privileged_from_replay.detached.ps1"
+$QuotedInnerScriptPath = Quote-PowerShellString $InnerScriptPath
 
 $InnerCommand = @"
 `$ErrorActionPreference = 'Stop'
-Set-Location $QuotedProjectRoot
-powershell -ExecutionPolicy Bypass -File $QuotedTrainingScript -ProjectRoot $QuotedProjectRoot -ReplayPath $QuotedReplayPath -ReplayManifestPath $QuotedReplayManifestPath -OutputDir $QuotedOutputDir -SequenceLength $SequenceLength -BatchSize $BatchSize -WorldModelSteps $WorldModelSteps -PolicySteps $PolicySteps -LearningRate $LearningRate -ImitationWeight $ImitationWeight -HiddenDim $HiddenDim -Device $QuotedDevice *>&1 | Tee-Object -FilePath $QuotedLogPath
-`$Code = `$LASTEXITCODE
-"TRAIN_EXIT_CODE=`$Code" | Tee-Object -FilePath $QuotedLogPath -Append
+`$LogPath = $QuotedLogPath
+"DETACHED_TRAIN_STARTED=`$(Get-Date -Format o)" | Set-Content -Path `$LogPath
+try {
+    Set-Location $QuotedProjectRoot
+    powershell -ExecutionPolicy Bypass -File $QuotedTrainingScript -ProjectRoot $QuotedProjectRoot -ReplayPath $QuotedReplayPath -ReplayManifestPath $QuotedReplayManifestPath -OutputDir $QuotedOutputDir -SequenceLength $SequenceLength -BatchSize $BatchSize -WorldModelSteps $WorldModelSteps -PolicySteps $PolicySteps -LearningRate $LearningRate -ImitationWeight $ImitationWeight -HiddenDim $HiddenDim -Device $QuotedDevice *>&1 | Tee-Object -FilePath `$LogPath -Append
+    `$Code = `$LASTEXITCODE
+}
+catch {
+    `$Code = 99
+    "TRAIN_EXCEPTION=`$(`$_.Exception.GetType().FullName): `$(`$_.Exception.Message)" | Tee-Object -FilePath `$LogPath -Append
+}
+"TRAIN_EXIT_CODE=`$Code" | Tee-Object -FilePath `$LogPath -Append
 exit `$Code
 "@
 
-$EncodedCommand = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($InnerCommand))
-$Arguments = @("-NoProfile", "-ExecutionPolicy", "Bypass", "-EncodedCommand", $EncodedCommand)
+$InnerCommand | Set-Content -Path $InnerScriptPath
+$Arguments = @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $InnerScriptPath)
 
 Write-Host "STAGE2_DETACHED_REPLAY_TRAIN_READY=True"
 Write-Host "REPLAY_PATH=$ReplayPath"
 Write-Host "REPLAY_MANIFEST_PATH=$ReplayManifestPath"
-Write-Host "OUTPUT_DIR=$OutputDir"
-Write-Host "TRAIN_LOG_PATH=$LogPath"
+Write-Host "OUTPUT_DIR=$ResolvedOutputDir"
+Write-Host "TRAIN_LOG_PATH=$ResolvedLogPath"
+Write-Host "TRAIN_SCRIPT_PATH=$InnerScriptPath"
 if ($NoStart) {
     Write-Host "TRAIN_DETACHED_DRY_RUN=True"
     exit 0

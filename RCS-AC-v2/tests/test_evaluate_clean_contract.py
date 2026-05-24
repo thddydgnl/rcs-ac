@@ -448,10 +448,15 @@ def test_detached_replay_training_wrapper_static_contract() -> None:
     text = script.read_text()
     assert "train_stage2_privileged_from_replay.ps1" in text
     assert "Start-Process" in text
-    assert "-EncodedCommand" in text
+    assert "train_stage2_privileged_from_replay.detached.ps1" in text
+    assert "$ResolvedOutputDir = (Resolve-Path $OutputDir).Path" in text
+    assert "$ResolvedLogPath = Join-Path $ResolvedLogPath (Split-Path -Leaf $LogPath)" in text
     assert "-PassThru" in text
-    assert "TRAIN_LOG_PATH=$LogPath" in text
+    assert "TRAIN_LOG_PATH=$ResolvedLogPath" in text
+    assert "TRAIN_SCRIPT_PATH=$InnerScriptPath" in text
     assert "TRAIN_PROCESS_ID=$($Process.Id)" in text
+    assert "DETACHED_TRAIN_STARTED=`$(Get-Date -Format o)" in text
+    assert "TRAIN_EXCEPTION=" in text
     assert "TRAIN_EXIT_CODE=`$Code" in text
     assert "[switch]$NoStart" in text
     assert "TRAIN_DETACHED_DRY_RUN=True" in text
