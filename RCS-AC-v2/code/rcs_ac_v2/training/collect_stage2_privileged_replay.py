@@ -8,8 +8,8 @@ clean gate and does not write `summary.json`.
 from __future__ import annotations
 
 import argparse
-import json
 from pathlib import Path
+import subprocess
 from typing import Any
 
 import numpy as np
@@ -18,11 +18,16 @@ import yaml
 
 from rcs_ac_v2.env.discrete_actions import RAW2DRIVE_ACTIONS, get_discrete_action, to_carla_control
 from rcs_ac_v2.evaluation.carla_adapter import SharedCoreCarlaEnvAdapter, _build_shared_core_env
+from rcs_ac_v2.evaluation.privileged_observation import (
+    EGO8_SCHEMA_VERSION,
+    PRIVILEGED_OBSERVATION_SOURCE,
+    SEMANTIC43_CHANNEL_NAMES_SHA256,
+    SEMANTIC43_SCHEMA_VERSION,
+)
 from rcs_ac_v2.training.privileged_replay import (
-    REPLAY_SOURCE,
     default_replay_metadata,
-    replay_file_manifest,
     save_privileged_replay_episode,
+    write_privileged_replay_manifest,
 )
 
 
@@ -83,6 +88,7 @@ def collect_episode(
     cont_rows: list[float] = []
     done_reason = "max_steps_reached"
     for _step in range(max_steps):
+        _validate_simulator_state_privileged_info(info)
         action_id = select_privileged_replay_action(
             info,
             target_speed_kmh=target_speed_kmh,
@@ -172,15 +178,19 @@ def main(argv: list[str] | None = None) -> None:
     finally:
         env.close()
 
-    manifest = {
-        "source": REPLAY_SOURCE,
-        "clean_gate_evidence": False,
-        "config": str(config_path),
-        "episodes": len(episode_paths),
-        "files": replay_file_manifest(episode_paths),
-    }
     manifest_path = output_dir / "stage2_privileged_replay_manifest.json"
-    manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n")
+    write_privileged_replay_manifest(
+        manifest_path,
+        config_path=config_path,
+        episode_paths=episode_paths,
+        extra={
+            "git_commit": _git_output(["rev-parse", "HEAD"]),
+            "git_status_short": _git_output(["status", "--short", "RCS-AC-v2"]),
+            "run_kind": "official_clean_clone_replay_collection",
+            "target_speed_kmh": float(args.target_speed_kmh),
+            "steer_sign": float(args.steer_sign),
+        },
+    )
     print(f"STAGE2_PRIVILEGED_REPLAY_MANIFEST={manifest_path}")
 
 
@@ -215,6 +225,27 @@ def _finite_float(value: Any, default: float = 0.0) -> float:
     except (TypeError, ValueError):
         return float(default)
     return number if np.isfinite(number) else float(default)
+
+
+def _validate_simulator_state_privileged_info(info: dict[str, Any]) -> None:
+    if info.get("privileged_observation_clean_gate_eligible") is not True:
+        raise RuntimeError("replay collection requires clean-gate-eligible simulator-state privileged observations")
+    if info.get("privileged_observation_source") != PRIVILEGED_OBSERVATION_SOURCE:
+        raise RuntimeError("replay collection requires privileged_observation_source=carla_simulator_state")
+    if info.get("privileged_observation_schema") != SEMANTIC43_SCHEMA_VERSION:
+        raise RuntimeError("replay collection semantic schema mismatch")
+    if info.get("privileged_bev_channel_names_sha256") != SEMANTIC43_CHANNEL_NAMES_SHA256:
+        raise RuntimeError("replay collection semantic channel hash mismatch")
+    if info.get("privileged_ego_schema") != EGO8_SCHEMA_VERSION:
+        raise RuntimeError("replay collection ego schema mismatch")
+
+
+def _git_output(args: list[str]) -> str:
+    try:
+        completed = subprocess.run(["git", *args], check=True, capture_output=True, text=True)
+    except Exception:
+        return "UNSET"
+    return completed.stdout.strip()
 
 
 if __name__ == "__main__":

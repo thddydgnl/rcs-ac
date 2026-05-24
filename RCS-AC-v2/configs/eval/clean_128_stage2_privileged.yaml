@@ -26,7 +26,7 @@ carla:
   env_action_format: stage4_v2
   allow_reverse_direct_3d: false
   privileged_observation:
-    mode: auto_existing_or_simulator_state_semantic43
+    mode: simulator_state_semantic43
     bev_keys:
       - privileged_bev
       - birdview
@@ -42,6 +42,7 @@ carla:
 observation_contract:
   require_privileged: true
   require_true_privileged_for_clean_gate: true
+  privileged_observation_source: carla_simulator_state
   privileged_bev_schema_version: carla_simulator_semantic43_v1
   privileged_bev_channel_names_sha256: 382e53122998198ad8f392c7298465057d364b23cf1fedb32465872ae43320a3
   privileged_ego_schema_version: carla_simulator_ego8_v1

@@ -27,7 +27,12 @@ from rcs_ac_v2.env.discrete_actions import (
     to_carla_control,
 )
 from rcs_ac_v2.evaluation.errors import CleanEvalRuntimeFailure
-from rcs_ac_v2.evaluation.privileged_observation import SEMANTIC43_CHANNEL_NAMES_SHA256, SEMANTIC43_SCHEMA_VERSION
+from rcs_ac_v2.evaluation.privileged_observation import (
+    EGO8_SCHEMA_VERSION,
+    PRIVILEGED_OBSERVATION_SOURCE,
+    SEMANTIC43_CHANNEL_NAMES_SHA256,
+    SEMANTIC43_SCHEMA_VERSION,
+)
 
 
 ALLOWED_FAILURE_CLASSES = {
@@ -888,6 +893,14 @@ def _validate_privileged_provenance(info: dict[str, Any], contract: dict[str, An
             "privileged_observation_provenance_missing",
             "Stage 2 clean gate requires simulator-state privileged observation provenance.",
         )
+    expected_source = str(contract.get("privileged_observation_source", PRIVILEGED_OBSERVATION_SOURCE))
+    actual_source = str(info.get("privileged_observation_source", "UNSET"))
+    if actual_source != expected_source:
+        raise CleanEvalRuntimeFailure(
+            "adapter",
+            "privileged_observation_source_mismatch",
+            f"expected {expected_source}, got {actual_source}",
+        )
     expected_schema = str(contract.get("privileged_bev_schema_version", SEMANTIC43_SCHEMA_VERSION))
     actual_schema = str(info.get("privileged_observation_schema", "UNSET"))
     if actual_schema != expected_schema:
@@ -903,6 +916,14 @@ def _validate_privileged_provenance(info: dict[str, Any], contract: dict[str, An
             "adapter",
             "privileged_semantic_channel_hash_mismatch",
             f"expected {expected_hash}, got {actual_hash}",
+        )
+    expected_ego_schema = str(contract.get("privileged_ego_schema_version", EGO8_SCHEMA_VERSION))
+    actual_ego_schema = str(info.get("privileged_ego_schema", "UNSET"))
+    if actual_ego_schema != expected_ego_schema:
+        raise CleanEvalRuntimeFailure(
+            "adapter",
+            "privileged_ego_schema_mismatch",
+            f"expected {expected_ego_schema}, got {actual_ego_schema}",
         )
 
 

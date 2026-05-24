@@ -19,6 +19,7 @@ from rcs_ac_v2.data.schema import PrivilegedSequenceBatch, SchemaConfig, validat
 from rcs_ac_v2.evaluation.privileged_observation import (
     EGO8_FIELD_NAMES,
     EGO8_SCHEMA_VERSION,
+    PRIVILEGED_OBSERVATION_SOURCE,
     SEMANTIC43_CHANNEL_NAMES_SHA256,
     SEMANTIC43_SCHEMA_VERSION,
 )
@@ -27,6 +28,7 @@ from rcs_ac_v2.utils.checkpoint import sha256_file
 
 REPLAY_SOURCE = "windows_carla_privileged_replay"
 REPLAY_FORMAT_VERSION = "stage2_privileged_replay_npz_v1"
+REPLAY_COLLECTOR_NAME = "collect_stage2_privileged_replay"
 
 
 @dataclass(frozen=True)
@@ -177,6 +179,120 @@ def replay_file_manifest(files: Iterable[Path]) -> list[dict[str, Any]]:
         }
         for path in files
     ]
+
+
+def write_privileged_replay_manifest(
+    path: str | Path,
+    *,
+    config_path: str | Path,
+    episode_paths: Iterable[Path],
+    extra: dict[str, Any] | None = None,
+) -> Path:
+    episodes = [load_privileged_replay_episode(item) for item in episode_paths]
+    target = Path(path)
+    payload: dict[str, Any] = {
+        "source": REPLAY_SOURCE,
+        "clean_gate_evidence": False,
+        "collector": REPLAY_COLLECTOR_NAME,
+        "privileged_observation_source": PRIVILEGED_OBSERVATION_SOURCE,
+        "privileged_observation_schema": SEMANTIC43_SCHEMA_VERSION,
+        "privileged_bev_channel_names_sha256": SEMANTIC43_CHANNEL_NAMES_SHA256,
+        "privileged_ego_schema": EGO8_SCHEMA_VERSION,
+        "config": str(config_path),
+        "config_sha256": sha256_file(Path(config_path)),
+        "episodes": len(episodes),
+        "episode_lengths": [episode.length for episode in episodes],
+        "total_steps": sum(episode.length for episode in episodes),
+        "files": replay_file_manifest([episode.path for episode in episodes]),
+    }
+    if extra:
+        payload.update(extra)
+    validate_replay_manifest_payload(payload, manifest_dir=target.parent)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n")
+    return target
+
+
+def load_replay_manifest(path: str | Path) -> dict[str, Any]:
+    manifest_path = Path(path)
+    payload = json.loads(manifest_path.read_text())
+    if not isinstance(payload, dict):
+        raise ValueError("privileged replay manifest must be a JSON object")
+    validate_replay_manifest_payload(payload, manifest_dir=manifest_path.parent)
+    return payload
+
+
+def validate_replay_manifest(
+    path: str | Path,
+    *,
+    replay_paths: Iterable[str | Path] | None = None,
+) -> dict[str, Any]:
+    manifest_path = Path(path)
+    payload = load_replay_manifest(manifest_path)
+    manifest_files = {_resolve_manifest_file(entry, manifest_path.parent).resolve() for entry in payload["files"]}
+    if replay_paths is not None:
+        requested_files = {item.resolve() for item in find_replay_files(replay_paths)}
+        if manifest_files != requested_files:
+            raise ValueError("privileged replay manifest files do not match requested replay paths")
+    for entry in payload["files"]:
+        load_privileged_replay_episode(_resolve_manifest_file(entry, manifest_path.parent))
+    return payload
+
+
+def validate_replay_manifest_payload(payload: dict[str, Any], *, manifest_dir: Path) -> None:
+    if payload.get("source") != REPLAY_SOURCE:
+        raise ValueError("privileged replay manifest source must be windows_carla_privileged_replay")
+    if payload.get("clean_gate_evidence") is not False:
+        raise ValueError("privileged replay manifest must not be clean gate evidence")
+    if payload.get("collector") != REPLAY_COLLECTOR_NAME:
+        raise ValueError("privileged replay manifest must be written by collect_stage2_privileged_replay")
+    if payload.get("privileged_observation_source") != PRIVILEGED_OBSERVATION_SOURCE:
+        raise ValueError("privileged replay manifest must use carla_simulator_state observations")
+    if payload.get("privileged_observation_schema") != SEMANTIC43_SCHEMA_VERSION:
+        raise ValueError("privileged replay manifest semantic schema mismatch")
+    if payload.get("privileged_bev_channel_names_sha256") != SEMANTIC43_CHANNEL_NAMES_SHA256:
+        raise ValueError("privileged replay manifest semantic channel hash mismatch")
+    if payload.get("privileged_ego_schema") != EGO8_SCHEMA_VERSION:
+        raise ValueError("privileged replay manifest ego schema mismatch")
+    files = payload.get("files")
+    if not isinstance(files, list) or not files:
+        raise ValueError("privileged replay manifest must list replay files")
+    episode_lengths = payload.get("episode_lengths")
+    if not isinstance(episode_lengths, list) or len(episode_lengths) != len(files):
+        raise ValueError("privileged replay manifest episode_lengths must match files")
+    if int(payload.get("episodes", -1)) != len(files):
+        raise ValueError("privileged replay manifest episode count mismatch")
+    if int(payload.get("total_steps", -1)) != sum(int(item) for item in episode_lengths):
+        raise ValueError("privileged replay manifest total_steps mismatch")
+    config_sha = str(payload.get("config_sha256", ""))
+    if len(config_sha) != 64:
+        raise ValueError("privileged replay manifest must include config_sha256")
+    git_commit = str(payload.get("git_commit", ""))
+    if len(git_commit) < 7 or git_commit == "UNSET":
+        raise ValueError("privileged replay manifest must include git_commit")
+    for entry in files:
+        replay_path = _resolve_manifest_file(entry, manifest_dir)
+        if not replay_path.is_file():
+            raise ValueError(f"privileged replay file missing: {replay_path}")
+        if int(entry.get("bytes", -1)) != int(replay_path.stat().st_size):
+            raise ValueError(f"privileged replay file byte mismatch: {replay_path}")
+        if str(entry.get("sha256", "")) != sha256_file(replay_path):
+            raise ValueError(f"privileged replay file sha256 mismatch: {replay_path}")
+
+
+def _resolve_manifest_file(entry: dict[str, Any], manifest_dir: Path) -> Path:
+    if not isinstance(entry, dict):
+        raise ValueError("privileged replay manifest file entry must be a mapping")
+    raw_path = entry.get("path")
+    if not isinstance(raw_path, str) or not raw_path:
+        raise ValueError("privileged replay manifest file entry missing path")
+    path = Path(raw_path)
+    if path.exists():
+        return path
+    sibling = manifest_dir / path.name
+    if sibling.exists():
+        return sibling
+    return path
 
 
 class PrivilegedReplaySampler:

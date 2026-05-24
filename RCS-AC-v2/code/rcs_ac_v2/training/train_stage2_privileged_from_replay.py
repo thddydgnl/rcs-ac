@@ -16,8 +16,8 @@ from rcs_ac_v2.privileged_stream.world_model import PrivilegedWorldModel, Privil
 from rcs_ac_v2.training.privileged_replay import (
     REPLAY_SOURCE,
     load_replay_episodes,
-    replay_file_manifest,
     PrivilegedReplaySampler,
+    validate_replay_manifest,
 )
 from rcs_ac_v2.utils.checkpoint import save_checkpoint, sha256_file
 from rcs_ac_v2.utils.seed import seed_everything
@@ -36,6 +36,7 @@ class ReplayTrainingResult:
 def train_stage2_privileged_from_replay(
     *,
     replay_paths: list[str | Path],
+    replay_manifest_path: str | Path,
     output_dir: str | Path,
     seed: int = 20260524,
     sequence_length: int = 16,
@@ -53,7 +54,8 @@ def train_stage2_privileged_from_replay(
     resolved_device = _resolve_device(device)
     output = Path(output_dir)
     output.mkdir(parents=True, exist_ok=True)
-    replay_files = replay_file_manifest([path for path in _replay_files(replay_paths)])
+    replay_manifest = validate_replay_manifest(replay_manifest_path, replay_paths=replay_paths)
+    replay_files = replay_manifest["files"]
     episodes = load_replay_episodes(replay_paths)
     sampler = PrivilegedReplaySampler(
         episodes,
@@ -128,9 +130,16 @@ def train_stage2_privileged_from_replay(
         "stage": "stage2_privileged_policy_clean",
         "source": REPLAY_SOURCE,
         "clean_gate_evidence": False,
+        "trainer": "train_stage2_privileged_from_replay",
         "seed": int(seed),
         "sequence_length": int(sequence_length),
         "batch_size": int(batch_size),
+        "world_model_steps": int(world_model_steps),
+        "policy_steps": int(policy_steps),
+        "replay_manifest": {
+            "path": str(replay_manifest_path),
+            "sha256": sha256_file(Path(replay_manifest_path)),
+        },
         "data_files": replay_files,
     }
     world_model_checkpoint_path = save_checkpoint(
@@ -217,6 +226,7 @@ def train_stage2_privileged_from_replay(
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description="Train Stage 2 privileged checkpoints from replay")
     parser.add_argument("--replay", action="append", required=True, help="Replay .npz file or directory; repeatable")
+    parser.add_argument("--replay-manifest", required=True)
     parser.add_argument("--output-dir", required=True)
     parser.add_argument("--seed", type=int, default=20260524)
     parser.add_argument("--sequence-length", type=int, default=16)
@@ -230,6 +240,7 @@ def main(argv: list[str] | None = None) -> None:
     args = parser.parse_args(argv)
     result = train_stage2_privileged_from_replay(
         replay_paths=[Path(item) for item in args.replay],
+        replay_manifest_path=args.replay_manifest,
         output_dir=args.output_dir,
         seed=args.seed,
         sequence_length=args.sequence_length,
@@ -250,21 +261,6 @@ def _resolve_device(device: str) -> torch.device:
     if device == "auto":
         return torch.device("cuda" if torch.cuda.is_available() else "cpu")
     return torch.device(device)
-
-
-def _replay_files(replay_paths: list[str | Path]) -> list[Path]:
-    files: list[Path] = []
-    for raw in replay_paths:
-        path = Path(raw)
-        if path.is_dir():
-            files.extend(sorted(path.glob("*.npz")))
-        elif path.exists():
-            files.append(path)
-        else:
-            raise FileNotFoundError(path)
-    if not files:
-        raise ValueError("no replay files found")
-    return files
 
 
 if __name__ == "__main__":

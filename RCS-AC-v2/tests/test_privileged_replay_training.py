@@ -8,6 +8,12 @@ import torch
 import yaml
 
 from rcs_ac_v2.evaluation.carla_adapter import load_stage2_policy_runner
+from rcs_ac_v2.evaluation.privileged_observation import (
+    EGO8_SCHEMA_VERSION,
+    PRIVILEGED_OBSERVATION_SOURCE,
+    SEMANTIC43_CHANNEL_NAMES_SHA256,
+    SEMANTIC43_SCHEMA_VERSION,
+)
 from rcs_ac_v2.training.collect_stage2_privileged_replay import (
     collect_episode,
     select_privileged_replay_action,
@@ -17,6 +23,7 @@ from rcs_ac_v2.training.privileged_replay import (
     PrivilegedReplaySampler,
     load_privileged_replay_episode,
     save_privileged_replay_episode,
+    write_privileged_replay_manifest,
 )
 from rcs_ac_v2.training.train_stage2_privileged_from_replay import train_stage2_privileged_from_replay
 
@@ -54,7 +61,7 @@ class _FakeCollectorEnv:
     def reset(self) -> dict:
         return {
             "obs": self._obs(),
-            "info": {"speed_kmh": 0.0, "heading_error": 0.0, "lane_offset": 0.0},
+            "info": {"speed_kmh": 0.0, "heading_error": 0.0, "lane_offset": 0.0, **_simulator_privileged_info()},
         }
 
     def step(self, control: dict, policy_diagnostics: dict | None = None) -> dict:
@@ -70,6 +77,7 @@ class _FakeCollectorEnv:
                 "heading_error": 1.0,
                 "lane_offset": 0.1,
                 "done_reason": "done" if self.step_count >= 3 else "running",
+                **_simulator_privileged_info(),
             },
         }
 
@@ -99,8 +107,17 @@ def test_collect_episode_writes_valid_replay_fields() -> None:
 
 def test_replay_training_exports_clean_eval_loadable_checkpoints(tmp_path) -> None:
     replay_path = save_privileged_replay_episode(tmp_path / "episode_0000.npz", **_replay_arrays(length=8))
+    replay_config_path = tmp_path / "clean_128.yaml"
+    replay_config_path.write_text("stage: stage2_privileged_policy_clean\n")
+    replay_manifest_path = write_privileged_replay_manifest(
+        tmp_path / "stage2_privileged_replay_manifest.json",
+        config_path=replay_config_path,
+        episode_paths=[replay_path],
+        extra={"git_commit": "abc1234"},
+    )
     result = train_stage2_privileged_from_replay(
         replay_paths=[replay_path],
+        replay_manifest_path=replay_manifest_path,
         output_dir=tmp_path / "checkpoints",
         seed=11,
         sequence_length=4,
@@ -127,5 +144,16 @@ def test_replay_training_exports_clean_eval_loadable_checkpoints(tmp_path) -> No
     )
 
     assert manifest["source"] == REPLAY_SOURCE
+    assert manifest["replay_manifest"]["sha256"]
     assert output["logits"].shape == (1, 1, 39)
     assert torch.isfinite(output["logits"]).all()
+
+
+def _simulator_privileged_info() -> dict:
+    return {
+        "privileged_observation_clean_gate_eligible": True,
+        "privileged_observation_source": PRIVILEGED_OBSERVATION_SOURCE,
+        "privileged_observation_schema": SEMANTIC43_SCHEMA_VERSION,
+        "privileged_bev_channel_names_sha256": SEMANTIC43_CHANNEL_NAMES_SHA256,
+        "privileged_ego_schema": EGO8_SCHEMA_VERSION,
+    }

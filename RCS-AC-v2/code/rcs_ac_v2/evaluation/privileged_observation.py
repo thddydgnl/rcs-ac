@@ -19,6 +19,7 @@ import torch
 
 SEMANTIC43_SCHEMA_VERSION = "carla_simulator_semantic43_v1"
 EGO8_SCHEMA_VERSION = "carla_simulator_ego8_v1"
+PRIVILEGED_OBSERVATION_SOURCE = "carla_simulator_state"
 SEMANTIC43_CHANNEL_NAMES: tuple[str, ...] = (
     "drivable_road",
     "lane_marking",
@@ -153,7 +154,7 @@ def build_carla_simulator_semantic43_observation(
         raise ValueError("simulator-state privileged BEV has empty ego_vehicle channel")
     diagnostics = {
         "privileged_observation_schema": SEMANTIC43_SCHEMA_VERSION,
-        "privileged_observation_source": "carla_simulator_state",
+        "privileged_observation_source": PRIVILEGED_OBSERVATION_SOURCE,
         "privileged_observation_clean_gate_eligible": True,
         "privileged_bev_channel_names_sha256": SEMANTIC43_CHANNEL_NAMES_SHA256,
         "privileged_ego_schema": EGO8_SCHEMA_VERSION,

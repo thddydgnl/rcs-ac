@@ -22,6 +22,7 @@ import yaml
 from rcs_ac_v2.evaluation.errors import CleanEvalRuntimeFailure
 from rcs_ac_v2.evaluation.privileged_observation import (
     EGO8_SCHEMA_VERSION,
+    PRIVILEGED_OBSERVATION_SOURCE,
     SEMANTIC43_CHANNEL_NAMES_SHA256,
     SEMANTIC43_SCHEMA_VERSION,
     build_carla_simulator_semantic43_observation,
@@ -75,8 +76,9 @@ class Stage2CarlaObservationAdapter:
     def adapt(self, obs: dict[str, Any], info: dict[str, Any], *, simulator_context: Any | None = None) -> dict[str, Any]:
         bev_value = _first_present(obs, info, self.bev_keys)
         ego_value = _first_present(obs, info, self.ego_keys)
-        if bev_value is None or ego_value is None:
-            simulator_modes = {"auto_existing_or_simulator_state_semantic43", "simulator_state_semantic43"}
+        simulator_modes = {"auto_existing_or_simulator_state_semantic43", "simulator_state_semantic43"}
+        force_simulator_state = self.mode == "simulator_state_semantic43"
+        if force_simulator_state or bev_value is None or ego_value is None:
             if self.mode in simulator_modes:
                 try:
                     simulator_obs = build_carla_simulator_semantic43_observation(
@@ -117,7 +119,10 @@ class Stage2CarlaObservationAdapter:
             "privileged_observation_schema": str(contract.get("privileged_bev_schema_version", SEMANTIC43_SCHEMA_VERSION)),
             "privileged_observation_mode": self.mode,
             "privileged_observation_source": "existing_env_keys",
-            "privileged_observation_clean_gate_eligible": True,
+            "privileged_observation_clean_gate_eligible": False,
+            "privileged_observation_ineligible_reason": (
+                f"Stage 2 clean gate requires {PRIVILEGED_OBSERVATION_SOURCE}; existing env keys may be raw-derived."
+            ),
             "privileged_bev_channel_names_sha256": str(
                 contract.get("privileged_bev_channel_names_sha256", SEMANTIC43_CHANNEL_NAMES_SHA256)
             ),
@@ -557,6 +562,64 @@ def _validate_checkpoint_provenance(
                 f"{role}_checkpoint_stage_invalid",
                 f"{role} checkpoint stage must be stage2_privileged_policy_clean.",
             )
+        if str(payload.get("checkpoint_role", "UNSET")) != role:
+            raise CleanEvalRuntimeFailure(
+                "model",
+                f"{role}_checkpoint_role_invalid",
+                f"{role} checkpoint_role must be {role}.",
+            )
+        if payload.get("clean_gate_evidence") is not False:
+            raise CleanEvalRuntimeFailure(
+                "model",
+                f"{role}_checkpoint_clean_evidence_invalid",
+                f"{role} checkpoint must remain non-clean evidence input.",
+            )
+        if str(payload.get("trainer", "UNSET")) != "train_stage2_privileged_from_replay":
+            raise CleanEvalRuntimeFailure(
+                "model",
+                f"{role}_checkpoint_trainer_invalid",
+                f"{role} checkpoint must be produced by replay trainer.",
+            )
+        data_files = payload.get("data_files")
+        if not isinstance(data_files, list) or not data_files:
+            raise CleanEvalRuntimeFailure(
+                "model",
+                f"{role}_checkpoint_data_files_missing",
+                f"{role} checkpoint must record replay data_files.",
+            )
+        replay_manifest = payload.get("replay_manifest")
+        if not isinstance(replay_manifest, dict) or not replay_manifest.get("path") or not replay_manifest.get("sha256"):
+            raise CleanEvalRuntimeFailure(
+                "model",
+                f"{role}_checkpoint_replay_manifest_missing",
+                f"{role} checkpoint must record replay manifest path and sha256.",
+            )
+    if world_model_payload.get("data_files") != policy_payload.get("data_files"):
+        raise CleanEvalRuntimeFailure(
+            "model",
+            "checkpoint_replay_lineage_mismatch",
+            "world_model and policy checkpoints must use the same replay data_files.",
+        )
+    if world_model_payload.get("replay_manifest") != policy_payload.get("replay_manifest"):
+        raise CleanEvalRuntimeFailure(
+            "model",
+            "checkpoint_replay_manifest_mismatch",
+            "world_model and policy checkpoints must use the same replay manifest.",
+        )
+    for field in ("seed", "sequence_length", "batch_size", "world_model_steps", "policy_steps"):
+        if world_model_payload.get(field) != policy_payload.get(field):
+            raise CleanEvalRuntimeFailure(
+                "model",
+                "checkpoint_training_lineage_mismatch",
+                f"world_model and policy checkpoints disagree on {field}.",
+            )
+    policy_metrics = policy_payload.get("metrics")
+    if not isinstance(policy_metrics, dict) or policy_metrics.get("valid_action_ids") is not True:
+        raise CleanEvalRuntimeFailure(
+            "model",
+            "policy_checkpoint_action_probe_missing",
+            "policy checkpoint must record valid_action_ids=true.",
+        )
 
 
 def _validate_world_model_config(cfg: PrivilegedWorldModelConfig, config: dict[str, Any]) -> None:

@@ -16,7 +16,10 @@ from rcs_ac_v2.evaluation.carla_adapter import (
 )
 from rcs_ac_v2.evaluation.evaluate_clean import CleanEvalRuntimeFailure, run_clean_eval_loop, run_real_carla_eval
 from rcs_ac_v2.evaluation.probe_stage2_windows_env import probe_stage2_env_once, write_probe_result
-from rcs_ac_v2.evaluation.privileged_observation import SEMANTIC43_CHANNEL_NAMES_SHA256, SEMANTIC43_SCHEMA_VERSION
+from rcs_ac_v2.evaluation.privileged_observation import (
+    SEMANTIC43_CHANNEL_NAMES_SHA256,
+    SEMANTIC43_SCHEMA_VERSION,
+)
 from rcs_ac_v2.privileged_stream.policy import PrivilegedPolicy, PrivilegedPolicyConfig
 from rcs_ac_v2.privileged_stream.world_model import PrivilegedWorldModel, PrivilegedWorldModelConfig
 from rcs_ac_v2.utils.checkpoint import save_checkpoint
@@ -49,23 +52,38 @@ def _write_stage2_checkpoints(tmp_path: Path, config: dict) -> None:
     wm_cfg = PrivilegedWorldModelConfig(bev_height=16, bev_width=16, ego_dim=8, hidden_dim=32)
     world_model = PrivilegedWorldModel(wm_cfg)
     policy = PrivilegedPolicy(PrivilegedPolicyConfig(latent_dim=world_model.rssm.latent_dim, hidden_dim=32))
+    checkpoint_common = {
+        "stage": "stage2_privileged_policy_clean",
+        "source": "windows_carla_privileged_replay",
+        "clean_gate_evidence": False,
+        "trainer": "train_stage2_privileged_from_replay",
+        "seed": 11,
+        "sequence_length": 4,
+        "batch_size": 2,
+        "world_model_steps": 2,
+        "policy_steps": 2,
+        "replay_manifest": {"path": str(tmp_path / "stage2_privileged_replay_manifest.json"), "sha256": "0" * 64},
+        "data_files": [{"path": str(tmp_path / "episode_0000.npz"), "sha256": "1" * 64, "bytes": 1}],
+    }
 
     world_model_path = save_checkpoint(
         tmp_path / "world_model.pt",
         {
+            **checkpoint_common,
             "model_state_dict": world_model.state_dict(),
             "config": wm_cfg.__dict__,
-            "stage": "stage2_privileged_policy_clean",
-            "source": "windows_carla_privileged_replay",
+            "checkpoint_role": "world_model",
+            "metrics": {"valid_action_ids": True},
         },
     )
     policy_path = save_checkpoint(
         tmp_path / "policy.pt",
         {
+            **checkpoint_common,
             "model_state_dict": policy.state_dict(),
             "config": policy.cfg.__dict__,
-            "stage": "stage2_privileged_policy_clean",
-            "source": "windows_carla_privileged_replay",
+            "checkpoint_role": "policy",
+            "metrics": {"valid_action_ids": True},
         },
     )
     config["checkpoints"]["world_model"]["path"] = str(world_model_path)
@@ -249,11 +267,14 @@ class FakeSimulatorRawEnvWithoutPrivilegedObs(FakeRawEnvWithoutPrivilegedObs):
 
 def test_observation_adapter_accepts_stage2_privileged_shapes(tmp_path) -> None:
     config = _base_config(tmp_path)
+    config["carla"]["privileged_observation"]["mode"] = "existing_keys"
     adapter = Stage2CarlaObservationAdapter(config)
     obs = adapter.adapt(FakeRawEnv._obs(), {})
 
     assert tuple(obs["privileged_bev"].shape) == (1, 1, 43, 16, 16)
     assert tuple(obs["privileged_ego"].shape) == (1, 1, 8)
+    assert adapter.last_diagnostics["privileged_observation_source"] == "existing_env_keys"
+    assert adapter.last_diagnostics["privileged_observation_clean_gate_eligible"] is False
 
 
 def test_policy_runner_loads_checkpoints_and_returns_logits(tmp_path) -> None:
@@ -440,7 +461,7 @@ def test_stage2_adapter_bundle_runs_fake_raw_env_through_clean_loop(tmp_path) ->
     config = _base_config(tmp_path, horizon=2)
     config["carla"]["env_action_format"] = "raw2drive_control_dict"
     _write_stage2_checkpoints(tmp_path, config)
-    raw_env = FakeRawEnv()
+    raw_env = FakeSimulatorRawEnvWithoutPrivilegedObs()
     env, policy = create_stage2_adapter_bundle(config=config, raw_env=raw_env)
     config_path = _write_config(tmp_path, config)
 
@@ -522,6 +543,7 @@ def test_observation_adapter_strict_rejects_windows_raw_obs_without_privileged(t
 def test_privileged_obs_probe_is_not_clean_gate_evidence(tmp_path) -> None:
     config = _base_config(tmp_path)
     config["carla"]["env_action_format"] = "stage4_v2"
+    config["carla"]["privileged_observation"]["mode"] = "existing_keys"
     raw_env = FakeRawEnv()
 
     result = probe_stage2_env_once(raw_env=raw_env, config=config, step_neutral=True)

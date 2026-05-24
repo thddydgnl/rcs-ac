@@ -21,6 +21,8 @@ from rcs_ac_v2.evaluation.evaluate_clean import (
     write_step_metrics,
 )
 from rcs_ac_v2.evaluation.privileged_observation import (
+    EGO8_SCHEMA_VERSION,
+    PRIVILEGED_OBSERVATION_SOURCE,
     SEMANTIC43_CHANNEL_NAMES_SHA256,
     SEMANTIC43_SCHEMA_VERSION,
 )
@@ -180,8 +182,10 @@ class FakeEnv:
 def _privileged_info(*, clean_gate_eligible: bool) -> dict:
     return {
         "privileged_observation_clean_gate_eligible": clean_gate_eligible,
+        "privileged_observation_source": PRIVILEGED_OBSERVATION_SOURCE,
         "privileged_observation_schema": SEMANTIC43_SCHEMA_VERSION,
         "privileged_bev_channel_names_sha256": SEMANTIC43_CHANNEL_NAMES_SHA256,
+        "privileged_ego_schema": EGO8_SCHEMA_VERSION,
     }
 
 class FakeEnvWithDerivedDebugPrivileged(FakeEnv):
@@ -189,8 +193,10 @@ class FakeEnvWithDerivedDebugPrivileged(FakeEnv):
     def _privileged_info() -> dict:
         return {
             "privileged_observation_clean_gate_eligible": False,
+            "privileged_observation_source": "derived_debug_from_raw_v1",
             "privileged_observation_schema": "derived_debug_from_raw_v1",
             "privileged_bev_channel_names_sha256": SEMANTIC43_CHANNEL_NAMES_SHA256,
+            "privileged_ego_schema": EGO8_SCHEMA_VERSION,
         }
 
 
@@ -209,7 +215,9 @@ def test_clean_128_config_loads_and_pins_contracts() -> None:
     assert config["reward_contract_version"] == "stage0_route_progress_penalty_v1"
     assert "none" in config["failure_classes"]
     assert config["gate"]["source_required_for_pass"] == "windows_carla"
+    assert config["carla"]["privileged_observation"]["mode"] == "simulator_state_semantic43"
     assert config["observation_contract"]["require_true_privileged_for_clean_gate"] is True
+    assert config["observation_contract"]["privileged_observation_source"] == PRIVILEGED_OBSERVATION_SOURCE
     assert config["observation_contract"]["privileged_bev_schema_version"] == SEMANTIC43_SCHEMA_VERSION
     assert config["observation_contract"]["privileged_bev_channel_names_sha256"] == SEMANTIC43_CHANNEL_NAMES_SHA256
     assert config["checkpoint_contract"]["require_trained_provenance_for_clean_gate"] is True
