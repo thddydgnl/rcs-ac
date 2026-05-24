@@ -162,6 +162,19 @@ unrelated dirty branch and `git fetch` hit interactive GitHub credential
 failure. The archive lane avoided touching that worktree and is acceptable for
 infrastructure validation, but not for final clean-performance claims.
 
+An official clean clone is now available at:
+
+```text
+C:\Users\thddy\Documents\code\RCS-AC-first-official-v2-ac11c90
+```
+
+Windows HTTPS GitHub access still prompts for credentials, but SSH
+`git@github.com:thddydgnl/RCS-AC-first.git` works. The clean clone needed
+`core.longpaths=true` to finish checkout. Because the clone does not contain
+the temporary v1.1 support/code runtime dependency, official commands from this
+lane must pass explicit v1.1/shared_core path overrides until that env builder
+is ported into v2.
+
 Before running clean eval, run the non-clean shape probe:
 
 ```powershell

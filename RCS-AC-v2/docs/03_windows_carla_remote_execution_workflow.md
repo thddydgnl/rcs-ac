@@ -604,3 +604,18 @@ RCS-AC-v1.1\code
 `check_stage2_windows_dependencies.ps1` must pass before CARLA starts. Official
 clean PASS should not be claimed until this dependency chain is either verified
 in the Windows checkout or replaced by v2-local env-builder code.
+
+If the official v2 clean clone does not contain `RCS-AC-v1.1`, keep the v2
+code clean-cloned from GitHub and pass the temporary dependency paths
+explicitly:
+
+```powershell
+-EnvConfigPathOverride C:\Users\thddy\Documents\code\RCS-AC-first\RCS-AC-v1.1\configs\v1_1\bc_clean_v1_1_2048_eval.yaml `
+-SupportCodePath C:\Users\thddy\Documents\code\RCS-AC-first\RCS-AC-v1.1\goal_achieved_round_0002_execution\support_code `
+-V11CodePath C:\Users\thddy\Documents\code\RCS-AC-first\RCS-AC-v1.1\code `
+-SharedCorePath C:\Users\thddy\Documents\code\shared_core
+```
+
+This keeps the official v2 source tied to the GitHub branch while making the
+temporary runtime dependency explicit. It is still a temporary bridge; port the
+minimum env builder into v2 before final reproducibility claims if possible.

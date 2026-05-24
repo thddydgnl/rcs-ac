@@ -10,6 +10,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 import hashlib
+import os
 import sys
 
 import numpy as np
@@ -262,7 +263,7 @@ def load_stage2_policy_runner(config: dict[str, Any]) -> Stage2PrivilegedPolicyR
 def _build_shared_core_env(config: dict[str, Any]) -> Any:
     carla_config = config.get("carla", {})
     _extend_pythonpath(carla_config.get("pythonpath_entries", ()))
-    env_config_path = str(carla_config.get("env_config_path", "")).strip()
+    env_config_path = str(os.environ.get("RCS_AC_V2_CARLA_ENV_CONFIG_PATH") or carla_config.get("env_config_path", "")).strip()
     if not env_config_path:
         raise CleanEvalRuntimeFailure("adapter", "carla_env_config_missing", "carla.env_config_path is required")
 

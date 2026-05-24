@@ -89,6 +89,7 @@ Stage 2 now builds the pinned 43-channel semantic BEV and 8-field ego vector fro
 Stage 2 Windows archive probe at commit 5b00347 passed dependency check, CARLA Town04 readiness, simulator-state privileged provenance, BEV/ego shape/finite checks, and neutral-step safety checks. The probe remains clean_gate_evidence=false.
 Stage 2 replay path now exists: collect_stage2_privileged_replay.ps1 writes simulator-state semantic43/ego8 .npz episodes, train_stage2_privileged_from_replay.ps1 exports replay-source world_model/policy checkpoints and manifest, and clean eval rejects synthetic smoke checkpoints by provenance.
 Stage 2 replay path Windows scratch check at commit e1c9c86 passed dependency probe, replay module imports, 1x8-step privileged replay collection, 2-step replay checkpoint training, and strict replay-source checkpoint loading. This remains clean_gate_evidence=false and is not clean performance evidence.
+Windows official sync lane now uses SSH GitHub access, not HTTPS. Clean clone path C:\Users\thddy\Documents\code\RCS-AC-first-official-v2-ac11c90 was created at commit ac11c90 after enabling core.longpaths. It still needs explicit temporary v1.1 dependency path overrides because RCS-AC-v1.1 support/code is not tracked in that clone.
 First Windows CARLA run must follow docs/03_windows_carla_remote_execution_workflow.md.
 GitHub/Windows sync and .git cleanup rules must follow docs/04_git_sync_artifact_cleanup_policy.md.
 Clean-performance goal start/resume prompt is docs/05_clean_performance_goal_prompt.md.
@@ -138,6 +139,7 @@ Windows archive probe result for commit 5b00347 is PROBE_PASS with source carla_
 The existing Windows checkout was dirty and GitHub credential fetch failed, so this round used a scratch archive runtime instead of switching the Windows repo. That is valid infrastructure/probe evidence, but the official clean run still needs a clean git-pull lane or clean clone.
 Stage 2 training is no longer limited to synthetic smoke plumbing: v2 has replay IO/sampler, Windows privileged replay collection, replay-based world-model/policy training, and checkpoint manifests with source=windows_carla_privileged_replay. Synthetic smoke checkpoints now carry source=local_synthetic_smoke_not_carla and are rejected by the official clean config.
 Windows archive scratch check for commit e1c9c86 confirmed replay modules import under Python 3.12, tiny CARLA privileged replay collection writes source=windows_carla_privileged_replay manifest, tiny replay training writes world_model/policy sha256 manifest, and load_stage2_policy_runner accepts those replay-source checkpoints under the strict provenance gate.
+HTTPS GitHub access on Windows still fails due credential prompt, but SSH git@github.com works for origin/codex/rcs-ac-v2-raw2drive. A clean official clone is available after core.longpaths=true. Stage 2 scripts now support EnvConfigPathOverride/SupportCodePath/V11CodePath/SharedCorePath so the clean v2 clone can use explicit temporary v1.1 runtime dependencies without touching the dirty old repo checkout.
 Real mode with missing checkpoints is now classified as failure_class model / done_reason world_model_checkpoint_missing before CARLA env construction.
 Checkpoint loader now requires path and sha256, validates payload config/state_dict, rejects 8x8 world-model checkpoints for the 16x16 clean config, rejects missing policy config, and keeps checkpoint failures in failure_class model.
 Windows runner PYTHONPATH now includes the v1.1 support_code, v1.1 code path, and workspace root needed by the shared-core env builder.
@@ -169,6 +171,8 @@ collect Windows CARLA privileged replay with scripts/windows/collect_stage2_priv
 train replay-source checkpoints with scripts/windows/train_stage2_privileged_from_replay.ps1
 fill Windows-local clean config checkpoints.world_model/path+sha256 and checkpoints.policy/path+sha256
 resolve the official Windows sync lane: clean checkout or clean clone plus git pull --ff-only of origin/codex/rcs-ac-v2-raw2drive
+use SSH remote on Windows; HTTPS prompts for credentials
+pass explicit v1.1 dependency overrides when running from the clean v2 clone until the env builder is ported
 keep the archive-runtime lane only for scratch infrastructure probes, not official clean PASS evidence
 run scripts/windows/check_stage2_windows_dependencies.ps1 to verify RCS-AC-v1.1 shared-core env builder and sibling shared_core remain available, or port the minimum env builder into RCS-AC-v2
 rerun scripts/windows/run_stage2_privileged_obs_probe.ps1 -StepNeutral if checkpoints/config/env wiring changes

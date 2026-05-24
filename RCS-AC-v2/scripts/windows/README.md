@@ -75,6 +75,9 @@ summary.json, metrics.csv가 모두 갖춰지기 전까지 clean PASS를 기록�
 사용한다. readiness script는 v2-local로 옮겼다. 공식 Windows run 전에는
 RCS-AC-v1.1 support/code와 sibling shared_core가 Windows checkout에
 존재하는지 확인하거나 v2 전용 env builder로 옮긴다.
+clean clone에 v1.1 support/code가 없으면 Stage 2 runner에
+-EnvConfigPathOverride, -SupportCodePath, -V11CodePath, -SharedCorePath를
+명시해서 기존 Windows runtime dependency 위치를 고정한다.
 ```
 
 원칙:

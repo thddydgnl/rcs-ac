@@ -3,6 +3,10 @@ param(
     [string]$ConfigPath = "RCS-AC-v2\configs\eval\clean_128_stage2_privileged.yaml",
     [string]$EnsureCarlaScript = "",
     [string]$StartCarlaScript = "",
+    [string]$EnvConfigPathOverride = "",
+    [string]$SupportCodePath = "",
+    [string]$V11CodePath = "",
+    [string]$SharedCorePath = "",
     [switch]$StepNeutral,
     [switch]$SkipGitPull,
     [switch]$SkipCarlaReady
@@ -11,10 +15,19 @@ param(
 $ErrorActionPreference = "Stop"
 
 Set-Location $ProjectRoot
-$SupportCodePath = "$ProjectRoot\RCS-AC-v1.1\goal_achieved_round_0002_execution\support_code"
-$V11CodePath = "$ProjectRoot\RCS-AC-v1.1\code"
 $WorkspaceRoot = Split-Path -Parent $ProjectRoot
-$SharedCorePath = "$WorkspaceRoot\shared_core"
+if ($SupportCodePath -eq "") {
+    $SupportCodePath = "$ProjectRoot\RCS-AC-v1.1\goal_achieved_round_0002_execution\support_code"
+}
+if ($V11CodePath -eq "") {
+    $V11CodePath = "$ProjectRoot\RCS-AC-v1.1\code"
+}
+if ($SharedCorePath -eq "") {
+    $SharedCorePath = "$WorkspaceRoot\shared_core"
+}
+if ($EnvConfigPathOverride -ne "") {
+    $env:RCS_AC_V2_CARLA_ENV_CONFIG_PATH = $EnvConfigPathOverride
+}
 $env:PYTHONPATH = "$ProjectRoot\RCS-AC-v2\code;$SupportCodePath;$V11CodePath;$WorkspaceRoot;$env:PYTHONPATH"
 
 if ($EnsureCarlaScript -eq "") {
@@ -34,6 +47,7 @@ $DependencyCheckScript = "$ProjectRoot\RCS-AC-v2\scripts\windows\check_stage2_wi
     -ConfigPath $ConfigPath `
     -EnsureCarlaScript $EnsureCarlaScript `
     -StartCarlaScript $StartCarlaScript `
+    -EnvConfigPathOverride $EnvConfigPathOverride `
     -SupportCodePath $SupportCodePath `
     -V11CodePath $V11CodePath `
     -SharedCorePath $SharedCorePath

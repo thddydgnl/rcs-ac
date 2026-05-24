@@ -3,6 +3,7 @@ param(
     [string]$ConfigPath = "RCS-AC-v2\configs\eval\clean_128_stage2_privileged.yaml",
     [string]$EnsureCarlaScript = "",
     [string]$StartCarlaScript = "",
+    [string]$EnvConfigPathOverride = "",
     [string]$SupportCodePath = "",
     [string]$V11CodePath = "",
     [string]$SharedCorePath = "",
@@ -38,6 +39,9 @@ if ($null -eq $envConfigMatch) {
     exit 2
 }
 $EnvConfigPath = $envConfigMatch.Matches[0].Groups[1].Value.Trim().Trim('"').Trim("'")
+if ($EnvConfigPathOverride -ne "") {
+    $EnvConfigPath = $EnvConfigPathOverride
+}
 if (-not [System.IO.Path]::IsPathRooted($EnvConfigPath)) {
     $EnvConfigPath = Join-Path $ProjectRoot $EnvConfigPath
 }
