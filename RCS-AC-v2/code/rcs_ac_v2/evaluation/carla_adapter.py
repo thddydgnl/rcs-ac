@@ -19,6 +19,7 @@ import numpy as np
 import torch
 import yaml
 
+from rcs_ac_v2.env.discrete_actions import RAW2DRIVE_ACTIONS
 from rcs_ac_v2.evaluation.errors import CleanEvalRuntimeFailure
 from rcs_ac_v2.evaluation.privileged_observation import (
     EGO8_SCHEMA_VERSION,
@@ -186,10 +187,18 @@ class SharedCoreCarlaEnvAdapter:
 
 
 class Stage2PrivilegedPolicyRunner:
-    def __init__(self, world_model: PrivilegedWorldModel, policy: PrivilegedPolicy, *, device: torch.device) -> None:
+    def __init__(
+        self,
+        world_model: PrivilegedWorldModel,
+        policy: PrivilegedPolicy,
+        *,
+        device: torch.device,
+        forbidden_action_ids: tuple[int, ...] = (),
+    ) -> None:
         self.world_model = world_model.to(device).eval()
         self.policy = policy.to(device).eval()
         self.device = device
+        self.forbidden_action_ids = tuple(int(action_id) for action_id in forbidden_action_ids)
         self._embeds: list[torch.Tensor] = []
         self._previous_actions: list[int] = []
 
@@ -210,7 +219,10 @@ class Stage2PrivilegedPolicyRunner:
             sequence = self.world_model.rssm.observe(embeds, actions)
             latent = sequence.latent[:, -1:].detach()
             output = self.policy(latent)
-        return {"logits": output.logits.detach().cpu()}
+            logits = output.logits.detach().cpu()
+            if self.forbidden_action_ids:
+                logits[..., list(self.forbidden_action_ids)] = -1.0e9
+        return {"logits": logits}
 
     def observe_action(self, action_id: int) -> None:
         self._previous_actions.append(int(action_id))
@@ -278,7 +290,12 @@ def load_stage2_policy_runner(config: dict[str, Any]) -> Stage2PrivilegedPolicyR
         policy_payload=policy_payload,
         config=config,
     )
-    return Stage2PrivilegedPolicyRunner(world_model, policy, device=device)
+    return Stage2PrivilegedPolicyRunner(
+        world_model,
+        policy,
+        device=device,
+        forbidden_action_ids=_forbidden_action_ids_for_config(config),
+    )
 
 
 def _build_shared_core_env(config: dict[str, Any]) -> Any:
@@ -620,6 +637,15 @@ def _validate_checkpoint_provenance(
             "policy_checkpoint_action_probe_missing",
             "policy checkpoint must record valid_action_ids=true.",
         )
+
+
+def _forbidden_action_ids_for_config(config: dict[str, Any]) -> tuple[int, ...]:
+    carla_config = config.get("carla", {})
+    env_action_format = str(carla_config.get("env_action_format", "direct_3d"))
+    allow_reverse = bool(carla_config.get("allow_reverse_direct_3d", False))
+    if allow_reverse or env_action_format not in {"direct_3d", "stage4_v2"}:
+        return ()
+    return tuple(action.action_id for action in RAW2DRIVE_ACTIONS if action.reverse)
 
 
 def _validate_world_model_config(cfg: PrivilegedWorldModelConfig, config: dict[str, Any]) -> None:

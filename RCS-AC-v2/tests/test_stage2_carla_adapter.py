@@ -8,6 +8,7 @@ import pytest
 import torch
 import yaml
 
+from rcs_ac_v2.env.discrete_actions import RAW2DRIVE_ACTIONS
 from rcs_ac_v2.evaluation.carla_adapter import (
     SharedCoreCarlaEnvAdapter,
     Stage2CarlaObservationAdapter,
@@ -301,6 +302,28 @@ def test_policy_runner_loads_checkpoints_and_returns_logits(tmp_path) -> None:
     assert tuple(output["logits"].shape) == (1, 1, 39)
     assert tuple(second["logits"].shape) == (1, 1, 39)
     assert torch.isfinite(second["logits"]).all()
+    reverse_ids = [action.action_id for action in RAW2DRIVE_ACTIONS if action.reverse]
+    assert torch.all(second["logits"][..., reverse_ids] < -1.0e8)
+
+
+def test_policy_runner_allows_reverse_logits_only_when_bridge_supports_reverse(tmp_path) -> None:
+    config = _base_config(tmp_path)
+    config["carla"]["env_action_format"] = "raw2drive_control_dict"
+    config["carla"]["allow_reverse_direct_3d"] = True
+    _write_stage2_checkpoints(tmp_path, config)
+    runner = load_stage2_policy_runner(config)
+
+    output = runner.act(
+        {
+            "privileged_bev": torch.zeros(1, 1, 43, 16, 16),
+            "privileged_ego": torch.zeros(1, 1, 8),
+        },
+        {},
+    )
+
+    reverse_ids = [action.action_id for action in RAW2DRIVE_ACTIONS if action.reverse]
+    assert torch.isfinite(output["logits"][..., reverse_ids]).all()
+    assert not torch.all(output["logits"][..., reverse_ids] < -1.0e8)
 
 
 def test_policy_runner_rejects_bad_checkpoint_sha(tmp_path) -> None:
