@@ -19,7 +19,7 @@ Stage 2: Privileged policy clean
 Status:
 
 ```text
-V2_BRANCH_PUSHED__LOCAL_CHECKPOINT_EXPORT_PASS__WINDOWS_PRIVILEGED_OBS_VALIDATION_PENDING__CARLA_CLEAN_PENDING
+V2_BRANCH_PUSHED__LOCAL_DEPENDENCY_AND_OBS_PROBE_READY__LOCAL_CHECKPOINT_EXPORT_PASS__WINDOWS_PRIVILEGED_OBS_VALIDATION_PENDING__CARLA_CLEAN_PENDING
 ```
 
 Last completed stage:
@@ -65,7 +65,7 @@ Integrated into docs/02_persistent_subagent_goal_protocol.md and runbook.
 Pending brief:
 
 ```text
-Stage 2 local smoke, Windows dry-run prep, fake-env adapter-loop contract, Stage 2 shared-core CARLA adapter factory, local checkpoint export/manifest path, and v2 branch push are complete. Next work packet must verify Windows dependencies, promote real trained checkpoints, and verify privileged BEV/ego keys on Windows CARLA.
+Stage 2 local smoke, Windows dry-run prep, fake-env adapter-loop contract, Stage 2 shared-core CARLA adapter factory, local checkpoint export/manifest path, v2 branch push, v2-local readiness scripts, dependency probe, and privileged obs probe are complete. Next work packet must run the Windows dependency/obs probes, promote real trained checkpoints, and verify privileged BEV/ego keys on Windows CARLA.
 ```
 
 Escalation triggers checked:
@@ -76,11 +76,14 @@ Stage 1 privileged world-model smoke passed local tests.
 Stage 2 local actor-critic/world-model rollout smoke passed local tests.
 Stage 2 Windows clean-eval config/CLI/runner dry-run contract passed local tests.
 Stage 2 clean-eval fake adapter loop, metrics CSV validator, and non-dry-run classified failure path passed local tests.
-Stage 2 shared-core CARLA adapter factory, checkpoint loader, policy wrapper, direct_3d control bridge, reverse-action guard, and model-failure classification passed local tests.
+Stage 2 shared-core CARLA adapter factory, checkpoint loader, policy wrapper, stage4_v2/direct_3d control bridges, reverse-action guard, and model-failure classification passed local tests.
 Stage 2 checkpoint export produces paired world_model/policy checkpoints plus sha256 manifest and config patch; synthetic export remains non-CARLA/non-clean evidence.
 Stage 2 checkpoint loader tests now cover missing sha/path, bad sha, missing config/state_dict, unreadable checkpoint path, invalid policy config, policy latent mismatch, bad policy state_dict load, and 8x8/16x16 world-model mismatch.
 RCS-AC-v2/.gitignore now makes v2 artifact policy self-contained; check_git_hygiene.sh now fails nonzero if v2 nested .git, heavy artifacts, or >50MB files are found.
-Current Stage 2 runner still has a temporary Windows dependency on RCS-AC-v1.1 shared-core env builder and shared readiness scripts; official Windows execution must verify those dependencies exist or replace them with v2-local equivalents.
+Stage 2 runner now has v2-local CARLA readiness scripts and a Windows dependency probe; remaining temporary dependency is RCS-AC-v1.1 shared-core env builder plus sibling shared_core.
+Stage 2 clean config now uses the temporary shared-core stage4_v2 action bridge for v1.1 env compatibility; Raw2Drive 39-action policy output remains the v2 policy contract.
+Stage 2 privileged-observation probe writes privileged_obs_probe.json with clean_gate_evidence=false before any clean PASS attempt.
+Stage 2 local tests now include dependency-probe static contract, v2-local readiness scripts, stage4_v2 action bridge, and privileged_obs_probe.json non-clean evidence checks.
 First Windows CARLA run must follow docs/03_windows_carla_remote_execution_workflow.md.
 GitHub/Windows sync and .git cleanup rules must follow docs/04_git_sync_artifact_cleanup_policy.md.
 Clean-performance goal start/resume prompt is docs/05_clean_performance_goal_prompt.md.
@@ -123,11 +126,11 @@ Official PASS now requires source windows_carla, steps reaching horizon, done_re
 Stage 2 adapter loop now writes metrics.csv and summary.json in a finally-style path, validates fake PASS/FAIL cases locally, and requires metrics.csv evidence for any official PASS.
 Windows runner real mode now invokes evaluate_clean --run-carla after CARLA readiness.
 Stage 2 config now points at rcs_ac_v2.evaluation.carla_adapter:create_stage2_carla_adapter.
-The adapter factory lazily builds the v1.1-style shared_core CARLA env, wraps Raw2Drive controls to direct_3d, rejects reverse=True if direct_3d would silently drop it, extracts strict privileged_bev [1,1,43,16,16] and privileged_ego [1,1,8], and wraps world-model+policy checkpoints into policy.act(obs, info) logits [1,1,39].
+The adapter factory lazily builds the v1.1-style shared_core CARLA env, bridges Raw2Drive controls through temporary stage4_v2 for v1.1 compatibility, keeps a direct_3d reverse-loss guard, extracts strict privileged_bev [1,1,43,16,16] and privileged_ego [1,1,8], and wraps world-model+policy checkpoints into policy.act(obs, info) logits [1,1,39].
 Real mode with missing checkpoints is now classified as failure_class model / done_reason world_model_checkpoint_missing before CARLA env construction.
 Checkpoint loader now requires path and sha256, validates payload config/state_dict, rejects 8x8 world-model checkpoints for the 16x16 clean config, rejects missing policy config, and keeps checkpoint failures in failure_class model.
-Windows runner PYTHONPATH now includes the v1.1 support_code and v1.1 code paths needed by the shared-core env builder.
-Windows scripts README now reflects the implemented Stage 2 runner and warns that v1.1/shared dependencies are temporary and must be available or ported before official Windows execution.
+Windows runner PYTHONPATH now includes the v1.1 support_code, v1.1 code path, and workspace root needed by the shared-core env builder.
+Windows scripts README now reflects the implemented Stage 2 runner, v2-local readiness scripts, dependency probe, and privileged obs probe. It warns that v1.1/shared_core dependencies are temporary and must be available or ported before official clean claims.
 RCS-AC-v2 subtree was committed and pushed to origin/codex/rcs-ac-v2-raw2drive. Unrelated root worktree changes were not staged.
 ```
 
@@ -153,7 +156,8 @@ current local branch is codex/rcs-ac-v2-raw2drive
 pull origin/codex/rcs-ac-v2-raw2drive on Windows with git pull --ff-only before any official Windows clean gate
 replace synthetic smoke checkpoints with real Stage 1 world-model and Stage 2 privileged-policy checkpoints
 fill Windows-local clean config checkpoints.world_model/path+sha256 and checkpoints.policy/path+sha256
-verify Windows dependency chain: shared readiness scripts and RCS-AC-v1.1 shared-core env builder are available, or port the minimum runner/env builder into RCS-AC-v2
+run scripts/windows/check_stage2_windows_dependencies.ps1 or run_stage2_privileged_obs_probe.ps1 to verify Windows dependency chain: RCS-AC-v1.1 shared-core env builder and sibling shared_core are available, or port the minimum env builder into RCS-AC-v2
+run scripts/windows/run_stage2_privileged_obs_probe.ps1 -StepNeutral and record privileged_obs_probe.json before clean eval
 run scripts/windows/run_stage2_clean_eval.ps1 official execution after git pull --ff-only
 verify Windows shared_core env exposes/adapter can build privileged_bev [1,1,43,16,16] and privileged_ego [1,1,8]
 experiments/02_privileged_policy_clean/windows_128_result.md official run update with summary+metrics pulled files
@@ -229,7 +233,7 @@ PYTHONDONTWRITEBYTECODE=1 python -m pytest RCS-AC-v2/tests -q -p no:cacheprovide
 Local result:
 
 ```text
-84 passed in 2.55s
+89 passed in 2.25s
 ```
 
 Local policy smoke:

@@ -104,11 +104,26 @@ writes a valid failure summary, and classifies the setup as
 `failure_class=model` / `done_reason=world_model_checkpoint_missing`. That is
 the expected setup failure before real checkpoints are promoted.
 
-One reproducibility blocker remains before an official run: the current runner
-uses `RCS-AC-v1.1` shared-core env builder code and `shared/scripts/windows`
-readiness scripts as temporary Windows dependencies. The official run must
-either confirm those paths exist on Windows after `git pull --ff-only`, or move
-the minimum required runner/env-builder pieces into `RCS-AC-v2`.
+The v2 readiness scripts now live under `RCS-AC-v2/scripts/windows`, and the
+Stage 2 runner has a dependency probe. One reproducibility blocker remains
+before an official run: the current runner still uses `RCS-AC-v1.1` shared-core
+env builder code plus a sibling `shared_core` package as temporary Windows
+dependencies. The official run must either confirm those paths exist on Windows
+after `git pull --ff-only`, or move the minimum required env-builder pieces
+into `RCS-AC-v2`.
+
+Before running clean eval, run the non-clean shape probe:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File RCS-AC-v2\scripts\windows\run_stage2_privileged_obs_probe.ps1 `
+  -ConfigPath RCS-AC-v2\configs\eval\clean_128_stage2_privileged.yaml `
+  -StepNeutral
+```
+
+This must produce `privileged_obs_probe.json` with
+`clean_gate_evidence=false`, strict privileged BEV/ego shapes, finite tensors,
+raw obs/info keys, and neutral-step info. It must not be interpreted as clean
+PASS.
 
 Local adapter-loop tests are not clean evidence. This file can move to PASS
 only after Windows runs the command above after `git pull --ff-only`, the CARLA

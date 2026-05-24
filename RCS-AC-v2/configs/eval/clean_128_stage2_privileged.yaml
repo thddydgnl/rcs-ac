@@ -24,7 +24,8 @@ carla:
     - RCS-AC-v2/code
     - RCS-AC-v1.1/goal_achieved_round_0002_execution/support_code
     - RCS-AC-v1.1/code
-  env_action_format: direct_3d
+    - ..
+  env_action_format: stage4_v2
   allow_reverse_direct_3d: false
   privileged_observation:
     bev_keys:

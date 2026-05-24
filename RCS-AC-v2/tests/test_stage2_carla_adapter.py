@@ -15,6 +15,7 @@ from rcs_ac_v2.evaluation.carla_adapter import (
     load_stage2_policy_runner,
 )
 from rcs_ac_v2.evaluation.evaluate_clean import CleanEvalRuntimeFailure, run_clean_eval_loop, run_real_carla_eval
+from rcs_ac_v2.evaluation.probe_stage2_windows_env import probe_stage2_env_once, write_probe_result
 from rcs_ac_v2.privileged_stream.policy import PrivilegedPolicy, PrivilegedPolicyConfig
 from rcs_ac_v2.privileged_stream.world_model import PrivilegedWorldModel, PrivilegedWorldModelConfig
 from rcs_ac_v2.utils.checkpoint import save_checkpoint
@@ -339,6 +340,41 @@ def test_direct_3d_adapter_rejects_reverse_without_silent_loss(tmp_path) -> None
     with pytest.raises(CleanEvalRuntimeFailure) as excinfo:
         adapter.step({"steer": 0.0, "throttle": 0.5, "brake": 0.0, "reverse": True})
     assert excinfo.value.done_reason == "reverse_action_not_supported_by_direct_3d"
+
+
+def test_stage4_v2_adapter_collapses_raw2drive_control_for_v11_shared_core(tmp_path) -> None:
+    config = _base_config(tmp_path)
+    config["carla"]["env_action_format"] = "stage4_v2"
+    config["carla"]["allow_reverse_direct_3d"] = False
+    adapter = SharedCoreCarlaEnvAdapter(FakeRawEnv(), config)
+
+    env_action = adapter._control_to_env_action(
+        {"steer": -0.25, "throttle": 0.6, "brake": 0.2, "reverse": False}
+    )
+
+    assert tuple(env_action.shape) == (2,)
+    assert env_action.tolist() == pytest.approx([-0.25, 0.4])
+
+
+def test_privileged_obs_probe_is_not_clean_gate_evidence(tmp_path) -> None:
+    config = _base_config(tmp_path)
+    config["carla"]["env_action_format"] = "stage4_v2"
+    raw_env = FakeRawEnv()
+
+    result = probe_stage2_env_once(raw_env=raw_env, config=config, step_neutral=True)
+    output_path = write_probe_result(tmp_path / "privileged_obs_probe.json", result)
+    data = json.loads(output_path.read_text())
+
+    assert data["status"] == "PROBE_PASS"
+    assert data["clean_gate_evidence"] is False
+    assert data["source"] == "windows_carla_privileged_obs_probe"
+    assert data["privileged_bev_shape"] == [1, 1, 43, 16, 16]
+    assert data["privileged_ego_shape"] == [1, 1, 8]
+    assert data["privileged_bev_finite"] is True
+    assert data["privileged_ego_finite"] is True
+    assert data["step_neutral"] is True
+    assert data["neutral_step_done"] is False
+    assert raw_env.closed
 
 
 def test_run_carla_with_default_factory_classifies_missing_checkpoint_as_model_failure(tmp_path) -> None:

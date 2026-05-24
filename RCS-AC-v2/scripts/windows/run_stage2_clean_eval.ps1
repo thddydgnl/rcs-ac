@@ -1,12 +1,13 @@
 param(
     [string]$ProjectRoot = "C:\Users\thddy\Documents\code\RCS-AC-first",
     [string]$ConfigPath = "RCS-AC-v2\configs\eval\clean_128_stage2_privileged.yaml",
-    [string]$EnsureCarlaScript = "C:\Users\thddy\Documents\code\RCS-AC-first\shared\scripts\windows\ensure_carla_ready.ps1",
-    [string]$StartCarlaScript = "C:\Users\thddy\Documents\code\RCS-AC-first\shared\scripts\windows\start_carla_interactive.ps1",
+    [string]$EnsureCarlaScript = "",
+    [string]$StartCarlaScript = "",
     [string]$AdapterFactory = "",
     [string]$CarlaVersion = "0.9.16",
     [switch]$DryRun,
-    [switch]$SkipGitPull
+    [switch]$SkipGitPull,
+    [switch]$CheckDependenciesOnly
 )
 
 $ErrorActionPreference = "Stop"
@@ -14,7 +15,16 @@ $ErrorActionPreference = "Stop"
 Set-Location $ProjectRoot
 $SupportCodePath = "$ProjectRoot\RCS-AC-v1.1\goal_achieved_round_0002_execution\support_code"
 $V11CodePath = "$ProjectRoot\RCS-AC-v1.1\code"
-$env:PYTHONPATH = "$ProjectRoot\RCS-AC-v2\code;$SupportCodePath;$V11CodePath;$env:PYTHONPATH"
+$WorkspaceRoot = Split-Path -Parent $ProjectRoot
+$SharedCorePath = "$WorkspaceRoot\shared_core"
+$env:PYTHONPATH = "$ProjectRoot\RCS-AC-v2\code;$SupportCodePath;$V11CodePath;$WorkspaceRoot;$env:PYTHONPATH"
+
+if ($EnsureCarlaScript -eq "") {
+    $EnsureCarlaScript = "$ProjectRoot\RCS-AC-v2\scripts\windows\ensure_carla_ready.ps1"
+}
+if ($StartCarlaScript -eq "") {
+    $StartCarlaScript = "$ProjectRoot\RCS-AC-v2\scripts\windows\start_carla_interactive.ps1"
+}
 
 if ($DryRun) {
     py -3.12 -B -m rcs_ac_v2.evaluation.evaluate_clean `
@@ -25,6 +35,22 @@ if ($DryRun) {
 
 if (-not $SkipGitPull) {
     git pull --ff-only
+}
+
+$DependencyCheckScript = "$ProjectRoot\RCS-AC-v2\scripts\windows\check_stage2_windows_dependencies.ps1"
+& powershell -ExecutionPolicy Bypass -File $DependencyCheckScript `
+    -ProjectRoot $ProjectRoot `
+    -ConfigPath $ConfigPath `
+    -EnsureCarlaScript $EnsureCarlaScript `
+    -StartCarlaScript $StartCarlaScript `
+    -SupportCodePath $SupportCodePath `
+    -V11CodePath $V11CodePath `
+    -SharedCorePath $SharedCorePath
+if ($LASTEXITCODE -ne 0) {
+    exit $LASTEXITCODE
+}
+if ($CheckDependenciesOnly) {
+    exit 0
 }
 
 & powershell -ExecutionPolicy Bypass -File $EnsureCarlaScript `

@@ -100,14 +100,24 @@ Completed Windows clean-eval preparation:
   rows, no adapter/runtime error flags, pulled-file evidence, and official
   metadata.
 - Updated Windows `run_stage2_clean_eval.ps1`. `-DryRun` still skips CARLA
-  readiness; real mode runs optional `git pull --ff-only`, the CARLA readiness
-  guard, then calls `evaluate_clean.py --run-carla`.
+  readiness; real mode runs optional `git pull --ff-only`, dependency probe,
+  the v2-local CARLA readiness guard, then calls `evaluate_clean.py --run-carla`.
+- Added v2-local `ensure_carla_ready.ps1` and `start_carla_interactive.ps1`
+  so Stage 2 no longer depends on untracked `shared/scripts/windows` for CARLA
+  readiness.
+- Added `check_stage2_windows_dependencies.ps1`, which checks v2 code,
+  v1.1 support/code, env config, v2 readiness scripts, workspace parent, and
+  sibling `shared_core` before CARLA starts.
+- Added `run_stage2_privileged_obs_probe.ps1` and
+  `rcs_ac_v2.evaluation.probe_stage2_windows_env`, a shape-only probe that
+  writes `privileged_obs_probe.json` with `clean_gate_evidence=false`.
 - Added `rcs_ac_v2.evaluation.carla_adapter:create_stage2_carla_adapter` and
   set it in the clean-128 config. The factory lazily uses the v1.1-style
   `rcs_ac_first.scripts.train._build_env()` shared-core CARLA builder, wraps
   Stage 2 privileged observations, loads world-model/policy checkpoints,
-  exposes `policy.act(obs, info) -> logits [1,1,39]`, and converts Raw2Drive
-  controls to the shared direct_3d `[steer, throttle, brake]` bridge.
+  exposes `policy.act(obs, info) -> logits [1,1,39]`, and bridges Raw2Drive
+  controls to the temporary shared-core `stage4_v2 [steer, throttle-brake]`
+  action contract.
 - Added a direct_3d reverse-action guard. If the policy selects a Raw2Drive
   action with `reverse=True`, the adapter fails as `contract` instead of
   silently dropping reverse in the shared env bridge.
@@ -148,7 +158,7 @@ PYTHONDONTWRITEBYTECODE=1 python -m pytest RCS-AC-v2/tests -q -p no:cacheprovide
 Result:
 
 ```text
-84 passed in 2.55s
+89 passed in 2.25s
 ```
 
 Additional policy-driven rollout smoke:
@@ -217,7 +227,9 @@ Windows runner static behavior, checkpoint sha validation, Stage 2 policy
 wrapper logits, shared-core env wrapper, direct_3d reverse-action rejection,
 checkpoint export manifest generation, exported checkpoint policy loading,
 unreadable checkpoint path rejection, invalid policy config rejection, policy
-latent mismatch rejection, and policy state-dict load failure classification.
+latent mismatch rejection, policy state-dict load failure classification,
+stage4_v2 action bridge, dependency-probe static contract, v2-local readiness
+scripts, and non-clean privileged-observation probe output.
 
 Stage 2 checkpoint export CLI:
 
@@ -271,7 +283,7 @@ mistaken for official Windows evidence.
 
 ## Gate
 
-Status: `V2_BRANCH_PUSHED__LOCAL_CHECKPOINT_EXPORT_PASS__WINDOWS_PRIVILEGED_OBS_VALIDATION_PENDING__CARLA_CLEAN_PENDING`
+Status: `V2_BRANCH_PUSHED__LOCAL_DEPENDENCY_AND_OBS_PROBE_READY__LOCAL_CHECKPOINT_EXPORT_PASS__WINDOWS_PRIVILEGED_OBS_VALIDATION_PENDING__CARLA_CLEAN_PENDING`
 
 Required local evidence:
 
@@ -298,6 +310,8 @@ checkpoint export: synthetic world_model/policy `.pt` files plus sha256 manifest
 real-mode missing checkpoint: classified as model/world_model_checkpoint_missing with a valid failure summary
 artifact hygiene: v2 heavy file negative probe fails; clean hygiene pass has no v2 heavy files, no v2 nested .git, and no >50MB v2 files
 git sync: origin/codex/rcs-ac-v2-raw2drive exists and contains the RCS-AC-v2 subtree for Windows pull
+Windows dependency probe: v2-local readiness scripts are tracked, and remaining v1.1/shared_core dependencies are checked before CARLA starts
+privileged obs probe: writes privileged_obs_probe.json with clean_gate_evidence=false before any clean PASS attempt
 ```
 
 ## Blockers
@@ -316,10 +330,9 @@ non-dry-run with current null checkpoint paths exits nonzero with
 `failure_class=model` and a valid failure summary.
 
 The current Stage 2 runner still has a temporary reproducibility dependency on
-`RCS-AC-v1.1` shared-core env builder code and `shared/scripts/windows`
-readiness scripts. Official Windows execution must either verify those
-dependencies are present in the Windows checkout or port the minimum
-runner/env-builder pieces into `RCS-AC-v2`.
+`RCS-AC-v1.1` shared-core env builder code and sibling `shared_core`. Official
+Windows execution must either verify those dependencies are present in the
+Windows checkout or port the minimum env-builder pieces into `RCS-AC-v2`.
 
 ## Next Action
 

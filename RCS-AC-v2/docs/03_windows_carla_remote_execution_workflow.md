@@ -509,6 +509,8 @@ Use v2-specific Windows runners instead of overloading v1.1 scripts:
 ```text
 RCS-AC-v2/scripts/windows/run_v2_carla_probe.ps1
 RCS-AC-v2/scripts/windows/run_stage1_privileged_smoke.ps1
+RCS-AC-v2/scripts/windows/check_stage2_windows_dependencies.ps1
+RCS-AC-v2/scripts/windows/run_stage2_privileged_obs_probe.ps1
 RCS-AC-v2/scripts/windows/run_stage2_clean_eval.ps1
 RCS-AC-v2/scripts/windows/run_stage3_raw_alignment_smoke.ps1
 RCS-AC-v2/scripts/windows/run_stage4_raw_clean_eval.ps1
@@ -517,8 +519,9 @@ RCS-AC-v2/scripts/windows/run_stage5_fusion_ablation.ps1
 
 `run_stage2_clean_eval.ps1` now exists. Its `-DryRun` path intentionally skips
 CARLA readiness and writes `LOCAL_SMOKE_ONLY`; its real path runs `git pull
---ff-only` unless `-SkipGitPull` is set, runs `ensure_carla_ready.ps1`, then
-calls:
+--ff-only` unless `-SkipGitPull` is set, runs
+`check_stage2_windows_dependencies.ps1`, runs v2-local
+`ensure_carla_ready.ps1`, then calls:
 
 ```text
 python -m rcs_ac_v2.evaluation.evaluate_clean --run-carla
@@ -530,10 +533,24 @@ The runner sets `PYTHONPATH` to include:
 RCS-AC-v2\code
 RCS-AC-v1.1\goal_achieved_round_0002_execution\support_code
 RCS-AC-v1.1\code
+<workspace root containing sibling shared_core>
 ```
 
 This is required because the v2 Stage 2 adapter factory reuses the v1.1-style
 shared-core CARLA env builder for the first clean gate.
+
+Before the first clean eval, run the shape-only probe:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File RCS-AC-v2\scripts\windows\run_stage2_privileged_obs_probe.ps1 `
+  -ConfigPath RCS-AC-v2\configs\eval\clean_128_stage2_privileged.yaml `
+  -StepNeutral
+```
+
+This writes `privileged_obs_probe.json`, not `summary.json`. It must record
+`clean_gate_evidence=false`, exact `privileged_bev [1,1,43,16,16]`,
+`privileged_ego [1,1,8]`, finite tensors, raw obs/info keys, and optional
+neutral-step info. It cannot be used as clean PASS evidence.
 
 The clean-128 config now points at the default factory:
 
@@ -546,9 +563,22 @@ Windows-local probe. With the current null checkpoint paths, real mode must exit
 nonzero with `failure_class=model` before CARLA env construction. That is a
 classified setup failure, not clean evidence.
 
-All runners must continue to use the shared CARLA readiness scripts:
+The v2 runner now carries its own readiness scripts:
 
 ```text
-shared/scripts/windows/ensure_carla_ready.ps1
-shared/scripts/windows/start_carla_interactive.ps1
+RCS-AC-v2/scripts/windows/ensure_carla_ready.ps1
+RCS-AC-v2/scripts/windows/start_carla_interactive.ps1
 ```
+
+The remaining temporary external dependency is the v1.1/shared-core env
+builder chain:
+
+```text
+RCS-AC-v1.1\goal_achieved_round_0002_execution\support_code
+RCS-AC-v1.1\code
+<workspace root>\shared_core
+```
+
+`check_stage2_windows_dependencies.ps1` must pass before CARLA starts. Official
+clean PASS should not be claimed until this dependency chain is either verified
+in the Windows checkout or replaced by v2-local env-builder code.

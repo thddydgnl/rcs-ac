@@ -373,11 +373,62 @@ def test_windows_runner_dry_run_skips_carla_guard_static() -> None:
     runner = Path(__file__).resolve().parents[1] / "scripts" / "windows" / "run_stage2_clean_eval.ps1"
     text = runner.read_text()
     dry_run_index = text.index("if ($DryRun)")
+    dependency_index = text.index("check_stage2_windows_dependencies.ps1")
     guard_index = text.index("-File $EnsureCarlaScript")
+    assert dry_run_index < dependency_index
     assert dry_run_index < guard_index
     assert "--run-carla" in text
     assert "not implemented" not in text.lower()
     assert "goal_achieved_round_0002_execution\\support_code" in text
+    assert "$WorkspaceRoot" in text
+    assert "$SharedCorePath" in text
+    assert "RCS-AC-v2\\scripts\\windows\\ensure_carla_ready.ps1" in text
+    assert "RCS-AC-v2\\scripts\\windows\\start_carla_interactive.ps1" in text
+    assert "$CheckDependenciesOnly" in text
+
+
+def test_windows_dependency_probe_static_contract() -> None:
+    script = Path(__file__).resolve().parents[1] / "scripts" / "windows" / "check_stage2_windows_dependencies.ps1"
+    text = script.read_text()
+    assert "STAGE2_DEPENDENCY_$($entry.Name)" in text
+    assert "V2_CODE" in text
+    assert "V11_SUPPORT_CODE" in text
+    assert "V11_CODE" in text
+    assert "ENV_CONFIG" in text
+    assert "SHARED_CORE" in text
+    assert "STAGE2_WINDOWS_DEPENDENCIES_OK=False" in text
+    assert "STAGE2_WINDOWS_DEPENDENCIES_OK=True" in text
+    assert "rcs_ac_v2.evaluation.carla_adapter" in text
+    assert "rcs_ac_first.scripts.train" in text
+    assert "shared_core.env.carla_env" in text
+    assert "exit 2" in text
+    assert "exit 3" in text
+
+
+def test_v2_local_carla_readiness_scripts_are_tracked_contract() -> None:
+    scripts_dir = Path(__file__).resolve().parents[1] / "scripts" / "windows"
+    ensure = scripts_dir / "ensure_carla_ready.ps1"
+    start = scripts_dir / "start_carla_interactive.ps1"
+    assert ensure.exists()
+    assert start.exists()
+    ensure_text = ensure.read_text()
+    start_text = start.read_text()
+    assert "RCS-AC-v2\\scripts\\windows\\start_carla_interactive.ps1" in ensure_text
+    assert "CARLA_READY=True" in ensure_text
+    assert "RCSV2CarlaStart" in start_text
+    assert "CarlaUE4.exe" in start_text
+
+
+def test_stage2_privileged_obs_probe_runner_is_not_clean_eval_static() -> None:
+    runner = Path(__file__).resolve().parents[1] / "scripts" / "windows" / "run_stage2_privileged_obs_probe.ps1"
+    text = runner.read_text()
+    assert "check_stage2_windows_dependencies.ps1" in text
+    assert "ensure_carla_ready.ps1" in text
+    assert "rcs_ac_v2.evaluation.probe_stage2_windows_env" in text
+    assert "privileged_obs_probe.json" in text
+    assert "evaluate_clean" not in text
+    assert "summary.json" not in text
+    assert "clean PASS" not in text
 
 
 def test_fake_adapter_loop_can_produce_windows_carla_pass(tmp_path) -> None:
