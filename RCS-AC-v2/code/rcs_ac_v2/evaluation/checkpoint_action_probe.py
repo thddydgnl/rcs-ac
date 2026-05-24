@@ -57,6 +57,7 @@ def probe_checkpoint_actions(
     min_nonzero_throttle_fraction: float = 0.5,
     min_nonzero_steer_fraction: float = 0.02,
     min_nonzero_steer_count: int = 12,
+    max_nonzero_steer_fraction: float = 0.5,
     max_previous_stuck_action8_fraction: float = 0.05,
     device: str = "cpu",
     output_path: str | Path | None = None,
@@ -138,6 +139,7 @@ def probe_checkpoint_actions(
         and nonzero_throttle_fraction >= float(min_nonzero_throttle_fraction)
         and moving_steer_count >= int(min_nonzero_steer_count)
         and moving_steer_fraction >= float(min_nonzero_steer_fraction)
+        and moving_steer_fraction <= float(max_nonzero_steer_fraction)
         and previous_action8_fraction <= float(max_previous_stuck_action8_fraction)
     )
     result = {
@@ -176,6 +178,8 @@ def probe_checkpoint_actions(
         "minimum_nonzero_throttle_fraction": float(min_nonzero_throttle_fraction),
         "minimum_nonzero_steer_fraction": float(min_nonzero_steer_fraction),
         "minimum_nonzero_steer_count": int(min_nonzero_steer_count),
+        "maximum_moving_steer_fraction": float(max_nonzero_steer_fraction),
+        "maximum_nonzero_steer_fraction": float(max_nonzero_steer_fraction),
         "max_previous_stuck_action8_fraction": float(max_previous_stuck_action8_fraction),
         "recommended_for_clean_rerun": recommended,
     }
@@ -198,6 +202,7 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--min-nonzero-throttle-fraction", type=float, default=0.5)
     parser.add_argument("--min-nonzero-steer-fraction", type=float, default=0.02)
     parser.add_argument("--min-nonzero-steer-count", type=int, default=12)
+    parser.add_argument("--max-nonzero-steer-fraction", type=float, default=0.5)
     parser.add_argument("--max-previous-stuck-action8-fraction", type=float, default=0.05)
     parser.add_argument("--device", default="cpu")
     args = parser.parse_args(argv)
@@ -217,6 +222,7 @@ def main(argv: list[str] | None = None) -> None:
         min_nonzero_throttle_fraction=args.min_nonzero_throttle_fraction,
         min_nonzero_steer_fraction=args.min_nonzero_steer_fraction,
         min_nonzero_steer_count=args.min_nonzero_steer_count,
+        max_nonzero_steer_fraction=args.max_nonzero_steer_fraction,
         max_previous_stuck_action8_fraction=args.max_previous_stuck_action8_fraction,
         device=args.device,
         output_path=args.output or None,

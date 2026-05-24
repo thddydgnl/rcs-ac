@@ -86,8 +86,8 @@ probe_stage2_checkpoint_actions.ps1는 checkpoint manifest를 base clean config�
 확인한다. `-MaxStepsPerFile 128`로 전체 4x128 replay를 확인하고,
 `recommended_for_clean_rerun=true`는 reverse 0, single-action collapse 없음,
 nonzero-throttle fraction 0.5 이상, moving/nonzero steer fraction 0.02 이상,
-moving/nonzero steer count 12 이상, action_id=8 fraction 0.05 이하일 때만
-나온다.
+moving/nonzero steer count 12 이상, moving/nonzero steer fraction 0.5 이하,
+action_id=8 fraction 0.05 이하일 때만 나온다.
 check_stage2_windows_dependencies.ps1는 CARLA 실행 전에 v2 code,
 shared_core, env config, readiness script 의존성을 검사한다.
 base config의 checkpoint path/sha256은 아직 null이므로 그대로 real mode를
