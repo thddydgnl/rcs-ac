@@ -181,7 +181,9 @@ pull latest origin/codex/rcs-ac-v2-raw2drive before every Windows run
 retrain from RCS-AC-v2\experiments\02_privileged_policy_clean\replay\windows_privileged_9c24ff7_fast35_pilot after Windows SSH/Tailscale returns
 use scripts/windows/start_stage2_replay_training_detached.ps1 for long replay training because foreground SSH timed out during the first 9c24ff7 training attempt
 poll scripts/windows/check_stage2_replay_training_detached.ps1 until TRAIN_READY_FOR_PROBE=True before action probe
+detached training must use explicit clean-clone ProjectRoot, fast35 ReplayPath, fresh OutputDir, and LogPath; first run start_stage2_replay_training_detached.ps1 -NoStart and confirm echoed paths before starting
 run scripts/windows/probe_stage2_checkpoint_actions.ps1 against the new fast35 checkpoint with -MaxStepsPerFile 128 and confirm reverse_action_count=0, single_action_collapse=false, nonzero_throttle_fraction>=0.5, previous_stuck_action8_fraction<=0.05, and recommended_for_clean_rerun=true
+for the fast35 replay, action probe must cover probed_actions=512 and previous_stuck_action8_count<=25; preserve train log, checkpoint manifest, probe json/log, generated checkpoint-filled config, and fast35 replay manifest as small evidence
 rerun scripts/windows/run_stage2_clean_eval.ps1 with the generated fast35 checkpoint-filled config and -RunOutputDir pointing at experiments/02_privileged_policy_clean/windows_128/<fast35_run_id> only if the action probe recommends it
 classify the next 128-step clean result before changing raw/fusion stages
 use SSH remote on Windows; HTTPS prompts for credentials

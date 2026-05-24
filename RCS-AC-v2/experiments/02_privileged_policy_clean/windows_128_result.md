@@ -183,6 +183,44 @@ This replay is a better training input, not performance evidence. The next
 required step is to retrain from it, probe the checkpoint, and only then decide
 whether to run the official 128-step clean eval.
 
+## Fast35 Retrain/Probe Gate
+
+Use the detached training wrappers because foreground SSH timed out during the
+first fast35 training attempt.
+
+```text
+start wrapper: scripts/windows/start_stage2_replay_training_detached.ps1
+check wrapper: scripts/windows/check_stage2_replay_training_detached.ps1
+required start preflight: run start wrapper with -NoStart first
+required explicit root: C:\Users\thddy\Documents\code\RCS-AC-first-official-v2-ac11c90
+required replay: RCS-AC-v2\experiments\02_privileged_policy_clean\replay\windows_privileged_9c24ff7_fast35_pilot
+fresh checkpoint dir: RCS-AC-v2\experiments\02_privileged_policy_clean\checkpoints\windows_replay_9c24ff7_fast35_pilot
+training ready evidence: TRAIN_EXIT_CODE=0 and TRAIN_READY_FOR_PROBE=True
+```
+
+Before a clean rerun, the action probe must report:
+
+```text
+probed_actions=512
+reverse_action_count=0
+single_action_collapse=false
+nonzero_throttle_fraction>=0.5
+previous_stuck_action8_fraction<=0.05
+previous_stuck_action8_count<=25
+recommended_for_clean_rerun=true
+```
+
+Small evidence to preserve before clean rerun:
+
+```text
+train_stage2_privileged_from_replay.log
+stage2_privileged_replay_checkpoint_manifest.json
+stage2_checkpoint_action_probe.json
+clean_128_stage2_privileged_with_checkpoints.yaml
+stage2_privileged_replay_manifest.json from the fast35 replay
+probe stdout/log with exact command
+```
+
 ## Privileged Probe Metrics
 
 ```text
