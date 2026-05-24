@@ -611,6 +611,7 @@ def _validate_checkpoint_provenance(
                 f"{role}_checkpoint_replay_manifest_missing",
                 f"{role} checkpoint must record replay manifest path and sha256.",
             )
+        _verify_checkpoint_replay_manifest(role=role, replay_manifest=replay_manifest)
     if world_model_payload.get("data_files") != policy_payload.get("data_files"):
         raise CleanEvalRuntimeFailure(
             "model",
@@ -636,6 +637,25 @@ def _validate_checkpoint_provenance(
             "model",
             "policy_checkpoint_action_probe_missing",
             "policy checkpoint must record valid_action_ids=true.",
+        )
+
+
+def _verify_checkpoint_replay_manifest(*, role: str, replay_manifest: dict[str, Any]) -> None:
+    path = Path(str(replay_manifest["path"]))
+    expected = str(replay_manifest["sha256"])
+    try:
+        actual = hashlib.sha256(path.read_bytes()).hexdigest()
+    except OSError as exc:
+        raise CleanEvalRuntimeFailure(
+            "model",
+            f"{role}_checkpoint_replay_manifest_unreadable",
+            f"{type(exc).__name__}: {path}",
+        ) from exc
+    if actual != expected:
+        raise CleanEvalRuntimeFailure(
+            "model",
+            f"{role}_checkpoint_replay_manifest_sha256_mismatch",
+            f"{path}: {actual} != {expected}",
         )
 
 

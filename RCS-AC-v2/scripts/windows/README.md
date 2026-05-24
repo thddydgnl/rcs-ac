@@ -43,6 +43,7 @@ check_stage2_windows_dependencies.ps1
 run_stage2_privileged_obs_probe.ps1
 collect_stage2_privileged_replay.ps1
 train_stage2_privileged_from_replay.ps1
+probe_stage2_checkpoint_actions.ps1
 run_stage2_clean_eval.ps1
 ensure_carla_ready.ps1
 start_carla_interactive.ps1
@@ -61,6 +62,13 @@ semantic43/ego8 replay .npz를 수집한다. replay는 학습 입력이지 clean
 train_stage2_privileged_from_replay.ps1는 replay로 world_model/policy
 checkpoint와 sha256 manifest를 만든다. 이 checkpoint는 clean eval 입력으로만
 사용하고, PASS 여부는 run_stage2_clean_eval.ps1 summary/metrics로만 판정한다.
+probe_stage2_checkpoint_actions.ps1는 checkpoint manifest를 base clean config에
+적용한 runtime config를 만들고, replay observation에서 deterministic action
+분포를 점검한다. reverse_count=0, throttle 있는 action, 이전 stuck 실패의
+action_id=8 단일 반복 여부를 clean rerun 전에 확인한다. `-MaxStepsPerFile 128`
+로 전체 4x128 replay를 확인하고, `recommended_for_clean_rerun=true`는
+reverse 0, single-action collapse 없음, nonzero-throttle fraction 0.5 이상,
+action_id=8 fraction 0.05 이하일 때만 나온다.
 check_stage2_windows_dependencies.ps1는 CARLA 실행 전에 v2 code,
 shared_core, env config, readiness script 의존성을 검사한다.
 base config의 checkpoint path/sha256은 아직 null이므로 그대로 real mode를

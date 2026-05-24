@@ -8,6 +8,7 @@ import torch
 import yaml
 
 from rcs_ac_v2.evaluation.carla_adapter import load_stage2_policy_runner
+from rcs_ac_v2.evaluation.checkpoint_action_probe import build_checkpoint_filled_config, probe_checkpoint_actions
 from rcs_ac_v2.evaluation.privileged_observation import (
     EGO8_SCHEMA_VERSION,
     PRIVILEGED_OBSERVATION_SOURCE,
@@ -150,6 +151,31 @@ def test_replay_training_exports_clean_eval_loadable_checkpoints(tmp_path) -> No
     assert manifest["imitation_weight"] == 1.5
     assert output["logits"].shape == (1, 1, 39)
     assert torch.isfinite(output["logits"]).all()
+
+    promoted_config_path = tmp_path / "clean_128_with_checkpoints.yaml"
+    promoted = build_checkpoint_filled_config(
+        base_config_path=source_config,
+        checkpoint_manifest_path=result.manifest_path,
+        output_config_path=promoted_config_path,
+    )
+    action_probe = probe_checkpoint_actions(
+        base_config_path=source_config,
+        checkpoint_manifest_path=result.manifest_path,
+        project_root=tmp_path,
+        max_steps_per_file=4,
+        device="cpu",
+        output_path=tmp_path / "stage2_checkpoint_action_probe.json",
+    )
+
+    assert promoted_config_path.exists()
+    assert promoted["dry_run"]["allow_null_checkpoints"] is False
+    assert action_probe["clean_gate_evidence"] is False
+    assert action_probe["probed_actions"] == 4
+    assert action_probe["reverse_action_count"] == 0
+    assert "nonzero_throttle_fraction" in action_probe
+    assert action_probe["minimum_nonzero_throttle_fraction"] == 0.5
+    assert "previous_stuck_action8_fraction" in action_probe
+    assert Path(tmp_path / "stage2_checkpoint_action_probe.json").exists()
 
 
 def _simulator_privileged_info() -> dict:

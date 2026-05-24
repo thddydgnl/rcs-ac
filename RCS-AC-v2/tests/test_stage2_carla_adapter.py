@@ -53,6 +53,9 @@ def _write_stage2_checkpoints(tmp_path: Path, config: dict) -> None:
     wm_cfg = PrivilegedWorldModelConfig(bev_height=16, bev_width=16, ego_dim=8, hidden_dim=32)
     world_model = PrivilegedWorldModel(wm_cfg)
     policy = PrivilegedPolicy(PrivilegedPolicyConfig(latent_dim=world_model.rssm.latent_dim, hidden_dim=32))
+    replay_manifest_path = tmp_path / "stage2_privileged_replay_manifest.json"
+    replay_manifest_path.write_text('{"source":"windows_carla_privileged_replay"}\n')
+    replay_manifest_sha = _sha256(replay_manifest_path)
     checkpoint_common = {
         "stage": "stage2_privileged_policy_clean",
         "source": "windows_carla_privileged_replay",
@@ -64,7 +67,7 @@ def _write_stage2_checkpoints(tmp_path: Path, config: dict) -> None:
         "world_model_steps": 2,
         "policy_steps": 2,
         "imitation_weight": 1.0,
-        "replay_manifest": {"path": str(tmp_path / "stage2_privileged_replay_manifest.json"), "sha256": "0" * 64},
+        "replay_manifest": {"path": str(replay_manifest_path), "sha256": replay_manifest_sha},
         "data_files": [{"path": str(tmp_path / "episode_0000.npz"), "sha256": "1" * 64, "bytes": 1}],
     }
 
@@ -346,6 +349,18 @@ def test_policy_runner_requires_checkpoint_sha(tmp_path) -> None:
         load_stage2_policy_runner(config)
     assert excinfo.value.failure_class == "model"
     assert excinfo.value.done_reason == "policy_checkpoint_sha256_missing"
+
+
+def test_policy_runner_rejects_replay_manifest_sha_mismatch(tmp_path) -> None:
+    config = _base_config(tmp_path)
+    _write_stage2_checkpoints(tmp_path, config)
+    replay_manifest_path = Path(config["checkpoints"]["policy"]["path"]).with_name("stage2_privileged_replay_manifest.json")
+    replay_manifest_path.write_text('{"source":"tampered"}\n')
+
+    with pytest.raises(CleanEvalRuntimeFailure) as excinfo:
+        load_stage2_policy_runner(config)
+    assert excinfo.value.failure_class == "model"
+    assert excinfo.value.done_reason == "world_model_checkpoint_replay_manifest_sha256_mismatch"
 
 
 def test_policy_runner_rejects_missing_payload_config(tmp_path) -> None:

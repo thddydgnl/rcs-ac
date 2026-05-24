@@ -148,6 +148,7 @@ Replay provenance was hardened at commit 48c0543: clean/replay now require privi
 Reverse-action masking was added at commit db1e8b6 for direct_3d/stage4_v2 when allow_reverse_direct_3d=false. The first replay checkpoint then loaded successfully and had REVERSE_ACTION_COUNT=0 on 64 replay observations.
 First official 128-step clean eval with promoted replay checkpoint ran from the clean clone at commit db1e8b6 and produced source=windows_carla, status=FAIL, failure_class=driving, done_reason=stuck, steps=64/128, collision_count=0, offroad_count=0, stuck_count=1, route_progress=0.02564102564102564, metrics_rows=64, adapter_errors=0, runtime_errors=0.
 BC warm-start for replay policy training was added at commit b20d8eb after the first clean failure showed action collapse to action_id=8 for all 64 clean steps. Windows BC retraining completed into windows_replay_b20d8eb_bc_pilot, but action probe and clean rerun are pending because the Windows Tailscale peer became temporarily unreachable.
+Stage 2 now has a reproducible checkpoint action probe wrapper: scripts/windows/probe_stage2_checkpoint_actions.ps1. It creates the checkpoint-filled runtime config from a checkpoint manifest and writes stage2_checkpoint_action_probe.json with action counts, reverse_action_count, nonzero_throttle_action_count, single_action_collapse, and recommended_for_clean_rerun.
 Windows runner PYTHONPATH now includes v2 code, optional legacy support/code overrides, and workspace root needed by the shared-core env builder.
 Windows scripts README now reflects the implemented Stage 2 runner, v2-local readiness scripts, dependency probe, privileged obs probe, replay collector, replay trainer, and v2-local minimal shared_core env builder bridge.
 RCS-AC-v2 subtree was committed and pushed to origin/codex/rcs-ac-v2-raw2drive. Unrelated root worktree changes were not staged.
@@ -173,8 +174,8 @@ Validate Windows privileged observations and promote real trained Stage 2 checkp
 ```text
 current local branch is codex/rcs-ac-v2-raw2drive
 verify BC-retrained replay checkpoint at windows_replay_b20d8eb_bc_pilot once Windows SSH returns
-probe deterministic action distribution and confirm reverse_count=0 plus nonzero throttle actions
-rerun scripts/windows/run_stage2_clean_eval.ps1 with the BC checkpoint-filled config
+run scripts/windows/probe_stage2_checkpoint_actions.ps1 against windows_replay_b20d8eb_bc_pilot with -MaxStepsPerFile 128 and confirm reverse_action_count=0, single_action_collapse=false, nonzero_throttle_fraction>=0.5, previous_stuck_action8_fraction<=0.05, and recommended_for_clean_rerun=true
+rerun scripts/windows/run_stage2_clean_eval.ps1 with the generated BC checkpoint-filled config
 classify the next 128-step clean result before changing raw/fusion stages
 use the official Windows clean clone C:\Users\thddy\Documents\code\RCS-AC-first-official-v2-ac11c90 plus git pull --ff-only of origin/codex/rcs-ac-v2-raw2drive
 use SSH remote on Windows; HTTPS prompts for credentials
