@@ -19,7 +19,7 @@ Stage 2: Privileged policy clean
 Status:
 
 ```text
-FAST35_128_CLEAN_PASS__512_PRIMARY_PENDING
+FAST35_128_CLEAN_PASS__512_PRIMARY_FAIL_COLLISION
 ```
 
 Last completed stage:
@@ -65,7 +65,7 @@ Integrated into docs/02_persistent_subagent_goal_protocol.md and runbook.
 Pending brief:
 
 ```text
-Stage 2 local smoke, Windows dry-run prep, fake-env adapter-loop contract, Stage 2 shared-core CARLA adapter factory, local checkpoint export/manifest path, v2 branch push, v2-local readiness scripts, dependency probe, simulator-state privileged observation builder, Windows privileged obs probe, privileged replay collector, replay trainer, checkpoint provenance gate, official Windows clean-clone privileged-observation probe, replay-source checkpoint promotion, first 128-step clean classification, BC checkpoint action probe, fast35 replay relabeling, fast35 replay retraining, checkpoint action probe, and official 128-step clean rerun are complete. The first clean run failed as driving/stuck after 64/128 steps, and the first BC checkpoint probe failed because it collapsed to action_id=34 for all 512 replay observations. The fast35 replay fixed the zero-throttle label collapse; the b4c8e58/37a0875 checkpoint probe covered 512 replay actions with action_ids 7/15, reverse_action_count=0, nonzero_throttle_fraction=1.0, and recommended_for_clean_rerun=true. The official clean clone then reached 128/128 steps with source=windows_carla, status=PASS, done_reason=horizon_reached, zero collision/offroad/stuck, and metrics.csv rows=128. Next work packet must run the 512-step primary subset from the same checkpoint evidence before starting raw/fusion work.
+Stage 2 local smoke, Windows dry-run prep, fake-env adapter-loop contract, Stage 2 shared-core CARLA adapter factory, local checkpoint export/manifest path, v2 branch push, v2-local readiness scripts, dependency probe, simulator-state privileged observation builder, Windows privileged obs probe, privileged replay collector, replay trainer, checkpoint provenance gate, official Windows clean-clone privileged-observation probe, replay-source checkpoint promotion, first 128-step clean classification, BC checkpoint action probe, fast35 replay relabeling, fast35 replay retraining, checkpoint action probe, official 128-step clean rerun, 512 runtime config prep, runner output-path hardening, and official 512-step primary clean run are complete. The first clean run failed as driving/stuck after 64/128 steps, and the first BC checkpoint probe failed because it collapsed to action_id=34 for all 512 replay observations. The fast35 replay fixed the zero-throttle label collapse; the b4c8e58/37a0875 checkpoint probe covered 512 replay actions with action_ids 7/15, reverse_action_count=0, nonzero_throttle_fraction=1.0, and recommended_for_clean_rerun=true. The official clean clone then reached 128/128 steps with source=windows_carla, status=PASS, done_reason=horizon_reached, zero collision/offroad/stuck, and metrics.csv rows=128. The same checkpoint failed the official 512 primary gate as a driving/collision failure at step 310/512 with route_progress=0.5641025641025641, action_counts={7:308,15:3}, no adapter/runtime errors, offroad=0, and stuck=0. Next work packet should patch the smallest collision cause, most likely by collecting/retraining on a longer or failure-window privileged replay that includes steering/turn labels before rerunning 512.
 ```
 
 Escalation triggers checked:
@@ -156,6 +156,7 @@ Replay label diagnosis found the old official replay had 388/512 zero-throttle a
 Fast35 detached replay training now works through the scheduled-task wrapper. The b4c8e58/37a0875 checkpoint manifest has source=windows_carla_privileged_replay, valid_action_ids=true, policy_final_imitation=0.7903282642364502, and policy_final_total=1.0499897003173828.
 Fast35 checkpoint action probe passed the pre-clean gate with probed_actions=512, action_counts={7:500,15:12}, reverse_action_count=0, single_action_collapse=false, nonzero_throttle_fraction=1.0, previous_stuck_action8_count=0, and recommended_for_clean_rerun=true.
 Official 128-step clean rerun from the clean clone at commit 37a087516f7767bb297b8b5567590d7a316eb644 passed: source=windows_carla, status=PASS, clean_gate_pass=true, done_reason=horizon_reached, steps=128/128, collision/offroad/stuck counts all zero, route_progress=0.1794871794871795, episode_return=13.545934572121052, metrics_rows=128, action_counts={7:125,15:3}. This is the first Stage 2 clean PASS, not full clean-performance completion.
+Official 512-step primary clean run from the clean clone at commit 0b10ff5628b2b9616759bd4c6f9f60cc441c9b0d failed with source=windows_carla, status=FAIL, failure_class=driving, done_reason=collision, steps=311/512, collision_count=1, offroad_count=0, stuck_count=0, route_progress=0.5641025641025641, episode_return=19.066852226147766, metrics_rows=311, action_counts={7:308,15:3}, adapter_errors=0, runtime_errors=0. This validates the 512 runner path but does not satisfy the 512 clean gate.
 Windows scripts README now reflects the implemented Stage 2 runner, v2-local readiness scripts, dependency probe, privileged obs probe, replay collector, replay trainer, detached replay training start/check wrappers, and v2-local minimal shared_core env builder bridge.
 RCS-AC-v2 subtree was committed and pushed to origin/codex/rcs-ac-v2-raw2drive. Unrelated root worktree changes were not staged.
 ```
@@ -175,17 +176,17 @@ If still unavailable, manually simulate Agent A/B/C roles and record fallback he
 
 ## Next Concrete Action
 
-Scale the fast35 Stage 2 clean PASS to the next Windows clean gate before raw/fusion work:
+Patch the 512-step collision failure before raw/fusion work:
 
 ```text
 current local branch is codex/rcs-ac-v2-raw2drive
 use official clean clone C:\Users\thddy\Documents\code\RCS-AC-first-official-v2-ac11c90
 pull latest origin/codex/rcs-ac-v2-raw2drive before every Windows run
-reuse the fast35 checkpoint-filled config from RCS-AC-v2\experiments\02_privileged_policy_clean\windows_128\b4c8e58_fast35_task_pilot unless checkpoint wiring changes
-create a 512-step primary-subset runtime config by changing only the clean-eval horizon/output path metadata, not checkpoint paths or hashes
-run scripts/windows/run_stage2_clean_eval.ps1 with that 512 config and -RunOutputDir pointing at experiments/02_privileged_policy_clean/windows_512/<fast35_run_id>
-classify the 512-step result before changing raw/fusion stages
-if 512 fails, keep the failure class and metrics; do not treat the 128 PASS as full clean completion
+use the 512 failure evidence in RCS-AC-v2\experiments\02_privileged_policy_clean\windows_512\b4c8e58_fast35_primary512
+diagnose why the fast35 policy stayed on straight actions 7/15 through the collision window
+collect a longer or failure-window Windows privileged replay that reaches the collision/turn segment with steering labels
+retrain replay-source checkpoints, rerun action probe, then rerun the 512 clean gate
+do not treat the 128 PASS as full clean completion
 use SSH remote on Windows; HTTPS prompts for credentials
 use the v2-local minimal shared_core env builder by default; pass explicit dependency overrides only for local experiments
 keep the archive-runtime lane only for scratch infrastructure probes, not official clean PASS evidence
@@ -270,7 +271,7 @@ PYTHONDONTWRITEBYTECODE=1 python -m pytest RCS-AC-v2/tests -q -p no:cacheprovide
 Local result:
 
 ```text
-106 passed in 2.69s
+106 passed in 3.03s
 ```
 
 Local policy smoke:
@@ -299,14 +300,14 @@ BC_COLLAPSE_REJECTED_BY_ACTION_PROBE
 FAST35_REPLAY_CHECKPOINT_PROMOTED
 FAST35_ACTION_PROBE_PASS
 FAST35_128_CLEAN_PASS
-CARLA_512_PRIMARY_PENDING
+CARLA_512_PRIMARY_FAIL_COLLISION
 ```
 
 Do not start Stage 3 raw sensor work or any fusion ablation until:
 
 ```text
 CARLA 128-step single-start clean gate is PASS
-CARLA 512-step primary subset clean gate is run or explicitly blocked
+CARLA 512-step primary subset clean gate is PASS or explicitly blocked after classified retry attempts
 CARLA 2048-step subset clean gate is run or explicitly blocked
 collision/offroad/stuck/route-progress evidence is recorded
 failure class is infrastructure / CARLA / adapter / contract / model / driving

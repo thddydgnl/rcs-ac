@@ -224,7 +224,7 @@ PYTHONDONTWRITEBYTECODE=1 python -m pytest RCS-AC-v2/tests -q -p no:cacheprovide
 Result:
 
 ```text
-106 passed in 2.69s
+106 passed in 3.03s
 ```
 
 Additional policy-driven rollout smoke:
@@ -395,14 +395,17 @@ BC checkpoint probe: windows_replay_b20d8eb_bc_pilot rejected before clean rerun
 fast35 replay relabeling: commits 30b7313 and 9c24ff7 produced windows_privileged_9c24ff7_fast35_pilot with action_counts={7:264,15:248}, nonzero_throttle_fraction=1.0, clean_gate_evidence=false
 fast35 checkpoint action probe: b4c8e58/37a0875 checkpoint passed pre-clean gate with probed_actions=512, action_counts={7:500,15:12}, reverse_action_count=0, single_action_collapse=false, previous_stuck_action8_count=0, recommended_for_clean_rerun=true
 fast35 128 clean eval: commit 37a0875, source=windows_carla, status=PASS, clean_gate_pass=true, done_reason=horizon_reached, steps=128/128, collision/offroad/stuck counts all zero, route_progress=0.1794871794871795, episode_return=13.545934572121052, metrics_rows=128, adapter_errors=0, runtime_errors=0
+fast35 512 primary eval: commit 0b10ff5, source=windows_carla, status=FAIL, failure_class=driving, done_reason=collision, steps=311/512, collision_count=1, offroad_count=0, stuck_count=0, route_progress=0.5641025641025641, episode_return=19.066852226147766, metrics_rows=311, adapter_errors=0, runtime_errors=0, action_counts={7:308,15:3}
 ```
 
 ## Blockers / Next Gate
 
 Windows CARLA clean eval has now produced the first Stage 2 128-step PASS from
-the official clean clone. Stage 2 still cannot be treated as fully clean-stable
-until the same checkpoint lineage scales to the 512-step primary subset and
-later broader clean gates, or those gates are explicitly blocked and classified.
+the official clean clone. The same checkpoint lineage failed the 512-step
+primary subset as a driving/collision failure at step 310, after mostly straight
+actions 7/15. Stage 2 still cannot be treated as fully clean-stable until a
+patched checkpoint passes the 512-step primary subset and later broader clean
+gates, or those gates are explicitly blocked and classified.
 
 The generic Stage 2 adapter loop, shared-core CARLA factory, checkpoint loader,
 local synthetic checkpoint export path, simulator-state privileged observation
@@ -422,8 +425,8 @@ source in this round.
 
 ## Next Action
 
-Create a 512-step primary-subset runtime config from the fast35
-checkpoint-filled 128 config, preserving checkpoint paths and hashes, then run
-`run_stage2_clean_eval.ps1` from the official clean clone with a fresh
-`windows_512/<run_id>` evidence directory. Do not start raw/fusion work until
-the 512-step result is classified.
+Patch the 512 collision by collecting a longer or failure-window privileged
+replay that covers the collision/turn segment with steering labels, retrain
+replay-source checkpoints, rerun the checkpoint action probe, and then rerun the
+512 clean gate. Do not start raw/fusion work until the 512-step result is PASS
+or explicitly blocked after classified retry attempts.

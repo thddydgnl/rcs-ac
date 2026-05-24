@@ -1,7 +1,7 @@
 # Stage 2 Windows 512-Step Primary Clean Result
 
 Date: 2026-05-24
-Status: `PENDING_OFFICIAL_WINDOWS_RUN`
+Status: `FAIL_DRIVING_COLLISION_AT_STEP_310`
 
 ## Objective
 
@@ -74,3 +74,65 @@ summary and metrics are mirrored into the run-id evidence directory
 Do not treat the 128-step PASS as full clean-performance completion. If this
 gate fails, keep the summary and metrics, classify the failure, and patch the
 smallest cause before trying raw/fusion work.
+
+## Official 512-Step Result
+
+This run executed successfully from the official clean clone and produced a
+validated failure summary. It is not a PASS.
+
+```text
+commit: 0b10ff5628b2b9616759bd4c6f9f60cc441c9b0d
+branch: codex/rcs-ac-v2-raw2drive
+source: windows_carla
+status: FAIL
+clean_gate_pass: false
+horizon: 512
+steps: 311
+done_reason: collision
+failure_class: driving
+collision_count: 1
+offroad_count: 0
+stuck_count: 0
+route_progress: 0.5641025641025641
+episode_return: 19.066852226147766
+metrics_rows: 311
+adapter_errors: 0
+runtime_errors: 0
+policy action_counts: {7: 308, 15: 3}
+```
+
+Failure window:
+
+```text
+collision row: step 310
+last action: action_id=7, throttle=0.3, brake=0.0, steer=0.0
+last speed_kmh: 2.633119882897091
+last route_progress: 0.5641025641025641
+last 20 actions: all action_id=7
+last 20 route_progress_delta values: mostly 0.0 with two 0.025641 increments
+```
+
+Local evidence:
+
+```text
+RCS-AC-v2/experiments/02_privileged_policy_clean/windows_512/b4c8e58_fast35_primary512/summary.json
+RCS-AC-v2/experiments/02_privileged_policy_clean/windows_512/b4c8e58_fast35_primary512/metrics.csv
+RCS-AC-v2/experiments/02_privileged_policy_clean/windows_512/b4c8e58_fast35_primary512/clean_eval.log
+RCS-AC-v2/experiments/02_privileged_policy_clean/windows_512/b4c8e58_fast35_primary512/clean_512_stage2_privileged_fast35_with_checkpoints.yaml
+```
+
+Interpretation:
+
+```text
+The 512 infrastructure path is now validated: dependencies, CARLA readiness,
+configured windows_512 output paths, summary validation, and RunOutputDir
+mirroring all worked. The failure is a clean-driving collision, not adapter,
+model-loading, or CARLA infrastructure.
+```
+
+## Next Step
+
+The fast35 checkpoint learned mostly straight throttle actions from the 4x128
+replay. The next experiment should collect a longer or failure-window privileged
+replay that reaches this segment and includes steering labels, retrain from that
+replay, rerun the checkpoint action probe, and rerun the 512 clean gate.
