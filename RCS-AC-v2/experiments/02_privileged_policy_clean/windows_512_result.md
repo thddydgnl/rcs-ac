@@ -193,6 +193,55 @@ balancing collapses to left-steer action 4. No candidate reached the offline
 gate for a new 512 CARLA run.
 ```
 
+## Offline Latent Separability Probe
+
+A replay-latent linear probe was added after the offline action probes rejected
+all four candidates. The probe freezes each candidate world model, extracts
+RSSM latents for the same 647-step steer2 replay, trains a small linear
+classifier from latent to discrete action label, and compares test accuracy
+against the replay majority-action baseline.
+
+Results:
+
+```text
+d4c5b70_steer2_seq010_balpow05_iw5:
+  samples=647, latent_dim=160
+  majority_action_fraction=0.6831530139103554
+  linear_probe_train_accuracy=0.7698259353637695
+  linear_probe_test_accuracy=0.7384615540504456
+
+d4c5b70_steer2_seq010_balpow0625_iw5:
+  samples=647, latent_dim=160
+  majority_action_fraction=0.6831530139103554
+  linear_probe_train_accuracy=0.7698259353637695
+  linear_probe_test_accuracy=0.7384615540504456
+
+d4c5b70_steer2_seq010_balpow075_iw5:
+  samples=647, latent_dim=160
+  majority_action_fraction=0.6831530139103554
+  linear_probe_train_accuracy=0.7698259353637695
+  linear_probe_test_accuracy=0.7384615540504456
+
+d4c5b70_steer2_seq010_nobal_iw5:
+  samples=647, latent_dim=160
+  majority_action_fraction=0.6831530139103554
+  linear_probe_train_accuracy=0.7698259353637695
+  linear_probe_test_accuracy=0.7384615540504456
+```
+
+Interpretation:
+
+```text
+The latent contains some action information, but only weakly above the majority
+baseline. This points to a representation/objective problem rather than a pure
+"not enough steering replay windows" problem. The next patch should keep CARLA
+off until an offline probe shows state-dependent straight/steer separation:
+for example, add a contrastive/action-prediction auxiliary loss to the world
+model latent or train the policy head with a sequence-aware balanced objective
+that explicitly preserves straight/steer conditionality instead of only changing
+global class weights.
+```
+
 Local evidence:
 
 ```text

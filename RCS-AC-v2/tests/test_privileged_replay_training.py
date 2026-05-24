@@ -190,6 +190,7 @@ def test_replay_training_exports_clean_eval_loadable_checkpoints(tmp_path) -> No
         imitation_weight=1.5,
         behavior_weight=0.5,
         imitation_class_balance=True,
+        world_model_action_aux_weight=0.25,
         hidden_dim=32,
         device="cpu",
     )
@@ -217,6 +218,8 @@ def test_replay_training_exports_clean_eval_loadable_checkpoints(tmp_path) -> No
     assert manifest["imitation_class_balance"] is True
     assert manifest["imitation_balance_power"] == 1.0
     assert manifest["steer_sequence_fraction"] == 0.0
+    assert manifest["world_model_action_aux_weight"] == 0.25
+    assert manifest["world_model"]["metrics"]["final_action_aux"] >= 0.0
     assert manifest["sampler"]["requested_priority_sample_fraction"] == 0.0
     assert "priority_window_count" in manifest["sampler"]
     assert output["logits"].shape == (1, 1, 39)

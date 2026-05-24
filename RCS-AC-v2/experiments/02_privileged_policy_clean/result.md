@@ -212,6 +212,13 @@ Completed Windows clean-eval preparation:
   `done_reason=horizon_reached`, zero collision/offroad/stuck,
   `route_progress=0.1794871794871795`, and 128 metric rows. This is the first
   Stage 2 128-step clean PASS, not the end of clean-performance validation.
+- Added offline replay-latent separability diagnosis for the steer2 checkpoint
+  failures. Across the four rejected `d4c5b70` candidates, a frozen world-model
+  latent linear probe reached test accuracy `0.7384615540504456` against replay
+  majority baseline `0.6831530139103554`, which means action information is
+  present but weakly separated. The next Stage 2 patch should improve
+  latent/action separability or the sequence-aware policy objective before any
+  new CARLA 512 clean run.
 
 ## Tests
 
@@ -224,7 +231,7 @@ PYTHONDONTWRITEBYTECODE=1 python -m pytest RCS-AC-v2/tests -q -p no:cacheprovide
 Result:
 
 ```text
-106 passed in 3.03s
+109 passed in 2.61s
 ```
 
 Additional policy-driven rollout smoke:

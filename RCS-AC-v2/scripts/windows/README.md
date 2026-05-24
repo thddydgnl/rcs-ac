@@ -69,6 +69,10 @@ checkpoint와 sha256 manifest를 만든다. 이 checkpoint는 clean eval 입력�
 moving steer gate를 통과할 때만 clean eval로 보낸다.
 rare steering class가 너무 강해져 over-steer collapse가 나면
 `-ImitationBalancePower`를 0과 1 사이로 낮춘 후보를 먼저 offline probe한다.
+replay에 steering window가 있는데도 정책이 straight/steer 한쪽으로 무너지면
+`-WorldModelActionAuxWeight`로 world-model latent에 action-prediction 보조
+손실을 추가한 후보를 먼저 만든다. 이 head는 runtime checkpoint에 쓰지 않고
+latent가 action 조건을 보존하도록 훈련 중에만 사용한다.
 checkpoint manifest의 `sampler` 필드는 priority window 수와 effective sampling
 fraction을 기록하므로, replay 자체에 steering window가 충분한지 먼저 확인한다.
 start_stage2_replay_training_detached.ps1는 긴 replay training을 별도 Windows

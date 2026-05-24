@@ -13,6 +13,7 @@ param(
     [switch]$ImitationClassBalance,
     [double]$ImitationBalancePower = 1.0,
     [double]$SteerSequenceFraction = 0.0,
+    [double]$WorldModelActionAuxWeight = 0.0,
     [int]$HiddenDim = 128,
     [string]$Device = "auto"
 )
@@ -43,6 +44,7 @@ $TrainArgs = @(
     "--behavior-weight", $BehaviorWeight,
     "--imitation-balance-power", $ImitationBalancePower,
     "--steer-sequence-fraction", $SteerSequenceFraction,
+    "--world-model-action-aux-weight", $WorldModelActionAuxWeight,
     "--hidden-dim", $HiddenDim,
     "--device", $Device
 )

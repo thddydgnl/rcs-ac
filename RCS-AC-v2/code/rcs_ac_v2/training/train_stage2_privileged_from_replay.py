@@ -52,11 +52,14 @@ def train_stage2_privileged_from_replay(
     imitation_class_balance: bool = False,
     imitation_balance_power: float = 1.0,
     steer_sequence_fraction: float = 0.0,
+    world_model_action_aux_weight: float = 0.0,
     hidden_dim: int = 128,
     device: str = "auto",
 ) -> ReplayTrainingResult:
     if world_model_steps <= 0 or policy_steps <= 0:
         raise ValueError("world_model_steps and policy_steps must be positive")
+    if world_model_action_aux_weight < 0.0:
+        raise ValueError("world_model_action_aux_weight must be non-negative")
     seed_everything(seed)
     resolved_device = _resolve_device(device)
     output = Path(output_dir)
@@ -86,7 +89,11 @@ def train_stage2_privileged_from_replay(
 
     wm_cfg = PrivilegedWorldModelConfig(bev_height=16, bev_width=16, ego_dim=8, hidden_dim=hidden_dim)
     world_model = PrivilegedWorldModel(wm_cfg).to(resolved_device)
-    wm_optimizer = torch.optim.AdamW(world_model.parameters(), lr=learning_rate)
+    action_aux_head = torch.nn.Linear(world_model.rssm.latent_dim, wm_cfg.action_dim).to(resolved_device)
+    wm_train_parameters = list(world_model.parameters())
+    if world_model_action_aux_weight > 0.0:
+        wm_train_parameters += list(action_aux_head.parameters())
+    wm_optimizer = torch.optim.AdamW(wm_train_parameters, lr=learning_rate)
     wm_loss_cfg = WorldModelLossConfig()
     wm_history: list[dict[str, float]] = []
     for _step in range(world_model_steps):
@@ -99,10 +106,20 @@ def train_stage2_privileged_from_replay(
             batch=batch,
             cfg=wm_loss_cfg,
         )
-        losses.total.backward()
-        torch.nn.utils.clip_grad_norm_(world_model.parameters(), max_norm=10.0)
+        action_aux_loss = _world_model_action_auxiliary_loss(
+            latent=wm_output.rssm_sequence.latent,
+            action=batch.action,
+            action_head=action_aux_head,
+            class_weights=imitation_class_weights,
+        )
+        total_wm_loss = losses.total + float(world_model_action_aux_weight) * action_aux_loss
+        total_wm_loss.backward()
+        torch.nn.utils.clip_grad_norm_(wm_train_parameters, max_norm=10.0)
         wm_optimizer.step()
-        wm_history.append(losses.detached_scalars())
+        scalars = losses.detached_scalars()
+        scalars["action_aux"] = float(action_aux_loss.detach().cpu().item())
+        scalars["combined_total"] = float(total_wm_loss.detach().cpu().item())
+        wm_history.append(scalars)
 
     world_model.eval()
     for parameter in world_model.parameters():
@@ -173,6 +190,7 @@ def train_stage2_privileged_from_replay(
         "imitation_class_balance": bool(imitation_class_balance),
         "imitation_balance_power": float(imitation_balance_power),
         "steer_sequence_fraction": float(steer_sequence_fraction),
+        "world_model_action_aux_weight": float(world_model_action_aux_weight),
         "sampler": sampler_stats,
         "replay_manifest": {
             "path": str(replay_manifest_path),
@@ -188,8 +206,10 @@ def train_stage2_privileged_from_replay(
             "model_state_dict": world_model.state_dict(),
             "config": wm_cfg.__dict__,
             "metrics": {
-                "initial_total": wm_history[0]["total"],
-                "final_total": wm_history[-1]["total"],
+                "initial_total": wm_history[0]["combined_total"],
+                "final_total": wm_history[-1]["combined_total"],
+                "final_base_total": wm_history[-1]["total"],
+                "final_action_aux": wm_history[-1]["action_aux"],
                 "final_decoder": wm_history[-1]["decoder"],
                 "final_reward": wm_history[-1]["reward"],
                 "final_continue": wm_history[-1]["continue"],
@@ -222,8 +242,10 @@ def train_stage2_privileged_from_replay(
             "sha256": sha256_file(world_model_checkpoint_path),
             "config": wm_cfg.__dict__,
             "metrics": {
-                "initial_total": wm_history[0]["total"],
-                "final_total": wm_history[-1]["total"],
+                "initial_total": wm_history[0]["combined_total"],
+                "final_total": wm_history[-1]["combined_total"],
+                "final_base_total": wm_history[-1]["total"],
+                "final_action_aux": wm_history[-1]["action_aux"],
             },
         },
         "policy": {
@@ -282,6 +304,7 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--imitation-class-balance", action="store_true")
     parser.add_argument("--imitation-balance-power", type=float, default=1.0)
     parser.add_argument("--steer-sequence-fraction", type=float, default=0.0)
+    parser.add_argument("--world-model-action-aux-weight", type=float, default=0.0)
     parser.add_argument("--hidden-dim", type=int, default=128)
     parser.add_argument("--device", default="auto")
     args = parser.parse_args(argv)
@@ -301,6 +324,7 @@ def main(argv: list[str] | None = None) -> None:
         imitation_class_balance=args.imitation_class_balance,
         imitation_balance_power=args.imitation_balance_power,
         steer_sequence_fraction=args.steer_sequence_fraction,
+        world_model_action_aux_weight=args.world_model_action_aux_weight,
         hidden_dim=args.hidden_dim,
         device=args.device,
     )
@@ -341,6 +365,21 @@ def _moving_steer_action_ids() -> tuple[int, ...]:
         action.action_id
         for action in RAW2DRIVE_ACTIONS
         if float(action.throttle) > 0.0 and abs(float(action.steer)) > 0.0 and not action.reverse
+    )
+
+
+def _world_model_action_auxiliary_loss(
+    *,
+    latent: torch.Tensor,
+    action: torch.Tensor,
+    action_head: torch.nn.Linear,
+    class_weights: torch.Tensor | None,
+) -> torch.Tensor:
+    logits = action_head(latent)
+    return F.cross_entropy(
+        logits.reshape(-1, logits.shape[-1]),
+        action.reshape(-1),
+        weight=class_weights,
     )
 
 
