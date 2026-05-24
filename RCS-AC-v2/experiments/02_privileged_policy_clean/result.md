@@ -131,6 +131,9 @@ Completed Windows clean-eval preparation:
   v2 files larger than 50 MB fail with a nonzero exit.
 - Updated `scripts/windows/README.md` to reflect that Stage 2 real-mode runner
   exists, but still depends temporarily on v1.1/shared Windows runtime pieces.
+- Created and pushed the dedicated v2 branch
+  `codex/rcs-ac-v2-raw2drive`. The commit scope was limited to the
+  `RCS-AC-v2/` subtree; unrelated root worktree changes were not staged.
 - Added `windows_128_result.md` template for the first official Windows clean
   result.
 
@@ -268,7 +271,7 @@ mistaken for official Windows evidence.
 
 ## Gate
 
-Status: `LOCAL_CHECKPOINT_EXPORT_PASS__WINDOWS_PRIVILEGED_OBS_VALIDATION_PENDING__CARLA_CLEAN_PENDING`
+Status: `V2_BRANCH_PUSHED__LOCAL_CHECKPOINT_EXPORT_PASS__WINDOWS_PRIVILEGED_OBS_VALIDATION_PENDING__CARLA_CLEAN_PENDING`
 
 Required local evidence:
 
@@ -294,6 +297,7 @@ shared-core CARLA factory: checkpoint loader/policy wrapper/env wrapper tests pa
 checkpoint export: synthetic world_model/policy `.pt` files plus sha256 manifest are created and load locally
 real-mode missing checkpoint: classified as model/world_model_checkpoint_missing with a valid failure summary
 artifact hygiene: v2 heavy file negative probe fails; clean hygiene pass has no v2 heavy files, no v2 nested .git, and no >50MB v2 files
+git sync: origin/codex/rcs-ac-v2-raw2drive exists and contains the RCS-AC-v2 subtree for Windows pull
 ```
 
 ## Blockers

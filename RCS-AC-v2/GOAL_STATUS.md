@@ -19,7 +19,7 @@ Stage 2: Privileged policy clean
 Status:
 
 ```text
-LOCAL_CHECKPOINT_EXPORT_PASS__WINDOWS_PRIVILEGED_OBS_VALIDATION_PENDING__CARLA_CLEAN_PENDING
+V2_BRANCH_PUSHED__LOCAL_CHECKPOINT_EXPORT_PASS__WINDOWS_PRIVILEGED_OBS_VALIDATION_PENDING__CARLA_CLEAN_PENDING
 ```
 
 Last completed stage:
@@ -65,7 +65,7 @@ Integrated into docs/02_persistent_subagent_goal_protocol.md and runbook.
 Pending brief:
 
 ```text
-Stage 2 local smoke, Windows dry-run prep, fake-env adapter-loop contract, Stage 2 shared-core CARLA adapter factory, and local checkpoint export/manifest path are complete. Next work packet must use real trained checkpoints and verify privileged BEV/ego keys on Windows CARLA, or commit/push before official Windows execution.
+Stage 2 local smoke, Windows dry-run prep, fake-env adapter-loop contract, Stage 2 shared-core CARLA adapter factory, local checkpoint export/manifest path, and v2 branch push are complete. Next work packet must verify Windows dependencies, promote real trained checkpoints, and verify privileged BEV/ego keys on Windows CARLA.
 ```
 
 Escalation triggers checked:
@@ -128,6 +128,7 @@ Real mode with missing checkpoints is now classified as failure_class model / do
 Checkpoint loader now requires path and sha256, validates payload config/state_dict, rejects 8x8 world-model checkpoints for the 16x16 clean config, rejects missing policy config, and keeps checkpoint failures in failure_class model.
 Windows runner PYTHONPATH now includes the v1.1 support_code and v1.1 code paths needed by the shared-core env builder.
 Windows scripts README now reflects the implemented Stage 2 runner and warns that v1.1/shared dependencies are temporary and must be available or ported before official Windows execution.
+RCS-AC-v2 subtree was committed and pushed to origin/codex/rcs-ac-v2-raw2drive. Unrelated root worktree changes were not staged.
 ```
 
 Next subagent trigger:
@@ -149,7 +150,7 @@ Validate Windows privileged observations and promote real trained Stage 2 checkp
 
 ```text
 current local branch is codex/rcs-ac-v2-raw2drive
-do not run an official Windows clean gate until RCS-AC-v2 is committed/pushed from this intended v2 branch
+pull origin/codex/rcs-ac-v2-raw2drive on Windows with git pull --ff-only before any official Windows clean gate
 replace synthetic smoke checkpoints with real Stage 1 world-model and Stage 2 privileged-policy checkpoints
 fill Windows-local clean config checkpoints.world_model/path+sha256 and checkpoints.policy/path+sha256
 verify Windows dependency chain: shared readiness scripts and RCS-AC-v1.1 shared-core env builder are available, or port the minimum runner/env builder into RCS-AC-v2
