@@ -97,6 +97,18 @@ RCS-AC-v2/experiments/02_privileged_policy_clean/windows_128/db1e8b6_pilot/stage
 RCS-AC-v2/experiments/02_privileged_policy_clean/windows_128/db1e8b6_pilot/clean_128_stage2_privileged_with_checkpoints.yaml
 ```
 
+Artifact copy policy:
+
+```text
+run_stage2_clean_eval.ps1 -RunOutputDir may mirror validated Windows outputs
+into a run-id evidence folder. The mirrored set is transport evidence only:
+summary.json, metrics.csv, and the exact runtime config retain the authoritative
+Windows-generated metadata. A copied artifact set does not change status unless
+summary.json validates with source=windows_carla, steps=horizon, done_reason
+horizon_reached, zero collision/offroad/stuck, failure_class=none, and
+metrics.csv has exactly the expected step rows.
+```
+
 Diagnosis:
 
 ```text

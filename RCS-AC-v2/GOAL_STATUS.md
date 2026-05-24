@@ -65,7 +65,7 @@ Integrated into docs/02_persistent_subagent_goal_protocol.md and runbook.
 Pending brief:
 
 ```text
-Stage 2 local smoke, Windows dry-run prep, fake-env adapter-loop contract, Stage 2 shared-core CARLA adapter factory, local checkpoint export/manifest path, v2 branch push, v2-local readiness scripts, dependency probe, simulator-state privileged observation builder, Windows privileged obs probe, privileged replay collector, replay trainer, checkpoint provenance gate, official Windows clean-clone privileged-observation probe, replay-source checkpoint promotion, and first 128-step clean classification are complete. The first clean run failed as driving/stuck after 64/128 steps. Next work packet must verify the BC-retrained checkpoint, rerun 128-step clean, and continue improving clean driving before any raw/fusion work.
+Stage 2 local smoke, Windows dry-run prep, fake-env adapter-loop contract, Stage 2 shared-core CARLA adapter factory, local checkpoint export/manifest path, v2 branch push, v2-local readiness scripts, dependency probe, simulator-state privileged observation builder, Windows privileged obs probe, privileged replay collector, replay trainer, checkpoint provenance gate, official Windows clean-clone privileged-observation probe, replay-source checkpoint promotion, and first 128-step clean classification are complete. The first clean run failed as driving/stuck after 64/128 steps. Artifact auto-copy for validated Windows clean eval outputs is ready as transport-only evidence mirroring. Next work packet must verify the BC-retrained checkpoint, rerun 128-step clean, and continue improving clean driving before any raw/fusion work.
 ```
 
 Escalation triggers checked:
@@ -150,6 +150,7 @@ First official 128-step clean eval with promoted replay checkpoint ran from the 
 BC warm-start for replay policy training was added at commit b20d8eb after the first clean failure showed action collapse to action_id=8 for all 64 clean steps. Windows BC retraining completed into windows_replay_b20d8eb_bc_pilot, but action probe and clean rerun are pending because the Windows Tailscale peer became temporarily unreachable.
 Stage 2 now has a reproducible checkpoint action probe wrapper: scripts/windows/probe_stage2_checkpoint_actions.ps1. It creates the checkpoint-filled runtime config from a checkpoint manifest and writes stage2_checkpoint_action_probe.json with action counts, reverse_action_count, nonzero_throttle_action_count, single_action_collapse, and recommended_for_clean_rerun.
 Windows runner PYTHONPATH now includes v2 code, optional legacy support/code overrides, and workspace root needed by the shared-core env builder.
+Windows clean eval runner now accepts -RunOutputDir to copy validated summary.json, metrics.csv, and the exact input config into a run-id evidence directory after summary validation. This is transport-only mirroring and does not change clean gate status or PASS criteria.
 Windows scripts README now reflects the implemented Stage 2 runner, v2-local readiness scripts, dependency probe, privileged obs probe, replay collector, replay trainer, and v2-local minimal shared_core env builder bridge.
 RCS-AC-v2 subtree was committed and pushed to origin/codex/rcs-ac-v2-raw2drive. Unrelated root worktree changes were not staged.
 ```
@@ -175,7 +176,7 @@ Validate Windows privileged observations and promote real trained Stage 2 checkp
 current local branch is codex/rcs-ac-v2-raw2drive
 verify BC-retrained replay checkpoint at windows_replay_b20d8eb_bc_pilot once Windows SSH returns
 run scripts/windows/probe_stage2_checkpoint_actions.ps1 against windows_replay_b20d8eb_bc_pilot with -MaxStepsPerFile 128 and confirm reverse_action_count=0, single_action_collapse=false, nonzero_throttle_fraction>=0.5, previous_stuck_action8_fraction<=0.05, and recommended_for_clean_rerun=true
-rerun scripts/windows/run_stage2_clean_eval.ps1 with the generated BC checkpoint-filled config
+rerun scripts/windows/run_stage2_clean_eval.ps1 with the generated BC checkpoint-filled config and -RunOutputDir pointing at experiments/02_privileged_policy_clean/windows_128/b20d8eb_bc_pilot
 classify the next 128-step clean result before changing raw/fusion stages
 use the official Windows clean clone C:\Users\thddy\Documents\code\RCS-AC-first-official-v2-ac11c90 plus git pull --ff-only of origin/codex/rcs-ac-v2-raw2drive
 use SSH remote on Windows; HTTPS prompts for credentials
@@ -183,7 +184,7 @@ use the v2-local minimal shared_core env builder by default; pass explicit depen
 keep the archive-runtime lane only for scratch infrastructure probes, not official clean PASS evidence
 run scripts/windows/check_stage2_windows_dependencies.ps1 to verify the v2-local env config and sibling shared_core remain available
 rerun scripts/windows/run_stage2_privileged_obs_probe.ps1 -StepNeutral if checkpoints/config/env wiring changes; clean clone commit e42dc6a already passed the current probe
-run scripts/windows/run_stage2_clean_eval.ps1 official execution after git pull --ff-only
+run scripts/windows/run_stage2_clean_eval.ps1 official execution after git pull --ff-only; use -RunOutputDir for summary/metrics/config mirroring, not PASS classification
 verify clean summary source=windows_carla and metrics.csv has exactly 128 rows before any PASS claim
 experiments/02_privileged_policy_clean/windows_128_result.md official run update with summary+metrics pulled files
 commit/push RCS-AC-v2 work before Windows git pull --ff-only

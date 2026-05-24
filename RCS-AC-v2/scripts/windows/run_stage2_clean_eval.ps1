@@ -8,6 +8,7 @@ param(
     [string]$V11CodePath = "",
     [string]$SharedCorePath = "",
     [string]$AdapterFactory = "",
+    [string]$RunOutputDir = "",
     [string]$CarlaVersion = "0.9.16",
     [switch]$DryRun,
     [switch]$SkipGitPull,
@@ -15,6 +16,23 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+
+function Copy-Stage2RunArtifact {
+    param(
+        [Parameter(Mandatory = $true)][string]$SourcePath,
+        [Parameter(Mandatory = $true)][string]$DestinationPath
+    )
+
+    $ResolvedSource = (Resolve-Path $SourcePath).Path
+    $SourceFull = [System.IO.Path]::GetFullPath($ResolvedSource)
+    $DestinationFull = [System.IO.Path]::GetFullPath($DestinationPath)
+    if ($SourceFull -ieq $DestinationFull) {
+        Write-Host "ARTIFACT_COPY_SKIPPED_SAME_PATH=$DestinationFull"
+        return
+    }
+    Copy-Item $SourceFull $DestinationFull -Force
+    Write-Host "ARTIFACT_COPIED=$DestinationFull"
+}
 
 Set-Location $ProjectRoot
 $WorkspaceRoot = Split-Path -Parent $ProjectRoot
@@ -101,6 +119,9 @@ $WindowsCommand = "powershell -ExecutionPolicy Bypass -File RCS-AC-v2\scripts\wi
 if ($AdapterFactory -ne "") {
     $WindowsCommand = "$WindowsCommand -AdapterFactory $AdapterFactory"
 }
+if ($RunOutputDir -ne "") {
+    $WindowsCommand = "$WindowsCommand -RunOutputDir $RunOutputDir"
+}
 if ($SkipGitPull) {
     $WindowsCommand = "$WindowsCommand -SkipGitPull"
 }
@@ -124,6 +145,7 @@ Write-Host "STAGE2_CLEAN_EVAL_READY=True"
 Write-Host "CONFIG_PATH=$ConfigPath"
 Write-Host "SUMMARY_PATH=$SummaryPath"
 Write-Host "METRICS_PATH=$MetricsPath"
+Remove-Item $SummaryPath, $MetricsPath -ErrorAction SilentlyContinue
 & py @EvalArgs
 $EvalExitCode = $LASTEXITCODE
 
@@ -131,6 +153,20 @@ if (Test-Path $SummaryPath) {
     py -3.12 -B -m rcs_ac_v2.evaluation.evaluate_clean --validate-summary $SummaryPath
     if ($LASTEXITCODE -ne 0) {
         exit $LASTEXITCODE
+    }
+    if ($RunOutputDir -ne "") {
+        New-Item -ItemType Directory -Force -Path $RunOutputDir | Out-Null
+        $ResolvedRunOutputDir = (Resolve-Path $RunOutputDir).Path
+        Copy-Stage2RunArtifact `
+            -SourcePath $SummaryPath `
+            -DestinationPath (Join-Path $ResolvedRunOutputDir "summary.json")
+        Copy-Stage2RunArtifact `
+            -SourcePath $MetricsPath `
+            -DestinationPath (Join-Path $ResolvedRunOutputDir "metrics.csv")
+        Copy-Stage2RunArtifact `
+            -SourcePath $ConfigPath `
+            -DestinationPath (Join-Path $ResolvedRunOutputDir (Split-Path -Leaf $ConfigPath))
+        Write-Host "STAGE2_RUN_OUTPUT_DIR=$ResolvedRunOutputDir"
     }
 }
 else {

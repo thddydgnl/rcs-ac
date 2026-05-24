@@ -427,6 +427,22 @@ def test_windows_runner_dry_run_skips_carla_guard_static() -> None:
     assert "$CheckDependenciesOnly" in text
 
 
+def test_windows_runner_can_mirror_validated_artifacts_static() -> None:
+    runner = Path(__file__).resolve().parents[1] / "scripts" / "windows" / "run_stage2_clean_eval.ps1"
+    text = runner.read_text()
+    validation_index = text.index("--validate-summary $SummaryPath")
+    mirror_index = text.index("STAGE2_RUN_OUTPUT_DIR=$ResolvedRunOutputDir")
+    assert "[string]$RunOutputDir" in text
+    assert "Copy-Stage2RunArtifact" in text
+    assert "ARTIFACT_COPY_SKIPPED_SAME_PATH" in text
+    assert "Remove-Item $SummaryPath, $MetricsPath -ErrorAction SilentlyContinue" in text
+    assert 'Join-Path $ResolvedRunOutputDir "summary.json"' in text
+    assert 'Join-Path $ResolvedRunOutputDir "metrics.csv"' in text
+    assert "Split-Path -Leaf $ConfigPath" in text
+    assert "$WindowsCommand = \"$WindowsCommand -RunOutputDir $RunOutputDir\"" in text
+    assert validation_index < mirror_index
+
+
 def test_windows_dependency_probe_static_contract() -> None:
     script = Path(__file__).resolve().parents[1] / "scripts" / "windows" / "check_stage2_windows_dependencies.ps1"
     text = script.read_text()
