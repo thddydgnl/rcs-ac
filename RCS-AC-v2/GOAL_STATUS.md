@@ -19,7 +19,7 @@ Stage 2: Privileged policy clean
 Status:
 
 ```text
-V2_BRANCH_PUSHED__LOCAL_DEPENDENCY_AND_OBS_PROBE_READY__LOCAL_CHECKPOINT_EXPORT_PASS__WINDOWS_PRIVILEGED_OBS_VALIDATION_PENDING__CARLA_CLEAN_PENDING
+V2_BRANCH_PUSHED__WINDOWS_PRIVILEGED_OBS_PROBE_PASS__REAL_TRAINED_CHECKPOINTS_PENDING__CARLA_CLEAN_PENDING
 ```
 
 Last completed stage:
@@ -65,7 +65,7 @@ Integrated into docs/02_persistent_subagent_goal_protocol.md and runbook.
 Pending brief:
 
 ```text
-Stage 2 local smoke, Windows dry-run prep, fake-env adapter-loop contract, Stage 2 shared-core CARLA adapter factory, local checkpoint export/manifest path, v2 branch push, v2-local readiness scripts, dependency probe, and privileged obs probe are complete. Next work packet must run the Windows dependency/obs probes, promote real trained checkpoints, and verify privileged BEV/ego keys on Windows CARLA.
+Stage 2 local smoke, Windows dry-run prep, fake-env adapter-loop contract, Stage 2 shared-core CARLA adapter factory, local checkpoint export/manifest path, v2 branch push, v2-local readiness scripts, dependency probe, simulator-state privileged observation builder, and Windows privileged obs probe are complete. Next work packet must promote real trained checkpoints, resolve the official Windows git-pull lane, and run/classify the 128-step clean gate.
 ```
 
 Escalation triggers checked:
@@ -84,6 +84,9 @@ Stage 2 runner now has v2-local CARLA readiness scripts and a Windows dependency
 Stage 2 clean config now uses the temporary shared-core stage4_v2 action bridge for v1.1 env compatibility; Raw2Drive 39-action policy output remains the v2 policy contract.
 Stage 2 privileged-observation probe writes privileged_obs_probe.json with clean_gate_evidence=false before any clean PASS attempt.
 Stage 2 local tests now include dependency-probe static contract, v2-local readiness scripts, stage4_v2 action bridge, and privileged_obs_probe.json non-clean evidence checks.
+Stage 2 Windows raw-key diagnostic probe at commit 6dacd8d showed the current shared-core env exposes rgb/lidar/route/aux masks but not privileged_bev or privileged_ego.
+Stage 2 now builds the pinned 43-channel semantic BEV and 8-field ego vector from CARLA simulator state only; raw-derived/debug privileged tensors are not clean-gate eligible.
+Stage 2 Windows archive probe at commit 5b00347 passed dependency check, CARLA Town04 readiness, simulator-state privileged provenance, BEV/ego shape/finite checks, and neutral-step safety checks. The probe remains clean_gate_evidence=false.
 First Windows CARLA run must follow docs/03_windows_carla_remote_execution_workflow.md.
 GitHub/Windows sync and .git cleanup rules must follow docs/04_git_sync_artifact_cleanup_policy.md.
 Clean-performance goal start/resume prompt is docs/05_clean_performance_goal_prompt.md.
@@ -100,7 +103,7 @@ Before Stage 2 checkpoint promotion, Windows privileged-observation validation, 
 Last pulse:
 
 ```text
-2026-05-24 Stage 2 CARLA factory prep: Agents A/B/C audited current status, false-PASS risks, checkpoint enforcement, policy interface mismatch, v1.1 shared_core env builder, action/control format risks, and Windows import-path requirements.
+2026-05-24 Stage 2 privileged obs Windows validation: Agents A/B/C audited false-PASS risk, raw-derived privileged leakage risk, simulator-state provenance requirements, clean-gate eligibility, and v2-only adapter scope.
 ```
 
 Active agents:
@@ -127,6 +130,10 @@ Stage 2 adapter loop now writes metrics.csv and summary.json in a finally-style 
 Windows runner real mode now invokes evaluate_clean --run-carla after CARLA readiness.
 Stage 2 config now points at rcs_ac_v2.evaluation.carla_adapter:create_stage2_carla_adapter.
 The adapter factory lazily builds the v1.1-style shared_core CARLA env, bridges Raw2Drive controls through temporary stage4_v2 for v1.1 compatibility, keeps a direct_3d reverse-loss guard, extracts strict privileged_bev [1,1,43,16,16] and privileged_ego [1,1,8], and wraps world-model+policy checkpoints into policy.act(obs, info) logits [1,1,39].
+The adapter now falls back to a v2-owned simulator-state builder when the shared-core env lacks privileged keys. It uses CARLA world/map/vehicle/route-manager state, pins schema carla_simulator_semantic43_v1, pins channel hash 382e53122998198ad8f392c7298465057d364b23cf1fedb32465872ae43320a3, and records clean-gate-eligible provenance.
+The clean loop validates privileged provenance and rejects missing, schema-mismatched, hash-mismatched, or derived_debug_from_raw_v1 observations before any clean PASS can be claimed.
+Windows archive probe result for commit 5b00347 is PROBE_PASS with source carla_simulator_state, BEV [1,1,43,16,16], ego [1,1,8], finite tensors, nonzero drivable_road/route_path/ego_vehicle/static_obstacle/junction/route_straight channels, and neutral step collision/offroad/stuck false.
+The existing Windows checkout was dirty and GitHub credential fetch failed, so this round used a scratch archive runtime instead of switching the Windows repo. That is valid infrastructure/probe evidence, but the official clean run still needs a clean git-pull lane or clean clone.
 Real mode with missing checkpoints is now classified as failure_class model / done_reason world_model_checkpoint_missing before CARLA env construction.
 Checkpoint loader now requires path and sha256, validates payload config/state_dict, rejects 8x8 world-model checkpoints for the 16x16 clean config, rejects missing policy config, and keeps checkpoint failures in failure_class model.
 Windows runner PYTHONPATH now includes the v1.1 support_code, v1.1 code path, and workspace root needed by the shared-core env builder.
@@ -153,13 +160,14 @@ Validate Windows privileged observations and promote real trained Stage 2 checkp
 
 ```text
 current local branch is codex/rcs-ac-v2-raw2drive
-pull origin/codex/rcs-ac-v2-raw2drive on Windows with git pull --ff-only before any official Windows clean gate
 replace synthetic smoke checkpoints with real Stage 1 world-model and Stage 2 privileged-policy checkpoints
 fill Windows-local clean config checkpoints.world_model/path+sha256 and checkpoints.policy/path+sha256
-run scripts/windows/check_stage2_windows_dependencies.ps1 or run_stage2_privileged_obs_probe.ps1 to verify Windows dependency chain: RCS-AC-v1.1 shared-core env builder and sibling shared_core are available, or port the minimum env builder into RCS-AC-v2
-run scripts/windows/run_stage2_privileged_obs_probe.ps1 -StepNeutral and record privileged_obs_probe.json before clean eval
+resolve the official Windows sync lane: clean checkout or clean clone plus git pull --ff-only of origin/codex/rcs-ac-v2-raw2drive
+keep the archive-runtime lane only for scratch infrastructure probes, not official clean PASS evidence
+run scripts/windows/check_stage2_windows_dependencies.ps1 to verify RCS-AC-v1.1 shared-core env builder and sibling shared_core remain available, or port the minimum env builder into RCS-AC-v2
+rerun scripts/windows/run_stage2_privileged_obs_probe.ps1 -StepNeutral if checkpoints/config/env wiring changes
 run scripts/windows/run_stage2_clean_eval.ps1 official execution after git pull --ff-only
-verify Windows shared_core env exposes/adapter can build privileged_bev [1,1,43,16,16] and privileged_ego [1,1,8]
+verify clean summary source=windows_carla and metrics.csv has exactly 128 rows before any PASS claim
 experiments/02_privileged_policy_clean/windows_128_result.md official run update with summary+metrics pulled files
 commit/push RCS-AC-v2 work before Windows git pull --ff-only
 ```
@@ -222,6 +230,8 @@ DRY_RUN_CONTRACT_PASS
 LOCAL_ADAPTER_LOOP_PASS
 LOCAL_CARLA_FACTORY_PASS
 LOCAL_CHECKPOINT_EXPORT_PASS
+WINDOWS_DEPENDENCY_PROBE_PASS
+WINDOWS_PRIVILEGED_OBS_PROBE_PASS
 ```
 
 Local command:
@@ -233,7 +243,7 @@ PYTHONDONTWRITEBYTECODE=1 python -m pytest RCS-AC-v2/tests -q -p no:cacheprovide
 Local result:
 
 ```text
-89 passed in 2.25s
+93 passed in 2.38s
 ```
 
 Local policy smoke:
@@ -257,7 +267,7 @@ Full clean status:
 
 ```text
 REAL_TRAINED_CHECKPOINTS_PENDING
-WINDOWS_PRIVILEGED_OBS_VALIDATION_PENDING
+WINDOWS_PRIVILEGED_OBS_PROBE_PASS
 CARLA_CLEAN_PENDING
 ```
 

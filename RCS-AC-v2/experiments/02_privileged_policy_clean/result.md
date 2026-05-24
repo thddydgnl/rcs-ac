@@ -118,6 +118,16 @@ Completed Windows clean-eval preparation:
   exposes `policy.act(obs, info) -> logits [1,1,39]`, and bridges Raw2Drive
   controls to the temporary shared-core `stage4_v2 [steer, throttle-brake]`
   action contract.
+- Added a v2-owned simulator-state privileged observation builder. When the
+  shared-core env does not expose `privileged_bev`/`privileged_ego`, the adapter
+  builds semantic43 BEV `[1,1,43,16,16]` and ego8 `[1,1,8]` from CARLA
+  world/map/vehicle/route-manager state. It records schema
+  `carla_simulator_semantic43_v1`, channel hash
+  `382e53122998198ad8f392c7298465057d364b23cf1fedb32465872ae43320a3`, source
+  `carla_simulator_state`, and `privileged_observation_clean_gate_eligible`.
+- Hardened clean eval so derived/raw-debug privileged tensors cannot become
+  clean evidence. A clean run now rejects missing provenance, schema mismatch,
+  channel-hash mismatch, and `derived_debug_from_raw_v1` style observations.
 - Added a direct_3d reverse-action guard. If the policy selects a Raw2Drive
   action with `reverse=True`, the adapter fails as `contract` instead of
   silently dropping reverse in the shared env bridge.
@@ -158,7 +168,7 @@ PYTHONDONTWRITEBYTECODE=1 python -m pytest RCS-AC-v2/tests -q -p no:cacheprovide
 Result:
 
 ```text
-89 passed in 2.25s
+93 passed in 2.38s
 ```
 
 Additional policy-driven rollout smoke:
@@ -283,7 +293,7 @@ mistaken for official Windows evidence.
 
 ## Gate
 
-Status: `V2_BRANCH_PUSHED__LOCAL_DEPENDENCY_AND_OBS_PROBE_READY__LOCAL_CHECKPOINT_EXPORT_PASS__WINDOWS_PRIVILEGED_OBS_VALIDATION_PENDING__CARLA_CLEAN_PENDING`
+Status: `V2_BRANCH_PUSHED__WINDOWS_PRIVILEGED_OBS_PROBE_PASS__REAL_TRAINED_CHECKPOINTS_PENDING__CARLA_CLEAN_PENDING`
 
 Required local evidence:
 
@@ -310,33 +320,38 @@ checkpoint export: synthetic world_model/policy `.pt` files plus sha256 manifest
 real-mode missing checkpoint: classified as model/world_model_checkpoint_missing with a valid failure summary
 artifact hygiene: v2 heavy file negative probe fails; clean hygiene pass has no v2 heavy files, no v2 nested .git, and no >50MB v2 files
 git sync: origin/codex/rcs-ac-v2-raw2drive exists and contains the RCS-AC-v2 subtree for Windows pull
-Windows dependency probe: v2-local readiness scripts are tracked, and remaining v1.1/shared_core dependencies are checked before CARLA starts
-privileged obs probe: writes privileged_obs_probe.json with clean_gate_evidence=false before any clean PASS attempt
+Windows dependency probe: PASS on scratch archive runtime at commit 5b00347; v2-local readiness scripts, v1.1 support/code, and sibling shared_core were present
+privileged obs probe: PASS on Windows CARLA Town04 at commit 5b00347 with clean_gate_evidence=false before any clean PASS attempt
+privileged provenance: source=carla_simulator_state, schema=carla_simulator_semantic43_v1, hash=382e53122998198ad8f392c7298465057d364b23cf1fedb32465872ae43320a3
+privileged tensors: BEV [1,1,43,16,16] finite, ego [1,1,8] finite, neutral step collision/offroad/stuck false
 ```
 
 ## Blockers
 
-Windows CARLA clean eval is intentionally not run in this local smoke. Stage 2
-cannot be promoted to full clean PASS until committed/pushed code is pulled on
-Windows, CARLA readiness guard passes, and 128/512/2048 clean evidence is
-recorded.
+Windows CARLA clean eval is intentionally not run yet. Stage 2 cannot be
+promoted to full clean PASS until real trained checkpoints are promoted, a
+clean official Windows sync lane is used, CARLA readiness guard passes, and
+128/512/2048 clean evidence is recorded.
 
 The generic Stage 2 adapter loop, shared-core CARLA factory, checkpoint loader,
-and local synthetic checkpoint export path are implemented. The official
-checkpoint paths are still intentionally null in the base clean config, and the
-Windows shared-core env must still be verified to expose or be adaptable to
-strict `privileged_bev [1,1,43,16,16]` and `privileged_ego [1,1,8]`. A
-non-dry-run with current null checkpoint paths exits nonzero with
+local synthetic checkpoint export path, simulator-state privileged observation
+builder, and Windows privileged-observation probe are implemented. The official
+checkpoint paths are still intentionally null in the base clean config. A
+non-dry-run with current null checkpoint paths still exits nonzero with
 `failure_class=model` and a valid failure summary.
 
 The current Stage 2 runner still has a temporary reproducibility dependency on
-`RCS-AC-v1.1` shared-core env builder code and sibling `shared_core`. Official
-Windows execution must either verify those dependencies are present in the
-Windows checkout or port the minimum env-builder pieces into `RCS-AC-v2`.
+`RCS-AC-v1.1` shared-core env builder code and sibling `shared_core`. The
+scratch archive probe verified those dependencies on Windows for this run, but
+official Windows execution should still use a clean checkout/git pull lane or a
+documented clean clone before claiming performance evidence. The existing
+Windows repo was dirty and GitHub credential fetch failed, so it was not used
+as the official sync source in this round.
 
 ## Next Action
 
 Produce/promote real Stage 1 world-model and Stage 2 privileged-policy
-checkpoints, fill checkpoint paths and sha256 in the clean-128 config,
-commit/push v2 work, then run the official Windows sequence: 128-step
-single-start first, then 512 primary subset, then 2048 subset if safe.
+checkpoints, fill checkpoint paths and sha256 in the clean-128 config, resolve
+the official Windows git-pull/clean-clone lane, commit/push v2 work, then run
+the official Windows sequence: 128-step single-start first, then 512 primary
+subset, then 2048 subset if safe.
