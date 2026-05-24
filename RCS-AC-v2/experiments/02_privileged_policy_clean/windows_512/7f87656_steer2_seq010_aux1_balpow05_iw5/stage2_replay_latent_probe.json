@@ -1,0 +1,29 @@
+{
+  "action_counts": {
+    "1": 3,
+    "10": 12,
+    "12": 7,
+    "15": 121,
+    "4": 62,
+    "7": 442
+  },
+  "checkpoint_manifest": {
+    "path": "RCS-AC-v2\\experiments\\02_privileged_policy_clean\\checkpoints\\windows_replay_7f87656_steer2_seq010_aux1_balpow05_iw5\\stage2_privileged_replay_checkpoint_manifest.json",
+    "sha256": "531e9e9550dfb05d64fc341f64303aaec47a527e389e124dc383e4edcb3995ff"
+  },
+  "clean_gate_evidence": false,
+  "interpretation": "If linear_probe_test_accuracy is near majority_action_fraction, the world-model latent does not separate replay actions well enough for the current policy objective.",
+  "latent_dim": 160,
+  "learning_rate": 0.01,
+  "linear_probe_test_accuracy": 0.9076923131942749,
+  "linear_probe_train_accuracy": 0.9168278574943542,
+  "majority_action_fraction": 0.6831530139103554,
+  "replay_manifest": {
+    "path": "RCS-AC-v2\\experiments\\02_privileged_policy_clean\\replay\\windows_privileged_6e74d9e_long512_t25_steer2_probe\\stage2_privileged_replay_manifest.json",
+    "sha256": "90d75e23230372ab2dc531843f371f7ba070016931e7024eb276a904d084ad42"
+  },
+  "samples": 647,
+  "source": "stage2_replay_latent_probe",
+  "stage": "stage2_privileged_policy_clean",
+  "train_steps": 400
+}

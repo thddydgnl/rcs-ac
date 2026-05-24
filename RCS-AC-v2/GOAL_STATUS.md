@@ -19,7 +19,7 @@ Stage 2: Privileged policy clean
 Status:
 
 ```text
-FAST35_128_CLEAN_PASS__512_PRIMARY_FAIL_COLLISION
+FAST35_128_CLEAN_PASS__512_ACTION_AUX_FAIL_COLLISION
 ```
 
 Last completed stage:
@@ -88,7 +88,7 @@ Stage 2 Windows raw-key diagnostic probe at commit 6dacd8d showed the current sh
 Stage 2 now builds the pinned 43-channel semantic BEV and 8-field ego vector from CARLA simulator state only; raw-derived/debug privileged tensors are not clean-gate eligible.
 Stage 2 Windows archive probe at commit 5b00347 passed dependency check, CARLA Town04 readiness, simulator-state privileged provenance, BEV/ego shape/finite checks, and neutral-step safety checks. The probe remains clean_gate_evidence=false.
 Stage 2 replay path now exists: collect_stage2_privileged_replay.ps1 writes simulator-state semantic43/ego8 .npz episodes, train_stage2_privileged_from_replay.ps1 exports replay-source world_model/policy checkpoints and manifest, and clean eval rejects synthetic smoke checkpoints by provenance.
-Stage 2 offline diagnosis now includes replay_latent_probe.py and probe_stage2_replay_latents.ps1. The steer2 replay candidates all scored linear_probe_test_accuracy=0.7384615540504456 against majority_action_fraction=0.6831530139103554, so the current world-model latent only weakly separates action labels and the next patch should address representation/objective collapse before another CARLA run.
+Stage 2 offline diagnosis now includes replay_latent_probe.py and probe_stage2_replay_latents.ps1. The initial steer2 replay candidates all scored linear_probe_test_accuracy=0.7384615540504456 against majority_action_fraction=0.6831530139103554, so the world-model latent only weakly separated action labels. The 7f87656 action-aux candidate improved latent test accuracy to 0.9076923131942749 and passed checkpoint action probe, but still failed the official 512 clean gate by collision at step 177/178.
 Stage 2 replay path Windows scratch check at commit e1c9c86 passed dependency probe, replay module imports, 1x8-step privileged replay collection, 2-step replay checkpoint training, and strict replay-source checkpoint loading. This remains clean_gate_evidence=false and is not clean performance evidence.
 Windows official sync lane now uses SSH GitHub access, not HTTPS. Clean clone path C:\Users\thddy\Documents\code\RCS-AC-first-official-v2-ac11c90 was created at commit ac11c90 after enabling core.longpaths. The v1.1 env config is now copied under RCS-AC-v2 and the adapter owns the minimal shared_core env builder, so the clean clone should only need sibling shared_core as an external runtime dependency.
 Official Windows clean clone was pulled to commit e42dc6a after fixing optional PowerShell dependency arguments. From that clean clone, dependency check, CARLA Town04 readiness, simulator-state privileged observation provenance, BEV/ego shape/finite checks, and neutral-step safety checks all passed with clean_gate_evidence=false.
@@ -162,6 +162,8 @@ Official 128-step clean rerun from the clean clone at commit 37a087516f7767bb297
 Official 512-step primary clean run from the clean clone at commit 0b10ff5628b2b9616759bd4c6f9f60cc441c9b0d failed with source=windows_carla, status=FAIL, failure_class=driving, done_reason=collision, steps=311/512, collision_count=1, offroad_count=0, stuck_count=0, route_progress=0.5641025641025641, episode_return=19.066852226147766, metrics_rows=311, action_counts={7:308,15:3}, adapter_errors=0, runtime_errors=0. This validates the 512 runner path but does not satisfy the 512 clean gate.
 Offline steer2 replay sweep at commit d4c5b70 rejected four checkpoint candidates before CARLA: balance_power=0.5 -> {7:647}, balance_power=0.625 -> {7:647}, balance_power=0.75 -> {4:639,7:8}, no class balance -> {7:647}. The replay sampler reported priority_window_count=212/617, so steering windows exist; the current replay-imitation policy objective is collapsing to one dominant action instead of learning state-dependent straight/steer decisions.
 Offline latent separability probe at commit 7902e44 compared the same four rejected steer2 candidates. Each candidate used 647 replay samples, latent_dim=160, majority_action_fraction=0.6831530139103554, linear_probe_train_accuracy=0.7698259353637695, and linear_probe_test_accuracy=0.7384615540504456. This is above baseline but too weak to justify another clean run; patch latent/action separability or the sequence-aware policy objective before rerunning CARLA.
+Action-aux replay training at commit 7f87656 added WorldModelActionAuxWeight and produced the first post-collision candidate that passed offline gates: action_counts={1:8,4:73,7:436,10:14,12:1,15:115}, moving_steer_fraction=0.14837712519319937, dominant_action_fraction=0.6738794435857806, recommended_for_clean_rerun=true, and latent linear_probe_test_accuracy=0.9076923131942749. Official 512 eval from clean clone C:\Users\thddy\Documents\code\RCS-AC-first-official-v2-7f87656 still failed with source=windows_carla, status=FAIL, done_reason=collision, steps=178/512, route_progress=0.6410256410256411, metrics_rows=178, clean action_counts={1:2,4:15,7:76,10:3,15:82}. The next patch should address speed/turn timing around route_progress 0.59-0.64, not raw/fusion.
+Target-24 failure-window replay was collected from the 7f87656 clean clone with 2 episodes / 520 steps / target_speed_kmh=24.0 and action_counts={7:386,10:26,13:8,15:74,16:20,19:6}. Windows/Tailscale disconnected during the first target-24 action-aux checkpoint training attempt, so checkpoint/probe status is pending; resume by checking whether windows_replay_7f87656_t24_aux1_balpow05_iw5 has a manifest, then run action+latent probes before any new 512 clean eval.
 Windows scripts README now reflects the implemented Stage 2 runner, v2-local readiness scripts, dependency probe, privileged obs probe, replay collector, replay trainer, detached replay training start/check wrappers, and v2-local minimal shared_core env builder bridge.
 RCS-AC-v2 subtree was committed and pushed to origin/codex/rcs-ac-v2-raw2drive. Unrelated root worktree changes were not staged.
 ```
@@ -189,9 +191,11 @@ use official clean clone C:\Users\thddy\Documents\code\RCS-AC-first-official-v2-
 pull latest origin/codex/rcs-ac-v2-raw2drive before every Windows run
 use the 512 failure evidence in RCS-AC-v2\experiments\02_privileged_policy_clean\windows_512\b4c8e58_fast35_primary512
 diagnose why the fast35 policy stayed on straight actions 7/15 through the collision window
-do not rerun CARLA only because a longer/failure-window replay exists; the steer2 replay already has 212/617 steering-priority windows and still produced collapsed candidates
-patch representation/objective collapse first: improve latent/action separability or train a sequence-aware balanced policy head that keeps straight/steer decisions state-dependent
-rerun replay_latent_probe.py and checkpoint_action_probe.py before any new 512 clean gate; require action probe to pass and latent probe to show materially stronger separation than majority baseline
+do not move to raw/fusion; privileged 512 clean is still failing
+the representation/objective collapse patch worked offline, so keep WorldModelActionAuxWeight available for the next candidate
+patch speed/turn timing around the 0.59-0.64 route-progress segment: collect/relabel a failure-window replay with safer target speed or earlier brake/steer timing, then train a new candidate
+Windows peer may have dropped during target-24 training; first resume action is to reconnect to 100.87.219.58 and check C:\Users\thddy\Documents\code\RCS-AC-first-official-v2-7f87656\RCS-AC-v2\experiments\02_privileged_policy_clean\checkpoints\windows_replay_7f87656_t24_aux1_balpow05_iw5\stage2_privileged_replay_checkpoint_manifest.json
+rerun replay_latent_probe.py and checkpoint_action_probe.py before any new 512 clean gate; require action probe to pass and latent probe to remain materially stronger than majority baseline
 do not treat the 128 PASS as full clean completion
 use SSH remote on Windows; HTTPS prompts for credentials
 use the v2-local minimal shared_core env builder by default; pass explicit dependency overrides only for local experiments

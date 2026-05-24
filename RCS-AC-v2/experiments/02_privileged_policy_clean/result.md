@@ -219,6 +219,15 @@ Completed Windows clean-eval preparation:
   present but weakly separated. The next Stage 2 patch should improve
   latent/action separability or the sequence-aware policy objective before any
   new CARLA 512 clean run.
+- Added `WorldModelActionAuxWeight` to replay training as a world-model-only
+  action-prediction auxiliary loss. Candidate
+  `7f87656_steer2_seq010_aux1_balpow05_iw5` passed offline gates with
+  `recommended_for_clean_rerun=true`,
+  `moving_steer_fraction=0.14837712519319937`,
+  `dominant_action_fraction=0.6738794435857806`, and latent probe test accuracy
+  `0.9076923131942749`. Its official 512 clean eval still failed as a driving
+  collision at `steps=178/512`, `route_progress=0.6410256410256411`, with clean
+  run action counts `{1:2,4:15,7:76,10:3,15:82}`.
 
 ## Tests
 

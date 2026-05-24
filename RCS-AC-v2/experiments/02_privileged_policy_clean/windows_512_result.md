@@ -250,3 +250,113 @@ RCS-AC-v2/experiments/02_privileged_policy_clean/windows_512/d4c5b70_steer2_seq0
 RCS-AC-v2/experiments/02_privileged_policy_clean/windows_512/d4c5b70_steer2_seq010_balpow075_iw5/
 RCS-AC-v2/experiments/02_privileged_policy_clean/windows_512/d4c5b70_steer2_seq010_nobal_iw5/
 ```
+
+## Action-Aux Candidate 512 Result
+
+After the latent probe showed weak action separation, the replay trainer was
+patched to support a world-model action-prediction auxiliary loss:
+
+```text
+commit: 7f876568a9c9a42e38e520f1e2661993805c15ec
+candidate: 7f87656_steer2_seq010_aux1_balpow05_iw5
+WorldModelActionAuxWeight: 1.0
+ImitationClassBalance: true
+ImitationBalancePower: 0.5
+SteerSequenceFraction: 0.10
+ImitationWeight: 5.0
+BehaviorWeight: 0.0
+```
+
+Offline gates:
+
+```text
+checkpoint action probe:
+  probed_actions: 647
+  action_counts: {1:8, 4:73, 7:436, 10:14, 12:1, 15:115}
+  reverse_action_count: 0
+  nonzero_throttle_fraction: 1.0
+  moving_steer_fraction: 0.14837712519319937
+  dominant_action_fraction: 0.6738794435857806
+  recommended_for_clean_rerun: true
+
+latent probe:
+  majority_action_fraction: 0.6831530139103554
+  linear_probe_train_accuracy: 0.9168278574943542
+  linear_probe_test_accuracy: 0.9076923131942749
+```
+
+Official 512 clean eval:
+
+```text
+clean clone: C:\Users\thddy\Documents\code\RCS-AC-first-official-v2-7f87656
+source: windows_carla
+status: FAIL
+clean_gate_pass: false
+horizon: 512
+steps: 178
+done_reason: collision
+failure_class: driving
+collision_count: 1
+offroad_count: 0
+stuck_count: 0
+route_progress: 0.6410256410256411
+episode_return: 5.680538470046445
+metrics_rows: 178
+policy action_counts in clean run: {1:2, 4:15, 7:76, 10:3, 15:82}
+```
+
+Failure window:
+
+```text
+collision row: step 177
+last action: action_id=4, throttle=0.3, brake=0.0, steer=-0.1
+last speed_kmh: 22.579665788706205
+last route_progress: 0.6410256410256411
+last 20 actions: 7,7,7,7,7,7,4,4,4,7,7,7,7,7,10,10,10,4,4,4
+```
+
+Interpretation:
+
+```text
+The action-aux patch fixed the offline collapse: the policy now emits a
+state-dependent mixture of straight, left, and right forward actions and the
+latent probe is far above the majority baseline. The 512 clean gate still fails
+as a real driving collision. The next patch should not revert to raw/fusion; it
+should tune the privileged policy for safer speed/turn timing around the
+0.59-0.64 route-progress segment, likely by collecting or relabeling a local
+failure-window replay with lower target speed / earlier braking or stronger
+turn timing, then rerunning the same offline probes before another 512 attempt.
+```
+
+Local evidence:
+
+```text
+RCS-AC-v2/experiments/02_privileged_policy_clean/windows_512/7f87656_steer2_seq010_aux1_balpow05_iw5/
+```
+
+## Target-24 Failure-Window Replay
+
+After the action-aux candidate failed at route progress `0.6410256410256411`,
+a lower target-speed replay was collected to prepare the next candidate. This
+is training data only, not clean evidence.
+
+```text
+replay: RCS-AC-v2/experiments/02_privileged_policy_clean/replay/windows_privileged_7f87656_t24_failure_window/
+episodes: 2
+total_steps: 520
+target_speed_kmh: 24.0
+steer_sign: -1.0
+action_counts: {7:386, 10:26, 13:8, 15:74, 16:20, 19:6}
+```
+
+Interpretation:
+
+```text
+The target-24 replay produces a lower-speed/right-steer label mix instead of
+the earlier left/right oscillation seen in the failed clean run. The intended
+next experiment is to train an action-aux checkpoint from this replay, run the
+same checkpoint action probe and replay latent probe, and attempt another 512
+clean eval only if the offline gates pass. The Windows peer disconnected during
+the first target-24 checkpoint training attempt, so checkpoint/probe status for
+this replay is still pending.
+```
