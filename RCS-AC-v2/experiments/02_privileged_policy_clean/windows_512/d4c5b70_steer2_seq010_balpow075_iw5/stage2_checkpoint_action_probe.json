@@ -1,0 +1,60 @@
+{
+  "action_counts": {
+    "4": 639,
+    "7": 8
+  },
+  "action_table_version": "raw2drive_table12_row_major_v1",
+  "checkpoint_manifest": {
+    "path": "RCS-AC-v2\\experiments\\02_privileged_policy_clean\\checkpoints\\windows_replay_d4c5b70_steer2_seq010_balpow075_iw5\\stage2_privileged_replay_checkpoint_manifest.json",
+    "sha256": "7cfaa6e5931545a062c973462554c76af25d19e4f676712db32f86a6ae88f637"
+  },
+  "clean_gate_evidence": false,
+  "dominant_action_count": 639,
+  "dominant_action_fraction": 0.9876352395672334,
+  "dominant_action_id": 4,
+  "left_moving_steer_action_count": 639,
+  "max_previous_stuck_action8_fraction": 0.05,
+  "maximum_dominant_action_fraction": 0.85,
+  "maximum_moving_steer_fraction": 0.2,
+  "maximum_nonzero_steer_fraction": 0.2,
+  "minimum_nonzero_steer_count": 12,
+  "minimum_nonzero_steer_fraction": 0.02,
+  "minimum_nonzero_throttle_fraction": 0.5,
+  "moving_steer_action_count": 639,
+  "moving_steer_fraction": 0.9876352395672334,
+  "nonzero_steer_action_count": 639,
+  "nonzero_steer_fraction": 0.9876352395672334,
+  "nonzero_throttle_action_count": 647,
+  "nonzero_throttle_fraction": 1.0,
+  "previous_stuck_action8_count": 0,
+  "previous_stuck_action8_fraction": 0.0,
+  "probed_actions": 647,
+  "probed_files": [
+    {
+      "path": "RCS-AC-v2\\experiments\\02_privileged_policy_clean\\replay\\windows_privileged_6e74d9e_long512_t25_steer2_probe\\episode_0000.npz",
+      "steps": 314
+    },
+    {
+      "path": "RCS-AC-v2\\experiments\\02_privileged_policy_clean\\replay\\windows_privileged_6e74d9e_long512_t25_steer2_probe\\episode_0001.npz",
+      "steps": 333
+    }
+  ],
+  "recommended_for_clean_rerun": false,
+  "replay_manifest": {
+    "path": "RCS-AC-v2\\experiments\\02_privileged_policy_clean\\replay\\windows_privileged_6e74d9e_long512_t25_steer2_probe\\stage2_privileged_replay_manifest.json",
+    "sha256": "90d75e23230372ab2dc531843f371f7ba070016931e7024eb276a904d084ad42"
+  },
+  "reverse_action_count": 0,
+  "right_moving_steer_action_count": 0,
+  "single_action_collapse": false,
+  "source": "stage2_checkpoint_action_probe",
+  "stage": "stage2_privileged_policy_clean",
+  "unique_action_ids": [
+    4,
+    7
+  ],
+  "zero_throttle_action_count": 0,
+  "zero_throttle_fraction": 0.0,
+  "zero_throttle_steer_action_count": 0,
+  "zero_throttle_steer_fraction": 0.0
+}

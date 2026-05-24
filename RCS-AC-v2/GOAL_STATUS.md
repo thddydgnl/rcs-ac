@@ -159,6 +159,7 @@ Fast35 detached replay training now works through the scheduled-task wrapper. Th
 Fast35 checkpoint action probe passed the pre-clean gate with probed_actions=512, action_counts={7:500,15:12}, reverse_action_count=0, single_action_collapse=false, nonzero_throttle_fraction=1.0, previous_stuck_action8_count=0, and recommended_for_clean_rerun=true.
 Official 128-step clean rerun from the clean clone at commit 37a087516f7767bb297b8b5567590d7a316eb644 passed: source=windows_carla, status=PASS, clean_gate_pass=true, done_reason=horizon_reached, steps=128/128, collision/offroad/stuck counts all zero, route_progress=0.1794871794871795, episode_return=13.545934572121052, metrics_rows=128, action_counts={7:125,15:3}. This is the first Stage 2 clean PASS, not full clean-performance completion.
 Official 512-step primary clean run from the clean clone at commit 0b10ff5628b2b9616759bd4c6f9f60cc441c9b0d failed with source=windows_carla, status=FAIL, failure_class=driving, done_reason=collision, steps=311/512, collision_count=1, offroad_count=0, stuck_count=0, route_progress=0.5641025641025641, episode_return=19.066852226147766, metrics_rows=311, action_counts={7:308,15:3}, adapter_errors=0, runtime_errors=0. This validates the 512 runner path but does not satisfy the 512 clean gate.
+Offline steer2 replay sweep at commit d4c5b70 rejected four checkpoint candidates before CARLA: balance_power=0.5 -> {7:647}, balance_power=0.625 -> {7:647}, balance_power=0.75 -> {4:639,7:8}, no class balance -> {7:647}. The replay sampler reported priority_window_count=212/617, so steering windows exist; the current replay-imitation policy objective is collapsing to one dominant action instead of learning state-dependent straight/steer decisions.
 Windows scripts README now reflects the implemented Stage 2 runner, v2-local readiness scripts, dependency probe, privileged obs probe, replay collector, replay trainer, detached replay training start/check wrappers, and v2-local minimal shared_core env builder bridge.
 RCS-AC-v2 subtree was committed and pushed to origin/codex/rcs-ac-v2-raw2drive. Unrelated root worktree changes were not staged.
 ```
@@ -187,7 +188,7 @@ pull latest origin/codex/rcs-ac-v2-raw2drive before every Windows run
 use the 512 failure evidence in RCS-AC-v2\experiments\02_privileged_policy_clean\windows_512\b4c8e58_fast35_primary512
 diagnose why the fast35 policy stayed on straight actions 7/15 through the collision window
 collect a longer or failure-window Windows privileged replay that reaches the collision/turn segment with steering labels
-retrain replay-source checkpoints, rerun action probe, then rerun the 512 clean gate
+change the policy-training objective or representation so replay imitation does not collapse to a single dominant action; rerun action probe before any 512 clean gate
 do not treat the 128 PASS as full clean completion
 use SSH remote on Windows; HTTPS prompts for credentials
 use the v2-local minimal shared_core env builder by default; pass explicit dependency overrides only for local experiments

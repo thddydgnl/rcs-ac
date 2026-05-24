@@ -136,3 +136,68 @@ The fast35 checkpoint learned mostly straight throttle actions from the 4x128
 replay. The next experiment should collect a longer or failure-window privileged
 replay that reaches this segment and includes steering labels, retrain from that
 replay, rerun the checkpoint action probe, and rerun the 512 clean gate.
+
+## Offline Steering Replay Sweep
+
+After the 512 collision, a longer steer2 replay was collected on Windows with
+2 episodes and 647 total steps. The replay reaches beyond the collision segment
+and contains forward-steer labels, so several replay-only checkpoint candidates
+were trained and rejected before any new CARLA run.
+
+Strict offline probe criteria for these candidates:
+
+```text
+reverse_action_count = 0
+nonzero_throttle_fraction >= 0.5
+moving_steer_count >= 12
+0.02 <= moving_steer_fraction <= 0.20
+dominant_action_fraction <= 0.85
+recommended_for_clean_rerun = true
+```
+
+Results:
+
+```text
+d4c5b70_steer2_seq010_balpow05_iw5:
+  train: ImitationClassBalance=true, ImitationBalancePower=0.5, SteerSequenceFraction=0.10
+  sampler: priority_window_count=212/617, priority_window_fraction=0.34359805510534847
+  probe: action_counts={7:647}, moving_steer_fraction=0.0, dominant_action_fraction=1.0
+  decision: reject before CARLA
+
+d4c5b70_steer2_seq010_balpow0625_iw5:
+  train: ImitationClassBalance=true, ImitationBalancePower=0.625, SteerSequenceFraction=0.10
+  sampler: priority_window_count=212/617, priority_window_fraction=0.34359805510534847
+  probe: action_counts={7:647}, moving_steer_fraction=0.0, dominant_action_fraction=1.0
+  decision: reject before CARLA
+
+d4c5b70_steer2_seq010_balpow075_iw5:
+  train: ImitationClassBalance=true, ImitationBalancePower=0.75, SteerSequenceFraction=0.10
+  sampler: priority_window_count=212/617, priority_window_fraction=0.34359805510534847
+  probe: action_counts={4:639,7:8}, moving_steer_fraction=0.9876352395672334, dominant_action_fraction=0.9876352395672334
+  decision: reject before CARLA
+
+d4c5b70_steer2_seq010_nobal_iw5:
+  train: ImitationClassBalance=false, SteerSequenceFraction=0.10
+  sampler: priority_window_count=212/617, priority_window_fraction=0.34359805510534847
+  probe: action_counts={7:647}, moving_steer_fraction=0.0, dominant_action_fraction=1.0
+  decision: reject before CARLA
+```
+
+Interpretation:
+
+```text
+The replay has enough steering-priority windows, so the latest failures are not
+explained by missing steering windows. The current replay-imitation policy is
+bistable: weak balancing collapses to straight action 7, while stronger
+balancing collapses to left-steer action 4. No candidate reached the offline
+gate for a new 512 CARLA run.
+```
+
+Local evidence:
+
+```text
+RCS-AC-v2/experiments/02_privileged_policy_clean/windows_512/d4c5b70_steer2_seq010_balpow05_iw5/
+RCS-AC-v2/experiments/02_privileged_policy_clean/windows_512/d4c5b70_steer2_seq010_balpow0625_iw5/
+RCS-AC-v2/experiments/02_privileged_policy_clean/windows_512/d4c5b70_steer2_seq010_balpow075_iw5/
+RCS-AC-v2/experiments/02_privileged_policy_clean/windows_512/d4c5b70_steer2_seq010_nobal_iw5/
+```
