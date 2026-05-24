@@ -9,6 +9,7 @@ param(
     [int]$PolicySteps = 200,
     [double]$LearningRate = 0.0003,
     [double]$ImitationWeight = 1.0,
+    [switch]$ImitationClassBalance,
     [int]$HiddenDim = 128,
     [string]$Device = "auto"
 )
@@ -25,16 +26,22 @@ Write-Host "STAGE2_PRIVILEGED_REPLAY_TRAIN_READY=True"
 Write-Host "REPLAY_PATH=$ReplayPath"
 Write-Host "REPLAY_MANIFEST_PATH=$ReplayManifestPath"
 Write-Host "OUTPUT_DIR=$OutputDir"
-& py -3.12 -B -m rcs_ac_v2.training.train_stage2_privileged_from_replay `
-    --replay $ReplayPath `
-    --replay-manifest $ReplayManifestPath `
-    --output-dir $OutputDir `
-    --sequence-length $SequenceLength `
-    --batch-size $BatchSize `
-    --world-model-steps $WorldModelSteps `
-    --policy-steps $PolicySteps `
-    --learning-rate $LearningRate `
-    --imitation-weight $ImitationWeight `
-    --hidden-dim $HiddenDim `
-    --device $Device
+$TrainArgs = @(
+    "-3.12", "-B", "-m", "rcs_ac_v2.training.train_stage2_privileged_from_replay",
+    "--replay", $ReplayPath,
+    "--replay-manifest", $ReplayManifestPath,
+    "--output-dir", $OutputDir,
+    "--sequence-length", $SequenceLength,
+    "--batch-size", $BatchSize,
+    "--world-model-steps", $WorldModelSteps,
+    "--policy-steps", $PolicySteps,
+    "--learning-rate", $LearningRate,
+    "--imitation-weight", $ImitationWeight,
+    "--hidden-dim", $HiddenDim,
+    "--device", $Device
+)
+if ($ImitationClassBalance) {
+    $TrainArgs += "--imitation-class-balance"
+}
+& py @TrainArgs
 exit $LASTEXITCODE

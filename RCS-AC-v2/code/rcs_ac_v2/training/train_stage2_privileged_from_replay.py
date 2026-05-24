@@ -47,6 +47,7 @@ def train_stage2_privileged_from_replay(
     learning_rate: float = 3e-4,
     policy_learning_rate: float | None = None,
     imitation_weight: float = 1.0,
+    imitation_class_balance: bool = False,
     hidden_dim: int = 128,
     device: str = "auto",
 ) -> ReplayTrainingResult:
@@ -59,6 +60,11 @@ def train_stage2_privileged_from_replay(
     replay_manifest = validate_replay_manifest(replay_manifest_path, replay_paths=replay_paths)
     replay_files = replay_manifest["files"]
     episodes = load_replay_episodes(replay_paths)
+    imitation_class_weights = (
+        _make_imitation_class_weights(episodes, action_dim=39, device=resolved_device)
+        if imitation_class_balance
+        else None
+    )
     sampler = PrivilegedReplaySampler(
         episodes,
         sequence_length=sequence_length,
@@ -124,6 +130,7 @@ def train_stage2_privileged_from_replay(
         imitation_loss = F.cross_entropy(
             replay_policy.logits.reshape(-1, wm_cfg.action_dim),
             batch.action.reshape(-1),
+            weight=imitation_class_weights,
         )
         total_loss = losses.total + float(imitation_weight) * imitation_loss
         total_loss.backward()
@@ -150,6 +157,7 @@ def train_stage2_privileged_from_replay(
         "world_model_steps": int(world_model_steps),
         "policy_steps": int(policy_steps),
         "imitation_weight": float(imitation_weight),
+        "imitation_class_balance": bool(imitation_class_balance),
         "replay_manifest": {
             "path": str(replay_manifest_path),
             "sha256": sha256_file(Path(replay_manifest_path)),
@@ -254,6 +262,7 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--learning-rate", type=float, default=3e-4)
     parser.add_argument("--policy-learning-rate", type=float, default=None)
     parser.add_argument("--imitation-weight", type=float, default=1.0)
+    parser.add_argument("--imitation-class-balance", action="store_true")
     parser.add_argument("--hidden-dim", type=int, default=128)
     parser.add_argument("--device", default="auto")
     args = parser.parse_args(argv)
@@ -269,6 +278,7 @@ def main(argv: list[str] | None = None) -> None:
         learning_rate=args.learning_rate,
         policy_learning_rate=args.policy_learning_rate,
         imitation_weight=args.imitation_weight,
+        imitation_class_balance=args.imitation_class_balance,
         hidden_dim=args.hidden_dim,
         device=args.device,
     )
@@ -281,6 +291,19 @@ def _resolve_device(device: str) -> torch.device:
     if device == "auto":
         return torch.device("cuda" if torch.cuda.is_available() else "cpu")
     return torch.device(device)
+
+
+def _make_imitation_class_weights(episodes: list[Any], *, action_dim: int, device: torch.device) -> torch.Tensor:
+    counts = torch.zeros(action_dim, dtype=torch.float32)
+    for episode in episodes:
+        actions = torch.as_tensor(episode.action, dtype=torch.long)
+        counts += torch.bincount(actions.clamp(0, action_dim - 1), minlength=action_dim).to(torch.float32)
+    present = counts > 0
+    weights = torch.zeros(action_dim, dtype=torch.float32)
+    if present.any():
+        present_counts = counts[present]
+        weights[present] = torch.sqrt(present_counts.mean() / present_counts)
+    return weights.to(device)
 
 
 if __name__ == "__main__":

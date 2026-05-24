@@ -9,6 +9,7 @@ param(
     [int]$PolicySteps = 200,
     [double]$LearningRate = 0.0003,
     [double]$ImitationWeight = 1.0,
+    [switch]$ImitationClassBalance,
     [int]$HiddenDim = 128,
     [string]$Device = "auto",
     [string]$LogPath = "",
@@ -47,6 +48,10 @@ $QuotedDevice = Quote-PowerShellString $Device
 $QuotedLogPath = Quote-PowerShellString $ResolvedLogPath
 $InnerScriptPath = Join-Path $ResolvedOutputDir "train_stage2_privileged_from_replay.detached.ps1"
 $QuotedInnerScriptPath = Quote-PowerShellString $InnerScriptPath
+$ImitationClassBalanceArg = ""
+if ($ImitationClassBalance) {
+    $ImitationClassBalanceArg = " -ImitationClassBalance"
+}
 
 $InnerCommand = @"
 `$ErrorActionPreference = 'Stop'
@@ -54,7 +59,7 @@ $InnerCommand = @"
 "DETACHED_TRAIN_STARTED=`$(Get-Date -Format o)" | Set-Content -Path `$LogPath
 try {
     Set-Location $QuotedProjectRoot
-    powershell -ExecutionPolicy Bypass -File $QuotedTrainingScript -ProjectRoot $QuotedProjectRoot -ReplayPath $QuotedReplayPath -ReplayManifestPath $QuotedReplayManifestPath -OutputDir $QuotedOutputDir -SequenceLength $SequenceLength -BatchSize $BatchSize -WorldModelSteps $WorldModelSteps -PolicySteps $PolicySteps -LearningRate $LearningRate -ImitationWeight $ImitationWeight -HiddenDim $HiddenDim -Device $QuotedDevice *>&1 | Tee-Object -FilePath `$LogPath -Append
+    powershell -ExecutionPolicy Bypass -File $QuotedTrainingScript -ProjectRoot $QuotedProjectRoot -ReplayPath $QuotedReplayPath -ReplayManifestPath $QuotedReplayManifestPath -OutputDir $QuotedOutputDir -SequenceLength $SequenceLength -BatchSize $BatchSize -WorldModelSteps $WorldModelSteps -PolicySteps $PolicySteps -LearningRate $LearningRate -ImitationWeight $ImitationWeight$ImitationClassBalanceArg -HiddenDim $HiddenDim -Device $QuotedDevice *>&1 | Tee-Object -FilePath `$LogPath -Append
     `$Code = `$LASTEXITCODE
 }
 catch {

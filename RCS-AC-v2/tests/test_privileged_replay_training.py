@@ -27,7 +27,10 @@ from rcs_ac_v2.training.privileged_replay import (
     save_privileged_replay_episode,
     write_privileged_replay_manifest,
 )
-from rcs_ac_v2.training.train_stage2_privileged_from_replay import train_stage2_privileged_from_replay
+from rcs_ac_v2.training.train_stage2_privileged_from_replay import (
+    _make_imitation_class_weights,
+    train_stage2_privileged_from_replay,
+)
 
 
 def _replay_arrays(length: int = 6) -> dict[str, np.ndarray]:
@@ -156,6 +159,7 @@ def test_replay_training_exports_clean_eval_loadable_checkpoints(tmp_path) -> No
         world_model_steps=2,
         policy_steps=2,
         imitation_weight=1.5,
+        imitation_class_balance=True,
         hidden_dim=32,
         device="cpu",
     )
@@ -179,6 +183,7 @@ def test_replay_training_exports_clean_eval_loadable_checkpoints(tmp_path) -> No
     assert manifest["replay_manifest"]["sha256"]
     assert manifest["policy"]["metrics"]["final_imitation"] >= 0.0
     assert manifest["imitation_weight"] == 1.5
+    assert manifest["imitation_class_balance"] is True
     assert output["logits"].shape == (1, 1, 39)
     assert torch.isfinite(output["logits"]).all()
 
@@ -206,6 +211,19 @@ def test_replay_training_exports_clean_eval_loadable_checkpoints(tmp_path) -> No
     assert action_probe["minimum_nonzero_throttle_fraction"] == 0.5
     assert "previous_stuck_action8_fraction" in action_probe
     assert Path(tmp_path / "stage2_checkpoint_action_probe.json").exists()
+
+
+def test_imitation_class_weights_favor_rare_actions(tmp_path) -> None:
+    arrays = _replay_arrays(length=8)
+    arrays["action"] = np.asarray([7, 7, 7, 7, 7, 7, 7, 4], dtype=np.int64)
+    path = save_privileged_replay_episode(tmp_path / "episode_0000.npz", **arrays)
+    episode = load_privileged_replay_episode(path)
+
+    weights = _make_imitation_class_weights([episode], action_dim=39, device=torch.device("cpu"))
+
+    assert weights[4] > weights[7]
+    assert weights[7] > 0
+    assert weights[0] == 0
 
 
 def _simulator_privileged_info() -> dict:
