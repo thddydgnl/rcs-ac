@@ -7,6 +7,8 @@ param(
     [string]$OutputPath = "",
     [int]$MaxStepsPerFile = 32,
     [double]$MinNonzeroThrottleFraction = 0.5,
+    [double]$MinNonzeroSteerFraction = 0.02,
+    [int]$MinNonzeroSteerCount = 12,
     [double]$MaxPreviousStuckAction8Fraction = 0.05,
     [string]$Device = "cpu"
 )
@@ -41,6 +43,8 @@ $ProbeArgs = @(
     "--output", $OutputPath,
     "--max-steps-per-file", $MaxStepsPerFile,
     "--min-nonzero-throttle-fraction", $MinNonzeroThrottleFraction,
+    "--min-nonzero-steer-fraction", $MinNonzeroSteerFraction,
+    "--min-nonzero-steer-count", $MinNonzeroSteerCount,
     "--max-previous-stuck-action8-fraction", $MaxPreviousStuckAction8Fraction,
     "--device", $Device
 )

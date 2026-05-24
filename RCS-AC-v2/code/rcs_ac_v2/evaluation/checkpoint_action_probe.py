@@ -55,6 +55,8 @@ def probe_checkpoint_actions(
     project_root: str | Path | None = None,
     max_steps_per_file: int = 32,
     min_nonzero_throttle_fraction: float = 0.5,
+    min_nonzero_steer_fraction: float = 0.02,
+    min_nonzero_steer_count: int = 12,
     max_previous_stuck_action8_fraction: float = 0.05,
     device: str = "cpu",
     output_path: str | Path | None = None,
@@ -81,6 +83,9 @@ def probe_checkpoint_actions(
     action_counts: Counter[int] = Counter()
     reverse_count = 0
     nonzero_throttle_count = 0
+    nonzero_steer_count = 0
+    left_steer_count = 0
+    right_steer_count = 0
     zero_throttle_count = 0
     probed_files: list[dict[str, Any]] = []
     for file_entry in replay_manifest["files"]:
@@ -104,12 +109,16 @@ def probe_checkpoint_actions(
             action_counts[action_id] += 1
             reverse_count += int(action.reverse)
             nonzero_throttle_count += int(float(action.throttle) > 0.0 and not action.reverse)
+            nonzero_steer_count += int(abs(float(action.steer)) > 0.0 and not action.reverse)
+            left_steer_count += int(float(action.steer) < 0.0 and not action.reverse)
+            right_steer_count += int(float(action.steer) > 0.0 and not action.reverse)
             zero_throttle_count += int(float(action.throttle) == 0.0)
         probed_files.append({"path": str(replay_path), "steps": steps})
 
     total = sum(action_counts.values())
     unique_action_ids = sorted(action_counts)
     nonzero_throttle_fraction = float(nonzero_throttle_count) / float(total) if total else 0.0
+    nonzero_steer_fraction = float(nonzero_steer_count) / float(total) if total else 0.0
     zero_throttle_fraction = float(zero_throttle_count) / float(total) if total else 0.0
     previous_action8_count = int(action_counts.get(8, 0))
     previous_action8_fraction = float(previous_action8_count) / float(total) if total else 0.0
@@ -118,6 +127,8 @@ def probe_checkpoint_actions(
         and reverse_count == 0
         and len(unique_action_ids) > 1
         and nonzero_throttle_fraction >= float(min_nonzero_throttle_fraction)
+        and nonzero_steer_count >= int(min_nonzero_steer_count)
+        and nonzero_steer_fraction >= float(min_nonzero_steer_fraction)
         and previous_action8_fraction <= float(max_previous_stuck_action8_fraction)
     )
     result = {
@@ -140,12 +151,18 @@ def probe_checkpoint_actions(
         "reverse_action_count": int(reverse_count),
         "nonzero_throttle_action_count": int(nonzero_throttle_count),
         "nonzero_throttle_fraction": nonzero_throttle_fraction,
+        "nonzero_steer_action_count": int(nonzero_steer_count),
+        "nonzero_steer_fraction": nonzero_steer_fraction,
+        "left_steer_action_count": int(left_steer_count),
+        "right_steer_action_count": int(right_steer_count),
         "zero_throttle_action_count": int(zero_throttle_count),
         "zero_throttle_fraction": zero_throttle_fraction,
         "single_action_collapse": len(unique_action_ids) == 1,
         "previous_stuck_action8_count": previous_action8_count,
         "previous_stuck_action8_fraction": previous_action8_fraction,
         "minimum_nonzero_throttle_fraction": float(min_nonzero_throttle_fraction),
+        "minimum_nonzero_steer_fraction": float(min_nonzero_steer_fraction),
+        "minimum_nonzero_steer_count": int(min_nonzero_steer_count),
         "max_previous_stuck_action8_fraction": float(max_previous_stuck_action8_fraction),
         "recommended_for_clean_rerun": recommended,
     }
@@ -166,6 +183,8 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--output", default="")
     parser.add_argument("--max-steps-per-file", type=int, default=32)
     parser.add_argument("--min-nonzero-throttle-fraction", type=float, default=0.5)
+    parser.add_argument("--min-nonzero-steer-fraction", type=float, default=0.02)
+    parser.add_argument("--min-nonzero-steer-count", type=int, default=12)
     parser.add_argument("--max-previous-stuck-action8-fraction", type=float, default=0.05)
     parser.add_argument("--device", default="cpu")
     args = parser.parse_args(argv)
@@ -183,6 +202,8 @@ def main(argv: list[str] | None = None) -> None:
         project_root=args.project_root or None,
         max_steps_per_file=args.max_steps_per_file,
         min_nonzero_throttle_fraction=args.min_nonzero_throttle_fraction,
+        min_nonzero_steer_fraction=args.min_nonzero_steer_fraction,
+        min_nonzero_steer_count=args.min_nonzero_steer_count,
         max_previous_stuck_action8_fraction=args.max_previous_stuck_action8_fraction,
         device=args.device,
         output_path=args.output or None,

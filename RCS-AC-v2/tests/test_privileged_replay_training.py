@@ -211,6 +211,9 @@ def test_replay_training_exports_clean_eval_loadable_checkpoints(tmp_path) -> No
     assert action_probe["reverse_action_count"] == 0
     assert "nonzero_throttle_fraction" in action_probe
     assert action_probe["minimum_nonzero_throttle_fraction"] == 0.5
+    assert "nonzero_steer_fraction" in action_probe
+    assert action_probe["minimum_nonzero_steer_fraction"] == 0.02
+    assert action_probe["minimum_nonzero_steer_count"] == 12
     assert "previous_stuck_action8_fraction" in action_probe
     assert Path(tmp_path / "stage2_checkpoint_action_probe.json").exists()
 
