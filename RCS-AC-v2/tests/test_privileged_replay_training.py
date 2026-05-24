@@ -9,6 +9,7 @@ import yaml
 
 from rcs_ac_v2.evaluation.carla_adapter import load_stage2_policy_runner
 from rcs_ac_v2.evaluation.checkpoint_action_probe import build_checkpoint_filled_config, probe_checkpoint_actions
+from rcs_ac_v2.env.discrete_actions import get_discrete_action
 from rcs_ac_v2.evaluation.privileged_observation import (
     EGO8_SCHEMA_VERSION,
     PRIVILEGED_OBSERVATION_SOURCE,
@@ -104,6 +105,20 @@ def test_collect_episode_writes_valid_replay_fields() -> None:
     assert episode["privileged_ego"].shape == (3, 8)
     assert episode["action"].shape == (3,)
     assert episode["cont"][-1] == 0.0
+
+
+def test_replay_collector_explicit_target_speed_overrides_env_default() -> None:
+    action_id = select_privileged_replay_action(
+        {
+            "speed_kmh": 21.0,
+            "target_speed_kmh": 18.0,
+            "heading_error": 0.0,
+            "lane_offset": 0.0,
+        },
+        target_speed_kmh=35.0,
+    )
+
+    assert get_discrete_action(action_id).throttle > 0.0
 
 
 def test_replay_training_exports_clean_eval_loadable_checkpoints(tmp_path) -> None:
