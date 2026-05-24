@@ -58,6 +58,7 @@ def probe_checkpoint_actions(
     min_nonzero_steer_fraction: float = 0.02,
     min_nonzero_steer_count: int = 12,
     max_nonzero_steer_fraction: float = 0.5,
+    max_dominant_action_fraction: float = 0.85,
     max_previous_stuck_action8_fraction: float = 0.05,
     device: str = "cpu",
     output_path: str | Path | None = None,
@@ -132,6 +133,8 @@ def probe_checkpoint_actions(
     zero_throttle_steer_fraction = float(zero_throttle_steer_count) / float(total) if total else 0.0
     previous_action8_count = int(action_counts.get(8, 0))
     previous_action8_fraction = float(previous_action8_count) / float(total) if total else 0.0
+    dominant_action_count = max(action_counts.values()) if action_counts else 0
+    dominant_action_fraction = float(dominant_action_count) / float(total) if total else 0.0
     recommended = bool(
         total > 0
         and reverse_count == 0
@@ -140,6 +143,7 @@ def probe_checkpoint_actions(
         and moving_steer_count >= int(min_nonzero_steer_count)
         and moving_steer_fraction >= float(min_nonzero_steer_fraction)
         and moving_steer_fraction <= float(max_nonzero_steer_fraction)
+        and dominant_action_fraction <= float(max_dominant_action_fraction)
         and previous_action8_fraction <= float(max_previous_stuck_action8_fraction)
     )
     result = {
@@ -159,6 +163,9 @@ def probe_checkpoint_actions(
         "probed_files": probed_files,
         "action_counts": {str(key): int(action_counts[key]) for key in unique_action_ids},
         "unique_action_ids": unique_action_ids,
+        "dominant_action_id": int(max(action_counts, key=action_counts.get)) if action_counts else None,
+        "dominant_action_count": int(dominant_action_count),
+        "dominant_action_fraction": dominant_action_fraction,
         "reverse_action_count": int(reverse_count),
         "nonzero_throttle_action_count": int(nonzero_throttle_count),
         "nonzero_throttle_fraction": nonzero_throttle_fraction,
@@ -180,6 +187,7 @@ def probe_checkpoint_actions(
         "minimum_nonzero_steer_count": int(min_nonzero_steer_count),
         "maximum_moving_steer_fraction": float(max_nonzero_steer_fraction),
         "maximum_nonzero_steer_fraction": float(max_nonzero_steer_fraction),
+        "maximum_dominant_action_fraction": float(max_dominant_action_fraction),
         "max_previous_stuck_action8_fraction": float(max_previous_stuck_action8_fraction),
         "recommended_for_clean_rerun": recommended,
     }
@@ -203,6 +211,7 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--min-nonzero-steer-fraction", type=float, default=0.02)
     parser.add_argument("--min-nonzero-steer-count", type=int, default=12)
     parser.add_argument("--max-nonzero-steer-fraction", type=float, default=0.5)
+    parser.add_argument("--max-dominant-action-fraction", type=float, default=0.85)
     parser.add_argument("--max-previous-stuck-action8-fraction", type=float, default=0.05)
     parser.add_argument("--device", default="cpu")
     args = parser.parse_args(argv)
@@ -223,6 +232,7 @@ def main(argv: list[str] | None = None) -> None:
         min_nonzero_steer_fraction=args.min_nonzero_steer_fraction,
         min_nonzero_steer_count=args.min_nonzero_steer_count,
         max_nonzero_steer_fraction=args.max_nonzero_steer_fraction,
+        max_dominant_action_fraction=args.max_dominant_action_fraction,
         max_previous_stuck_action8_fraction=args.max_previous_stuck_action8_fraction,
         device=args.device,
         output_path=args.output or None,

@@ -50,6 +50,7 @@ def train_stage2_privileged_from_replay(
     imitation_weight: float = 1.0,
     behavior_weight: float = 1.0,
     imitation_class_balance: bool = False,
+    imitation_balance_power: float = 1.0,
     steer_sequence_fraction: float = 0.0,
     hidden_dim: int = 128,
     device: str = "auto",
@@ -64,7 +65,12 @@ def train_stage2_privileged_from_replay(
     replay_files = replay_manifest["files"]
     episodes = load_replay_episodes(replay_paths)
     imitation_class_weights = (
-        _make_imitation_class_weights(episodes, action_dim=39, device=resolved_device)
+        _make_imitation_class_weights(
+            episodes,
+            action_dim=39,
+            device=resolved_device,
+            power=imitation_balance_power,
+        )
         if imitation_class_balance
         else None
     )
@@ -76,6 +82,7 @@ def train_stage2_privileged_from_replay(
         priority_action_ids=_moving_steer_action_ids() if steer_sequence_fraction > 0.0 else None,
         priority_sample_fraction=steer_sequence_fraction,
     )
+    sampler_stats = sampler.priority_stats()
 
     wm_cfg = PrivilegedWorldModelConfig(bev_height=16, bev_width=16, ego_dim=8, hidden_dim=hidden_dim)
     world_model = PrivilegedWorldModel(wm_cfg).to(resolved_device)
@@ -164,7 +171,9 @@ def train_stage2_privileged_from_replay(
         "imitation_weight": float(imitation_weight),
         "behavior_weight": float(behavior_weight),
         "imitation_class_balance": bool(imitation_class_balance),
+        "imitation_balance_power": float(imitation_balance_power),
         "steer_sequence_fraction": float(steer_sequence_fraction),
+        "sampler": sampler_stats,
         "replay_manifest": {
             "path": str(replay_manifest_path),
             "sha256": sha256_file(Path(replay_manifest_path)),
@@ -271,6 +280,7 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--imitation-weight", type=float, default=1.0)
     parser.add_argument("--behavior-weight", type=float, default=1.0)
     parser.add_argument("--imitation-class-balance", action="store_true")
+    parser.add_argument("--imitation-balance-power", type=float, default=1.0)
     parser.add_argument("--steer-sequence-fraction", type=float, default=0.0)
     parser.add_argument("--hidden-dim", type=int, default=128)
     parser.add_argument("--device", default="auto")
@@ -289,6 +299,7 @@ def main(argv: list[str] | None = None) -> None:
         imitation_weight=args.imitation_weight,
         behavior_weight=args.behavior_weight,
         imitation_class_balance=args.imitation_class_balance,
+        imitation_balance_power=args.imitation_balance_power,
         steer_sequence_fraction=args.steer_sequence_fraction,
         hidden_dim=args.hidden_dim,
         device=args.device,
@@ -304,7 +315,15 @@ def _resolve_device(device: str) -> torch.device:
     return torch.device(device)
 
 
-def _make_imitation_class_weights(episodes: list[Any], *, action_dim: int, device: torch.device) -> torch.Tensor:
+def _make_imitation_class_weights(
+    episodes: list[Any],
+    *,
+    action_dim: int,
+    device: torch.device,
+    power: float = 1.0,
+) -> torch.Tensor:
+    if not 0.0 <= float(power) <= 1.0:
+        raise ValueError("power must be in [0, 1]")
     counts = torch.zeros(action_dim, dtype=torch.float32)
     for episode in episodes:
         actions = torch.as_tensor(episode.action, dtype=torch.long)
@@ -313,7 +332,7 @@ def _make_imitation_class_weights(episodes: list[Any], *, action_dim: int, devic
     weights = torch.zeros(action_dim, dtype=torch.float32)
     if present.any():
         present_counts = counts[present]
-        weights[present] = present_counts.mean() / present_counts
+        weights[present] = (present_counts.mean() / present_counts).pow(float(power))
     return weights.to(device)
 
 

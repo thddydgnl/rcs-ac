@@ -67,6 +67,10 @@ checkpoint와 sha256 manifest를 만든다. 이 checkpoint는 clean eval 입력�
 긴 straight 구간 때문에 steering label이 묻히면 `-SteerSequenceFraction`으로
 전진 조향 action이 포함된 sequence를 oversample한 후보를 만들고, action probe가
 moving steer gate를 통과할 때만 clean eval로 보낸다.
+rare steering class가 너무 강해져 over-steer collapse가 나면
+`-ImitationBalancePower`를 0과 1 사이로 낮춘 후보를 먼저 offline probe한다.
+checkpoint manifest의 `sampler` 필드는 priority window 수와 effective sampling
+fraction을 기록하므로, replay 자체에 steering window가 충분한지 먼저 확인한다.
 start_stage2_replay_training_detached.ps1는 긴 replay training을 별도 Windows
 PowerShell 프로세스로 띄우고 train log path와 process id를 출력한다. SSH가
 끊길 수 있는 원격 실행에서는 이 wrapper를 우선 사용하고, 완료 여부는 log의
@@ -87,7 +91,8 @@ probe_stage2_checkpoint_actions.ps1는 checkpoint manifest를 base clean config�
 `recommended_for_clean_rerun=true`는 reverse 0, single-action collapse 없음,
 nonzero-throttle fraction 0.5 이상, moving/nonzero steer fraction 0.02 이상,
 moving/nonzero steer count 12 이상, moving/nonzero steer fraction 0.5 이하,
-action_id=8 fraction 0.05 이하일 때만 나온다.
+dominant action fraction 0.85 이하, action_id=8 fraction 0.05 이하일 때만
+나온다.
 check_stage2_windows_dependencies.ps1는 CARLA 실행 전에 v2 code,
 shared_core, env config, readiness script 의존성을 검사한다.
 base config의 checkpoint path/sha256은 아직 null이므로 그대로 real mode를

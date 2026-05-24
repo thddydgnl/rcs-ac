@@ -10,6 +10,7 @@ param(
     [double]$MinNonzeroSteerFraction = 0.02,
     [int]$MinNonzeroSteerCount = 12,
     [double]$MaxNonzeroSteerFraction = 0.5,
+    [double]$MaxDominantActionFraction = 0.85,
     [double]$MaxPreviousStuckAction8Fraction = 0.05,
     [string]$Device = "cpu"
 )
@@ -47,6 +48,7 @@ $ProbeArgs = @(
     "--min-nonzero-steer-fraction", $MinNonzeroSteerFraction,
     "--min-nonzero-steer-count", $MinNonzeroSteerCount,
     "--max-nonzero-steer-fraction", $MaxNonzeroSteerFraction,
+    "--max-dominant-action-fraction", $MaxDominantActionFraction,
     "--max-previous-stuck-action8-fraction", $MaxPreviousStuckAction8Fraction,
     "--device", $Device
 )

@@ -11,6 +11,7 @@ param(
     [double]$ImitationWeight = 1.0,
     [double]$BehaviorWeight = 1.0,
     [switch]$ImitationClassBalance,
+    [double]$ImitationBalancePower = 1.0,
     [double]$SteerSequenceFraction = 0.0,
     [int]$HiddenDim = 128,
     [string]$Device = "auto"
@@ -40,6 +41,7 @@ $TrainArgs = @(
     "--learning-rate", $LearningRate,
     "--imitation-weight", $ImitationWeight,
     "--behavior-weight", $BehaviorWeight,
+    "--imitation-balance-power", $ImitationBalancePower,
     "--steer-sequence-fraction", $SteerSequenceFraction,
     "--hidden-dim", $HiddenDim,
     "--device", $Device

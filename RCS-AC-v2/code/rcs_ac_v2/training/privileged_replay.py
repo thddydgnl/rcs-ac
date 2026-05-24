@@ -318,7 +318,11 @@ class PrivilegedReplaySampler:
         self.device = torch.device(device)
         self.priority_sample_fraction = float(priority_sample_fraction)
         priority_ids = {int(action_id) for action_id in priority_action_ids or ()}
+        self.priority_action_ids = tuple(sorted(priority_ids))
         self.priority_starts: list[tuple[PrivilegedReplayEpisode, int]] = []
+        self.total_window_count = sum(
+            max(0, episode.length - self.sequence_length + 1) for episode in self.episodes
+        )
         if priority_ids and self.priority_sample_fraction > 0.0:
             for episode in self.episodes:
                 for start in range(0, episode.length - self.sequence_length + 1):
@@ -359,3 +363,19 @@ class PrivilegedReplaySampler:
         episode = self.episodes[int(self.rng.integers(0, len(self.episodes)))]
         start = int(self.rng.integers(0, episode.length - self.sequence_length + 1))
         return episode, start
+
+    def priority_stats(self) -> dict[str, float | int | list[int]]:
+        priority_count = len(self.priority_starts)
+        priority_fraction = (
+            float(priority_count) / float(self.total_window_count) if self.total_window_count else 0.0
+        )
+        effective_sample_fraction = self.priority_sample_fraction if priority_count > 0 else 0.0
+        return {
+            "sequence_length": int(self.sequence_length),
+            "total_window_count": int(self.total_window_count),
+            "priority_window_count": int(priority_count),
+            "priority_window_fraction": priority_fraction,
+            "priority_action_ids": list(self.priority_action_ids),
+            "requested_priority_sample_fraction": float(self.priority_sample_fraction),
+            "effective_priority_sample_fraction": float(effective_sample_fraction),
+        }

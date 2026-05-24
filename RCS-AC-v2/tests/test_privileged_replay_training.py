@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 
 import numpy as np
+import pytest
 import torch
 import yaml
 
@@ -78,8 +79,13 @@ def test_privileged_replay_sampler_can_prioritize_steering_sequences(tmp_path) -
         priority_sample_fraction=1.0,
     )
     batch = sampler.sample(batch_size=12)
+    stats = sampler.priority_stats()
 
     assert (batch.action == 4).any(dim=1).all()
+    assert stats["total_window_count"] == 17
+    assert stats["priority_window_count"] == 4
+    assert stats["priority_window_fraction"] == pytest.approx(4 / 17)
+    assert stats["effective_priority_sample_fraction"] == 1.0
 
 
 class _FakeCollectorEnv:
@@ -209,7 +215,10 @@ def test_replay_training_exports_clean_eval_loadable_checkpoints(tmp_path) -> No
     assert manifest["imitation_weight"] == 1.5
     assert manifest["behavior_weight"] == 0.5
     assert manifest["imitation_class_balance"] is True
+    assert manifest["imitation_balance_power"] == 1.0
     assert manifest["steer_sequence_fraction"] == 0.0
+    assert manifest["sampler"]["requested_priority_sample_fraction"] == 0.0
+    assert "priority_window_count" in manifest["sampler"]
     assert output["logits"].shape == (1, 1, 39)
     assert torch.isfinite(output["logits"]).all()
 
@@ -241,6 +250,8 @@ def test_replay_training_exports_clean_eval_loadable_checkpoints(tmp_path) -> No
     assert action_probe["minimum_nonzero_steer_fraction"] == 0.02
     assert action_probe["minimum_nonzero_steer_count"] == 12
     assert action_probe["maximum_nonzero_steer_fraction"] == 0.5
+    assert action_probe["maximum_dominant_action_fraction"] == 0.85
+    assert "dominant_action_fraction" in action_probe
     assert "previous_stuck_action8_fraction" in action_probe
     assert Path(tmp_path / "stage2_checkpoint_action_probe.json").exists()
 
