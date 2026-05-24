@@ -10,7 +10,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 import json
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any, Iterable, Sequence
 
 import numpy as np
 import torch
@@ -303,15 +303,28 @@ class PrivilegedReplaySampler:
         sequence_length: int,
         seed: int = 0,
         device: str | torch.device = "cpu",
+        priority_action_ids: Sequence[int] | None = None,
+        priority_sample_fraction: float = 0.0,
     ) -> None:
         if sequence_length <= 0:
             raise ValueError("sequence_length must be positive")
+        if not 0.0 <= float(priority_sample_fraction) <= 1.0:
+            raise ValueError("priority_sample_fraction must be in [0, 1]")
         self.episodes = [episode for episode in episodes if episode.length >= sequence_length]
         if not self.episodes:
             raise ValueError("no replay episodes are long enough for the requested sequence_length")
         self.sequence_length = int(sequence_length)
         self.rng = np.random.default_rng(seed)
         self.device = torch.device(device)
+        self.priority_sample_fraction = float(priority_sample_fraction)
+        priority_ids = {int(action_id) for action_id in priority_action_ids or ()}
+        self.priority_starts: list[tuple[PrivilegedReplayEpisode, int]] = []
+        if priority_ids and self.priority_sample_fraction > 0.0:
+            for episode in self.episodes:
+                for start in range(0, episode.length - self.sequence_length + 1):
+                    end = start + self.sequence_length
+                    if any(int(action_id) in priority_ids for action_id in episode.action[start:end]):
+                        self.priority_starts.append((episode, start))
 
     def sample(self, batch_size: int) -> PrivilegedSequenceBatch:
         if batch_size <= 0:
@@ -322,8 +335,7 @@ class PrivilegedReplaySampler:
         reward_batch: list[np.ndarray] = []
         cont_batch: list[np.ndarray] = []
         for _ in range(batch_size):
-            episode = self.episodes[int(self.rng.integers(0, len(self.episodes)))]
-            start = int(self.rng.integers(0, episode.length - self.sequence_length + 1))
+            episode, start = self._sample_episode_start()
             end = start + self.sequence_length
             bev_batch.append(episode.privileged_bev[start:end])
             ego_batch.append(episode.privileged_ego[start:end])
@@ -340,3 +352,10 @@ class PrivilegedReplaySampler:
         )
         validate_privileged_batch(batch, SchemaConfig(ego_dim=8))
         return batch
+
+    def _sample_episode_start(self) -> tuple[PrivilegedReplayEpisode, int]:
+        if self.priority_starts and float(self.rng.random()) < self.priority_sample_fraction:
+            return self.priority_starts[int(self.rng.integers(0, len(self.priority_starts)))]
+        episode = self.episodes[int(self.rng.integers(0, len(self.episodes)))]
+        start = int(self.rng.integers(0, episode.length - self.sequence_length + 1))
+        return episode, start

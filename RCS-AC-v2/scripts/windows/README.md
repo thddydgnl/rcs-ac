@@ -64,6 +64,9 @@ semantic43/ego8 replay .npz를 수집한다. replay는 학습 입력이지 clean
 train_stage2_privileged_from_replay.ps1는 replay로 world_model/policy
 checkpoint와 sha256 manifest를 만든다. 이 checkpoint는 clean eval 입력으로만
 사용하고, PASS 여부는 run_stage2_clean_eval.ps1 summary/metrics로만 판정한다.
+긴 straight 구간 때문에 steering label이 묻히면 `-SteerSequenceFraction`으로
+전진 조향 action이 포함된 sequence를 oversample한 후보를 만들고, action probe가
+moving steer gate를 통과할 때만 clean eval로 보낸다.
 start_stage2_replay_training_detached.ps1는 긴 replay training을 별도 Windows
 PowerShell 프로세스로 띄우고 train log path와 process id를 출력한다. SSH가
 끊길 수 있는 원격 실행에서는 이 wrapper를 우선 사용하고, 완료 여부는 log의

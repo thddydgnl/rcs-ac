@@ -569,6 +569,11 @@ powershell -ExecutionPolicy Bypass -File RCS-AC-v2\scripts\windows\train_stage2_
   -OutputDir RCS-AC-v2\experiments\02_privileged_policy_clean\checkpoints\windows_replay
 ```
 
+For longer replays where steering labels are sparse, add
+`-SteerSequenceFraction 0.75` to oversample sequences that contain forward
+steering actions. Still require the checkpoint action probe to pass before any
+clean eval rerun.
+
 Replay `.npz` and checkpoint `.pt` files are heavy local artifacts. Do not put
 them in GitHub. Commit only small manifests/result notes and use sha256 values
 from the manifest to fill the clean config.

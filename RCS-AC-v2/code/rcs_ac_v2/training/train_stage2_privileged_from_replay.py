@@ -11,6 +11,7 @@ from typing import Any
 import torch
 import torch.nn.functional as F
 
+from rcs_ac_v2.env.discrete_actions import RAW2DRIVE_ACTIONS
 from rcs_ac_v2.policy.behavior_loss import BehaviorLossConfig, compute_behavior_loss
 from rcs_ac_v2.privileged_stream.policy import PrivilegedPolicy, PrivilegedPolicyConfig, imagine_policy_rollout
 from rcs_ac_v2.privileged_stream.world_model import PrivilegedWorldModel, PrivilegedWorldModelConfig
@@ -49,6 +50,7 @@ def train_stage2_privileged_from_replay(
     imitation_weight: float = 1.0,
     behavior_weight: float = 1.0,
     imitation_class_balance: bool = False,
+    steer_sequence_fraction: float = 0.0,
     hidden_dim: int = 128,
     device: str = "auto",
 ) -> ReplayTrainingResult:
@@ -71,6 +73,8 @@ def train_stage2_privileged_from_replay(
         sequence_length=sequence_length,
         seed=seed,
         device=resolved_device,
+        priority_action_ids=_moving_steer_action_ids() if steer_sequence_fraction > 0.0 else None,
+        priority_sample_fraction=steer_sequence_fraction,
     )
 
     wm_cfg = PrivilegedWorldModelConfig(bev_height=16, bev_width=16, ego_dim=8, hidden_dim=hidden_dim)
@@ -160,6 +164,7 @@ def train_stage2_privileged_from_replay(
         "imitation_weight": float(imitation_weight),
         "behavior_weight": float(behavior_weight),
         "imitation_class_balance": bool(imitation_class_balance),
+        "steer_sequence_fraction": float(steer_sequence_fraction),
         "replay_manifest": {
             "path": str(replay_manifest_path),
             "sha256": sha256_file(Path(replay_manifest_path)),
@@ -266,6 +271,7 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--imitation-weight", type=float, default=1.0)
     parser.add_argument("--behavior-weight", type=float, default=1.0)
     parser.add_argument("--imitation-class-balance", action="store_true")
+    parser.add_argument("--steer-sequence-fraction", type=float, default=0.0)
     parser.add_argument("--hidden-dim", type=int, default=128)
     parser.add_argument("--device", default="auto")
     args = parser.parse_args(argv)
@@ -283,6 +289,7 @@ def main(argv: list[str] | None = None) -> None:
         imitation_weight=args.imitation_weight,
         behavior_weight=args.behavior_weight,
         imitation_class_balance=args.imitation_class_balance,
+        steer_sequence_fraction=args.steer_sequence_fraction,
         hidden_dim=args.hidden_dim,
         device=args.device,
     )
@@ -308,6 +315,14 @@ def _make_imitation_class_weights(episodes: list[Any], *, action_dim: int, devic
         present_counts = counts[present]
         weights[present] = present_counts.mean() / present_counts
     return weights.to(device)
+
+
+def _moving_steer_action_ids() -> tuple[int, ...]:
+    return tuple(
+        action.action_id
+        for action in RAW2DRIVE_ACTIONS
+        if float(action.throttle) > 0.0 and abs(float(action.steer)) > 0.0 and not action.reverse
+    )
 
 
 if __name__ == "__main__":

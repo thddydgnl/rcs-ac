@@ -33,6 +33,7 @@ from rcs_ac_v2.training.privileged_replay import (
 )
 from rcs_ac_v2.training.train_stage2_privileged_from_replay import (
     _make_imitation_class_weights,
+    _moving_steer_action_ids,
     train_stage2_privileged_from_replay,
 )
 
@@ -61,6 +62,24 @@ def test_privileged_replay_roundtrip_and_sampler(tmp_path) -> None:
     assert batch.privileged_bev.shape == (2, 4, 43, 16, 16)
     assert batch.privileged_ego.shape == (2, 4, 8)
     assert batch.action.dtype == torch.int64
+
+
+def test_privileged_replay_sampler_can_prioritize_steering_sequences(tmp_path) -> None:
+    arrays = _replay_arrays(length=20)
+    arrays["action"] = np.full(20, 7, dtype=np.int64)
+    arrays["action"][10] = 4
+    path = save_privileged_replay_episode(tmp_path / "episode_0000.npz", **arrays)
+    episode = load_privileged_replay_episode(path)
+    sampler = PrivilegedReplaySampler(
+        [episode],
+        sequence_length=4,
+        seed=3,
+        priority_action_ids=_moving_steer_action_ids(),
+        priority_sample_fraction=1.0,
+    )
+    batch = sampler.sample(batch_size=12)
+
+    assert (batch.action == 4).any(dim=1).all()
 
 
 class _FakeCollectorEnv:
@@ -190,6 +209,7 @@ def test_replay_training_exports_clean_eval_loadable_checkpoints(tmp_path) -> No
     assert manifest["imitation_weight"] == 1.5
     assert manifest["behavior_weight"] == 0.5
     assert manifest["imitation_class_balance"] is True
+    assert manifest["steer_sequence_fraction"] == 0.0
     assert output["logits"].shape == (1, 1, 39)
     assert torch.isfinite(output["logits"]).all()
 
