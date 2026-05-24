@@ -121,6 +121,20 @@ def test_replay_collector_explicit_target_speed_overrides_env_default() -> None:
     assert get_discrete_action(action_id).throttle > 0.0
 
 
+def test_replay_collector_waypoint_distance_does_not_force_zero_throttle() -> None:
+    action_id = select_privileged_replay_action(
+        {
+            "speed_kmh": 5.0,
+            "target_distance": 1.0,
+            "heading_error": 0.0,
+            "lane_offset": 0.0,
+        },
+        target_speed_kmh=35.0,
+    )
+
+    assert get_discrete_action(action_id).throttle > 0.0
+
+
 def test_replay_training_exports_clean_eval_loadable_checkpoints(tmp_path) -> None:
     replay_path = save_privileged_replay_episode(tmp_path / "episode_0000.npz", **_replay_arrays(length=8))
     replay_config_path = tmp_path / "clean_128.yaml"

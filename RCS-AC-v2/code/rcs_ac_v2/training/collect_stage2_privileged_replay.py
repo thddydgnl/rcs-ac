@@ -41,10 +41,8 @@ def select_privileged_replay_action(
     heading_error = _finite_float(info.get("heading_error", 0.0))
     lane_offset = _finite_float(info.get("lane_offset", 0.0))
     desired_speed = _finite_float(target_speed_kmh, default=18.0)
-    target_distance = _finite_float(info.get("target_distance", 25.0), default=25.0)
-
     desired_steer = float(np.clip(float(steer_sign) * (0.025 * heading_error + 0.18 * lane_offset), -0.75, 0.75))
-    if target_distance < 2.0 or speed > desired_speed + 2.0:
+    if speed > desired_speed + 2.0:
         desired_throttle = 0.0
     elif speed < desired_speed - 6.0:
         desired_throttle = 0.7
