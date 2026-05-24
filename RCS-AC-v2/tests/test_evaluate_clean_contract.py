@@ -519,6 +519,18 @@ def test_cross_replay_candidate_probe_runner_static_contract() -> None:
     assert "--min-latent-test-accuracy" in text
 
 
+def test_candidate_gate_summary_runner_static_contract() -> None:
+    script = Path(__file__).resolve().parents[1] / "scripts" / "windows" / "summarize_stage2_candidate_gate.ps1"
+    text = script.read_text()
+    assert "STAGE2_CANDIDATE_GATE_SUMMARY_READY=True" in text
+    assert "GatePath is required" in text
+    assert "rcs_ac_v2.evaluation.candidate_decision_summary" in text
+    assert "--candidate-name" in text
+    assert "--fallback-candidate-name" in text
+    assert "--checkpoint-manifest-path" in text
+    assert "exit $LASTEXITCODE" in text
+
+
 def test_target24_candidate_cycle_runner_static_contract() -> None:
     script = Path(__file__).resolve().parents[1] / "scripts" / "windows" / "run_stage2_target24_candidate_cycle.ps1"
     text = script.read_text()

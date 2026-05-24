@@ -47,6 +47,7 @@ start_stage2_replay_training_detached.ps1
 check_stage2_replay_training_detached.ps1
 probe_stage2_checkpoint_actions.ps1
 probe_stage2_candidate_cross_replays.ps1
+summarize_stage2_candidate_gate.ps1
 run_stage2_target24_candidate_cycle.ps1
 run_stage2_target_speed_replay_cycle.ps1
 run_stage2_clean_eval.ps1
@@ -115,6 +116,11 @@ target-24 후보는 target-24 replay만 통과했다고 512 clean으로 보내�
 action probe `recommended_for_clean_rerun=true` 및 latent probe 기준
 `linear_probe_test_accuracy >= 0.80`, majority 대비 margin `>= 0.15`를
 만족할 때만 512 clean 후보로 본다.
+summarize_stage2_candidate_gate.ps1는 `stage2_candidate_cross_replay_gate.json`을
+읽고 다음 행동을 기계적으로 출력한다. `ready_for_clean_eval=true`면
+`run_official_512_clean_eval`까지만 승격하고, reject면 target-22 fallback을
+지시한다. 이 summary 역시 `clean_gate_evidence=false`이며 clean PASS 기록으로
+쓰면 안 된다.
 run_stage2_target24_candidate_cycle.ps1는 target-24 후보 재개용 orchestration
 script이며, `-CandidateName`/`-PrimaryReplayName`을 바꿔 target-22 후보에도
 재사용할 수 있다. 먼저 기존 OutputDir을 check_stage2_replay_training_detached.ps1로
@@ -158,6 +164,16 @@ powershell -ExecutionPolicy Bypass -File RCS-AC-v2\scripts\windows\run_stage2_ta
 두 명령 모두 offline gate만 만든다. 512 clean eval은
 `stage2_candidate_cross_replay_gate.json`의 `ready_for_clean_eval=true`를 확인한
 뒤 별도 `run_stage2_clean_eval.ps1`로 실행한다.
+
+Gate 요약 명령:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File RCS-AC-v2\scripts\windows\summarize_stage2_candidate_gate.ps1 `
+  -ProjectRoot C:\Users\thddy\Documents\code\RCS-AC-first-official-v2-7f87656 `
+  -GatePath RCS-AC-v2\experiments\02_privileged_policy_clean\windows_512\7f87656_t24_aux1_balpow05_iw5_cross_probe\stage2_candidate_cross_replay_gate.json `
+  -CandidateName target24 `
+  -FallbackCandidateName target22
+```
 check_stage2_windows_dependencies.ps1는 CARLA 실행 전에 v2 code,
 shared_core, env config, readiness script 의존성을 검사한다.
 base config의 checkpoint path/sha256은 아직 null이므로 그대로 real mode를

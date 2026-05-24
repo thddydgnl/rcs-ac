@@ -15,6 +15,10 @@ from rcs_ac_v2.evaluation.checkpoint_action_probe import (
     probe_checkpoint_actions,
 )
 from rcs_ac_v2.evaluation.candidate_cross_replay_gate import evaluate_candidate_cross_replay_gate
+from rcs_ac_v2.evaluation.candidate_decision_summary import (
+    summarize_candidate_decision,
+    summarize_missing_gate,
+)
 from rcs_ac_v2.env.discrete_actions import get_discrete_action
 from rcs_ac_v2.evaluation.privileged_observation import (
     EGO8_SCHEMA_VERSION,
@@ -141,6 +145,69 @@ def test_candidate_cross_replay_gate_rejects_weak_latent_probe(tmp_path) -> None
 
     assert result["ready_for_clean_eval"] is False
     assert "latent probe" in result["failures"][0]
+
+
+def test_candidate_decision_summary_promotes_only_to_clean_eval_candidate(tmp_path) -> None:
+    gate_path = tmp_path / "stage2_candidate_cross_replay_gate.json"
+    gate_path.write_text(
+        json.dumps(
+            {
+                "clean_gate_evidence": False,
+                "ready_for_clean_eval": True,
+                "failures": [],
+                "replays": {
+                    "target24": {
+                        "action_probe": {"path": "target24/stage2_checkpoint_action_probe.json"},
+                        "latent_probe": {"path": "target24/stage2_replay_latent_probe.json"},
+                    },
+                    "steer2": {
+                        "action_probe": {"path": "steer2/stage2_checkpoint_action_probe.json"},
+                        "latent_probe": {"path": "steer2/stage2_replay_latent_probe.json"},
+                    },
+                },
+            }
+        )
+    )
+
+    result = summarize_candidate_decision(
+        gate_path=gate_path,
+        candidate_name="target24",
+        checkpoint_manifest_path="checkpoints/stage2_privileged_replay_checkpoint_manifest.json",
+    )
+
+    assert result["decision"] == "run_official_512_clean_eval"
+    assert result["clean_gate_evidence"] is False
+    assert result["ready_for_clean_eval"] is True
+    assert any("target24/stage2_checkpoint_action_probe.json" in path for path in result["evidence_files_to_pull"])
+    assert "clean PASS" in result["warning"]
+
+
+def test_candidate_decision_summary_rejects_to_fallback(tmp_path) -> None:
+    gate_path = tmp_path / "stage2_candidate_cross_replay_gate.json"
+    gate_path.write_text(
+        json.dumps(
+            {
+                "clean_gate_evidence": False,
+                "ready_for_clean_eval": False,
+                "failures": ["target24: action probe recommended_for_clean_rerun is not true"],
+                "replays": {},
+            }
+        )
+    )
+
+    result = summarize_candidate_decision(gate_path=gate_path, candidate_name="target24")
+
+    assert result["decision"] == "run_target22_fallback"
+    assert result["ready_for_clean_eval"] is False
+    assert "target24: action probe" in result["failures"][0]
+
+
+def test_candidate_decision_summary_waits_for_missing_gate(tmp_path) -> None:
+    result = summarize_missing_gate(gate_path=tmp_path / "missing.json", candidate_name="target24")
+
+    assert result["decision"] == "wait_for_cross_replay_gate"
+    assert result["clean_gate_evidence"] is False
+    assert "missing gate file" in result["failures"][0]
 
 
 class _FakeCollectorEnv:
