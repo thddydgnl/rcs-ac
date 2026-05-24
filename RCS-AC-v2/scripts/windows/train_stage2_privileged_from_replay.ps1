@@ -8,6 +8,7 @@ param(
     [int]$WorldModelSteps = 200,
     [int]$PolicySteps = 200,
     [double]$LearningRate = 0.0003,
+    [double]$ImitationWeight = 1.0,
     [int]$HiddenDim = 128,
     [string]$Device = "auto"
 )
@@ -33,6 +34,7 @@ Write-Host "OUTPUT_DIR=$OutputDir"
     --world-model-steps $WorldModelSteps `
     --policy-steps $PolicySteps `
     --learning-rate $LearningRate `
+    --imitation-weight $ImitationWeight `
     --hidden-dim $HiddenDim `
     --device $Device
 exit $LASTEXITCODE

@@ -63,6 +63,7 @@ def _write_stage2_checkpoints(tmp_path: Path, config: dict) -> None:
         "batch_size": 2,
         "world_model_steps": 2,
         "policy_steps": 2,
+        "imitation_weight": 1.0,
         "replay_manifest": {"path": str(tmp_path / "stage2_privileged_replay_manifest.json"), "sha256": "0" * 64},
         "data_files": [{"path": str(tmp_path / "episode_0000.npz"), "sha256": "1" * 64, "bytes": 1}],
     }

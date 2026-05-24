@@ -623,7 +623,7 @@ def _validate_checkpoint_provenance(
             "checkpoint_replay_manifest_mismatch",
             "world_model and policy checkpoints must use the same replay manifest.",
         )
-    for field in ("seed", "sequence_length", "batch_size", "world_model_steps", "policy_steps"):
+    for field in ("seed", "sequence_length", "batch_size", "world_model_steps", "policy_steps", "imitation_weight"):
         if world_model_payload.get(field) != policy_payload.get(field):
             raise CleanEvalRuntimeFailure(
                 "model",

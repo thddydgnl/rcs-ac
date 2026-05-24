@@ -124,6 +124,7 @@ def test_replay_training_exports_clean_eval_loadable_checkpoints(tmp_path) -> No
         batch_size=2,
         world_model_steps=2,
         policy_steps=2,
+        imitation_weight=1.5,
         hidden_dim=32,
         device="cpu",
     )
@@ -145,6 +146,8 @@ def test_replay_training_exports_clean_eval_loadable_checkpoints(tmp_path) -> No
 
     assert manifest["source"] == REPLAY_SOURCE
     assert manifest["replay_manifest"]["sha256"]
+    assert manifest["policy"]["metrics"]["final_imitation"] >= 0.0
+    assert manifest["imitation_weight"] == 1.5
     assert output["logits"].shape == (1, 1, 39)
     assert torch.isfinite(output["logits"]).all()
 

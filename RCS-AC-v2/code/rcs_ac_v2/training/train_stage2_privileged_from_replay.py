@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 
 import torch
+import torch.nn.functional as F
 
 from rcs_ac_v2.policy.behavior_loss import BehaviorLossConfig, compute_behavior_loss
 from rcs_ac_v2.privileged_stream.policy import PrivilegedPolicy, PrivilegedPolicyConfig, imagine_policy_rollout
@@ -45,6 +46,7 @@ def train_stage2_privileged_from_replay(
     policy_steps: int = 200,
     learning_rate: float = 3e-4,
     policy_learning_rate: float | None = None,
+    imitation_weight: float = 1.0,
     hidden_dim: int = 128,
     device: str = "auto",
 ) -> ReplayTrainingResult:
@@ -98,7 +100,9 @@ def train_stage2_privileged_from_replay(
     for _step in range(policy_steps):
         batch = sampler.sample(batch_size)
         with torch.no_grad():
-            initial_state = world_model(batch).rssm_sequence.final_state()
+            world_model_output = world_model(batch)
+            initial_state = world_model_output.rssm_sequence.final_state()
+            replay_latent = world_model_output.rssm_sequence.latent.detach()
         policy_optimizer.zero_grad(set_to_none=True)
         rollout = imagine_policy_rollout(
             world_model=world_model,
@@ -116,10 +120,19 @@ def train_stage2_privileged_from_replay(
             bootstrap=torch.zeros(batch.reward.shape[0], device=resolved_device),
             cfg=behavior_cfg,
         )
-        losses.total.backward()
+        replay_policy = policy(replay_latent)
+        imitation_loss = F.cross_entropy(
+            replay_policy.logits.reshape(-1, wm_cfg.action_dim),
+            batch.action.reshape(-1),
+        )
+        total_loss = losses.total + float(imitation_weight) * imitation_loss
+        total_loss.backward()
         torch.nn.utils.clip_grad_norm_(policy.parameters(), max_norm=10.0)
         policy_optimizer.step()
-        policy_history.append(losses.detached_scalars())
+        scalars = losses.detached_scalars()
+        scalars["imitation"] = float(imitation_loss.detach().cpu().item())
+        scalars["combined_total"] = float(total_loss.detach().cpu().item())
+        policy_history.append(scalars)
         valid_action_ids = bool(
             (rollout.action.detach() >= 0).all()
             and (rollout.action.detach() < wm_cfg.action_dim).all()
@@ -136,6 +149,7 @@ def train_stage2_privileged_from_replay(
         "batch_size": int(batch_size),
         "world_model_steps": int(world_model_steps),
         "policy_steps": int(policy_steps),
+        "imitation_weight": float(imitation_weight),
         "replay_manifest": {
             "path": str(replay_manifest_path),
             "sha256": sha256_file(Path(replay_manifest_path)),
@@ -166,8 +180,10 @@ def train_stage2_privileged_from_replay(
             "model_state_dict": policy.state_dict(),
             "config": policy_cfg.__dict__,
             "metrics": {
-                "initial_total": policy_history[0]["total"],
-                "final_total": policy_history[-1]["total"],
+                "initial_total": policy_history[0]["combined_total"],
+                "final_total": policy_history[-1]["combined_total"],
+                "final_behavior_total": policy_history[-1]["total"],
+                "final_imitation": policy_history[-1]["imitation"],
                 "final_actor": policy_history[-1]["actor"],
                 "final_critic": policy_history[-1]["critic"],
                 "final_entropy": policy_history[-1]["entropy"],
@@ -191,8 +207,10 @@ def train_stage2_privileged_from_replay(
             "sha256": sha256_file(policy_checkpoint_path),
             "config": policy_cfg.__dict__,
             "metrics": {
-                "initial_total": policy_history[0]["total"],
-                "final_total": policy_history[-1]["total"],
+                "initial_total": policy_history[0]["combined_total"],
+                "final_total": policy_history[-1]["combined_total"],
+                "final_behavior_total": policy_history[-1]["total"],
+                "final_imitation": policy_history[-1]["imitation"],
                 "valid_action_ids": valid_action_ids,
             },
         },
@@ -235,6 +253,7 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--policy-steps", type=int, default=200)
     parser.add_argument("--learning-rate", type=float, default=3e-4)
     parser.add_argument("--policy-learning-rate", type=float, default=None)
+    parser.add_argument("--imitation-weight", type=float, default=1.0)
     parser.add_argument("--hidden-dim", type=int, default=128)
     parser.add_argument("--device", default="auto")
     args = parser.parse_args(argv)
@@ -249,6 +268,7 @@ def main(argv: list[str] | None = None) -> None:
         policy_steps=args.policy_steps,
         learning_rate=args.learning_rate,
         policy_learning_rate=args.policy_learning_rate,
+        imitation_weight=args.imitation_weight,
         hidden_dim=args.hidden_dim,
         device=args.device,
     )
