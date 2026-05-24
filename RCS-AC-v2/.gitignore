@@ -34,6 +34,7 @@ experiments/**/*.pth
 experiments/**/*.ckpt
 experiments/**/*.jsonl
 experiments/**/checkpoints/
+experiments/**/replay/
 experiments/**/frames/
 experiments/**/raw_frames/
 experiments/**/sensor_frames/
