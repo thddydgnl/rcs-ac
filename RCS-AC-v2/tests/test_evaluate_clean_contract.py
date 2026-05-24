@@ -212,6 +212,8 @@ def test_clean_128_config_loads_and_pins_contracts() -> None:
     assert config["observation_contract"]["require_true_privileged_for_clean_gate"] is True
     assert config["observation_contract"]["privileged_bev_schema_version"] == SEMANTIC43_SCHEMA_VERSION
     assert config["observation_contract"]["privileged_bev_channel_names_sha256"] == SEMANTIC43_CHANNEL_NAMES_SHA256
+    assert config["checkpoint_contract"]["require_trained_provenance_for_clean_gate"] is True
+    assert config["checkpoint_contract"]["allowed_sources"] == ["windows_carla_privileged_replay"]
     assert "action_id" in config["per_step_log_fields"]
     assert "reward_total" in config["per_step_log_fields"]
 

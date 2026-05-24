@@ -137,10 +137,12 @@ or debug privileged tensors remain ineligible for clean PASS.
 The locally testable Stage 2 clean-eval adapter loop, metrics CSV writer,
 summary validator, Windows runner invocation path, shared-core CARLA adapter
 factory, simulator-state privileged observation builder, and Windows privileged
-obs probe are implemented. The local synthetic checkpoint export path is also
-implemented and verified, but those checkpoints are plumbing evidence only. The
-official run is still not run because real world-model/policy checkpoint paths
-are still null.
+obs probe are implemented. The replay collection/training path is also present:
+collect privileged CARLA replay, train replay-source world-model/policy
+checkpoints, and fill config paths/sha from the generated manifest. The local
+synthetic checkpoint export path remains plumbing evidence only, and the clean
+config rejects it by provenance. The official run is still not run because real
+world-model/policy checkpoint paths are still null.
 
 A local real-mode probe with the base null-checkpoint config exits with code 2,
 writes a valid failure summary, and classifies the setup as

@@ -71,6 +71,12 @@ checkpoints:
     path: null
     sha256: null
     commit: null
+checkpoint_contract:
+  require_trained_provenance_for_clean_gate: true
+  allowed_sources:
+    - windows_carla_privileged_replay
+  rejected_sources:
+    - local_synthetic_smoke_not_carla
 output_dir: RCS-AC-v2/experiments/02_privileged_policy_clean/windows_128
 summary_path: RCS-AC-v2/experiments/02_privileged_policy_clean/windows_128/summary.json
 metrics_path: RCS-AC-v2/experiments/02_privileged_policy_clean/windows_128/metrics.csv

@@ -8,7 +8,8 @@
 
 ```text
 Stage 2 clean eval runner는 있다.
-CARLA readiness/start는 공용 script를 사용한다.
+CARLA readiness/start는 v2-local script를 사용한다.
+Stage 2 privileged replay collection/training runner도 있다.
 ```
 
 공용 script:
@@ -40,6 +41,8 @@ run_stage5_fusion_ablation.ps1
 ```text
 check_stage2_windows_dependencies.ps1
 run_stage2_privileged_obs_probe.ps1
+collect_stage2_privileged_replay.ps1
+train_stage2_privileged_from_replay.ps1
 run_stage2_clean_eval.ps1
 ensure_carla_ready.ps1
 start_carla_interactive.ps1
@@ -52,11 +55,20 @@ start_carla_interactive.ps1
 호출, summary validation까지 제공한다.
 run_stage2_privileged_obs_probe.ps1는 clean PASS를 만들지 않는
 privileged_obs_probe.json 전용 shape/action probe다.
+collect_stage2_privileged_replay.ps1는 Windows CARLA에서 simulator-state
+semantic43/ego8 replay .npz를 수집한다. replay는 학습 입력이지 clean PASS
+증거가 아니다.
+train_stage2_privileged_from_replay.ps1는 replay로 world_model/policy
+checkpoint와 sha256 manifest를 만든다. 이 checkpoint는 clean eval 입력으로만
+사용하고, PASS 여부는 run_stage2_clean_eval.ps1 summary/metrics로만 판정한다.
 check_stage2_windows_dependencies.ps1는 CARLA 실행 전에 v2 code, v1.1
 support/code, shared_core, env config, readiness script 의존성을 검사한다.
 base config의 checkpoint path/sha256은 아직 null이므로 그대로 real mode를
 실행하면 model/world_model_checkpoint_missing 실패로 끝나는 것이 정상이다.
 synthetic checkpoint export는 plumbing 증거일 뿐 clean PASS 증거가 아니다.
+clean eval config는 local_synthetic_smoke_not_carla checkpoint를 거부하고
+windows_carla_privileged_replay source checkpoint만 official clean 입력으로
+허용한다.
 real trained checkpoint, Windows privileged obs validation, source=windows_carla
 summary.json, metrics.csv가 모두 갖춰지기 전까지 clean PASS를 기록하지 않는다.
 현재 Stage 2 runner는 v1.1-style shared-core env builder를 임시 의존성으로

@@ -55,6 +55,8 @@ def _write_stage2_checkpoints(tmp_path: Path, config: dict) -> None:
         {
             "model_state_dict": world_model.state_dict(),
             "config": wm_cfg.__dict__,
+            "stage": "stage2_privileged_policy_clean",
+            "source": "windows_carla_privileged_replay",
         },
     )
     policy_path = save_checkpoint(
@@ -62,6 +64,8 @@ def _write_stage2_checkpoints(tmp_path: Path, config: dict) -> None:
         {
             "model_state_dict": policy.state_dict(),
             "config": policy.cfg.__dict__,
+            "stage": "stage2_privileged_policy_clean",
+            "source": "windows_carla_privileged_replay",
         },
     )
     config["checkpoints"]["world_model"]["path"] = str(world_model_path)

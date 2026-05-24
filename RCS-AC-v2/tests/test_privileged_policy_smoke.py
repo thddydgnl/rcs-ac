@@ -3,11 +3,13 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
 import torch
 import yaml
 
 from rcs_ac_v2.data.schema import make_synthetic_privileged_batch
 from rcs_ac_v2.evaluation.carla_adapter import load_stage2_policy_runner
+from rcs_ac_v2.evaluation.errors import CleanEvalRuntimeFailure
 from rcs_ac_v2.evaluation.evaluate_clean import make_local_smoke_summary
 from rcs_ac_v2.privileged_stream.policy import (
     PrivilegedPolicy,
@@ -147,6 +149,7 @@ def test_privileged_policy_smoke_exports_stage2_checkpoints(tmp_path) -> None:
     config["device"] = "cpu"
     config["checkpoints"]["world_model"].update(manifest["clean_eval_config_patch"]["checkpoints"]["world_model"])
     config["checkpoints"]["policy"].update(manifest["clean_eval_config_patch"]["checkpoints"]["policy"])
+    config["checkpoint_contract"]["require_trained_provenance_for_clean_gate"] = False
     runner = load_stage2_policy_runner(config)
     output = runner.act(
         {
@@ -157,6 +160,31 @@ def test_privileged_policy_smoke_exports_stage2_checkpoints(tmp_path) -> None:
     )
     assert output["logits"].shape == (1, 1, 39)
     assert torch.isfinite(output["logits"]).all()
+
+
+def test_synthetic_smoke_checkpoints_are_rejected_for_clean_gate(tmp_path) -> None:
+    result = run_privileged_policy_smoke(
+        steps=4,
+        seed=23,
+        bev_height=16,
+        bev_width=16,
+        ego_dim=8,
+        hidden_dim=32,
+        output_dir=tmp_path,
+        export_checkpoints=True,
+    )
+    manifest = json.loads(result.manifest_path.read_text())
+    source_config = Path(__file__).resolve().parents[1] / "configs" / "eval" / "clean_128_stage2_privileged.yaml"
+    config = yaml.safe_load(source_config.read_text())
+    config["device"] = "cpu"
+    config["checkpoints"]["world_model"].update(manifest["clean_eval_config_patch"]["checkpoints"]["world_model"])
+    config["checkpoints"]["policy"].update(manifest["clean_eval_config_patch"]["checkpoints"]["policy"])
+
+    with pytest.raises(CleanEvalRuntimeFailure) as excinfo:
+        load_stage2_policy_runner(config)
+
+    assert excinfo.value.failure_class == "model"
+    assert excinfo.value.done_reason == "synthetic_checkpoint_not_clean_evidence"
 
 
 def test_local_clean_summary_is_not_carla_evidence() -> None:

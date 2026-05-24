@@ -511,6 +511,8 @@ RCS-AC-v2/scripts/windows/run_v2_carla_probe.ps1
 RCS-AC-v2/scripts/windows/run_stage1_privileged_smoke.ps1
 RCS-AC-v2/scripts/windows/check_stage2_windows_dependencies.ps1
 RCS-AC-v2/scripts/windows/run_stage2_privileged_obs_probe.ps1
+RCS-AC-v2/scripts/windows/collect_stage2_privileged_replay.ps1
+RCS-AC-v2/scripts/windows/train_stage2_privileged_from_replay.ps1
 RCS-AC-v2/scripts/windows/run_stage2_clean_eval.ps1
 RCS-AC-v2/scripts/windows/run_stage3_raw_alignment_smoke.ps1
 RCS-AC-v2/scripts/windows/run_stage4_raw_clean_eval.ps1
@@ -552,6 +554,25 @@ This writes `privileged_obs_probe.json`, not `summary.json`. It must record
 `privileged_ego [1,1,8]`, finite tensors, raw obs/info keys, and optional
 neutral-step info. It cannot be used as clean PASS evidence.
 
+After the probe passes and before official clean eval, collect privileged replay
+and train replay-source checkpoints:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File RCS-AC-v2\scripts\windows\collect_stage2_privileged_replay.ps1 `
+  -ConfigPath RCS-AC-v2\configs\eval\clean_128_stage2_privileged.yaml `
+  -OutputDir RCS-AC-v2\experiments\02_privileged_policy_clean\replay\windows_privileged `
+  -Episodes 4 `
+  -MaxSteps 256
+
+powershell -ExecutionPolicy Bypass -File RCS-AC-v2\scripts\windows\train_stage2_privileged_from_replay.ps1 `
+  -ReplayPath RCS-AC-v2\experiments\02_privileged_policy_clean\replay\windows_privileged `
+  -OutputDir RCS-AC-v2\experiments\02_privileged_policy_clean\checkpoints\windows_replay
+```
+
+Replay `.npz` and checkpoint `.pt` files are heavy local artifacts. Do not put
+them in GitHub. Commit only small manifests/result notes and use sha256 values
+from the manifest to fill the clean config.
+
 The clean-128 config now points at the default factory:
 
 ```text
@@ -560,8 +581,9 @@ rcs_ac_v2.evaluation.carla_adapter:create_stage2_carla_adapter
 
 Use `-AdapterFactory module:function` only to override the config for a
 Windows-local probe. With the current null checkpoint paths, real mode must exit
-nonzero with `failure_class=model` before CARLA env construction. That is a
-classified setup failure, not clean evidence.
+nonzero with `failure_class=model` before CARLA env construction. Synthetic
+smoke checkpoints are also rejected by provenance. Both are classified setup
+failures, not clean evidence.
 
 The v2 runner now carries its own readiness scripts:
 

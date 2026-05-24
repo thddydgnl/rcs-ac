@@ -128,6 +128,14 @@ Completed Windows clean-eval preparation:
 - Hardened clean eval so derived/raw-debug privileged tensors cannot become
   clean evidence. A clean run now rejects missing provenance, schema mismatch,
   channel-hash mismatch, and `derived_debug_from_raw_v1` style observations.
+- Added the first real-checkpoint path after the Windows privileged probe:
+  `privileged_replay.py` for simulator-state semantic43/ego8 replay IO,
+  `collect_stage2_privileged_replay.py` plus a Windows runner for CARLA replay
+  collection, and `train_stage2_privileged_from_replay.py` plus a Windows
+  runner for replay-trained world-model/policy checkpoint export.
+- Added checkpoint provenance enforcement. The base clean config now accepts
+  only checkpoint payloads with `source=windows_carla_privileged_replay` and
+  rejects `local_synthetic_smoke_not_carla` before clean eval can start.
 - Added a direct_3d reverse-action guard. If the policy selects a Raw2Drive
   action with `reverse=True`, the adapter fails as `contract` instead of
   silently dropping reverse in the shared env bridge.
@@ -168,7 +176,7 @@ PYTHONDONTWRITEBYTECODE=1 python -m pytest RCS-AC-v2/tests -q -p no:cacheprovide
 Result:
 
 ```text
-93 passed in 2.38s
+97 passed in 2.30s
 ```
 
 Additional policy-driven rollout smoke:
@@ -293,7 +301,7 @@ mistaken for official Windows evidence.
 
 ## Gate
 
-Status: `V2_BRANCH_PUSHED__WINDOWS_PRIVILEGED_OBS_PROBE_PASS__REAL_TRAINED_CHECKPOINTS_PENDING__CARLA_CLEAN_PENDING`
+Status: `V2_BRANCH_PUSHED__WINDOWS_PRIVILEGED_OBS_PROBE_PASS__REPLAY_TRAINING_PATH_READY__REAL_TRAINED_CHECKPOINTS_PENDING__CARLA_CLEAN_PENDING`
 
 Required local evidence:
 
@@ -324,6 +332,8 @@ Windows dependency probe: PASS on scratch archive runtime at commit 5b00347; v2-
 privileged obs probe: PASS on Windows CARLA Town04 at commit 5b00347 with clean_gate_evidence=false before any clean PASS attempt
 privileged provenance: source=carla_simulator_state, schema=carla_simulator_semantic43_v1, hash=382e53122998198ad8f392c7298465057d364b23cf1fedb32465872ae43320a3
 privileged tensors: BEV [1,1,43,16,16] finite, ego [1,1,8] finite, neutral step collision/offroad/stuck false
+replay checkpoint path: replay IO/sampler, fake collector test, two-step replay training export, and strict checkpoint loader all pass locally
+checkpoint provenance gate: local_synthetic_smoke_not_carla checkpoints are rejected by the official clean config
 ```
 
 ## Blockers
@@ -335,10 +345,11 @@ clean official Windows sync lane is used, CARLA readiness guard passes, and
 
 The generic Stage 2 adapter loop, shared-core CARLA factory, checkpoint loader,
 local synthetic checkpoint export path, simulator-state privileged observation
-builder, and Windows privileged-observation probe are implemented. The official
-checkpoint paths are still intentionally null in the base clean config. A
-non-dry-run with current null checkpoint paths still exits nonzero with
-`failure_class=model` and a valid failure summary.
+builder, Windows privileged-observation probe, replay collector, replay trainer,
+and checkpoint provenance gate are implemented. The official checkpoint paths
+are still intentionally null in the base clean config. A non-dry-run with
+current null checkpoint paths still exits nonzero with `failure_class=model`
+and a valid failure summary.
 
 The current Stage 2 runner still has a temporary reproducibility dependency on
 `RCS-AC-v1.1` shared-core env builder code and sibling `shared_core`. The
@@ -351,7 +362,8 @@ as the official sync source in this round.
 ## Next Action
 
 Produce/promote real Stage 1 world-model and Stage 2 privileged-policy
-checkpoints, fill checkpoint paths and sha256 in the clean-128 config, resolve
-the official Windows git-pull/clean-clone lane, commit/push v2 work, then run
-the official Windows sequence: 128-step single-start first, then 512 primary
-subset, then 2048 subset if safe.
+checkpoints by collecting Windows CARLA privileged replay, training replay-source
+checkpoints, filling checkpoint paths and sha256 in the clean-128 config,
+resolving the official Windows git-pull/clean-clone lane, then running the
+official Windows sequence: 128-step single-start first, then 512 primary subset,
+then 2048 subset if safe.

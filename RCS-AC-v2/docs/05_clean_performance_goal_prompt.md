@@ -94,6 +94,10 @@ synthetic overfit, tiny replay overfit, finite losses, finite rollout, checkpoin
 
 Stage 2 - Privileged policy clean:
 Train actor-critic inside the privileged world model and evaluate clean closed-loop on Windows CARLA.
+After privileged observation probe passes, collect simulator-state semantic43/ego8
+Windows CARLA replay, train checkpoints with
+source=windows_carla_privileged_replay, and reject synthetic smoke checkpoints
+for official clean eval.
 Gate sequence:
 128-step clean smoke: collision/offroad/stuck = 0
 512-step primary subset: no systematic collision/offroad/stuck

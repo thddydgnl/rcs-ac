@@ -1,7 +1,7 @@
 # Stage 2 Checkpoint Export
 
 Date: 2026-05-24
-Status: `LOCAL_EXPORT_PATH_READY__REAL_CARLA_CHECKPOINTS_PENDING`
+Status: `SYNTHETIC_EXPORT_REJECTED_FOR_CLEAN__REPLAY_TRAINING_PATH_READY__REAL_CARLA_CHECKPOINTS_PENDING`
 
 ## Purpose
 
@@ -18,9 +18,10 @@ commands, sha256 hashes, and result notes remain the reproducibility evidence.
 
 ## Local Smoke Export Command
 
-This creates a synthetic smoke pair that proves checkpoint payloads, sha256
-manifest generation, and `evaluate_clean` policy loading. It is not clean
-performance evidence.
+This creates a synthetic smoke pair that proves checkpoint payloads and sha256
+manifest generation. It is not clean performance evidence, and the official
+clean config now rejects it unless the checkpoint provenance gate is explicitly
+disabled for a local loader-only test.
 
 ```bash
 PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=RCS-AC-v2/code python -m rcs_ac_v2.training.train_stage1_privileged_policy \
@@ -78,6 +79,53 @@ checkpoints:
     commit: <PRODUCING_COMMIT_OR_NULL>
 ```
 
+The checkpoint payloads must also carry:
+
+```text
+stage = stage2_privileged_policy_clean
+source = windows_carla_privileged_replay
+```
+
+The base clean config rejects `local_synthetic_smoke_not_carla` checkpoints and
+checkpoints with missing/unknown source.
+
+## Replay-Based Real Checkpoint Path
+
+After the privileged observation probe passes, collect Windows CARLA privileged
+replay:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File RCS-AC-v2\scripts\windows\collect_stage2_privileged_replay.ps1 `
+  -ConfigPath RCS-AC-v2\configs\eval\clean_128_stage2_privileged.yaml `
+  -OutputDir RCS-AC-v2\experiments\02_privileged_policy_clean\replay\windows_privileged `
+  -Episodes 4 `
+  -MaxSteps 256
+```
+
+This writes `.npz` episodes with semantic43 BEV, ego8, action, reward, continue,
+and simulator-state provenance. Replay `.npz` files are heavy training inputs
+and should stay out of git.
+
+Then train loader-compatible real checkpoints:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File RCS-AC-v2\scripts\windows\train_stage2_privileged_from_replay.ps1 `
+  -ReplayPath RCS-AC-v2\experiments\02_privileged_policy_clean\replay\windows_privileged `
+  -OutputDir RCS-AC-v2\experiments\02_privileged_policy_clean\checkpoints\windows_replay `
+  -SequenceLength 16 `
+  -BatchSize 8 `
+  -WorldModelSteps 200 `
+  -PolicySteps 200
+```
+
+Expected real-training files:
+
+```text
+stage2_privileged_world_model_replay.pt
+stage2_privileged_policy_replay.pt
+stage2_privileged_replay_checkpoint_manifest.json
+```
+
 Do not claim PASS from synthetic smoke checkpoints. PASS requires the Windows
 CARLA clean gate summary and metrics to validate with `source=windows_carla`,
 `steps=horizon`, `done_reason=horizon_reached`, zero safety violations,
@@ -85,6 +133,7 @@ CARLA clean gate summary and metrics to validate with `source=windows_carla`,
 
 ## Next Real Step
 
-Replace the synthetic smoke checkpoint pair with checkpoints trained from the
-Raw2Drive Stage 1/2 data path, then run the Windows 128-step clean gate after
-commit/push and `git pull --ff-only`.
+Collect enough Windows CARLA privileged replay, train replay-source checkpoints,
+fill the clean config checkpoint paths/sha from
+`stage2_privileged_replay_checkpoint_manifest.json`, then run the Windows
+128-step clean gate after commit/push and a clean Windows sync lane.

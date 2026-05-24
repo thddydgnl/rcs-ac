@@ -251,6 +251,11 @@ def load_stage2_policy_runner(config: dict[str, Any]) -> Stage2PrivilegedPolicyR
         _state_dict_from_payload(policy_payload, preferred="model_state_dict", role="policy"),
         role="policy",
     )
+    _validate_checkpoint_provenance(
+        world_model_payload=world_model_payload,
+        policy_payload=policy_payload,
+        config=config,
+    )
     return Stage2PrivilegedPolicyRunner(world_model, policy, device=device)
 
 
@@ -373,6 +378,45 @@ def _load_state_dict_checked(module: torch.nn.Module, state_dict: dict[str, Any]
             f"{role}_state_dict_load_failed",
             f"{type(exc).__name__}: {exc}",
         ) from exc
+
+
+def _validate_checkpoint_provenance(
+    *,
+    world_model_payload: dict[str, Any],
+    policy_payload: dict[str, Any],
+    config: dict[str, Any],
+) -> None:
+    contract = config.get("checkpoint_contract", {})
+    if not contract.get("require_trained_provenance_for_clean_gate", False):
+        return
+    allowed_sources = {
+        str(item)
+        for item in contract.get("allowed_sources", ("windows_carla_privileged_replay",))
+    }
+    rejected_sources = {
+        str(item)
+        for item in contract.get("rejected_sources", ("local_synthetic_smoke_not_carla",))
+    }
+    for role, payload in (("world_model", world_model_payload), ("policy", policy_payload)):
+        source = str(payload.get("source", "UNSET"))
+        if source in rejected_sources:
+            raise CleanEvalRuntimeFailure(
+                "model",
+                "synthetic_checkpoint_not_clean_evidence",
+                f"{role} checkpoint source {source!r} is not eligible for clean eval.",
+            )
+        if source not in allowed_sources:
+            raise CleanEvalRuntimeFailure(
+                "model",
+                f"{role}_checkpoint_provenance_invalid",
+                f"{role} checkpoint source {source!r} must be one of {sorted(allowed_sources)}.",
+            )
+        if str(payload.get("stage", "UNSET")) != "stage2_privileged_policy_clean":
+            raise CleanEvalRuntimeFailure(
+                "model",
+                f"{role}_checkpoint_stage_invalid",
+                f"{role} checkpoint stage must be stage2_privileged_policy_clean.",
+            )
 
 
 def _validate_world_model_config(cfg: PrivilegedWorldModelConfig, config: dict[str, Any]) -> None:
