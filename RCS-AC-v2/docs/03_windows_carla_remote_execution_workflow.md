@@ -597,6 +597,22 @@ RCS-AC-v2/scripts/windows/ensure_carla_ready.ps1
 RCS-AC-v2/scripts/windows/start_carla_interactive.ps1
 ```
 
+Default CARLA launch is intentionally low-load for the Windows workstation:
+
+```text
+-quality-level=Low
+-nosound
+-windowed
+-ResX=640
+-ResY=360
+-benchmark -fps=10
+```
+
+This follows the v1.1 remote workflow, which already used `Low`, `800x600`,
+`-nosound`, and `-windowed`, but lowers the resolution further and caps FPS to
+reduce heat during repeated replay collection/eval. Do not use `-nullrhi` in
+the official clean lane because it can invalidate rendered sensor paths.
+
 The remaining temporary dependency is the shared-core env runtime:
 
 ```text

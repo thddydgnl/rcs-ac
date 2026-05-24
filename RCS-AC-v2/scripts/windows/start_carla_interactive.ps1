@@ -3,8 +3,9 @@ param(
     [string]$CarlaExe = "C:\Users\thddy\Documents\CARLA_0.9.16\CarlaUE4.exe",
     [int]$CarlaPort = 2000,
     [string]$QualityLevel = "Low",
-    [int]$ResX = 800,
-    [int]$ResY = 600,
+    [int]$ResX = 640,
+    [int]$ResY = 360,
+    [int]$FpsCap = 10,
     [int]$StartupTimeoutSeconds = 180,
     [int]$PostPortSettleSeconds = 10,
     [string]$InteractiveUser = "song\song"
@@ -20,6 +21,9 @@ if (-not (Test-Path $CarlaExe)) {
 }
 
 $arguments = "-carla-rpc-port=$CarlaPort -quality-level=$QualityLevel -nosound -windowed -ResX=$ResX -ResY=$ResY"
+if ($FpsCap -gt 0) {
+    $arguments = "$arguments -benchmark -fps=$FpsCap"
+}
 $workingDirectory = Split-Path -Parent $CarlaExe
 
 Unregister-ScheduledTask -TaskName $TaskName -Confirm:$false -ErrorAction SilentlyContinue

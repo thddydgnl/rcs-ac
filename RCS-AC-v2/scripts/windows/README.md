@@ -19,6 +19,21 @@ RCS-AC-v2/scripts/windows/ensure_carla_ready.ps1
 RCS-AC-v2/scripts/windows/start_carla_interactive.ps1
 ```
 
+CARLA는 Windows 과열/다운을 줄이기 위해 v2-local start script에서 기본
+저부하 모드로 시작한다:
+
+```text
+quality-level: Low
+resolution: 640x360
+audio: disabled
+window mode: windowed
+fps cap: 10 via -benchmark -fps=10
+```
+
+이전 v1.1 방식도 `Low`, `800x600`, `-nosound`, `-windowed`였고, v2는 여기에
+더 낮은 해상도와 FPS cap을 추가한다. `-nullrhi`처럼 sensor/render 경로를
+깨뜨릴 수 있는 옵션은 clean evidence lane에서 쓰지 않는다.
+
 v2 CARLA 실행 절차 문서:
 
 ```text

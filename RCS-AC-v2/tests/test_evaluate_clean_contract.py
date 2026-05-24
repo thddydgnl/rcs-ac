@@ -607,6 +607,11 @@ def test_v2_local_carla_readiness_scripts_are_tracked_contract() -> None:
     assert "CARLA_READY=True" in ensure_text
     assert "RCSV2CarlaStart" in start_text
     assert "CarlaUE4.exe" in start_text
+    assert '[string]$QualityLevel = "Low"' in start_text
+    assert "[int]$ResX = 640" in start_text
+    assert "[int]$ResY = 360" in start_text
+    assert "[int]$FpsCap = 10" in start_text
+    assert "-benchmark -fps=$FpsCap" in start_text
 
 
 def test_stage2_privileged_obs_probe_runner_is_not_clean_eval_static() -> None:
