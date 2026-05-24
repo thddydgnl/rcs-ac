@@ -473,6 +473,7 @@ def test_detached_replay_training_check_static_contract() -> None:
     assert "TRAIN_RUNNING=$Running" in text
     assert "TRAIN_TASK_NAME=$TaskName" in text
     assert "TRAIN_TASK_STATE=$TaskState" in text
+    assert '[System.IO.File]::ReadAllText((Resolve-Path $LogPath).Path) -replace "`0", ""' in text
     assert "TRAIN_EXIT_CODE=$ExitCode" in text
     assert "TRAIN_READY_FOR_PROBE=$ReadyForProbe" in text
     assert "TRAIN_LOG_TAIL_BEGIN" in text

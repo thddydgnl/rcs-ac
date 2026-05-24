@@ -35,7 +35,8 @@ if ($TaskName -ne "") {
 
 $ExitCode = "UNSET"
 if ($LogExists) {
-    $ExitLine = Get-Content $LogPath | Where-Object { $_ -like "TRAIN_EXIT_CODE=*" } | Select-Object -Last 1
+    $LogText = [System.IO.File]::ReadAllText((Resolve-Path $LogPath).Path) -replace "`0", ""
+    $ExitLine = $LogText -split "\r?\n" | Where-Object { $_ -like "TRAIN_EXIT_CODE=*" } | Select-Object -Last 1
     if ($null -ne $ExitLine) {
         $ExitCode = ($ExitLine -replace "^TRAIN_EXIT_CODE=", "").Trim()
     }
