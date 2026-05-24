@@ -522,6 +522,22 @@ def test_cross_replay_candidate_probe_runner_static_contract() -> None:
     assert "--min-latent-test-accuracy" in text
 
 
+def test_mixed_replay_manifest_runner_static_contract() -> None:
+    script = Path(__file__).resolve().parents[1] / "scripts" / "windows" / "make_stage2_mixed_replay_manifest.ps1"
+    text = script.read_text()
+    assert "windows_privileged_7f87656_mixed_target22_steer2" in text
+    assert "PrimaryReplayDir" in text
+    assert "SecondaryReplayDir" in text
+    assert "stage2_privileged_replay_manifest.json" in text
+    assert "write_privileged_replay_manifest" in text
+    assert "validate_replay_manifest" in text
+    assert "mixed_replay_manifest_from_existing_windows_replays" in text
+    assert '"git", "rev-parse", "HEAD"' in text
+    assert "MIXED_REPLAY_EPISODES=" in text
+    assert "MIXED_REPLAY_TOTAL_STEPS=" in text
+    assert "[switch]$Force" in text
+
+
 def test_candidate_gate_summary_runner_static_contract() -> None:
     script = Path(__file__).resolve().parents[1] / "scripts" / "windows" / "summarize_stage2_candidate_gate.ps1"
     text = script.read_text()
