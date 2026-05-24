@@ -440,10 +440,13 @@ def test_windows_runner_can_mirror_validated_artifacts_static() -> None:
     assert 'Join-Path $ResolvedRunOutputDir "metrics.csv"' in text
     assert "Split-Path -Leaf $ConfigPath" in text
     assert "$WindowsCommand = \"$WindowsCommand -RunOutputDir $RunOutputDir\"" in text
-    assert "RCS_AC_V2_EVAL_CONFIG_PATH" in text
-    assert "load_clean_eval_config" in text
-    assert '$SummaryPath = [string]$ConfiguredPaths[0]' in text
-    assert '$MetricsPath = [string]$ConfiguredPaths[1]' in text
+    assert "--print-output-paths" in text
+    assert "SUMMARY_PATH=*" in text
+    assert "METRICS_PATH=*" in text
+    assert '$SummaryPath = ([string]$SummaryPathLine).Substring("SUMMARY_PATH=".Length)' in text
+    assert '$MetricsPath = ([string]$MetricsPathLine).Substring("METRICS_PATH=".Length)' in text
+    assert '$SummaryPath = [string]$ConfiguredPaths[0]' not in text
+    assert '$MetricsPath = [string]$ConfiguredPaths[1]' not in text
     assert '$SummaryPath = "RCS-AC-v2\\experiments\\02_privileged_policy_clean\\windows_128\\summary.json"' not in text
     assert validation_index < mirror_index
 
@@ -719,3 +722,12 @@ def test_cli_dry_run_and_validate_summary(tmp_path, capsys) -> None:
     captured = capsys.readouterr()
     assert "DRY_RUN_SUMMARY=" in captured.out
     assert "SUMMARY_VALID=" in captured.out
+
+
+def test_cli_print_output_paths_uses_configured_paths(tmp_path, capsys) -> None:
+    config_path = _write_temp_config(tmp_path, horizon=512)
+
+    assert main(["--config", str(config_path), "--print-output-paths"]) == 0
+    captured = capsys.readouterr()
+    assert f"SUMMARY_PATH={tmp_path / 'windows_128' / 'summary.json'}" in captured.out
+    assert f"METRICS_PATH={tmp_path / 'windows_128' / 'metrics.csv'}" in captured.out

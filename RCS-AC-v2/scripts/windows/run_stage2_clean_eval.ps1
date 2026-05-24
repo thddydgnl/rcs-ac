@@ -139,25 +139,20 @@ if ($AdapterFactory -ne "") {
     $EvalArgs += @("--adapter-factory", $AdapterFactory)
 }
 
-$ConfigPathProbe = @'
-import os
-from rcs_ac_v2.evaluation.evaluate_clean import load_clean_eval_config
-
-config = load_clean_eval_config(os.environ["RCS_AC_V2_EVAL_CONFIG_PATH"])
-print(config["summary_path"])
-print(config["metrics_path"])
-'@
-$env:RCS_AC_V2_EVAL_CONFIG_PATH = $ConfigPath
-$ConfiguredPaths = & py -3.12 -B -c $ConfigPathProbe
+$ConfiguredPaths = & py -3.12 -B -m rcs_ac_v2.evaluation.evaluate_clean `
+    --config $ConfigPath `
+    --print-output-paths
 if ($LASTEXITCODE -ne 0) {
     exit $LASTEXITCODE
 }
-if ($ConfiguredPaths.Count -lt 2) {
+$SummaryPathLine = $ConfiguredPaths | Where-Object { $_ -like "SUMMARY_PATH=*" } | Select-Object -First 1
+$MetricsPathLine = $ConfiguredPaths | Where-Object { $_ -like "METRICS_PATH=*" } | Select-Object -First 1
+if ($null -eq $SummaryPathLine -or $null -eq $MetricsPathLine) {
     Write-Host "CONFIGURED_SUMMARY_METRICS_PATHS_MISSING=True"
     exit 2
 }
-$SummaryPath = [string]$ConfiguredPaths[0]
-$MetricsPath = [string]$ConfiguredPaths[1]
+$SummaryPath = ([string]$SummaryPathLine).Substring("SUMMARY_PATH=".Length)
+$MetricsPath = ([string]$MetricsPathLine).Substring("METRICS_PATH=".Length)
 
 Write-Host "STAGE2_CLEAN_EVAL_READY=True"
 Write-Host "CONFIG_PATH=$ConfigPath"

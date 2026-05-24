@@ -659,7 +659,16 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--windows-command", type=str, default="UNSET")
     parser.add_argument("--carla-version", type=str, default="UNSET")
     parser.add_argument("--validate-summary", type=str, default=None)
+    parser.add_argument("--print-output-paths", action="store_true", help="print configured summary/metrics paths")
     args = parser.parse_args(argv)
+
+    if args.print_output_paths:
+        if args.config is None:
+            raise SystemExit("--config is required for --print-output-paths")
+        config = load_clean_eval_config(args.config)
+        print(f"SUMMARY_PATH={config['summary_path']}")
+        print(f"METRICS_PATH={config['metrics_path']}")
+        return 0
 
     if args.validate_summary:
         data = json.loads(Path(args.validate_summary).read_text())
@@ -690,7 +699,7 @@ def main(argv: list[str] | None = None) -> int:
         print(f"CARLA_SUMMARY={Path(summary.output_path) / 'summary.json'}")
         return 0 if summary.clean_gate_pass else 2
 
-    raise SystemExit("Use --dry-run, --run-carla, or --validate-summary.")
+    raise SystemExit("Use --dry-run, --run-carla, --validate-summary, or --print-output-paths.")
 
 
 def _make_failure_summary(

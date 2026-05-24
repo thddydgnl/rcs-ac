@@ -270,7 +270,7 @@ PYTHONDONTWRITEBYTECODE=1 python -m pytest RCS-AC-v2/tests -q -p no:cacheprovide
 Local result:
 
 ```text
-105 passed in 2.65s
+106 passed in 2.69s
 ```
 
 Local policy smoke:

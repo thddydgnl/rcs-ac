@@ -224,7 +224,7 @@ PYTHONDONTWRITEBYTECODE=1 python -m pytest RCS-AC-v2/tests -q -p no:cacheprovide
 Result:
 
 ```text
-105 passed in 2.65s
+106 passed in 2.69s
 ```
 
 Additional policy-driven rollout smoke:
