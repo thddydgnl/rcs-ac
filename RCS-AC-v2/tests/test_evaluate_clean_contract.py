@@ -466,6 +466,11 @@ def test_detached_replay_training_wrapper_static_contract() -> None:
     assert "TRAIN_LOG_PATH=$ResolvedLogPath" in text
     assert "TRAIN_SCRIPT_PATH=$InnerScriptPath" in text
     assert "TRAIN_TASK_NAME=$TaskName" in text
+    assert "TRAIN_LAUNCH_MANIFEST_PATH=$LaunchManifestPath" in text
+    assert "train_stage2_privileged_from_replay.launch.json" in text
+    assert "TRAIN_TASK_ALREADY_RUNNING=True" in text
+    assert "git_commit = $GitCommit" in text
+    assert "python_version = $PythonVersion" in text
     assert "TRAIN_TASK_STARTED=True" in text
     assert "DETACHED_TRAIN_STARTED=`$(Get-Date -Format o)" in text
     assert "TRAIN_EXCEPTION=" in text
@@ -483,12 +488,49 @@ def test_detached_replay_training_check_static_contract() -> None:
     assert "TRAIN_RUNNING=$Running" in text
     assert "TRAIN_TASK_NAME=$TaskName" in text
     assert "TRAIN_TASK_STATE=$TaskState" in text
+    assert "TRAIN_LAUNCH_MANIFEST_EXISTS=$(Test-Path $LaunchManifestPath)" in text
+    assert "TRAIN_MANIFEST_VALID=$ManifestValid" in text
+    assert "TRAIN_CHECKPOINT_FILES_VALID=$CheckpointFilesValid" in text
+    assert "Get-FileHash -Algorithm SHA256" in text
     assert '[System.IO.File]::ReadAllText((Resolve-Path $LogPath).Path) -replace "`0", ""' in text
     assert "TRAIN_EXIT_CODE=$ExitCode" in text
     assert "TRAIN_READY_FOR_PROBE=$ReadyForProbe" in text
     assert "TRAIN_LOG_TAIL_BEGIN" in text
     assert "exit 3" in text
     assert "exit 2" in text
+
+
+def test_cross_replay_candidate_probe_runner_static_contract() -> None:
+    script = Path(__file__).resolve().parents[1] / "scripts" / "windows" / "probe_stage2_candidate_cross_replays.ps1"
+    text = script.read_text()
+    assert "probe_stage2_checkpoint_actions.ps1" in text
+    assert "probe_stage2_replay_latents.ps1" in text
+    assert "PrimaryReplayManifestPath is required" in text
+    assert "STAGE2_CANDIDATE_CROSS_REPLAY_PROBES_READY=True" in text
+    assert "STAGE2_CROSS_REPLAY_PROBE_BEGIN=$ReplayName" in text
+    assert "STAGE2_CANDIDATE_CROSS_REPLAY_PROBES_COMPLETE=True" in text
+    assert "$PrimaryReplayName" in text
+    assert "$SecondaryReplayName" in text
+    assert "-MaxNonzeroSteerFraction" in text
+    assert "$LatentProbeTrainSteps" in text
+
+
+def test_target24_candidate_cycle_runner_static_contract() -> None:
+    script = Path(__file__).resolve().parents[1] / "scripts" / "windows" / "run_stage2_target24_candidate_cycle.ps1"
+    text = script.read_text()
+    assert "check_stage2_replay_training_detached.ps1" in text
+    assert "start_stage2_replay_training_detached.ps1" in text
+    assert "probe_stage2_candidate_cross_replays.ps1" in text
+    assert "STAGE2_TARGET24_CANDIDATE_CYCLE_READY=True" in text
+    assert "TARGET24_CHECK_EXIT_CODE=$CheckExitCode" in text
+    assert "TARGET24_TRAIN_READY_FOR_PROBE=True" in text
+    assert "TARGET24_TRAIN_RUNNING=True" in text
+    assert "TARGET24_RERUN_OUTPUT_DIR=$RerunOutputDir" in text
+    assert "[switch]$StartIfMissing" in text
+    assert "[switch]$ProbeWhenReady" in text
+    assert "-WorldModelActionAuxWeight $WorldModelActionAuxWeight" in text
+    assert "-PrimaryReplayName \"target24\"" in text
+    assert "-SecondaryReplayName \"steer2\"" in text
 
 
 def test_windows_dependency_probe_static_contract() -> None:
