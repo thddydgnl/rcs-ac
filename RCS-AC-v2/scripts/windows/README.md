@@ -1,0 +1,65 @@
+# RCS-AC v2 Windows Scripts
+
+작성일: 2026-05-24
+
+이 폴더는 v2 전용 Windows CARLA runner를 둘 자리다.
+
+현재 상태:
+
+```text
+Stage 2 clean eval runner는 있다.
+CARLA readiness/start는 공용 script를 사용한다.
+```
+
+공용 script:
+
+```text
+shared/scripts/windows/ensure_carla_ready.ps1
+shared/scripts/windows/start_carla_interactive.ps1
+```
+
+v2 CARLA 실행 절차 문서:
+
+```text
+RCS-AC-v2/docs/03_windows_carla_remote_execution_workflow.md
+RCS-AC-v2/docs/04_git_sync_artifact_cleanup_policy.md
+```
+
+나중에 추가할 v2 runner:
+
+```text
+run_v2_carla_probe.ps1
+run_stage1_privileged_smoke.ps1
+run_stage3_raw_alignment_smoke.ps1
+run_stage4_raw_clean_eval.ps1
+run_stage5_fusion_ablation.ps1
+```
+
+현재 추가된 v2 runner:
+
+```text
+run_stage2_clean_eval.ps1
+```
+
+주의:
+
+```text
+현재 Stage 2 runner는 dry-run, CARLA readiness guard, real-mode evaluate_clean
+호출, summary validation까지 제공한다.
+base config의 checkpoint path/sha256은 아직 null이므로 그대로 real mode를
+실행하면 model/world_model_checkpoint_missing 실패로 끝나는 것이 정상이다.
+synthetic checkpoint export는 plumbing 증거일 뿐 clean PASS 증거가 아니다.
+real trained checkpoint, Windows privileged obs validation, source=windows_carla
+summary.json, metrics.csv가 모두 갖춰지기 전까지 clean PASS를 기록하지 않는다.
+현재 Stage 2 runner는 v1.1-style shared-core env builder와 shared readiness
+script를 임시 의존성으로 사용한다. 공식 Windows run 전에는 이 의존성이
+Windows checkout에 존재하는지 확인하거나 v2 전용 runner/env builder로 옮긴다.
+```
+
+원칙:
+
+```text
+Windows는 CARLA와 heavy runtime만 담당한다.
+Codex, sub-agent, 분석, 문서화는 Mac에서 진행한다.
+각 runner는 실행 command, output path, summary json path를 명시적으로 출력해야 한다.
+```

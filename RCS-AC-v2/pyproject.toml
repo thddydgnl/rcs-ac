@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "rcs-ac-v2"
+version = "0.0.0"
+description = "Raw2Drive-style RCS-AC v2 implementation"
+requires-python = ">=3.12"
+dependencies = ["torch", "PyYAML"]
+
+[tool.setuptools]
+package-dir = {"" = "code"}
+
+[tool.setuptools.packages.find]
+where = ["code"]
