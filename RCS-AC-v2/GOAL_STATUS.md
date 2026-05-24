@@ -153,7 +153,7 @@ Windows runner PYTHONPATH now includes v2 code, optional legacy support/code ove
 Windows clean eval runner now accepts -RunOutputDir to copy validated summary.json, metrics.csv, and the exact input config into a run-id evidence directory after summary validation. This is transport-only mirroring and does not change clean gate status or PASS criteria.
 BC checkpoint action probe on windows_replay_b20d8eb_bc_pilot failed the pre-clean gate: probed_actions=512, action_counts={34:512}, reverse_action_count=0, nonzero_throttle_fraction=0.0, single_action_collapse=true, recommended_for_clean_rerun=false. No clean rerun was attempted for that checkpoint.
 Replay label diagnosis found the old official replay had 388/512 zero-throttle action_id=34 labels, and TargetSpeedKmh overrides were ignored because env info.target_speed_kmh took precedence. Commit 30b7313 fixed explicit TargetSpeedKmh precedence; commit 9c24ff7 removed waypoint target_distance<2 as a zero-throttle label source. The 9c24ff7 fast35 replay collected on Windows has action_counts={7:264,15:248}, nonzero_throttle_fraction=1.0, reverse_fraction=0.0, and clean_gate_evidence=false.
-Windows scripts README now reflects the implemented Stage 2 runner, v2-local readiness scripts, dependency probe, privileged obs probe, replay collector, replay trainer, detached replay training wrapper, and v2-local minimal shared_core env builder bridge.
+Windows scripts README now reflects the implemented Stage 2 runner, v2-local readiness scripts, dependency probe, privileged obs probe, replay collector, replay trainer, detached replay training start/check wrappers, and v2-local minimal shared_core env builder bridge.
 RCS-AC-v2 subtree was committed and pushed to origin/codex/rcs-ac-v2-raw2drive. Unrelated root worktree changes were not staged.
 ```
 
@@ -180,6 +180,7 @@ use official clean clone C:\Users\thddy\Documents\code\RCS-AC-first-official-v2-
 pull latest origin/codex/rcs-ac-v2-raw2drive before every Windows run
 retrain from RCS-AC-v2\experiments\02_privileged_policy_clean\replay\windows_privileged_9c24ff7_fast35_pilot after Windows SSH/Tailscale returns
 use scripts/windows/start_stage2_replay_training_detached.ps1 for long replay training because foreground SSH timed out during the first 9c24ff7 training attempt
+poll scripts/windows/check_stage2_replay_training_detached.ps1 until TRAIN_READY_FOR_PROBE=True before action probe
 run scripts/windows/probe_stage2_checkpoint_actions.ps1 against the new fast35 checkpoint with -MaxStepsPerFile 128 and confirm reverse_action_count=0, single_action_collapse=false, nonzero_throttle_fraction>=0.5, previous_stuck_action8_fraction<=0.05, and recommended_for_clean_rerun=true
 rerun scripts/windows/run_stage2_clean_eval.ps1 with the generated fast35 checkpoint-filled config and -RunOutputDir pointing at experiments/02_privileged_policy_clean/windows_128/<fast35_run_id> only if the action probe recommends it
 classify the next 128-step clean result before changing raw/fusion stages

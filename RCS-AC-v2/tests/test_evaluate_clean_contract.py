@@ -457,6 +457,20 @@ def test_detached_replay_training_wrapper_static_contract() -> None:
     assert "TRAIN_DETACHED_DRY_RUN=True" in text
 
 
+def test_detached_replay_training_check_static_contract() -> None:
+    script = Path(__file__).resolve().parents[1] / "scripts" / "windows" / "check_stage2_replay_training_detached.ps1"
+    text = script.read_text()
+    assert "stage2_privileged_replay_checkpoint_manifest.json" in text
+    assert "TRAIN_LOG_EXISTS=$LogExists" in text
+    assert "TRAIN_MANIFEST_EXISTS=$ManifestExists" in text
+    assert "TRAIN_RUNNING=$Running" in text
+    assert "TRAIN_EXIT_CODE=$ExitCode" in text
+    assert "TRAIN_READY_FOR_PROBE=$ReadyForProbe" in text
+    assert "TRAIN_LOG_TAIL_BEGIN" in text
+    assert "exit 3" in text
+    assert "exit 2" in text
+
+
 def test_windows_dependency_probe_static_contract() -> None:
     script = Path(__file__).resolve().parents[1] / "scripts" / "windows" / "check_stage2_windows_dependencies.ps1"
     text = script.read_text()
