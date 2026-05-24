@@ -46,6 +46,7 @@ train_stage2_privileged_from_replay.ps1
 start_stage2_replay_training_detached.ps1
 check_stage2_replay_training_detached.ps1
 probe_stage2_checkpoint_actions.ps1
+probe_stage2_candidate_cross_replays.ps1
 run_stage2_clean_eval.ps1
 ensure_carla_ready.ps1
 start_carla_interactive.ps1
@@ -104,6 +105,10 @@ nonzero-throttle fraction 0.5 이상, moving/nonzero steer fraction 0.02 이상,
 moving/nonzero steer count 12 이상, moving/nonzero steer fraction 0.5 이하,
 dominant action fraction 0.85 이하, action_id=8 fraction 0.05 이하일 때만
 나온다.
+probe_stage2_candidate_cross_replays.ps1는 후보 checkpoint를 primary replay와
+secondary replay 양쪽에서 action probe + latent probe로 교차 검증한다.
+target-24 후보는 target-24 replay만 통과했다고 512 clean으로 보내지 말고,
+기존 steer2 replay에서도 collapse하지 않는지 이 wrapper로 확인한다.
 check_stage2_windows_dependencies.ps1는 CARLA 실행 전에 v2 code,
 shared_core, env config, readiness script 의존성을 검사한다.
 base config의 checkpoint path/sha256은 아직 null이므로 그대로 real mode를
