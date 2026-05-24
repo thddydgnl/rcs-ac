@@ -447,14 +447,16 @@ def test_detached_replay_training_wrapper_static_contract() -> None:
     script = Path(__file__).resolve().parents[1] / "scripts" / "windows" / "start_stage2_replay_training_detached.ps1"
     text = script.read_text()
     assert "train_stage2_privileged_from_replay.ps1" in text
-    assert "Start-Process" in text
     assert "train_stage2_privileged_from_replay.detached.ps1" in text
     assert "$ResolvedOutputDir = (Resolve-Path $OutputDir).Path" in text
     assert "$ResolvedLogPath = Join-Path $ResolvedLogPath (Split-Path -Leaf $LogPath)" in text
-    assert "-PassThru" in text
+    assert "New-ScheduledTaskAction" in text
+    assert "New-ScheduledTaskPrincipal" in text
+    assert "Start-ScheduledTask" in text
     assert "TRAIN_LOG_PATH=$ResolvedLogPath" in text
     assert "TRAIN_SCRIPT_PATH=$InnerScriptPath" in text
-    assert "TRAIN_PROCESS_ID=$($Process.Id)" in text
+    assert "TRAIN_TASK_NAME=$TaskName" in text
+    assert "TRAIN_TASK_STARTED=True" in text
     assert "DETACHED_TRAIN_STARTED=`$(Get-Date -Format o)" in text
     assert "TRAIN_EXCEPTION=" in text
     assert "TRAIN_EXIT_CODE=`$Code" in text
@@ -469,6 +471,8 @@ def test_detached_replay_training_check_static_contract() -> None:
     assert "TRAIN_LOG_EXISTS=$LogExists" in text
     assert "TRAIN_MANIFEST_EXISTS=$ManifestExists" in text
     assert "TRAIN_RUNNING=$Running" in text
+    assert "TRAIN_TASK_NAME=$TaskName" in text
+    assert "TRAIN_TASK_STATE=$TaskState" in text
     assert "TRAIN_EXIT_CODE=$ExitCode" in text
     assert "TRAIN_READY_FOR_PROBE=$ReadyForProbe" in text
     assert "TRAIN_LOG_TAIL_BEGIN" in text

@@ -12,6 +12,8 @@ param(
     [int]$HiddenDim = 128,
     [string]$Device = "auto",
     [string]$LogPath = "",
+    [string]$TaskName = "RCSV2Stage2ReplayTrain",
+    [string]$InteractiveUser = "song\song",
     [switch]$NoStart
 )
 
@@ -64,7 +66,7 @@ exit `$Code
 "@
 
 $InnerCommand | Set-Content -Path $InnerScriptPath
-$Arguments = @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $InnerScriptPath)
+$TaskArgument = "-NoProfile -ExecutionPolicy Bypass -File `"$InnerScriptPath`""
 
 Write-Host "STAGE2_DETACHED_REPLAY_TRAIN_READY=True"
 Write-Host "REPLAY_PATH=$ReplayPath"
@@ -72,10 +74,17 @@ Write-Host "REPLAY_MANIFEST_PATH=$ReplayManifestPath"
 Write-Host "OUTPUT_DIR=$ResolvedOutputDir"
 Write-Host "TRAIN_LOG_PATH=$ResolvedLogPath"
 Write-Host "TRAIN_SCRIPT_PATH=$InnerScriptPath"
+Write-Host "TRAIN_TASK_NAME=$TaskName"
 if ($NoStart) {
     Write-Host "TRAIN_DETACHED_DRY_RUN=True"
     exit 0
 }
 
-$Process = Start-Process -FilePath "powershell" -ArgumentList $Arguments -WindowStyle Hidden -PassThru
-Write-Host "TRAIN_PROCESS_ID=$($Process.Id)"
+Unregister-ScheduledTask -TaskName $TaskName -Confirm:$false -ErrorAction SilentlyContinue
+$Action = New-ScheduledTaskAction -Execute "powershell.exe" -Argument $TaskArgument -WorkingDirectory $ProjectRoot
+$Trigger = New-ScheduledTaskTrigger -Once -At (Get-Date).AddMinutes(1)
+$Principal = New-ScheduledTaskPrincipal -UserId $InteractiveUser -LogonType Interactive -RunLevel Highest
+$Settings = New-ScheduledTaskSettingsSet -MultipleInstances IgnoreNew -ExecutionTimeLimit ([TimeSpan]::Zero)
+Register-ScheduledTask -TaskName $TaskName -Action $Action -Trigger $Trigger -Principal $Principal -Settings $Settings -Force | Out-Null
+Start-ScheduledTask -TaskName $TaskName
+Write-Host "TRAIN_TASK_STARTED=True"

@@ -3,6 +3,7 @@ param(
     [string]$OutputDir = "RCS-AC-v2\experiments\02_privileged_policy_clean\checkpoints\windows_replay",
     [string]$LogPath = "",
     [int]$ProcessId = 0,
+    [string]$TaskName = "",
     [int]$Tail = 20
 )
 
@@ -20,6 +21,17 @@ $Running = $false
 if ($ProcessId -gt 0) {
     $Running = $null -ne (Get-Process -Id $ProcessId -ErrorAction SilentlyContinue)
 }
+$TaskState = "UNSET"
+if ($TaskName -ne "") {
+    $Task = Get-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue
+    if ($null -ne $Task) {
+        $TaskState = [string]$Task.State
+        $Running = $Running -or ($TaskState -eq "Running")
+    }
+    else {
+        $TaskState = "MISSING"
+    }
+}
 
 $ExitCode = "UNSET"
 if ($LogExists) {
@@ -36,6 +48,8 @@ Write-Host "TRAIN_LOG_EXISTS=$LogExists"
 Write-Host "TRAIN_MANIFEST_PATH=$ManifestPath"
 Write-Host "TRAIN_MANIFEST_EXISTS=$ManifestExists"
 Write-Host "TRAIN_PROCESS_ID=$ProcessId"
+Write-Host "TRAIN_TASK_NAME=$TaskName"
+Write-Host "TRAIN_TASK_STATE=$TaskState"
 Write-Host "TRAIN_RUNNING=$Running"
 Write-Host "TRAIN_EXIT_CODE=$ExitCode"
 Write-Host "TRAIN_READY_FOR_PROBE=$ReadyForProbe"
