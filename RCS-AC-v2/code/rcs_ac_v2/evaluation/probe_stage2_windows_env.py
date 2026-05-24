@@ -53,13 +53,12 @@ def probe_stage2_env_once(
     try:
         raw_reset = raw_env.reset()
         obs, info = _split_reset_result(raw_reset)
+        probe.update(_summarize_raw_reset(raw_reset=raw_reset, obs=obs, info=info))
         adapted = observation_adapter.adapt(obs, info)
         bev = adapted["privileged_bev"]
         ego = adapted["privileged_ego"]
         probe.update(
             {
-                "raw_obs_keys": sorted(map(str, obs.keys())),
-                "raw_info_keys": sorted(map(str, info.keys())),
                 "privileged_bev_shape": list(bev.shape),
                 "privileged_ego_shape": list(ego.shape),
                 "privileged_bev_finite": _is_finite(bev),
@@ -143,6 +142,32 @@ def _split_reset_result(result: Any) -> tuple[dict[str, Any], dict[str, Any]]:
     if isinstance(result, dict):
         return result, {}
     raise CleanEvalRuntimeFailure("adapter", "probe_reset_schema_invalid", f"unsupported reset result {type(result).__name__}")
+
+
+def _summarize_raw_reset(*, raw_reset: Any, obs: dict[str, Any], info: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "raw_reset_type": type(raw_reset).__name__,
+        "raw_reset_keys": sorted(map(str, raw_reset.keys())) if isinstance(raw_reset, dict) else [],
+        "raw_obs_keys": sorted(map(str, obs.keys())),
+        "raw_info_keys": sorted(map(str, info.keys())),
+        "raw_obs_summary": {str(key): _summarize_value(value) for key, value in obs.items()},
+        "raw_info_summary": {str(key): _summarize_value(value) for key, value in info.items()},
+    }
+
+
+def _summarize_value(value: Any) -> dict[str, Any]:
+    summary: dict[str, Any] = {"type": type(value).__name__}
+    shape = getattr(value, "shape", None)
+    if shape is not None:
+        try:
+            summary["shape"] = list(shape)
+        except TypeError:
+            summary["shape"] = str(shape)
+    if isinstance(value, (list, tuple)):
+        summary["len"] = len(value)
+    if isinstance(value, dict):
+        summary["keys"] = sorted(map(str, value.keys()))
+    return summary
 
 
 def _is_finite(value: Any) -> bool:

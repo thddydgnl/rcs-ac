@@ -112,6 +112,15 @@ class FakeRawEnv:
         }
 
 
+class FakeRawEnvWithoutPrivilegedObs(FakeRawEnv):
+    @staticmethod
+    def _obs() -> dict:
+        return {
+            "rgb": torch.zeros(3, 64, 64),
+            "speed_kmh": 0.0,
+        }
+
+
 def test_observation_adapter_accepts_stage2_privileged_shapes(tmp_path) -> None:
     config = _base_config(tmp_path)
     adapter = Stage2CarlaObservationAdapter(config)
@@ -374,6 +383,22 @@ def test_privileged_obs_probe_is_not_clean_gate_evidence(tmp_path) -> None:
     assert data["privileged_ego_finite"] is True
     assert data["step_neutral"] is True
     assert data["neutral_step_done"] is False
+    assert raw_env.closed
+
+
+def test_privileged_obs_probe_records_raw_keys_on_adapter_failure(tmp_path) -> None:
+    config = _base_config(tmp_path)
+    raw_env = FakeRawEnvWithoutPrivilegedObs()
+
+    result = probe_stage2_env_once(raw_env=raw_env, config=config)
+
+    assert result["status"] == "PROBE_FAIL"
+    assert result["failure_class"] == "adapter"
+    assert result["done_reason"] == "privileged_bev_missing"
+    assert result["raw_reset_type"] == "dict"
+    assert result["raw_reset_keys"] == ["info", "obs"]
+    assert result["raw_obs_keys"] == ["rgb", "speed_kmh"]
+    assert result["raw_obs_summary"]["rgb"]["shape"] == [3, 64, 64]
     assert raw_env.closed
 
 
