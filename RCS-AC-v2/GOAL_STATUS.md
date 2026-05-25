@@ -61,11 +61,11 @@ Last findings summary:
 SOCKS SSH path to 100.87.219.58. CARLA Town04 readiness and RTX 3080 CUDA guard
 passed. Commits 2ee1b4c, 5b7ee99, and b462386 fixed mixed-candidate argument
 handling, rejected-gate summarization, and route-bin action diagnostics. The
-late-right candidate and target22 fallback were rejected offline, and the first
-all-steer route cap candidate improved steer2 moving-steer fraction to
-0.2194744977 but still failed the 0.20 action gate. A stronger/wider all-steer
-cap candidate is currently running as detached CUDA task
-RCSV2Stage2B462AllSteerCap010Pre050070. No official 512 clean eval should run
+late-right candidate and target22 fallback were rejected offline. Two all-steer
+route cap candidates improved steer2 moving-steer fraction to 0.2194744977 and
+then 0.2117465224, but both still failed the 0.20 action gate. A late-window
+cap candidate focused on route 0.666-0.70 is currently running as detached CUDA
+task RCSV2Stage2FDFLateCap045R066070. No official 512 clean eval should run
 until the cross-replay gate reports ready_for_clean_eval=true. Raw/fusion remain
 blocked.
 ```
@@ -258,7 +258,7 @@ local edits would only polish orchestration and would not materially improve
 clean performance without Windows CUDA/CARLA.
 2026-05-26 remote execution is no longer paused. Userspace Tailscale SOCKS SSH
 to Windows is working, and Windows CUDA training/probing is active. Current
-active task is RCSV2Stage2B462AllSteerCap010Pre050070. First poll its detached
+active task is RCSV2Stage2FDFLateCap045R066070. First poll its detached
 training status; when TRAIN_READY_FOR_PROBE=True, rerun the same mixed candidate
 cycle with -ProbeWhenReady. If ready_for_clean_eval=false, reject and continue
 offline. If ready_for_clean_eval=true, run CARLA readiness guard before any

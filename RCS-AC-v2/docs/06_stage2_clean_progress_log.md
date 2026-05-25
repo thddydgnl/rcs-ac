@@ -1880,9 +1880,9 @@ All-steer route action cap candidate:
   especially `0.66-0.70`.
 - Decision: close but reject, do not run official 512 clean eval.
 
-Current active CUDA offline candidate:
+All-steer wider route action cap candidate:
 
-- checkpoint/output dir:
+- checkpoint:
   `b462386_mixed_t22_steer2_allsteercap010_pre050070`.
 - task:
   `RCSV2Stage2B462AllSteerCap010Pre050070`.
@@ -1891,9 +1891,38 @@ Current active CUDA offline candidate:
   - cap: `0.10`.
   - route window: `0.50-0.70`.
   - weight: `5`.
-- started as detached Windows CUDA training.
+- training completed on Windows CUDA with valid checkpoint manifest.
+- target22 cross replay passed:
+  - moving steer fraction: `0.1187739464`.
+  - latent test accuracy: `0.9904761910`.
+- steer2 cross replay:
+  - latent probe passed.
+  - action probe rejected.
+  - moving steer fraction: `0.2117465224`, gate max `0.20`.
+  - latent margin over majority: `0.2399239138`.
+- Route-bin diagnostic showed the wide cap improved the previous
+  `0.2194744977` result but still over-produced moving steer around route
+  `0.66-0.70`, where predicted moving-steer fraction remained
+  `0.9117647059`.
+- Decision: close but reject, do not run official 512 clean eval.
+
+Current active CUDA offline candidate:
+
+- checkpoint/output dir:
+  `fdf50ab_mixed_t22_steer2_latecap045_r066070`.
+- task:
+  `RCSV2Stage2FDFLateCap045R066070`.
+- route action mass cap:
+  - ids: `1,4,10,12,13,16,18,19,21`.
+  - cap: `0.45`.
+  - route window: `0.666-0.70`.
+  - weight: `5`.
+- rationale: the rejected wide-cap candidate was already close overall, and the
+  remaining false positives were concentrated in the late route window. This
+  candidate leaves the earlier `0.50-0.66` window less constrained and caps only
+  the final late-turn band.
 - latest check:
-  - task state: `Running`.
+  - detached task started.
   - manifest exists: `False`.
   - ready for probe: `False`.
 
@@ -1904,8 +1933,8 @@ Set-Location C:\Users\thddy\Documents\code\RCS-AC-first-official-v2-7f87656
 
 powershell -ExecutionPolicy Bypass -File RCS-AC-v2\scripts\windows\check_stage2_replay_training_detached.ps1 `
   -ProjectRoot C:\Users\thddy\Documents\code\RCS-AC-first-official-v2-7f87656 `
-  -OutputDir RCS-AC-v2\experiments\02_privileged_policy_clean\checkpoints\b462386_mixed_t22_steer2_allsteercap010_pre050070 `
-  -TaskName RCSV2Stage2B462AllSteerCap010Pre050070
+  -OutputDir RCS-AC-v2\experiments\02_privileged_policy_clean\checkpoints\fdf50ab_mixed_t22_steer2_latecap045_r066070 `
+  -TaskName RCSV2Stage2FDFLateCap045R066070
 ```
 
 When `TRAIN_READY_FOR_PROBE=True`, rerun
