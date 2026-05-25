@@ -1740,12 +1740,26 @@ below `18 km/h`. Do not start raw/fusion.
   - `PYTHONPATH=RCS-AC-v2/code pytest -q RCS-AC-v2/tests`
     passed: `144 passed`.
 - Next CUDA candidate after Windows reconnect:
-  - keep the latest stable corr056/collision-window hyperparameters.
+  - run the dedicated wrapper:
+    `RCS-AC-v2\scripts\windows\run_stage2_late_right_margin_candidate.ps1`.
+  - use target22 + steer2 mixed replay first so the new diagnostic loss is
+    tested without additional correction/offroad component confounds.
   - add late right-steer margin on route `0.666-0.70`.
   - add pre-window cap for strong-right actions `13,16,19` on route
     `0.55-0.66`.
   - keep CUDA mandatory and run target22/steer2 cross replay gate before any
     official 512 clean eval.
+- Recommended Windows command after reconnect:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File RCS-AC-v2\scripts\windows\run_stage2_late_right_margin_candidate.ps1 `
+  -ProjectRoot C:\Users\thddy\Documents\code\RCS-AC-first-official-v2-7f87656 `
+  -MakeReplayIfMissing `
+  -StartIfMissing `
+  -ProbeWhenReady `
+  -Device cuda
+```
+
 - Windows connectivity note:
   - local Tailscale userspace restart failed to provide a usable socket.
   - log evidence included:

@@ -904,6 +904,25 @@ def test_target_speed_replay_cycle_runner_static_contract() -> None:
     assert '"-Device", $Device' in text
 
 
+def test_late_right_margin_candidate_runner_static_contract() -> None:
+    script = Path(__file__).resolve().parents[1] / "scripts" / "windows" / "run_stage2_late_right_margin_candidate.ps1"
+    text = script.read_text()
+    assert "STAGE2_LATE_RIGHT_MARGIN_CANDIDATE_READY=True" in text
+    assert "run_stage2_mixed_candidate_cycle.ps1" in text
+    assert "windows_privileged_7f87656_target22_failure_window" in text
+    assert "windows_privileged_6e74d9e_long512_t25_steer2_probe" in text
+    assert "windows_privileged_7f87656_mixed_target22_steer2" in text
+    assert "f7d903a2_mixed_t22_steer2_aux1_iw5_ssf005_rightmargin_w1_cap131619_pre0666" in text
+    assert '"-WorldModelSteps", 2000' in text
+    assert '"-PolicySteps", 1000' in text
+    assert '"-SteerSequenceFraction", 0.05' in text
+    assert '"-RouteLateRightSteerMarginWeight", 1.0' in text
+    assert '"-RouteLateRightSteerMinRouteProgress", 0.666' in text
+    assert '"-RouteActionMassCapIds", "13,16,19"' in text
+    assert '"-RouteActionMassCapMaxRouteProgress", 0.66' in text
+    assert '[string]$Device = "cuda"' in text
+
+
 def test_stage2_replay_collector_exposes_late_segment_recording_static_contract() -> None:
     scripts_dir = Path(__file__).resolve().parents[1] / "scripts" / "windows"
     script = (scripts_dir / "collect_stage2_privileged_replay.ps1").read_text()

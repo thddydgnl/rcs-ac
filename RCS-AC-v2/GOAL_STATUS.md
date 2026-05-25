@@ -64,8 +64,11 @@ full-history fork constraint: when `fork_context=true`, omit agent_type/model/
 reasoning overrides. Raman audited the docs and recommended documenting tool
 unavailable, state mismatch, over-spawn, invalid spawn request, close/reuse/
 retry, and manual Agent A/B/C role simulation. docs/02 and docs/05 now include
-that recovery path. The goal continues with Stage 2 clean-first work; raw/fusion
-remain blocked.
+that recovery path. Commit f7d903a2 added the late right-steer margin patch and
+the next Windows reconnect step is to run
+scripts/windows/run_stage2_late_right_margin_candidate.ps1 with CUDA, target22 +
+steer2 cross replay gates, and no official 512 eval unless ready_for_clean_eval
+is true. Raw/fusion remain blocked.
 ```
 
 Pending brief:

@@ -169,6 +169,14 @@ replay manifest를 따로 넘긴다. 따라서 target-22/steer2 양쪽 일반화
 깨지 않고 Windows 재부팅 후 같은 명령으로 check, start, probe를 이어갈 수
 있다.
 
+run_stage2_late_right_margin_candidate.ps1는 Stage 2 route `0.666` collision
+bracket을 위한 다음 clean-first 후보 wrapper다. target22 + steer2 mixed replay
+위에서 `RouteLateRightSteerMargin*`로 late right-moving steer family를 밀고,
+`RouteActionMassCap*`로 route `0.55-0.66` 구간의 strong-right action
+`13,16,19` 선행 누출을 막는다. 이 wrapper도 offline cross replay gate만
+생성한다. official 512 clean eval은 `stage2_candidate_cross_replay_gate.json`의
+`ready_for_clean_eval=true`를 확인한 뒤 별도 실행한다.
+
 Target-24 재개 명령:
 
 ```powershell

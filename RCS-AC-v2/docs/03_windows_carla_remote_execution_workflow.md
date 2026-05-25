@@ -160,6 +160,28 @@ rcswinssh song@100.87.219.58 'hostname'
 If LAN is available and stable, the same workflow can use `song@192.168.0.13`
 without the SOCKS `ProxyCommand`.
 
+Hardware-attestation policy failure:
+
+```text
+If userspace Tailscale exits or becomes unreachable with:
+  policy requires hardware attestation, but device does not support it
+
+classify the issue as remote-tunnel infrastructure, not CARLA/model failure.
+Do not start or judge Windows experiments from this state.
+```
+
+Recovery order:
+
+```text
+1. Try system Tailscale / normal OS route instead of the userspace daemon.
+2. If Mac and Windows are on the same LAN, try direct LAN SSH:
+   ssh song@192.168.0.13 'hostname'
+3. If both are unavailable, fix the tailnet device policy or Windows/Mac
+   Tailscale authorization before starting CUDA/CARLA work.
+4. Once connectivity returns, run git pull --ff-only, CUDA guard, dependency
+   probe, and then the intended candidate wrapper.
+```
+
 ## 4. Required Goal Order
 
 Every v2 implementation/experiment round that touches CARLA must follow this
