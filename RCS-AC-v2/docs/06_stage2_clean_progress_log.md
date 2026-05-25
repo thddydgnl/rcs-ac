@@ -1751,8 +1751,10 @@ below `18 km/h`. Do not start raw/fusion.
     official 512 clean eval.
   - the wrapper prints
     `OFFICIAL_512_CLEAN_EVAL_BLOCKED_UNTIL_READY_FOR_CLEAN_EVAL=True` and a
-    `summarize_stage2_candidate_gate.ps1` command so reconnect/resume runs do
-    not accidentally skip the offline gate.
+    `summarize_stage2_candidate_gate.ps1` command with explicit `-ProjectRoot`
+    and `-CandidateName late_right_margin` so reconnect/resume runs do not
+    accidentally skip the offline gate or summarize under an older default
+    clone/candidate name.
   - `-PlanOnly` prints resolved runner arguments, output dirs, gate summary
     command, and official-eval blocker text without git pull, CUDA guard,
     scheduled-task launch, replay creation, or probing.
@@ -1778,7 +1780,9 @@ powershell -ExecutionPolicy Bypass -File RCS-AC-v2\scripts\windows\run_stage2_la
   -Device cuda
 
 powershell -ExecutionPolicy Bypass -File RCS-AC-v2\scripts\windows\summarize_stage2_candidate_gate.ps1 `
+  -ProjectRoot C:\Users\thddy\Documents\code\RCS-AC-first-official-v2-7f87656 `
   -GatePath RCS-AC-v2\experiments\02_privileged_policy_clean\windows_512\f7d903a2_mixed_t22_steer2_aux1_iw5_ssf005_rightmargin_w1_cap131619_pre0666_cross_probe\stage2_candidate_cross_replay_gate.json `
+  -CandidateName late_right_margin `
   -FallbackCandidateName target22
 ```
 

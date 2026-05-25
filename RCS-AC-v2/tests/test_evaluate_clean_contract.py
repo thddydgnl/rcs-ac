@@ -924,6 +924,8 @@ def test_late_right_margin_candidate_runner_static_contract() -> None:
     assert "OFFICIAL_512_CLEAN_EVAL_BLOCKED_UNTIL_READY_FOR_CLEAN_EVAL=True" in text
     assert "summarize_stage2_candidate_gate.ps1" in text
     assert "stage2_candidate_cross_replay_gate.json" in text
+    assert "-ProjectRoot $ProjectRoot" in text
+    assert "-CandidateName late_right_margin" in text
     assert "[switch]$PlanOnly" in text
     assert "PLAN_ONLY_NO_SCHEDULED_TASK=True" in text
     assert "RESOLVED_ARGS=" in text

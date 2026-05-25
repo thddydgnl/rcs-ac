@@ -29,7 +29,7 @@ Write-Host "TASK_NAME=$TaskName"
 Write-Host "DEVICE=$Device"
 Write-Host "OFFICIAL_512_CLEAN_EVAL_BLOCKED_UNTIL_READY_FOR_CLEAN_EVAL=True"
 Write-Host "OFFICIAL_512_CLEAN_EVAL_BLOCKER=Run summarize_stage2_candidate_gate.ps1 on stage2_candidate_cross_replay_gate.json and require ready_for_clean_eval=true before any official 512 clean eval."
-Write-Host "GATE_SUMMARY_COMMAND=powershell -ExecutionPolicy Bypass -File RCS-AC-v2\scripts\windows\summarize_stage2_candidate_gate.ps1 -GatePath $CrossProbeOutputDir\stage2_candidate_cross_replay_gate.json -FallbackCandidateName target22"
+Write-Host "GATE_SUMMARY_COMMAND=powershell -ExecutionPolicy Bypass -File RCS-AC-v2\scripts\windows\summarize_stage2_candidate_gate.ps1 -ProjectRoot $ProjectRoot -GatePath $CrossProbeOutputDir\stage2_candidate_cross_replay_gate.json -CandidateName late_right_margin -FallbackCandidateName target22"
 
 $ArgsList = @(
     "-ExecutionPolicy", "Bypass",

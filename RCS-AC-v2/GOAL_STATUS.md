@@ -224,7 +224,7 @@ canonical Windows clean clone for the next Stage 2 candidate is C:\Users\thddy\D
 pull latest origin/codex/rcs-ac-v2-raw2drive before every Windows run
 next canonical command is scripts/windows/run_stage2_late_right_margin_candidate.ps1 with -Device cuda; first run it once with -PlanOnly to print resolved args/gate paths without git pull, CUDA guard, scheduled task launch, replay creation, or probing
 then run scripts/windows/run_stage2_late_right_margin_candidate.ps1 with -MakeReplayIfMissing -StartIfMissing -ProbeWhenReady -Device cuda
-after probing, run summarize_stage2_candidate_gate.ps1 on RCS-AC-v2\experiments\02_privileged_policy_clean\windows_512\f7d903a2_mixed_t22_steer2_aux1_iw5_ssf005_rightmargin_w1_cap131619_pre0666_cross_probe\stage2_candidate_cross_replay_gate.json
+after probing, run summarize_stage2_candidate_gate.ps1 with explicit -ProjectRoot C:\Users\thddy\Documents\code\RCS-AC-first-official-v2-7f87656, -CandidateName late_right_margin, and -GatePath RCS-AC-v2\experiments\02_privileged_policy_clean\windows_512\f7d903a2_mixed_t22_steer2_aux1_iw5_ssf005_rightmargin_w1_cap131619_pre0666_cross_probe\stage2_candidate_cross_replay_gate.json
 do not run official 512 clean eval unless that gate summary reports ready_for_clean_eval=true
 use the 512 failure evidence in RCS-AC-v2\experiments\02_privileged_policy_clean\windows_512\b4c8e58_fast35_primary512
 diagnose why the fast35 policy stayed on straight actions 7/15 through the collision window
