@@ -1007,3 +1007,35 @@ avoid simply increasing steering magnitude. A better next test is a later,
 narrower override window, e.g. action `13` or a staged target only from
 `route_progress >= 0.66`, so the policy keeps the known-good approach behavior
 from the action `10` candidate and only changes the final collision band.
+
+Late stronger override retry:
+
+- `cb1abf9_corr056w4_override13late66_cuda`:
+  - same original corr056 hyperparameters.
+  - route-local override: action `13`, route window `0.66-0.70`, weight `1.0`.
+  - CUDA training/checkpoint validation: pass on `NVIDIA GeForce RTX 3080`.
+  - cross replay gate: `ready_for_clean_eval=true`.
+  - target22 action probe:
+    - action counts `{"13":10,"15":226,"16":10,"19":2,"4":24,"7":250}`.
+    - dominant action fraction `0.4789272031`.
+    - moving steer fraction `0.0881226054`.
+  - steer2 action probe:
+    - action counts `{"13":38,"15":188,"16":1,"4":65,"7":355}`.
+    - dominant action fraction `0.5486862442`.
+    - moving steer fraction `0.1607418856`.
+  - official 512 clean:
+    - run output:
+      `RCS-AC-v2\experiments\02_privileged_policy_clean\windows_512\cb1abf9_corr056w4_override13late66_cuda_official_clean512`
+    - status: `FAIL`, clean gate pass: `false`.
+    - done reason: `collision`.
+    - steps: `177` / `512`.
+    - route progress: `0.6410256410`.
+    - collision count: `1`, offroad count: `0`.
+    - final action band: action `13` started at route `0.6154`, then action
+      `16` appeared before collision at route `0.6410`.
+
+Decision: narrowing the action `13` override to `0.66-0.70` still leaks into
+the earlier route band and regresses clean performance. The next useful test is
+not a stronger steer or later window at the same loss strength, but a weaker
+action `13` override weight, or a code-level scheduled/masked override that
+prevents action `13/16` from being learned before route `0.66`.
