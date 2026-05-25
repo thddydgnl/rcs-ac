@@ -50,6 +50,12 @@ param(
     [double]$RouteActionMassCapMinSpeedNorm = 0.0,
     [double]$RouteActionMassCapMinRouteProgress = 0.0,
     [double]$RouteActionMassCapMaxRouteProgress = 1.0,
+    [double]$RouteActionLogitCapWeight = 0.0,
+    [string]$RouteActionLogitCapIds = "",
+    [double]$RouteActionLogitCapMargin = 0.0,
+    [double]$RouteActionLogitCapMinSpeedNorm = 0.0,
+    [double]$RouteActionLogitCapMinRouteProgress = 0.0,
+    [double]$RouteActionLogitCapMaxRouteProgress = 1.0,
     [double]$RouteThrottleCeilingWeight = 0.0,
     [double]$RouteThrottleCeiling = 1.0,
     [double]$RouteThrottleMinSpeedNorm = 0.0,
@@ -110,6 +116,7 @@ $QuotedComponentSampleWeights = Quote-PowerShellString $ComponentSampleWeights
 $QuotedActionMassCaps = Quote-PowerShellString $ActionMassCaps
 $QuotedRouteSpeedActionIds = Quote-PowerShellString $RouteSpeedActionIds
 $QuotedRouteActionMassCapIds = Quote-PowerShellString $RouteActionMassCapIds
+$QuotedRouteActionLogitCapIds = Quote-PowerShellString $RouteActionLogitCapIds
 $QuotedLogPath = Quote-PowerShellString $ResolvedLogPath
 $InnerScriptPath = Join-Path $ResolvedOutputDir "train_stage2_privileged_from_replay.detached.ps1"
 $QuotedInnerScriptPath = Quote-PowerShellString $InnerScriptPath
@@ -137,6 +144,10 @@ $RouteActionMassCapIdsArg = ""
 if ($RouteActionMassCapIds -ne "") {
     $RouteActionMassCapIdsArg = " -RouteActionMassCapIds $QuotedRouteActionMassCapIds"
 }
+$RouteActionLogitCapIdsArg = ""
+if ($RouteActionLogitCapIds -ne "") {
+    $RouteActionLogitCapIdsArg = " -RouteActionLogitCapIds $QuotedRouteActionLogitCapIds"
+}
 
 $InnerCommand = @"
 `$ErrorActionPreference = 'Stop'
@@ -144,7 +155,7 @@ $InnerCommand = @"
 "DETACHED_TRAIN_STARTED=`$(Get-Date -Format o)" | Set-Content -Path `$LogPath
 try {
     Set-Location $QuotedProjectRoot
-    powershell -ExecutionPolicy Bypass -File $QuotedTrainingScript -ProjectRoot $QuotedProjectRoot -ReplayPath $QuotedReplayPath -ReplayManifestPath $QuotedReplayManifestPath -OutputDir $QuotedOutputDir -Seed $Seed -SequenceLength $SequenceLength -BatchSize $BatchSize -WorldModelSteps $WorldModelSteps -PolicySteps $PolicySteps -LearningRate $LearningRate -ImitationWeight $ImitationWeight -BehaviorWeight $BehaviorWeight -BehaviorGamma $BehaviorGamma -BehaviorLambda $BehaviorLambda -BehaviorActorWeight $BehaviorActorWeight -BehaviorCriticWeight $BehaviorCriticWeight -BehaviorEntropyWeight $BehaviorEntropyWeight -ImitationBalancePower $ImitationBalancePower -SteerSequenceFraction $SteerSequenceFraction -MovingSteerFalsePositiveWeight $MovingSteerFalsePositiveWeight -MovingSteerBinaryWeight $MovingSteerBinaryWeight -MovingSteerNonmovingMarginWeight $MovingSteerNonmovingMarginWeight -MovingSteerNonmovingMargin $MovingSteerNonmovingMargin -RouteLateMovingSteerMarginWeight $RouteLateMovingSteerMarginWeight -RouteLateMovingSteerMargin $RouteLateMovingSteerMargin -RouteLateMovingSteerMinSpeedNorm $RouteLateMovingSteerMinSpeedNorm -RouteLateMovingSteerMinRouteProgress $RouteLateMovingSteerMinRouteProgress -RouteLateMovingSteerMaxRouteProgress $RouteLateMovingSteerMaxRouteProgress -RouteLateRightSteerMarginWeight $RouteLateRightSteerMarginWeight -RouteLateRightSteerMargin $RouteLateRightSteerMargin -RouteLateRightSteerMinSpeedNorm $RouteLateRightSteerMinSpeedNorm -RouteLateRightSteerMinRouteProgress $RouteLateRightSteerMinRouteProgress -RouteLateRightSteerMaxRouteProgress $RouteLateRightSteerMaxRouteProgress -WorldModelActionAuxWeight $WorldModelActionAuxWeight$ComponentSampleWeightsArg -ActionMassCapWeight $ActionMassCapWeight$ActionMassCapsArg -RouteSpeedActionMassCapWeight $RouteSpeedActionMassCapWeight$RouteSpeedActionIdsArg -RouteSpeedActionMassCap $RouteSpeedActionMassCap -RouteSpeedMinSpeedNorm $RouteSpeedMinSpeedNorm -RouteSpeedMinRouteProgress $RouteSpeedMinRouteProgress -RouteSpeedMaxRouteProgress $RouteSpeedMaxRouteProgress -RouteActionMassCapWeight $RouteActionMassCapWeight$RouteActionMassCapIdsArg -RouteActionMassCap $RouteActionMassCap -RouteActionMassCapMinSpeedNorm $RouteActionMassCapMinSpeedNorm -RouteActionMassCapMinRouteProgress $RouteActionMassCapMinRouteProgress -RouteActionMassCapMaxRouteProgress $RouteActionMassCapMaxRouteProgress -RouteThrottleCeilingWeight $RouteThrottleCeilingWeight -RouteThrottleCeiling $RouteThrottleCeiling -RouteThrottleMinSpeedNorm $RouteThrottleMinSpeedNorm -RouteThrottleMinRouteProgress $RouteThrottleMinRouteProgress -RouteThrottleMaxRouteProgress $RouteThrottleMaxRouteProgress -RouteLateThrottleCeilingWeight $RouteLateThrottleCeilingWeight -RouteLateThrottleCeiling $RouteLateThrottleCeiling -RouteLateThrottleMinSpeedNorm $RouteLateThrottleMinSpeedNorm -RouteLateThrottleMinRouteProgress $RouteLateThrottleMinRouteProgress -RouteLateThrottleMaxRouteProgress $RouteLateThrottleMaxRouteProgress -RouteActionOverrideWeight $RouteActionOverrideWeight -RouteActionOverrideId $RouteActionOverrideId -RouteActionOverrideMinSpeedNorm $RouteActionOverrideMinSpeedNorm -RouteActionOverrideMinRouteProgress $RouteActionOverrideMinRouteProgress -RouteActionOverrideMaxRouteProgress $RouteActionOverrideMaxRouteProgress$ImitationClassBalanceArg$PdfStage1StrictArg -HiddenDim $HiddenDim -Device $QuotedDevice *>&1 | Tee-Object -FilePath `$LogPath -Append
+    powershell -ExecutionPolicy Bypass -File $QuotedTrainingScript -ProjectRoot $QuotedProjectRoot -ReplayPath $QuotedReplayPath -ReplayManifestPath $QuotedReplayManifestPath -OutputDir $QuotedOutputDir -Seed $Seed -SequenceLength $SequenceLength -BatchSize $BatchSize -WorldModelSteps $WorldModelSteps -PolicySteps $PolicySteps -LearningRate $LearningRate -ImitationWeight $ImitationWeight -BehaviorWeight $BehaviorWeight -BehaviorGamma $BehaviorGamma -BehaviorLambda $BehaviorLambda -BehaviorActorWeight $BehaviorActorWeight -BehaviorCriticWeight $BehaviorCriticWeight -BehaviorEntropyWeight $BehaviorEntropyWeight -ImitationBalancePower $ImitationBalancePower -SteerSequenceFraction $SteerSequenceFraction -MovingSteerFalsePositiveWeight $MovingSteerFalsePositiveWeight -MovingSteerBinaryWeight $MovingSteerBinaryWeight -MovingSteerNonmovingMarginWeight $MovingSteerNonmovingMarginWeight -MovingSteerNonmovingMargin $MovingSteerNonmovingMargin -RouteLateMovingSteerMarginWeight $RouteLateMovingSteerMarginWeight -RouteLateMovingSteerMargin $RouteLateMovingSteerMargin -RouteLateMovingSteerMinSpeedNorm $RouteLateMovingSteerMinSpeedNorm -RouteLateMovingSteerMinRouteProgress $RouteLateMovingSteerMinRouteProgress -RouteLateMovingSteerMaxRouteProgress $RouteLateMovingSteerMaxRouteProgress -RouteLateRightSteerMarginWeight $RouteLateRightSteerMarginWeight -RouteLateRightSteerMargin $RouteLateRightSteerMargin -RouteLateRightSteerMinSpeedNorm $RouteLateRightSteerMinSpeedNorm -RouteLateRightSteerMinRouteProgress $RouteLateRightSteerMinRouteProgress -RouteLateRightSteerMaxRouteProgress $RouteLateRightSteerMaxRouteProgress -WorldModelActionAuxWeight $WorldModelActionAuxWeight$ComponentSampleWeightsArg -ActionMassCapWeight $ActionMassCapWeight$ActionMassCapsArg -RouteSpeedActionMassCapWeight $RouteSpeedActionMassCapWeight$RouteSpeedActionIdsArg -RouteSpeedActionMassCap $RouteSpeedActionMassCap -RouteSpeedMinSpeedNorm $RouteSpeedMinSpeedNorm -RouteSpeedMinRouteProgress $RouteSpeedMinRouteProgress -RouteSpeedMaxRouteProgress $RouteSpeedMaxRouteProgress -RouteActionMassCapWeight $RouteActionMassCapWeight$RouteActionMassCapIdsArg -RouteActionMassCap $RouteActionMassCap -RouteActionMassCapMinSpeedNorm $RouteActionMassCapMinSpeedNorm -RouteActionMassCapMinRouteProgress $RouteActionMassCapMinRouteProgress -RouteActionMassCapMaxRouteProgress $RouteActionMassCapMaxRouteProgress -RouteActionLogitCapWeight $RouteActionLogitCapWeight$RouteActionLogitCapIdsArg -RouteActionLogitCapMargin $RouteActionLogitCapMargin -RouteActionLogitCapMinSpeedNorm $RouteActionLogitCapMinSpeedNorm -RouteActionLogitCapMinRouteProgress $RouteActionLogitCapMinRouteProgress -RouteActionLogitCapMaxRouteProgress $RouteActionLogitCapMaxRouteProgress -RouteThrottleCeilingWeight $RouteThrottleCeilingWeight -RouteThrottleCeiling $RouteThrottleCeiling -RouteThrottleMinSpeedNorm $RouteThrottleMinSpeedNorm -RouteThrottleMinRouteProgress $RouteThrottleMinRouteProgress -RouteThrottleMaxRouteProgress $RouteThrottleMaxRouteProgress -RouteLateThrottleCeilingWeight $RouteLateThrottleCeilingWeight -RouteLateThrottleCeiling $RouteLateThrottleCeiling -RouteLateThrottleMinSpeedNorm $RouteLateThrottleMinSpeedNorm -RouteLateThrottleMinRouteProgress $RouteLateThrottleMinRouteProgress -RouteLateThrottleMaxRouteProgress $RouteLateThrottleMaxRouteProgress -RouteActionOverrideWeight $RouteActionOverrideWeight -RouteActionOverrideId $RouteActionOverrideId -RouteActionOverrideMinSpeedNorm $RouteActionOverrideMinSpeedNorm -RouteActionOverrideMinRouteProgress $RouteActionOverrideMinRouteProgress -RouteActionOverrideMaxRouteProgress $ImitationClassBalanceArg$PdfStage1StrictArg -HiddenDim $HiddenDim -Device $QuotedDevice *>&1 | Tee-Object -FilePath `$LogPath -Append
     `$Code = `$LASTEXITCODE
 }
 catch {
@@ -222,6 +233,12 @@ $LaunchManifest = [ordered]@{
     route_action_mass_cap_min_speed_norm = $RouteActionMassCapMinSpeedNorm
     route_action_mass_cap_min_route_progress = $RouteActionMassCapMinRouteProgress
     route_action_mass_cap_max_route_progress = $RouteActionMassCapMaxRouteProgress
+    route_action_logit_cap_weight = $RouteActionLogitCapWeight
+    route_action_logit_cap_ids = $RouteActionLogitCapIds
+    route_action_logit_cap_margin = $RouteActionLogitCapMargin
+    route_action_logit_cap_min_speed_norm = $RouteActionLogitCapMinSpeedNorm
+    route_action_logit_cap_min_route_progress = $RouteActionLogitCapMinRouteProgress
+    route_action_logit_cap_max_route_progress = $RouteActionLogitCapMaxRouteProgress
     route_throttle_ceiling_weight = $RouteThrottleCeilingWeight
     route_throttle_ceiling = $RouteThrottleCeiling
     route_throttle_min_speed_norm = $RouteThrottleMinSpeedNorm

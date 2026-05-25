@@ -2079,3 +2079,20 @@ powershell -ExecutionPolicy Bypass -File RCS-AC-v2\scripts\windows\run_stage2_mi
 If that candidate passes the cross replay gate, run CARLA readiness first and
 then a single official 512 eval. If it fails offline, reject it without CARLA
 and inspect route-bin action diagnostics before choosing another candidate.
+
+Follow-up:
+
+- `5455ac1_mixed_t22_steer2_latecap045_msfpa20_msmm10_thr030_r048056` trained
+  on Windows CUDA and was rejected offline:
+  - target22 passed.
+  - steer2 action probe failed with moving steer fraction `0.2117465224`.
+- `5455ac1_mixed_t22_steer2_latecap045_msfpa20_msmm10_thr025_hicap_r048056`
+  added route `0.48-0.56` high-throttle action mass cap for actions `15,21`,
+  but produced the same steer2 moving steer fraction `0.2117465224`.
+- BF7 with diagnostic `ForbiddenActionIds=15` was also rejected offline:
+  - target22 dominant action 7 fraction increased to `0.8850574713`.
+  - steer2 moving steer fraction stayed above gate at `0.2040185471`.
+- Conclusion: soft action-mass/throttle losses and post-hoc action 15 masking do
+  not solve the route `0.49-0.54` clean failure. The next implementation patch
+  adds a route-window action-logit cap loss so selected high-speed actions are
+  pushed below the best non-capped action at the logit/argmax level.

@@ -89,6 +89,12 @@ def train_stage2_privileged_from_replay(
     route_action_mass_cap_min_speed_norm: float = 0.0,
     route_action_mass_cap_min_route_progress: float = 0.0,
     route_action_mass_cap_max_route_progress: float = 1.0,
+    route_action_logit_cap_weight: float = 0.0,
+    route_action_logit_cap_ids: tuple[int, ...] = (),
+    route_action_logit_cap_margin: float = 0.0,
+    route_action_logit_cap_min_speed_norm: float = 0.0,
+    route_action_logit_cap_min_route_progress: float = 0.0,
+    route_action_logit_cap_max_route_progress: float = 1.0,
     route_throttle_ceiling_weight: float = 0.0,
     route_throttle_ceiling: float = 1.0,
     route_throttle_min_speed_norm: float = 0.0,
@@ -133,6 +139,8 @@ def train_stage2_privileged_from_replay(
             route_speed_action_ids=route_speed_action_ids,
             route_action_mass_cap_weight=route_action_mass_cap_weight,
             route_action_mass_cap_ids=route_action_mass_cap_ids,
+            route_action_logit_cap_weight=route_action_logit_cap_weight,
+            route_action_logit_cap_ids=route_action_logit_cap_ids,
             route_throttle_ceiling_weight=route_throttle_ceiling_weight,
             route_late_throttle_ceiling_weight=route_late_throttle_ceiling_weight,
             route_action_override_weight=route_action_override_weight,
@@ -224,6 +232,26 @@ def train_stage2_privileged_from_replay(
         raise ValueError(
             "route_action_mass_cap_min_route_progress must be <= "
             "route_action_mass_cap_max_route_progress"
+        )
+    if route_action_logit_cap_weight < 0.0:
+        raise ValueError("route_action_logit_cap_weight must be non-negative")
+    resolved_route_action_logit_cap_ids = _normalize_action_id_tuple(
+        route_action_logit_cap_ids
+    )
+    if route_action_logit_cap_margin < 0.0:
+        raise ValueError("route_action_logit_cap_margin must be non-negative")
+    if not 0.0 <= float(route_action_logit_cap_min_speed_norm) <= 1.0:
+        raise ValueError("route_action_logit_cap_min_speed_norm must be in [0, 1]")
+    if not 0.0 <= float(route_action_logit_cap_min_route_progress) <= 1.0:
+        raise ValueError("route_action_logit_cap_min_route_progress must be in [0, 1]")
+    if not 0.0 <= float(route_action_logit_cap_max_route_progress) <= 1.0:
+        raise ValueError("route_action_logit_cap_max_route_progress must be in [0, 1]")
+    if float(route_action_logit_cap_min_route_progress) > float(
+        route_action_logit_cap_max_route_progress
+    ):
+        raise ValueError(
+            "route_action_logit_cap_min_route_progress must be <= "
+            "route_action_logit_cap_max_route_progress"
         )
     if route_throttle_ceiling_weight < 0.0:
         raise ValueError("route_throttle_ceiling_weight must be non-negative")
@@ -441,6 +469,15 @@ def train_stage2_privileged_from_replay(
             min_route_progress=route_action_mass_cap_min_route_progress,
             max_route_progress=route_action_mass_cap_max_route_progress,
         )
+        route_action_logit_cap_loss = _route_action_logit_cap_loss(
+            logits=replay_policy.logits,
+            privileged_ego=batch.privileged_ego,
+            action_ids=resolved_route_action_logit_cap_ids,
+            margin=route_action_logit_cap_margin,
+            min_speed_norm=route_action_logit_cap_min_speed_norm,
+            min_route_progress=route_action_logit_cap_min_route_progress,
+            max_route_progress=route_action_logit_cap_max_route_progress,
+        )
         route_throttle_ceiling_loss = _route_throttle_ceiling_loss(
             logits=replay_policy.logits,
             privileged_ego=batch.privileged_ego,
@@ -476,6 +513,7 @@ def train_stage2_privileged_from_replay(
             + float(action_mass_cap_weight) * action_mass_cap_loss
             + float(route_speed_action_mass_cap_weight) * route_speed_action_mass_cap_loss
             + float(route_action_mass_cap_weight) * route_action_mass_cap_loss
+            + float(route_action_logit_cap_weight) * route_action_logit_cap_loss
             + float(route_throttle_ceiling_weight) * route_throttle_ceiling_loss
             + float(route_late_throttle_ceiling_weight) * route_late_throttle_ceiling_loss
             + float(route_action_override_weight) * route_action_override_loss
@@ -503,6 +541,9 @@ def train_stage2_privileged_from_replay(
             route_speed_action_mass_cap_loss.detach().cpu().item()
         )
         scalars["route_action_mass_cap"] = float(route_action_mass_cap_loss.detach().cpu().item())
+        scalars["route_action_logit_cap"] = float(
+            route_action_logit_cap_loss.detach().cpu().item()
+        )
         scalars["route_throttle_ceiling"] = float(route_throttle_ceiling_loss.detach().cpu().item())
         scalars["route_late_throttle_ceiling"] = float(
             route_late_throttle_ceiling_loss.detach().cpu().item()
@@ -579,6 +620,16 @@ def train_stage2_privileged_from_replay(
         "route_action_mass_cap_max_route_progress": float(
             route_action_mass_cap_max_route_progress
         ),
+        "route_action_logit_cap_weight": float(route_action_logit_cap_weight),
+        "route_action_logit_cap_ids": list(resolved_route_action_logit_cap_ids),
+        "route_action_logit_cap_margin": float(route_action_logit_cap_margin),
+        "route_action_logit_cap_min_speed_norm": float(route_action_logit_cap_min_speed_norm),
+        "route_action_logit_cap_min_route_progress": float(
+            route_action_logit_cap_min_route_progress
+        ),
+        "route_action_logit_cap_max_route_progress": float(
+            route_action_logit_cap_max_route_progress
+        ),
         "route_throttle_ceiling_weight": float(route_throttle_ceiling_weight),
         "route_throttle_ceiling": float(route_throttle_ceiling),
         "route_throttle_min_speed_norm": float(route_throttle_min_speed_norm),
@@ -653,6 +704,9 @@ def train_stage2_privileged_from_replay(
                     "route_speed_action_mass_cap"
                 ],
                 "final_route_action_mass_cap": policy_history[-1]["route_action_mass_cap"],
+                "final_route_action_logit_cap": policy_history[-1][
+                    "route_action_logit_cap"
+                ],
                 "final_route_throttle_ceiling": policy_history[-1]["route_throttle_ceiling"],
                 "final_route_late_throttle_ceiling": policy_history[-1][
                     "route_late_throttle_ceiling"
@@ -705,6 +759,9 @@ def train_stage2_privileged_from_replay(
                     "route_speed_action_mass_cap"
                 ],
                 "final_route_action_mass_cap": policy_history[-1]["route_action_mass_cap"],
+                "final_route_action_logit_cap": policy_history[-1][
+                    "route_action_logit_cap"
+                ],
                 "final_route_throttle_ceiling": policy_history[-1]["route_throttle_ceiling"],
                 "final_route_late_throttle_ceiling": policy_history[-1][
                     "route_late_throttle_ceiling"
@@ -793,6 +850,12 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--route-action-mass-cap-min-speed-norm", type=float, default=0.0)
     parser.add_argument("--route-action-mass-cap-min-route-progress", type=float, default=0.0)
     parser.add_argument("--route-action-mass-cap-max-route-progress", type=float, default=1.0)
+    parser.add_argument("--route-action-logit-cap-weight", type=float, default=0.0)
+    parser.add_argument("--route-action-logit-cap-ids", default="")
+    parser.add_argument("--route-action-logit-cap-margin", type=float, default=0.0)
+    parser.add_argument("--route-action-logit-cap-min-speed-norm", type=float, default=0.0)
+    parser.add_argument("--route-action-logit-cap-min-route-progress", type=float, default=0.0)
+    parser.add_argument("--route-action-logit-cap-max-route-progress", type=float, default=1.0)
     parser.add_argument("--route-throttle-ceiling-weight", type=float, default=0.0)
     parser.add_argument("--route-throttle-ceiling", type=float, default=1.0)
     parser.add_argument("--route-throttle-min-speed-norm", type=float, default=0.0)
@@ -863,6 +926,12 @@ def main(argv: list[str] | None = None) -> None:
         route_action_mass_cap_min_speed_norm=args.route_action_mass_cap_min_speed_norm,
         route_action_mass_cap_min_route_progress=args.route_action_mass_cap_min_route_progress,
         route_action_mass_cap_max_route_progress=args.route_action_mass_cap_max_route_progress,
+        route_action_logit_cap_weight=args.route_action_logit_cap_weight,
+        route_action_logit_cap_ids=_parse_action_id_list(args.route_action_logit_cap_ids),
+        route_action_logit_cap_margin=args.route_action_logit_cap_margin,
+        route_action_logit_cap_min_speed_norm=args.route_action_logit_cap_min_speed_norm,
+        route_action_logit_cap_min_route_progress=args.route_action_logit_cap_min_route_progress,
+        route_action_logit_cap_max_route_progress=args.route_action_logit_cap_max_route_progress,
         route_throttle_ceiling_weight=args.route_throttle_ceiling_weight,
         route_throttle_ceiling=args.route_throttle_ceiling,
         route_throttle_min_speed_norm=args.route_throttle_min_speed_norm,
@@ -916,6 +985,8 @@ def _validate_pdf_stage1_strict_config(
     route_speed_action_ids: tuple[int, ...],
     route_action_mass_cap_weight: float,
     route_action_mass_cap_ids: tuple[int, ...],
+    route_action_logit_cap_weight: float,
+    route_action_logit_cap_ids: tuple[int, ...],
     route_throttle_ceiling_weight: float,
     route_late_throttle_ceiling_weight: float,
     route_action_override_weight: float,
@@ -952,6 +1023,7 @@ def _validate_pdf_stage1_strict_config(
         "action_mass_cap_weight": action_mass_cap_weight,
         "route_speed_action_mass_cap_weight": route_speed_action_mass_cap_weight,
         "route_action_mass_cap_weight": route_action_mass_cap_weight,
+        "route_action_logit_cap_weight": route_action_logit_cap_weight,
         "route_throttle_ceiling_weight": route_throttle_ceiling_weight,
         "route_late_throttle_ceiling_weight": route_late_throttle_ceiling_weight,
         "route_action_override_weight": route_action_override_weight,
@@ -966,6 +1038,8 @@ def _validate_pdf_stage1_strict_config(
         violations.append("route_speed_action_ids must be empty")
     if route_action_mass_cap_ids:
         violations.append("route_action_mass_cap_ids must be empty")
+    if route_action_logit_cap_ids:
+        violations.append("route_action_logit_cap_ids must be empty")
     if int(route_action_override_id) != -1:
         violations.append("route_action_override_id must be -1")
     if violations:
@@ -1310,6 +1384,40 @@ def _route_throttle_ceiling_loss(
     )
     expected_throttle = torch.softmax(selected_logits, dim=-1).matmul(throttle)
     return F.relu(expected_throttle - float(ceiling)).pow(2).mean()
+
+
+def _route_action_logit_cap_loss(
+    *,
+    logits: torch.Tensor,
+    privileged_ego: torch.Tensor,
+    action_ids: tuple[int, ...],
+    margin: float,
+    min_speed_norm: float,
+    min_route_progress: float,
+    max_route_progress: float,
+) -> torch.Tensor:
+    flat_logits = logits.reshape(-1, logits.shape[-1])
+    if not action_ids:
+        return flat_logits.sum() * 0.0
+    flat_ego = privileged_ego.reshape(-1, privileged_ego.shape[-1])
+    speed_norm = flat_ego[:, 0]
+    route_progress = flat_ego[:, 1]
+    mask = (
+        (speed_norm >= float(min_speed_norm))
+        & (route_progress >= float(min_route_progress))
+        & (route_progress <= float(max_route_progress))
+    )
+    selected_logits = flat_logits[mask]
+    if int(selected_logits.shape[0]) == 0:
+        return flat_logits.sum() * 0.0
+    capped_ids = torch.as_tensor(action_ids, dtype=torch.long, device=logits.device)
+    capped = selected_logits.index_select(dim=-1, index=capped_ids).max(dim=-1).values
+    keep_mask = torch.ones(selected_logits.shape[-1], dtype=torch.bool, device=logits.device)
+    keep_mask[capped_ids] = False
+    if not bool(keep_mask.any()):
+        return flat_logits.sum() * 0.0
+    keep_top = selected_logits[:, keep_mask].max(dim=-1).values
+    return F.relu(capped - keep_top + float(margin)).mean()
 
 
 def _route_action_override_loss(

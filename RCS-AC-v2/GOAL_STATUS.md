@@ -276,6 +276,13 @@ run the CUDA mixed candidate
 RouteThrottleCeilingWeight=4.0, RouteThrottleCeiling=0.30, and route window
 0.48-0.56. Run cross replay probes first; official 512 clean is allowed only
 if the gate reports ready_for_clean_eval=true.
+2026-05-26 thr030 and thr025_hicap trained on Windows CUDA and were both
+rejected offline because steer2 moving steer stayed at 0.2117465224. BF7
+mask15 diagnostic was also rejected: target22 became too straight-dominant and
+steer2 still exceeded the moving-steer gate at 0.2040185471. Soft throttle/mass
+caps are not changing argmax enough. The current code patch adds
+RouteActionLogitCap* so route-window high-speed action ids can be pushed below
+the best non-capped action at the logit level before another CUDA candidate.
 do not treat the 128 PASS as full clean completion
 use SSH remote on Windows; HTTPS prompts for credentials
 use the v2-local minimal shared_core env builder by default; pass explicit dependency overrides only for local experiments
