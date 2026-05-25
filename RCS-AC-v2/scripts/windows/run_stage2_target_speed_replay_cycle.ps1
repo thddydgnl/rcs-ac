@@ -14,6 +14,8 @@ param(
     [string]$TaskName = "",
     [double]$MovingSteerFalsePositiveWeight = 0.0,
     [double]$MovingSteerBinaryWeight = 0.0,
+    [double]$MovingSteerNonmovingMarginWeight = 0.0,
+    [double]$MovingSteerNonmovingMargin = 0.25,
     [switch]$SkipGitPull,
     [switch]$SkipCarlaReady,
     [switch]$CollectIfMissing,
@@ -109,6 +111,8 @@ $CycleArgs = @(
     "-Seed", $Seed,
     "-MovingSteerFalsePositiveWeight", $MovingSteerFalsePositiveWeight,
     "-MovingSteerBinaryWeight", $MovingSteerBinaryWeight,
+    "-MovingSteerNonmovingMarginWeight", $MovingSteerNonmovingMarginWeight,
+    "-MovingSteerNonmovingMargin", $MovingSteerNonmovingMargin,
     "-Device", $Device,
     "-SkipGitPull"
 )

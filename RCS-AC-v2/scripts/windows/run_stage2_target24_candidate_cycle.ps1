@@ -24,6 +24,8 @@ param(
     [double]$SteerSequenceFraction = 0.10,
     [double]$MovingSteerFalsePositiveWeight = 0.0,
     [double]$MovingSteerBinaryWeight = 0.0,
+    [double]$MovingSteerNonmovingMarginWeight = 0.0,
+    [double]$MovingSteerNonmovingMargin = 0.25,
     [double]$WorldModelActionAuxWeight = 1.0,
     [int]$HiddenDim = 128,
     [string]$Device = "cuda"
@@ -157,6 +159,8 @@ powershell -ExecutionPolicy Bypass -File $StartScript `
     -SteerSequenceFraction $SteerSequenceFraction `
     -MovingSteerFalsePositiveWeight $MovingSteerFalsePositiveWeight `
     -MovingSteerBinaryWeight $MovingSteerBinaryWeight `
+    -MovingSteerNonmovingMarginWeight $MovingSteerNonmovingMarginWeight `
+    -MovingSteerNonmovingMargin $MovingSteerNonmovingMargin `
     -WorldModelActionAuxWeight $WorldModelActionAuxWeight `
     -HiddenDim $HiddenDim `
     -Device $Device `

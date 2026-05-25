@@ -42,6 +42,7 @@ from rcs_ac_v2.training.train_stage2_privileged_from_replay import (
     _moving_steer_action_mask,
     _moving_steer_binary_loss,
     _moving_steer_false_positive_loss,
+    _moving_steer_nonmoving_margin_loss,
     _moving_steer_action_ids,
     train_stage2_privileged_from_replay,
 )
@@ -317,6 +318,8 @@ def test_replay_training_exports_clean_eval_loadable_checkpoints(tmp_path) -> No
         imitation_class_balance=True,
         moving_steer_false_positive_weight=0.25,
         moving_steer_binary_weight=0.5,
+        moving_steer_nonmoving_margin_weight=0.75,
+        moving_steer_nonmoving_margin=0.1,
         world_model_action_aux_weight=0.25,
         hidden_dim=32,
         device="cpu",
@@ -347,10 +350,13 @@ def test_replay_training_exports_clean_eval_loadable_checkpoints(tmp_path) -> No
     assert manifest["steer_sequence_fraction"] == 0.0
     assert manifest["moving_steer_false_positive_weight"] == 0.25
     assert manifest["moving_steer_binary_weight"] == 0.5
+    assert manifest["moving_steer_nonmoving_margin_weight"] == 0.75
+    assert manifest["moving_steer_nonmoving_margin"] == 0.1
     assert manifest["world_model_action_aux_weight"] == 0.25
     assert manifest["world_model"]["metrics"]["final_action_aux"] >= 0.0
     assert manifest["policy"]["metrics"]["final_moving_steer_false_positive"] >= 0.0
     assert manifest["policy"]["metrics"]["final_moving_steer_binary"] >= 0.0
+    assert manifest["policy"]["metrics"]["final_moving_steer_nonmoving_margin"] >= 0.0
     assert manifest["sampler"]["requested_priority_sample_fraction"] == 0.0
     assert "priority_window_count" in manifest["sampler"]
     assert output["logits"].shape == (1, 1, 39)
@@ -412,6 +418,25 @@ def test_moving_steer_binary_loss_penalizes_wrong_moving_state() -> None:
     loss = _moving_steer_binary_loss(logits=logits, action=actions, moving_steer_mask=mask)
 
     assert loss.item() > 1.0
+
+
+def test_moving_steer_nonmoving_margin_loss_penalizes_argmax_risk() -> None:
+    mask = _moving_steer_action_mask(action_dim=39, device=torch.device("cpu"))
+    logits = torch.zeros(1, 2, 39)
+    logits[0, 0, 10] = 6.0
+    logits[0, 0, 7] = 5.95
+    logits[0, 1, 10] = 4.0
+    logits[0, 1, 7] = 6.0
+    actions = torch.tensor([[7, 10]], dtype=torch.long)
+
+    loss = _moving_steer_nonmoving_margin_loss(
+        logits=logits,
+        action=actions,
+        moving_steer_mask=mask,
+        margin=0.25,
+    )
+
+    assert loss.item() == pytest.approx(0.30, abs=1e-5)
 
 
 def test_imitation_class_weights_favor_rare_actions(tmp_path) -> None:

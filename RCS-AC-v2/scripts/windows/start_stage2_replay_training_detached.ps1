@@ -16,6 +16,8 @@ param(
     [double]$SteerSequenceFraction = 0.0,
     [double]$MovingSteerFalsePositiveWeight = 0.0,
     [double]$MovingSteerBinaryWeight = 0.0,
+    [double]$MovingSteerNonmovingMarginWeight = 0.0,
+    [double]$MovingSteerNonmovingMargin = 0.25,
     [double]$WorldModelActionAuxWeight = 0.0,
     [int]$HiddenDim = 128,
     [string]$Device = "cuda",
@@ -72,7 +74,7 @@ $InnerCommand = @"
 "DETACHED_TRAIN_STARTED=`$(Get-Date -Format o)" | Set-Content -Path `$LogPath
 try {
     Set-Location $QuotedProjectRoot
-    powershell -ExecutionPolicy Bypass -File $QuotedTrainingScript -ProjectRoot $QuotedProjectRoot -ReplayPath $QuotedReplayPath -ReplayManifestPath $QuotedReplayManifestPath -OutputDir $QuotedOutputDir -Seed $Seed -SequenceLength $SequenceLength -BatchSize $BatchSize -WorldModelSteps $WorldModelSteps -PolicySteps $PolicySteps -LearningRate $LearningRate -ImitationWeight $ImitationWeight -BehaviorWeight $BehaviorWeight -ImitationBalancePower $ImitationBalancePower -SteerSequenceFraction $SteerSequenceFraction -MovingSteerFalsePositiveWeight $MovingSteerFalsePositiveWeight -MovingSteerBinaryWeight $MovingSteerBinaryWeight -WorldModelActionAuxWeight $WorldModelActionAuxWeight$ImitationClassBalanceArg -HiddenDim $HiddenDim -Device $QuotedDevice *>&1 | Tee-Object -FilePath `$LogPath -Append
+    powershell -ExecutionPolicy Bypass -File $QuotedTrainingScript -ProjectRoot $QuotedProjectRoot -ReplayPath $QuotedReplayPath -ReplayManifestPath $QuotedReplayManifestPath -OutputDir $QuotedOutputDir -Seed $Seed -SequenceLength $SequenceLength -BatchSize $BatchSize -WorldModelSteps $WorldModelSteps -PolicySteps $PolicySteps -LearningRate $LearningRate -ImitationWeight $ImitationWeight -BehaviorWeight $BehaviorWeight -ImitationBalancePower $ImitationBalancePower -SteerSequenceFraction $SteerSequenceFraction -MovingSteerFalsePositiveWeight $MovingSteerFalsePositiveWeight -MovingSteerBinaryWeight $MovingSteerBinaryWeight -MovingSteerNonmovingMarginWeight $MovingSteerNonmovingMarginWeight -MovingSteerNonmovingMargin $MovingSteerNonmovingMargin -WorldModelActionAuxWeight $WorldModelActionAuxWeight$ImitationClassBalanceArg -HiddenDim $HiddenDim -Device $QuotedDevice *>&1 | Tee-Object -FilePath `$LogPath -Append
     `$Code = `$LASTEXITCODE
 }
 catch {
@@ -116,6 +118,8 @@ $LaunchManifest = [ordered]@{
     steer_sequence_fraction = $SteerSequenceFraction
     moving_steer_false_positive_weight = $MovingSteerFalsePositiveWeight
     moving_steer_binary_weight = $MovingSteerBinaryWeight
+    moving_steer_nonmoving_margin_weight = $MovingSteerNonmovingMarginWeight
+    moving_steer_nonmoving_margin = $MovingSteerNonmovingMargin
     world_model_action_aux_weight = $WorldModelActionAuxWeight
     hidden_dim = $HiddenDim
     device = $Device

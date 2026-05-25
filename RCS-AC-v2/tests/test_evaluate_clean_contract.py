@@ -601,17 +601,30 @@ def test_stage2_replay_training_wrappers_expose_moving_steer_false_positive_stat
 
     assert "--moving-steer-binary-weight" in module
     assert "moving_steer_binary_weight" in module
+    assert "--moving-steer-nonmoving-margin-weight" in module
+    assert "moving_steer_nonmoving_margin_weight" in module
     assert "[double]$MovingSteerBinaryWeight = 0.0" in train
     assert '"--moving-steer-binary-weight", $MovingSteerBinaryWeight' in train
+    assert "[double]$MovingSteerNonmovingMarginWeight = 0.0" in train
+    assert '"--moving-steer-nonmoving-margin-weight", $MovingSteerNonmovingMarginWeight' in train
     assert "[double]$MovingSteerBinaryWeight = 0.0" in start
     assert "-MovingSteerBinaryWeight $MovingSteerBinaryWeight" in start
     assert "moving_steer_binary_weight = $MovingSteerBinaryWeight" in start
+    assert "[double]$MovingSteerNonmovingMarginWeight = 0.0" in start
+    assert "-MovingSteerNonmovingMarginWeight $MovingSteerNonmovingMarginWeight" in start
+    assert "moving_steer_nonmoving_margin_weight = $MovingSteerNonmovingMarginWeight" in start
     assert "[double]$MovingSteerBinaryWeight = 0.0" in mixed
     assert "-MovingSteerBinaryWeight $MovingSteerBinaryWeight" in mixed
+    assert "[double]$MovingSteerNonmovingMarginWeight = 0.0" in mixed
+    assert "-MovingSteerNonmovingMarginWeight $MovingSteerNonmovingMarginWeight" in mixed
     assert "[double]$MovingSteerBinaryWeight = 0.0" in target
     assert "-MovingSteerBinaryWeight $MovingSteerBinaryWeight" in target
+    assert "[double]$MovingSteerNonmovingMarginWeight = 0.0" in target
+    assert "-MovingSteerNonmovingMarginWeight $MovingSteerNonmovingMarginWeight" in target
     assert "[double]$MovingSteerBinaryWeight = 0.0" in target_speed
     assert '"-MovingSteerBinaryWeight", $MovingSteerBinaryWeight' in target_speed
+    assert "[double]$MovingSteerNonmovingMarginWeight = 0.0" in target_speed
+    assert '"-MovingSteerNonmovingMarginWeight", $MovingSteerNonmovingMarginWeight' in target_speed
 
 
 def test_cross_replay_candidate_probe_runner_static_contract() -> None:

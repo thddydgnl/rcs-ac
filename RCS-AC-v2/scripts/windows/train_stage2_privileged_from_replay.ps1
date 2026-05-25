@@ -16,6 +16,8 @@ param(
     [double]$SteerSequenceFraction = 0.0,
     [double]$MovingSteerFalsePositiveWeight = 0.0,
     [double]$MovingSteerBinaryWeight = 0.0,
+    [double]$MovingSteerNonmovingMarginWeight = 0.0,
+    [double]$MovingSteerNonmovingMargin = 0.25,
     [double]$WorldModelActionAuxWeight = 0.0,
     [int]$HiddenDim = 128,
     [string]$Device = "cuda"
@@ -55,6 +57,8 @@ $TrainArgs = @(
     "--steer-sequence-fraction", $SteerSequenceFraction,
     "--moving-steer-false-positive-weight", $MovingSteerFalsePositiveWeight,
     "--moving-steer-binary-weight", $MovingSteerBinaryWeight,
+    "--moving-steer-nonmoving-margin-weight", $MovingSteerNonmovingMarginWeight,
+    "--moving-steer-nonmoving-margin", $MovingSteerNonmovingMargin,
     "--world-model-action-aux-weight", $WorldModelActionAuxWeight,
     "--hidden-dim", $HiddenDim,
     "--device", $Device

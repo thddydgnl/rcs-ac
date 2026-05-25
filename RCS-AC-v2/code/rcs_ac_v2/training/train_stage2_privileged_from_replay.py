@@ -55,6 +55,8 @@ def train_stage2_privileged_from_replay(
     steer_sequence_fraction: float = 0.0,
     moving_steer_false_positive_weight: float = 0.0,
     moving_steer_binary_weight: float = 0.0,
+    moving_steer_nonmoving_margin_weight: float = 0.0,
+    moving_steer_nonmoving_margin: float = 0.25,
     world_model_action_aux_weight: float = 0.0,
     hidden_dim: int = 128,
     device: str = "auto",
@@ -67,6 +69,10 @@ def train_stage2_privileged_from_replay(
         raise ValueError("moving_steer_false_positive_weight must be non-negative")
     if moving_steer_binary_weight < 0.0:
         raise ValueError("moving_steer_binary_weight must be non-negative")
+    if moving_steer_nonmoving_margin_weight < 0.0:
+        raise ValueError("moving_steer_nonmoving_margin_weight must be non-negative")
+    if moving_steer_nonmoving_margin < 0.0:
+        raise ValueError("moving_steer_nonmoving_margin must be non-negative")
     seed_everything(seed)
     resolved_device = _resolve_device(device)
     output = Path(output_dir)
@@ -179,11 +185,18 @@ def train_stage2_privileged_from_replay(
             action=batch.action,
             moving_steer_mask=moving_steer_mask,
         )
+        moving_steer_nonmoving_margin_loss = _moving_steer_nonmoving_margin_loss(
+            logits=replay_policy.logits,
+            action=batch.action,
+            moving_steer_mask=moving_steer_mask,
+            margin=moving_steer_nonmoving_margin,
+        )
         total_loss = (
             float(behavior_weight) * losses.total
             + float(imitation_weight) * imitation_loss
             + float(moving_steer_false_positive_weight) * moving_steer_false_positive_loss
             + float(moving_steer_binary_weight) * moving_steer_binary_loss
+            + float(moving_steer_nonmoving_margin_weight) * moving_steer_nonmoving_margin_loss
         )
         total_loss.backward()
         torch.nn.utils.clip_grad_norm_(policy.parameters(), max_norm=10.0)
@@ -194,6 +207,9 @@ def train_stage2_privileged_from_replay(
             moving_steer_false_positive_loss.detach().cpu().item()
         )
         scalars["moving_steer_binary"] = float(moving_steer_binary_loss.detach().cpu().item())
+        scalars["moving_steer_nonmoving_margin"] = float(
+            moving_steer_nonmoving_margin_loss.detach().cpu().item()
+        )
         scalars["combined_total"] = float(total_loss.detach().cpu().item())
         policy_history.append(scalars)
         valid_action_ids = bool(
@@ -219,6 +235,8 @@ def train_stage2_privileged_from_replay(
         "steer_sequence_fraction": float(steer_sequence_fraction),
         "moving_steer_false_positive_weight": float(moving_steer_false_positive_weight),
         "moving_steer_binary_weight": float(moving_steer_binary_weight),
+        "moving_steer_nonmoving_margin_weight": float(moving_steer_nonmoving_margin_weight),
+        "moving_steer_nonmoving_margin": float(moving_steer_nonmoving_margin),
         "world_model_action_aux_weight": float(world_model_action_aux_weight),
         "sampler": sampler_stats,
         "replay_manifest": {
@@ -261,6 +279,9 @@ def train_stage2_privileged_from_replay(
                     "moving_steer_false_positive"
                 ],
                 "final_moving_steer_binary": policy_history[-1]["moving_steer_binary"],
+                "final_moving_steer_nonmoving_margin": policy_history[-1][
+                    "moving_steer_nonmoving_margin"
+                ],
                 "final_actor": policy_history[-1]["actor"],
                 "final_critic": policy_history[-1]["critic"],
                 "final_entropy": policy_history[-1]["entropy"],
@@ -294,6 +315,9 @@ def train_stage2_privileged_from_replay(
                     "moving_steer_false_positive"
                 ],
                 "final_moving_steer_binary": policy_history[-1]["moving_steer_binary"],
+                "final_moving_steer_nonmoving_margin": policy_history[-1][
+                    "moving_steer_nonmoving_margin"
+                ],
                 "valid_action_ids": valid_action_ids,
             },
         },
@@ -343,6 +367,8 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--steer-sequence-fraction", type=float, default=0.0)
     parser.add_argument("--moving-steer-false-positive-weight", type=float, default=0.0)
     parser.add_argument("--moving-steer-binary-weight", type=float, default=0.0)
+    parser.add_argument("--moving-steer-nonmoving-margin-weight", type=float, default=0.0)
+    parser.add_argument("--moving-steer-nonmoving-margin", type=float, default=0.25)
     parser.add_argument("--world-model-action-aux-weight", type=float, default=0.0)
     parser.add_argument("--hidden-dim", type=int, default=128)
     parser.add_argument("--device", default="auto")
@@ -365,6 +391,8 @@ def main(argv: list[str] | None = None) -> None:
         steer_sequence_fraction=args.steer_sequence_fraction,
         moving_steer_false_positive_weight=args.moving_steer_false_positive_weight,
         moving_steer_binary_weight=args.moving_steer_binary_weight,
+        moving_steer_nonmoving_margin_weight=args.moving_steer_nonmoving_margin_weight,
+        moving_steer_nonmoving_margin=args.moving_steer_nonmoving_margin,
         world_model_action_aux_weight=args.world_model_action_aux_weight,
         hidden_dim=args.hidden_dim,
         device=args.device,
@@ -444,6 +472,24 @@ def _moving_steer_binary_loss(
     moving_mass = torch.softmax(flat_logits, dim=-1)[:, moving_steer_mask].sum(dim=-1)
     moving_mass = moving_mass.clamp(min=1e-6, max=1.0 - 1e-6)
     return F.binary_cross_entropy(moving_mass, target)
+
+
+def _moving_steer_nonmoving_margin_loss(
+    *,
+    logits: torch.Tensor,
+    action: torch.Tensor,
+    moving_steer_mask: torch.Tensor,
+    margin: float = 0.25,
+) -> torch.Tensor:
+    flat_logits = logits.reshape(-1, logits.shape[-1])
+    flat_action = action.reshape(-1)
+    label_is_moving_steer = moving_steer_mask[flat_action]
+    nonmoving_logits = flat_logits[~label_is_moving_steer]
+    if int(nonmoving_logits.shape[0]) == 0:
+        return flat_logits.sum() * 0.0
+    moving_top = nonmoving_logits[:, moving_steer_mask].max(dim=-1).values
+    nonmoving_top = nonmoving_logits[:, ~moving_steer_mask].max(dim=-1).values
+    return F.relu(moving_top - nonmoving_top + float(margin)).mean()
 
 
 def _world_model_action_auxiliary_loss(

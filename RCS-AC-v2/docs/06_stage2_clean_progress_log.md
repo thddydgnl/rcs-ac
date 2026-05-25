@@ -246,3 +246,25 @@ from these candidates. The next implementation adds an optional moving-steer
 binary auxiliary loss, default `0.0`, so future CUDA candidates can directly
 supervise whether replay frames should be moving-steer while preserving the
 existing action imitation loss.
+
+Moving-steer binary follow-up:
+
+- `balpow025_iw5_ssf025_msfpa20_msb05_cuda`:
+  - target22 action/latent: pass.
+  - target22 action match fraction: `0.9693486590`.
+  - target22 moving steer fraction: `0.1149425287`.
+  - target22 latent test accuracy: `0.9904761910`.
+  - steer2 latent: pass, test accuracy `0.8999999762`, margin over majority
+    `0.2168469622`.
+  - steer2 action rejected, moving steer fraction `0.2024729521`, gate max
+    `0.20`.
+  - steer2 predicted moving on label-nonmoving fraction `0.0834621329`;
+    predicted nonmoving on label-moving fraction `0.0108191654`.
+
+Decision: binary auxiliary did not clear the argmax action gate. It slightly
+worsened the best false-positive-only moving steer fraction, while target22
+became strong enough. The next structural fix adds
+`moving_steer_nonmoving_margin_weight`, a non-moving-frame margin loss that
+directly penalizes moving-steer logits that approach or exceed the best
+non-moving logit. Continue with CUDA replay training/probe only; official 512
+clean eval remains blocked until `ready_for_clean_eval=true`.
