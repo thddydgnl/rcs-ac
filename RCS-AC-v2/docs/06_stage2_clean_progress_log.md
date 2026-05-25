@@ -1094,6 +1094,45 @@ Route-local action cap support:
   - targeted Stage 2 tests: `61 passed`.
   - full `RCS-AC-v2/tests`: `139 passed`.
 
+Late throttle-only candidate:
+
+- `0308f26_corr056w4_late_throttle020_cuda`:
+  - same original corr056 hyperparameters.
+  - no route action override.
+  - kept early route throttle ceiling:
+    - ceiling `0.35`, route `0.56-0.60`.
+  - added late route throttle ceiling:
+    - ceiling `0.20`, route `0.64-0.70`.
+    - weight `6.0`.
+  - CUDA training/checkpoint validation: pass on `NVIDIA GeForce RTX 3080`.
+  - cross replay gate: `ready_for_clean_eval=true`.
+  - target22 action probe:
+    - action counts `{"10":18,"15":64,"4":22,"7":418}`.
+    - dominant action fraction `0.8007662835`.
+    - moving steer fraction `0.0766283525`.
+  - steer2 action probe:
+    - action counts `{"10":10,"15":64,"4":71,"7":502}`.
+    - dominant action fraction `0.7758887172`.
+    - moving steer fraction `0.1251931994`.
+  - official 512 clean:
+    - run output:
+      `RCS-AC-v2\experiments\02_privileged_policy_clean\windows_512\0308f26_corr056w4_late_throttle020_cuda_official_clean512`
+    - status: `FAIL`, clean gate pass: `false`.
+    - done reason: `collision`.
+    - steps: `306` / `512`.
+    - route progress: `0.6666666667`.
+    - collision count: `1`, offroad count: `0`.
+    - final action band: action `7` dominated from route `0.6410` through
+      collision at route `0.6667`.
+    - late speed dropped to around `18 km/h`, compared with about `25 km/h` in
+      the cap-plus-override failure.
+
+Decision: late throttle worked as a speed reducer but did not create the final
+turn. The next candidate should keep late throttle and add a weak late steering
+target, preferably action `13` or `10` only from route `0.66-0.70`, because
+throttle-only returns to the straight-line route `0.6667` collision while
+stronger steering without enough speed control regressed earlier.
+
 Decision: this is the next Stage 2 direction because the last two official
 clean runs bracketed action `13` strength but did not solve the route `0.64+`
 collision. The cap lets the candidate learn a late correction without leaking
