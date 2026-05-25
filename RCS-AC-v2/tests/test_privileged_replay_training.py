@@ -38,6 +38,7 @@ from rcs_ac_v2.training.privileged_replay import (
     write_privileged_replay_manifest,
 )
 from rcs_ac_v2.training.train_stage2_privileged_from_replay import (
+    _action_mass_cap_loss,
     _make_imitation_class_weights,
     _make_episode_sample_weights,
     _moving_steer_action_mask,
@@ -45,6 +46,7 @@ from rcs_ac_v2.training.train_stage2_privileged_from_replay import (
     _moving_steer_false_positive_loss,
     _moving_steer_nonmoving_margin_loss,
     _moving_steer_action_ids,
+    _parse_action_mass_cap_args,
     _parse_component_sample_weight_args,
     train_stage2_privileged_from_replay,
 )
@@ -373,6 +375,8 @@ def test_replay_training_exports_clean_eval_loadable_checkpoints(tmp_path) -> No
         moving_steer_nonmoving_margin=0.1,
         world_model_action_aux_weight=0.25,
         component_sample_weights={"target22": 0.5},
+        action_mass_cap_weight=0.2,
+        action_mass_caps={7: 0.7, 15: 0.55},
         hidden_dim=32,
         device="cpu",
     )
@@ -406,10 +410,13 @@ def test_replay_training_exports_clean_eval_loadable_checkpoints(tmp_path) -> No
     assert manifest["moving_steer_nonmoving_margin"] == 0.1
     assert manifest["world_model_action_aux_weight"] == 0.25
     assert manifest["component_sample_weights"] == {"target22": 0.5}
+    assert manifest["action_mass_cap_weight"] == 0.2
+    assert manifest["action_mass_caps"] == {"7": 0.7, "15": 0.55}
     assert manifest["world_model"]["metrics"]["final_action_aux"] >= 0.0
     assert manifest["policy"]["metrics"]["final_moving_steer_false_positive"] >= 0.0
     assert manifest["policy"]["metrics"]["final_moving_steer_binary"] >= 0.0
     assert manifest["policy"]["metrics"]["final_moving_steer_nonmoving_margin"] >= 0.0
+    assert manifest["policy"]["metrics"]["final_action_mass_cap"] >= 0.0
     assert manifest["sampler"]["requested_priority_sample_fraction"] == 0.0
     assert "priority_window_count" in manifest["sampler"]
     assert manifest["sampler"]["episode_sample_probabilities"] == [1.0]
@@ -452,6 +459,20 @@ def test_replay_training_exports_clean_eval_loadable_checkpoints(tmp_path) -> No
     assert "dominant_action_fraction" in action_probe
     assert "previous_stuck_action8_fraction" in action_probe
     assert Path(tmp_path / "stage2_checkpoint_action_probe.json").exists()
+
+
+def test_action_mass_cap_loss_penalizes_over_cap_action_mass() -> None:
+    caps = _parse_action_mass_cap_args(["7=0.25,15=0.5"])
+    logits = torch.zeros(2, 3, 39)
+    logits[..., 7] = 8.0
+
+    high_loss = _action_mass_cap_loss(logits=logits, action_mass_caps=caps)
+    low_loss = _action_mass_cap_loss(logits=torch.zeros(2, 3, 39), action_mass_caps=caps)
+    empty_loss = _action_mass_cap_loss(logits=logits, action_mass_caps={})
+
+    assert caps == {7: 0.25, 15: 0.5}
+    assert high_loss > low_loss
+    assert empty_loss.item() == pytest.approx(0.0)
 
 
 def test_moving_steer_false_positive_loss_penalizes_nonmoving_labels() -> None:

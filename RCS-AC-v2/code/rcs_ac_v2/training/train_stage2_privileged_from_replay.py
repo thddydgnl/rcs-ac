@@ -59,6 +59,8 @@ def train_stage2_privileged_from_replay(
     moving_steer_nonmoving_margin: float = 0.25,
     world_model_action_aux_weight: float = 0.0,
     component_sample_weights: dict[str, float] | None = None,
+    action_mass_cap_weight: float = 0.0,
+    action_mass_caps: dict[int, float] | None = None,
     hidden_dim: int = 128,
     device: str = "cuda",
 ) -> ReplayTrainingResult:
@@ -74,6 +76,8 @@ def train_stage2_privileged_from_replay(
         raise ValueError("moving_steer_nonmoving_margin_weight must be non-negative")
     if moving_steer_nonmoving_margin < 0.0:
         raise ValueError("moving_steer_nonmoving_margin must be non-negative")
+    if action_mass_cap_weight < 0.0:
+        raise ValueError("action_mass_cap_weight must be non-negative")
     seed_everything(seed)
     resolved_device = _resolve_device(device)
     output = Path(output_dir)
@@ -82,6 +86,7 @@ def train_stage2_privileged_from_replay(
     replay_files = replay_manifest["files"]
     episodes = load_replay_episodes(replay_paths)
     resolved_component_weights = _normalize_component_sample_weights(component_sample_weights)
+    resolved_action_mass_caps = _normalize_action_mass_caps(action_mass_caps)
     episode_sample_weights = _make_episode_sample_weights(
         episodes,
         component_sample_weights=resolved_component_weights,
@@ -198,12 +203,17 @@ def train_stage2_privileged_from_replay(
             moving_steer_mask=moving_steer_mask,
             margin=moving_steer_nonmoving_margin,
         )
+        action_mass_cap_loss = _action_mass_cap_loss(
+            logits=replay_policy.logits,
+            action_mass_caps=resolved_action_mass_caps,
+        )
         total_loss = (
             float(behavior_weight) * losses.total
             + float(imitation_weight) * imitation_loss
             + float(moving_steer_false_positive_weight) * moving_steer_false_positive_loss
             + float(moving_steer_binary_weight) * moving_steer_binary_loss
             + float(moving_steer_nonmoving_margin_weight) * moving_steer_nonmoving_margin_loss
+            + float(action_mass_cap_weight) * action_mass_cap_loss
         )
         total_loss.backward()
         torch.nn.utils.clip_grad_norm_(policy.parameters(), max_norm=10.0)
@@ -217,6 +227,7 @@ def train_stage2_privileged_from_replay(
         scalars["moving_steer_nonmoving_margin"] = float(
             moving_steer_nonmoving_margin_loss.detach().cpu().item()
         )
+        scalars["action_mass_cap"] = float(action_mass_cap_loss.detach().cpu().item())
         scalars["combined_total"] = float(total_loss.detach().cpu().item())
         policy_history.append(scalars)
         valid_action_ids = bool(
@@ -246,6 +257,8 @@ def train_stage2_privileged_from_replay(
         "moving_steer_nonmoving_margin": float(moving_steer_nonmoving_margin),
         "world_model_action_aux_weight": float(world_model_action_aux_weight),
         "component_sample_weights": resolved_component_weights,
+        "action_mass_cap_weight": float(action_mass_cap_weight),
+        "action_mass_caps": {str(key): value for key, value in resolved_action_mass_caps.items()},
         "sampler": sampler_stats,
         "replay_manifest": {
             "path": str(replay_manifest_path),
@@ -290,6 +303,7 @@ def train_stage2_privileged_from_replay(
                 "final_moving_steer_nonmoving_margin": policy_history[-1][
                     "moving_steer_nonmoving_margin"
                 ],
+                "final_action_mass_cap": policy_history[-1]["action_mass_cap"],
                 "final_actor": policy_history[-1]["actor"],
                 "final_critic": policy_history[-1]["critic"],
                 "final_entropy": policy_history[-1]["entropy"],
@@ -326,6 +340,7 @@ def train_stage2_privileged_from_replay(
                 "final_moving_steer_nonmoving_margin": policy_history[-1][
                     "moving_steer_nonmoving_margin"
                 ],
+                "final_action_mass_cap": policy_history[-1]["action_mass_cap"],
                 "valid_action_ids": valid_action_ids,
             },
         },
@@ -379,6 +394,8 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--moving-steer-nonmoving-margin", type=float, default=0.25)
     parser.add_argument("--world-model-action-aux-weight", type=float, default=0.0)
     parser.add_argument("--component-sample-weight", action="append", default=[])
+    parser.add_argument("--action-mass-cap-weight", type=float, default=0.0)
+    parser.add_argument("--action-mass-cap", action="append", default=[])
     parser.add_argument("--hidden-dim", type=int, default=128)
     parser.add_argument("--device", default="cuda")
     args = parser.parse_args(argv)
@@ -404,6 +421,8 @@ def main(argv: list[str] | None = None) -> None:
         moving_steer_nonmoving_margin=args.moving_steer_nonmoving_margin,
         world_model_action_aux_weight=args.world_model_action_aux_weight,
         component_sample_weights=_parse_component_sample_weight_args(args.component_sample_weight),
+        action_mass_cap_weight=args.action_mass_cap_weight,
+        action_mass_caps=_parse_action_mass_cap_args(args.action_mass_cap),
         hidden_dim=args.hidden_dim,
         device=args.device,
     )
@@ -468,6 +487,39 @@ def _normalize_component_sample_weights(weights: dict[str, float] | None) -> dic
         if weight < 0.0:
             raise ValueError("component sample weights must be non-negative")
         normalized[component] = weight
+    return normalized
+
+
+def _parse_action_mass_cap_args(values: list[str]) -> dict[int, float]:
+    caps: dict[int, float] = {}
+    for raw_value in values:
+        for item in str(raw_value).split(","):
+            text = item.strip()
+            if not text:
+                continue
+            if "=" not in text:
+                raise ValueError("action mass caps must use action_id=max_probability")
+            raw_action_id, raw_cap = text.split("=", 1)
+            try:
+                action_id = int(raw_action_id.strip())
+            except ValueError as exc:
+                raise ValueError("action mass cap action_id must be an integer") from exc
+            caps[action_id] = float(raw_cap)
+    return _normalize_action_mass_caps(caps)
+
+
+def _normalize_action_mass_caps(caps: dict[int, float] | None) -> dict[int, float]:
+    normalized: dict[int, float] = {}
+    for key, value in (caps or {}).items():
+        action_id = int(key)
+        if action_id < 0 or action_id >= len(RAW2DRIVE_ACTIONS):
+            raise ValueError(f"action mass cap action_id must be in [0, {len(RAW2DRIVE_ACTIONS) - 1}]")
+        cap = float(value)
+        if not torch.isfinite(torch.tensor(cap)):
+            raise ValueError("action mass caps must be finite")
+        if not 0.0 <= cap <= 1.0:
+            raise ValueError("action mass caps must be in [0, 1]")
+        normalized[action_id] = cap
     return normalized
 
 
@@ -556,6 +608,22 @@ def _moving_steer_nonmoving_margin_loss(
     moving_top = nonmoving_logits[:, moving_steer_mask].max(dim=-1).values
     nonmoving_top = nonmoving_logits[:, ~moving_steer_mask].max(dim=-1).values
     return F.relu(moving_top - nonmoving_top + float(margin)).mean()
+
+
+def _action_mass_cap_loss(
+    *,
+    logits: torch.Tensor,
+    action_mass_caps: dict[int, float],
+) -> torch.Tensor:
+    flat_logits = logits.reshape(-1, logits.shape[-1])
+    if not action_mass_caps:
+        return flat_logits.sum() * 0.0
+    action_mass = torch.softmax(flat_logits, dim=-1).mean(dim=0)
+    penalties = [
+        F.relu(action_mass[action_id] - float(cap)).pow(2)
+        for action_id, cap in action_mass_caps.items()
+    ]
+    return torch.stack(penalties).mean()
 
 
 def _world_model_action_auxiliary_loss(

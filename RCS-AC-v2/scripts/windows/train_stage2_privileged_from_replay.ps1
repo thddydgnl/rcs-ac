@@ -20,6 +20,8 @@ param(
     [double]$MovingSteerNonmovingMargin = 0.25,
     [double]$WorldModelActionAuxWeight = 0.0,
     [string]$ComponentSampleWeights = "",
+    [double]$ActionMassCapWeight = 0.0,
+    [string]$ActionMassCaps = "",
     [int]$HiddenDim = 128,
     [string]$Device = "cuda"
 )
@@ -61,11 +63,15 @@ $TrainArgs = @(
     "--moving-steer-nonmoving-margin-weight", $MovingSteerNonmovingMarginWeight,
     "--moving-steer-nonmoving-margin", $MovingSteerNonmovingMargin,
     "--world-model-action-aux-weight", $WorldModelActionAuxWeight,
+    "--action-mass-cap-weight", $ActionMassCapWeight,
     "--hidden-dim", $HiddenDim,
     "--device", $Device
 )
 if ($ComponentSampleWeights -ne "") {
     $TrainArgs += @("--component-sample-weight", $ComponentSampleWeights)
+}
+if ($ActionMassCaps -ne "") {
+    $TrainArgs += @("--action-mass-cap", $ActionMassCaps)
 }
 if ($ImitationClassBalance) {
     $TrainArgs += "--imitation-class-balance"
