@@ -51,6 +51,11 @@ def train_stage2_privileged_from_replay(
     pdf_stage1_strict: bool = False,
     imitation_weight: float = 0.0,
     behavior_weight: float = 1.0,
+    behavior_gamma: float = 0.99,
+    behavior_lambda: float = 1.0,
+    behavior_actor_weight: float = 0.1,
+    behavior_critic_weight: float = 1.0,
+    behavior_entropy_weight: float = 1e-3,
     imitation_class_balance: bool = False,
     imitation_balance_power: float = 1.0,
     steer_sequence_fraction: float = 0.0,
@@ -98,6 +103,11 @@ def train_stage2_privileged_from_replay(
         _validate_pdf_stage1_strict_config(
             imitation_weight=imitation_weight,
             behavior_weight=behavior_weight,
+            behavior_gamma=behavior_gamma,
+            behavior_lambda=behavior_lambda,
+            behavior_actor_weight=behavior_actor_weight,
+            behavior_critic_weight=behavior_critic_weight,
+            behavior_entropy_weight=behavior_entropy_weight,
             imitation_class_balance=imitation_class_balance,
             steer_sequence_fraction=steer_sequence_fraction,
             moving_steer_false_positive_weight=moving_steer_false_positive_weight,
@@ -118,6 +128,16 @@ def train_stage2_privileged_from_replay(
         )
     if world_model_action_aux_weight < 0.0:
         raise ValueError("world_model_action_aux_weight must be non-negative")
+    if not 0.0 <= float(behavior_gamma) <= 1.0:
+        raise ValueError("behavior_gamma must be in [0, 1]")
+    if not 0.0 <= float(behavior_lambda) <= 1.0:
+        raise ValueError("behavior_lambda must be in [0, 1]")
+    if behavior_actor_weight < 0.0:
+        raise ValueError("behavior_actor_weight must be non-negative")
+    if behavior_critic_weight < 0.0:
+        raise ValueError("behavior_critic_weight must be non-negative")
+    if behavior_entropy_weight < 0.0:
+        raise ValueError("behavior_entropy_weight must be non-negative")
     if moving_steer_false_positive_weight < 0.0:
         raise ValueError("moving_steer_false_positive_weight must be non-negative")
     if moving_steer_binary_weight < 0.0:
@@ -276,7 +296,13 @@ def train_stage2_privileged_from_replay(
     policy_cfg = PrivilegedPolicyConfig(latent_dim=world_model.rssm.latent_dim, hidden_dim=hidden_dim)
     policy = PrivilegedPolicy(policy_cfg).to(resolved_device)
     policy_optimizer = torch.optim.AdamW(policy.parameters(), lr=policy_lr)
-    behavior_cfg = BehaviorLossConfig(lambda_=1.0, actor_weight=0.1, entropy_weight=1e-3)
+    behavior_cfg = BehaviorLossConfig(
+        gamma=behavior_gamma,
+        lambda_=behavior_lambda,
+        actor_weight=behavior_actor_weight,
+        critic_weight=behavior_critic_weight,
+        entropy_weight=behavior_entropy_weight,
+    )
     moving_steer_mask = _moving_steer_action_mask(action_dim=wm_cfg.action_dim, device=resolved_device)
     policy_history: list[dict[str, float]] = []
     valid_action_ids = False
@@ -300,7 +326,6 @@ def train_stage2_privileged_from_replay(
             action=rollout.action,
             reward=rollout.reward,
             cont=rollout.cont,
-            bootstrap=torch.zeros(batch.reward.shape[0], device=resolved_device),
             cfg=behavior_cfg,
         )
         replay_policy = policy(replay_latent)
@@ -427,6 +452,11 @@ def train_stage2_privileged_from_replay(
         "pdf_stage1_strict": bool(pdf_stage1_strict),
         "imitation_weight": float(imitation_weight),
         "behavior_weight": float(behavior_weight),
+        "behavior_gamma": float(behavior_gamma),
+        "behavior_lambda": float(behavior_lambda),
+        "behavior_actor_weight": float(behavior_actor_weight),
+        "behavior_critic_weight": float(behavior_critic_weight),
+        "behavior_entropy_weight": float(behavior_entropy_weight),
         "imitation_class_balance": bool(imitation_class_balance),
         "imitation_balance_power": float(imitation_balance_power),
         "steer_sequence_fraction": float(steer_sequence_fraction),
@@ -618,6 +648,11 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--pdf-stage1-strict", action="store_true")
     parser.add_argument("--imitation-weight", type=float, default=0.0)
     parser.add_argument("--behavior-weight", type=float, default=1.0)
+    parser.add_argument("--behavior-gamma", type=float, default=0.99)
+    parser.add_argument("--behavior-lambda", type=float, default=1.0)
+    parser.add_argument("--behavior-actor-weight", type=float, default=0.1)
+    parser.add_argument("--behavior-critic-weight", type=float, default=1.0)
+    parser.add_argument("--behavior-entropy-weight", type=float, default=1e-3)
     parser.add_argument("--imitation-class-balance", action="store_true")
     parser.add_argument("--imitation-balance-power", type=float, default=1.0)
     parser.add_argument("--steer-sequence-fraction", type=float, default=0.0)
@@ -673,6 +708,11 @@ def main(argv: list[str] | None = None) -> None:
         pdf_stage1_strict=args.pdf_stage1_strict,
         imitation_weight=args.imitation_weight,
         behavior_weight=args.behavior_weight,
+        behavior_gamma=args.behavior_gamma,
+        behavior_lambda=args.behavior_lambda,
+        behavior_actor_weight=args.behavior_actor_weight,
+        behavior_critic_weight=args.behavior_critic_weight,
+        behavior_entropy_weight=args.behavior_entropy_weight,
         imitation_class_balance=args.imitation_class_balance,
         imitation_balance_power=args.imitation_balance_power,
         steer_sequence_fraction=args.steer_sequence_fraction,
@@ -729,6 +769,11 @@ def _validate_pdf_stage1_strict_config(
     *,
     imitation_weight: float,
     behavior_weight: float,
+    behavior_gamma: float,
+    behavior_lambda: float,
+    behavior_actor_weight: float,
+    behavior_critic_weight: float,
+    behavior_entropy_weight: float,
     imitation_class_balance: bool,
     steer_sequence_fraction: float,
     moving_steer_false_positive_weight: float,
@@ -751,6 +796,17 @@ def _validate_pdf_stage1_strict_config(
     violations: list[str] = []
     if float(behavior_weight) <= 0.0:
         violations.append("behavior_weight must be positive")
+    if not 0.0 <= float(behavior_gamma) <= 1.0:
+        violations.append("behavior_gamma must be in [0, 1]")
+    if not 0.0 <= float(behavior_lambda) <= 1.0:
+        violations.append("behavior_lambda must be in [0, 1]")
+    for name, value in {
+        "behavior_actor_weight": behavior_actor_weight,
+        "behavior_critic_weight": behavior_critic_weight,
+        "behavior_entropy_weight": behavior_entropy_weight,
+    }.items():
+        if float(value) < 0.0:
+            violations.append(f"{name} must be non-negative")
     if float(imitation_weight) != 0.0:
         violations.append("imitation_weight must be 0")
     if imitation_class_balance:

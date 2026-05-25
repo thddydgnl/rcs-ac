@@ -1,6 +1,6 @@
 # RCS-AC v2 Goal Status
 
-Updated: 2026-05-24
+Updated: 2026-05-26
 
 ## Active Objective
 
@@ -19,7 +19,7 @@ Stage 2: Privileged policy clean
 Status:
 
 ```text
-FAST35_128_CLEAN_PASS__512_ACTION_AUX_FAIL_COLLISION
+STAGE2_PDF_STAGE1_STRICT_REJECTED_POLICY_COLLAPSE
 ```
 
 Last completed stage:
@@ -90,6 +90,9 @@ Stage 2 Windows archive probe at commit 5b00347 passed dependency check, CARLA T
 Stage 2 replay path now exists: collect_stage2_privileged_replay.ps1 writes simulator-state semantic43/ego8 .npz episodes, train_stage2_privileged_from_replay.ps1 exports replay-source world_model/policy checkpoints and manifest, and clean eval rejects synthetic smoke checkpoints by provenance.
 Stage 2 offline diagnosis now includes replay_latent_probe.py and probe_stage2_replay_latents.ps1. The initial steer2 replay candidates all scored linear_probe_test_accuracy=0.7384615540504456 against majority_action_fraction=0.6831530139103554, so the world-model latent only weakly separated action labels. The 7f87656 action-aux candidate improved latent test accuracy to 0.9076923131942749 and passed checkpoint action probe, but still failed the official 512 clean gate by collision at step 177/178.
 Stage 2 replay path Windows scratch check at commit e1c9c86 passed dependency probe, replay module imports, 1x8-step privileged replay collection, 2-step replay checkpoint training, and strict replay-source checkpoint loading. This remains clean_gate_evidence=false and is not clean performance evidence.
+PDF Stage I strict replay training was added at commit f9a7f44. The trainer now has `pdf_stage1_strict=true`, default `imitation_weight=0.0`, rejects route-local diagnostic losses/action caps/overrides/component weighting in strict mode, and records the strict flag in checkpoint manifests.
+Two PDF Stage I strict Windows CUDA candidates were run from clean clone `C:\Users\thddy\Documents\code\RCS-AC-first-official-v2-7f87656` on RTX 3080: `f9a7f44_pdf_stage1_strict_actorcritic` with 200/200 steps and `f9a7f44_pdf_stage1_strict_actorcritic_wm2000_pi1000` with 2000/1000 steps. Both are rejected offline and are not clean evidence. The short run collapsed to action 24 on target22/steer2; the long run improved latent separability but collapsed to action 13 on both replays.
+The next PDF-aligned patch exposed behavior actor-critic hyperparameters and removed forced zero bootstrap so the policy can use value bootstrap through `compute_behavior_loss`. This remains inside Algorithm 1 Stage I actor-critic optimization and does not add imitation or route-local correction.
 Windows official sync lane now uses SSH GitHub access, not HTTPS. Clean clone path C:\Users\thddy\Documents\code\RCS-AC-first-official-v2-ac11c90 was created at commit ac11c90 after enabling core.longpaths. The v1.1 env config is now copied under RCS-AC-v2 and the adapter owns the minimal shared_core env builder, so the clean clone should only need sibling shared_core as an external runtime dependency.
 Official Windows clean clone was pulled to commit e42dc6a after fixing optional PowerShell dependency arguments. From that clean clone, dependency check, CARLA Town04 readiness, simulator-state privileged observation provenance, BEV/ego shape/finite checks, and neutral-step safety checks all passed with clean_gate_evidence=false.
 First Windows CARLA run must follow docs/03_windows_carla_remote_execution_workflow.md.

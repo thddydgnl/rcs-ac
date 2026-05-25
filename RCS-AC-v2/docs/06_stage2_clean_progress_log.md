@@ -13,6 +13,68 @@ clean PASS evidence.
 
 ## Rejected candidates
 
+### PDF Stage I strict actor-critic, 200/200
+
+- Commit: `f9a7f44`.
+- Training output:
+  - `RCS-AC-v2\experiments\02_privileged_policy_clean\checkpoints\f9a7f44_pdf_stage1_strict_actorcritic`
+  - `PdfStage1Strict=true`
+  - `WorldModelSteps=200`
+  - `PolicySteps=200`
+  - `ImitationWeight=0.0`
+  - no route override/action cap/throttle ceiling/component sampling diagnostics.
+- Cross replay gate:
+  - target22 action probe rejected:
+    - action collapse: `{24: 522}`
+    - dominant action fraction: `1.0`
+    - moving steer fraction: `1.0`
+  - target22 latent probe rejected:
+    - test accuracy: `0.7619047761`
+    - majority: `0.7931034483`
+    - margin: `-0.0311986722`
+  - steer2 action probe rejected:
+    - action collapse: `{24: 647}`
+    - dominant action fraction: `1.0`
+    - moving steer fraction: `1.0`
+  - steer2 latent probe rejected:
+    - test accuracy: `0.6692307591`
+    - majority: `0.6831530139`
+    - margin: `-0.0139222548`
+- Decision: reject, do not run official 512 clean eval. The strict path worked
+  mechanically, but this short smoke was undertrained and collapsed.
+
+### PDF Stage I strict actor-critic, wm2000/pi1000
+
+- Commit: `f9a7f44`.
+- Training output:
+  - `RCS-AC-v2\experiments\02_privileged_policy_clean\checkpoints\f9a7f44_pdf_stage1_strict_actorcritic_wm2000_pi1000`
+  - `PdfStage1Strict=true`
+  - `WorldModelSteps=2000`
+  - `PolicySteps=1000`
+  - `ImitationWeight=0.0`
+  - no route override/action cap/throttle ceiling/component sampling diagnostics.
+- Cross replay gate:
+  - target22 latent probe passed:
+    - test accuracy: `0.9809523821`
+    - majority: `0.7931034483`
+    - margin: `0.1878489338`
+  - target22 action probe rejected:
+    - action collapse: `{13: 522}`
+    - dominant action fraction: `1.0`
+    - moving steer fraction: `1.0`
+  - steer2 latent probe still below margin:
+    - test accuracy: `0.8153846264`
+    - majority: `0.6831530139`
+    - margin: `0.1322316125`, gate min `0.15`
+  - steer2 action probe rejected:
+    - action collapse: `{13: 647}`
+    - dominant action fraction: `1.0`
+    - moving steer fraction: `1.0`
+- Decision: reject, do not run official 512 clean eval. More world-model
+  training improved latent separability, but the actor-critic policy still
+  exploits one high-reward steering action. Next PDF-aligned patch should tune
+  actor-critic entropy/bootstrap/objective settings, not add route-local losses.
+
 ### target24 replay candidate
 
 - Primary target24 action/latent probes passed.

@@ -12,6 +12,11 @@ param(
     [switch]$PdfStage1Strict,
     [double]$ImitationWeight = 0.0,
     [double]$BehaviorWeight = 1.0,
+    [double]$BehaviorGamma = 0.99,
+    [double]$BehaviorLambda = 1.0,
+    [double]$BehaviorActorWeight = 0.1,
+    [double]$BehaviorCriticWeight = 1.0,
+    [double]$BehaviorEntropyWeight = 0.001,
     [switch]$ImitationClassBalance,
     [double]$ImitationBalancePower = 1.0,
     [double]$SteerSequenceFraction = 0.0,
@@ -129,7 +134,7 @@ $InnerCommand = @"
 "DETACHED_TRAIN_STARTED=`$(Get-Date -Format o)" | Set-Content -Path `$LogPath
 try {
     Set-Location $QuotedProjectRoot
-    powershell -ExecutionPolicy Bypass -File $QuotedTrainingScript -ProjectRoot $QuotedProjectRoot -ReplayPath $QuotedReplayPath -ReplayManifestPath $QuotedReplayManifestPath -OutputDir $QuotedOutputDir -Seed $Seed -SequenceLength $SequenceLength -BatchSize $BatchSize -WorldModelSteps $WorldModelSteps -PolicySteps $PolicySteps -LearningRate $LearningRate -ImitationWeight $ImitationWeight -BehaviorWeight $BehaviorWeight -ImitationBalancePower $ImitationBalancePower -SteerSequenceFraction $SteerSequenceFraction -MovingSteerFalsePositiveWeight $MovingSteerFalsePositiveWeight -MovingSteerBinaryWeight $MovingSteerBinaryWeight -MovingSteerNonmovingMarginWeight $MovingSteerNonmovingMarginWeight -MovingSteerNonmovingMargin $MovingSteerNonmovingMargin -WorldModelActionAuxWeight $WorldModelActionAuxWeight$ComponentSampleWeightsArg -ActionMassCapWeight $ActionMassCapWeight$ActionMassCapsArg -RouteSpeedActionMassCapWeight $RouteSpeedActionMassCapWeight$RouteSpeedActionIdsArg -RouteSpeedActionMassCap $RouteSpeedActionMassCap -RouteSpeedMinSpeedNorm $RouteSpeedMinSpeedNorm -RouteSpeedMinRouteProgress $RouteSpeedMinRouteProgress -RouteSpeedMaxRouteProgress $RouteSpeedMaxRouteProgress -RouteActionMassCapWeight $RouteActionMassCapWeight$RouteActionMassCapIdsArg -RouteActionMassCap $RouteActionMassCap -RouteActionMassCapMinSpeedNorm $RouteActionMassCapMinSpeedNorm -RouteActionMassCapMinRouteProgress $RouteActionMassCapMinRouteProgress -RouteActionMassCapMaxRouteProgress $RouteActionMassCapMaxRouteProgress -RouteThrottleCeilingWeight $RouteThrottleCeilingWeight -RouteThrottleCeiling $RouteThrottleCeiling -RouteThrottleMinSpeedNorm $RouteThrottleMinSpeedNorm -RouteThrottleMinRouteProgress $RouteThrottleMinRouteProgress -RouteThrottleMaxRouteProgress $RouteThrottleMaxRouteProgress -RouteLateThrottleCeilingWeight $RouteLateThrottleCeilingWeight -RouteLateThrottleCeiling $RouteLateThrottleCeiling -RouteLateThrottleMinSpeedNorm $RouteLateThrottleMinSpeedNorm -RouteLateThrottleMinRouteProgress $RouteLateThrottleMinRouteProgress -RouteLateThrottleMaxRouteProgress $RouteLateThrottleMaxRouteProgress -RouteActionOverrideWeight $RouteActionOverrideWeight -RouteActionOverrideId $RouteActionOverrideId -RouteActionOverrideMinSpeedNorm $RouteActionOverrideMinSpeedNorm -RouteActionOverrideMinRouteProgress $RouteActionOverrideMinRouteProgress -RouteActionOverrideMaxRouteProgress $RouteActionOverrideMaxRouteProgress$ImitationClassBalanceArg$PdfStage1StrictArg -HiddenDim $HiddenDim -Device $QuotedDevice *>&1 | Tee-Object -FilePath `$LogPath -Append
+    powershell -ExecutionPolicy Bypass -File $QuotedTrainingScript -ProjectRoot $QuotedProjectRoot -ReplayPath $QuotedReplayPath -ReplayManifestPath $QuotedReplayManifestPath -OutputDir $QuotedOutputDir -Seed $Seed -SequenceLength $SequenceLength -BatchSize $BatchSize -WorldModelSteps $WorldModelSteps -PolicySteps $PolicySteps -LearningRate $LearningRate -ImitationWeight $ImitationWeight -BehaviorWeight $BehaviorWeight -BehaviorGamma $BehaviorGamma -BehaviorLambda $BehaviorLambda -BehaviorActorWeight $BehaviorActorWeight -BehaviorCriticWeight $BehaviorCriticWeight -BehaviorEntropyWeight $BehaviorEntropyWeight -ImitationBalancePower $ImitationBalancePower -SteerSequenceFraction $SteerSequenceFraction -MovingSteerFalsePositiveWeight $MovingSteerFalsePositiveWeight -MovingSteerBinaryWeight $MovingSteerBinaryWeight -MovingSteerNonmovingMarginWeight $MovingSteerNonmovingMarginWeight -MovingSteerNonmovingMargin $MovingSteerNonmovingMargin -WorldModelActionAuxWeight $WorldModelActionAuxWeight$ComponentSampleWeightsArg -ActionMassCapWeight $ActionMassCapWeight$ActionMassCapsArg -RouteSpeedActionMassCapWeight $RouteSpeedActionMassCapWeight$RouteSpeedActionIdsArg -RouteSpeedActionMassCap $RouteSpeedActionMassCap -RouteSpeedMinSpeedNorm $RouteSpeedMinSpeedNorm -RouteSpeedMinRouteProgress $RouteSpeedMinRouteProgress -RouteSpeedMaxRouteProgress $RouteSpeedMaxRouteProgress -RouteActionMassCapWeight $RouteActionMassCapWeight$RouteActionMassCapIdsArg -RouteActionMassCap $RouteActionMassCap -RouteActionMassCapMinSpeedNorm $RouteActionMassCapMinSpeedNorm -RouteActionMassCapMinRouteProgress $RouteActionMassCapMinRouteProgress -RouteActionMassCapMaxRouteProgress $RouteActionMassCapMaxRouteProgress -RouteThrottleCeilingWeight $RouteThrottleCeilingWeight -RouteThrottleCeiling $RouteThrottleCeiling -RouteThrottleMinSpeedNorm $RouteThrottleMinSpeedNorm -RouteThrottleMinRouteProgress $RouteThrottleMinRouteProgress -RouteThrottleMaxRouteProgress $RouteThrottleMaxRouteProgress -RouteLateThrottleCeilingWeight $RouteLateThrottleCeilingWeight -RouteLateThrottleCeiling $RouteLateThrottleCeiling -RouteLateThrottleMinSpeedNorm $RouteLateThrottleMinSpeedNorm -RouteLateThrottleMinRouteProgress $RouteLateThrottleMinRouteProgress -RouteLateThrottleMaxRouteProgress $RouteLateThrottleMaxRouteProgress -RouteActionOverrideWeight $RouteActionOverrideWeight -RouteActionOverrideId $RouteActionOverrideId -RouteActionOverrideMinSpeedNorm $RouteActionOverrideMinSpeedNorm -RouteActionOverrideMinRouteProgress $RouteActionOverrideMinRouteProgress -RouteActionOverrideMaxRouteProgress $RouteActionOverrideMaxRouteProgress$ImitationClassBalanceArg$PdfStage1StrictArg -HiddenDim $HiddenDim -Device $QuotedDevice *>&1 | Tee-Object -FilePath `$LogPath -Append
     `$Code = `$LASTEXITCODE
 }
 catch {
@@ -169,6 +174,11 @@ $LaunchManifest = [ordered]@{
     pdf_stage1_strict = [bool]$PdfStage1Strict
     imitation_weight = $ImitationWeight
     behavior_weight = $BehaviorWeight
+    behavior_gamma = $BehaviorGamma
+    behavior_lambda = $BehaviorLambda
+    behavior_actor_weight = $BehaviorActorWeight
+    behavior_critic_weight = $BehaviorCriticWeight
+    behavior_entropy_weight = $BehaviorEntropyWeight
     imitation_class_balance = [bool]$ImitationClassBalance
     imitation_balance_power = $ImitationBalancePower
     steer_sequence_fraction = $SteerSequenceFraction

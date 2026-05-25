@@ -84,6 +84,20 @@ or starting optimization. The strict profile requires:
 The default Python and Windows trainer imitation weight is now `0.0`, matching
 the strict actor-critic baseline direction.
 
+The strict trainer also exposes actor-critic hyperparameters that remain inside
+the PDF Stage I policy-optimization boundary:
+
+- `behavior_gamma`
+- `behavior_lambda`
+- `behavior_actor_weight`
+- `behavior_critic_weight`
+- `behavior_entropy_weight`
+
+These are allowed in strict mode because they tune the actor-critic loss itself;
+they are not route-local action supervision or non-PDF corrective losses.
+Behavior loss bootstrap now uses the policy value bootstrap from
+`compute_behavior_loss` instead of forcing a zero bootstrap.
+
 ## Windows GPU Command
 
 For the next clean-baseline training run on Windows, use the strict profile and
@@ -102,6 +116,7 @@ powershell -ExecutionPolicy Bypass -File RCS-AC-v2\scripts\windows\start_stage2_
   -WorldModelSteps 200 `
   -PolicySteps 200 `
   -BehaviorWeight 1.0 `
+  -BehaviorEntropyWeight 0.001 `
   -ImitationWeight 0.0
 ```
 

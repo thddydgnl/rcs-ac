@@ -556,6 +556,11 @@ def test_pdf_stage1_strict_replay_training_allows_only_actor_critic_path(tmp_pat
     manifest = json.loads(result.manifest_path.read_text())
     assert manifest["pdf_stage1_strict"] is True
     assert manifest["behavior_weight"] == 1.0
+    assert manifest["behavior_gamma"] == 0.99
+    assert manifest["behavior_lambda"] == 1.0
+    assert manifest["behavior_actor_weight"] == 0.1
+    assert manifest["behavior_critic_weight"] == 1.0
+    assert manifest["behavior_entropy_weight"] == 0.001
     assert manifest["imitation_weight"] == 0.0
     assert manifest["world_model_action_aux_weight"] == 0.0
     assert manifest["component_sample_weights"] == {}
