@@ -719,3 +719,60 @@ collision band directly with a route-window correction replay or a localized
 longitudinal throttle penalty/relabel around route `0.56-0.60`; another broad
 cap sweep is unlikely to solve the oscillation. Stage 3 raw sensor stream and
 fusion ablation remain blocked until privileged clean passes.
+
+Route-window throttle ceiling results:
+
+- Commit `3c234dd` added a localized expected-throttle ceiling loss for Stage 2
+  replay training.
+  - The loss uses the Raw2Drive action table throttle values and only activates
+    inside a configured speed/route-progress window.
+  - This was intended to suppress high-throttle straight dominance in the
+    collision band without globally forbidding recovery actions.
+  - Local verification:
+    `PYTHONPATH=RCS-AC-v2/code pytest -q RCS-AC-v2/tests/test_privileged_replay_training.py RCS-AC-v2/tests/test_evaluate_clean_contract.py RCS-AC-v2/tests/test_stage2_carla_adapter.py`
+    passed: `82 passed in 3.25s`.
+- `3c234dd_route056060_throttle035_speedcap_cuda`:
+  - CUDA guard: pass on `NVIDIA GeForce RTX 3080`.
+  - checkpoint output:
+    `RCS-AC-v2\experiments\02_privileged_policy_clean\checkpoints\windows_replay_3c234dd_route056060_throttle035_speedcap_cuda`.
+  - component sample weights:
+    `target22=1,steer2=1,collision064=0.10,offroad070=0.10`.
+  - route/speed cap:
+    - action ids: `7,15,37`.
+    - mass cap: `0.35`.
+    - weight: `5.0`.
+    - speed threshold: `0.8`.
+    - route window: `0.55-0.75`.
+  - route throttle ceiling:
+    - ceiling: `0.35`.
+    - weight: `5.0`.
+    - speed threshold: `0.0`.
+    - route window: `0.56-0.60`.
+  - CUDA training/checkpoint validation: pass.
+  - cross replay gate: `ready_for_clean_eval=true`.
+  - target22 action probe:
+    - action counts `{"12":6,"15":412,"4":22,"7":82}`.
+    - dominant action fraction `0.7892720307`.
+    - moving steer fraction `0.0536398467`.
+  - steer2 action probe:
+    - action counts `{"1":3,"15":379,"4":60,"7":205}`.
+    - dominant action fraction `0.5857805255`.
+    - moving steer fraction `0.0973724884`.
+  - official 512 clean:
+    - run output:
+      `RCS-AC-v2\experiments\02_privileged_policy_clean\windows_512\3c234dd_route056060_throttle035_speedcap_cuda_official_clean512`
+    - status: `FAIL`, clean gate pass: `false`.
+    - done reason: `collision`.
+    - steps: `134` / `512`.
+    - route progress: `0.5897435897`.
+    - collision count: `1`, offroad count: `0`.
+    - tail shifted toward action `4` and action `7` in the collision band, but
+      the vehicle still collided at the same route progress.
+
+Decision: a localized throttle ceiling changes the tail behavior slightly but
+does not solve the collision band. The policy likely needs positive corrective
+supervision in that band rather than another negative regularizer. The next
+Stage 2-aligned move is to collect a short post-route `0.56` privileged
+correction replay from the current failure window, or to inspect the replay
+state/action labels around route `0.56-0.60` and add a route-local label
+override. Raw sensor stream and fusion ablation remain blocked.
