@@ -2332,6 +2332,78 @@ Decision:
   setting over-corrects toward dominant straight action 7.
 - The next branch should keep the min16 replay guard and adjust the objective or
   component probability to restore BF7-like action diversity before CARLA.
+
+### 2026-05-26 - corr048 weight 0.05 / steer-sequence sweep
+
+A sub-agent sidecar audit recommended the smallest next CUDA change: keep the
+corrected min16 replay, lower corr048 component weight from `0.25` to `0.05`,
+and do not run official CARLA unless the cross-replay gate passes.
+
+Three CUDA candidates were trained from the Windows clean clone:
+
+1. `095edec_corr048_t16_min16_w005_bf7params`
+   - `ComponentSampleWeights=target22=1,steer2=1,corr048=0.05`.
+   - `SteerSequenceFraction=0.05`.
+   - target22:
+     - `recommended_for_clean_rerun=false`.
+     - action_counts `{15:460,4:34,10:6,13:2,19:2,1:2,7:16}`.
+     - moving_steer_fraction `0.0881226054`.
+     - dominant_action_fraction `0.8812260536`.
+     - latent test accuracy `0.9904761910`.
+   - steer2:
+     - `recommended_for_clean_rerun=true`.
+     - action_counts `{15:438,7:141,4:55,1:10,12:3}`.
+     - moving_steer_fraction `0.1051004637`.
+     - dominant_action_fraction `0.6769706337`.
+     - latent test accuracy `0.8999999762`.
+   - Decision: reject before CARLA because target22 action probe failed.
+
+2. `095edec_corr048_t16_min16_w005_ssf010`
+   - `ComponentSampleWeights=target22=1,steer2=1,corr048=0.05`.
+   - `SteerSequenceFraction=0.10`.
+   - target22:
+     - `recommended_for_clean_rerun=false`.
+     - action_counts `{15:456,10:32,16:20,13:8,19:6}`.
+     - moving_steer_fraction `0.1264367816`.
+     - dominant_action_fraction `0.8735632184`.
+     - latent test accuracy `0.9904761910`.
+   - steer2:
+     - `recommended_for_clean_rerun=false`.
+     - action_counts `{15:425,10:203,7:19}`.
+     - moving_steer_fraction `0.3137557960`.
+     - dominant_action_fraction `0.6568778980`.
+     - latent test accuracy `0.8769230843`.
+   - Decision: reject before CARLA because target22 dominance remains too high
+     and steer2 over-steers.
+
+3. `095edec_corr048_t16_min16_w005_ssf015`
+   - `ComponentSampleWeights=target22=1,steer2=1,corr048=0.05`.
+   - `SteerSequenceFraction=0.15`.
+   - target22:
+     - `recommended_for_clean_rerun=false`.
+     - action_counts `{15:450,10:28,16:20,13:8,19:6,7:10}`.
+     - moving_steer_fraction `0.1187739464`.
+     - dominant_action_fraction `0.8620689655`.
+     - latent test accuracy `0.9904761910`.
+   - steer2:
+     - `recommended_for_clean_rerun=false`.
+     - action_counts `{15:421,10:153,16:58,13:5,7:10}`.
+     - moving_steer_fraction `0.3338485317`.
+     - dominant_action_fraction `0.6506955178`.
+     - latent test accuracy `0.9076923132`.
+   - Decision: reject before CARLA because target22 dominance remains too high
+     and steer2 over-steers.
+
+Interpretation:
+
+- Lowering corr048 weight solved the previous action7 collapse, but the policy
+  shifted into action15/right-turn dominance.
+- Increasing `SteerSequenceFraction` from `0.05` to `0.10/0.15` reduces target22
+  action15 dominance only slightly and breaks steer2 by over-predicting moving
+  right steering.
+- Plain corr048 weight/steer-sequence sweeps are no longer the best next move.
+  The next patch should directly control action15/right-moving dominance while
+  preserving the steer2 false-positive gate.
 - The current repeated failure is now more structural than a single route-local
   replay weight: target22 remains healthy, but steer2 repeatedly sticks at
   `{10:91,15:213,7:297}` and moving steer `0.2117465224`.

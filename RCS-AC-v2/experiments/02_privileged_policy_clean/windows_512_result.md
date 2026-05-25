@@ -419,6 +419,38 @@ candidate to "ready for 512 clean eval"; it is not a clean PASS.
   decision_summary: reject_before_carla
   clean_gate_evidence: false
   next_action: do not run official 512 for w0.25; if continuing this branch, reduce straight-action collapse before CARLA, for example lower corr048 probability/priority or restore BF7 steer balance while keeping the min16 replay guard
+
+2026-05-26:
+  state: corr048_w005_sweep_rejected_by_cross_replay_gate
+  commit: 095edec
+  subagent_finding: Jason recommended lowering corr048 component weight to 0.05 and keeping BF7-like settings; official CARLA remained forbidden unless cross-replay gate passed
+  candidates:
+    - name: 095edec_corr048_t16_min16_w005_bf7params
+      steer_sequence_fraction: 0.05
+      component_weights: target22=1,steer2=1,corr048=0.05
+      target22_action_probe: recommended_for_clean_rerun=false, action_counts={15:460,4:34,10:6,13:2,19:2,1:2,7:16}, moving_steer_fraction=0.0881226054, dominant_action_fraction=0.8812260536
+      target22_latent_probe: linear_probe_test_accuracy=0.9904761910, majority_action_fraction=0.7931034483, margin=0.1973727428
+      steer2_action_probe: recommended_for_clean_rerun=true, action_counts={15:438,7:141,4:55,1:10,12:3}, moving_steer_fraction=0.1051004637, dominant_action_fraction=0.6769706337
+      steer2_latent_probe: linear_probe_test_accuracy=0.8999999762, majority_action_fraction=0.6831530139, margin=0.2168469622
+      decision_summary: reject_before_carla_target22_dominance
+    - name: 095edec_corr048_t16_min16_w005_ssf010
+      steer_sequence_fraction: 0.10
+      component_weights: target22=1,steer2=1,corr048=0.05
+      target22_action_probe: recommended_for_clean_rerun=false, action_counts={15:456,10:32,16:20,13:8,19:6}, moving_steer_fraction=0.1264367816, dominant_action_fraction=0.8735632184
+      target22_latent_probe: linear_probe_test_accuracy=0.9904761910, majority_action_fraction=0.7931034483, margin=0.1973727428
+      steer2_action_probe: recommended_for_clean_rerun=false, action_counts={15:425,10:203,7:19}, moving_steer_fraction=0.3137557960, dominant_action_fraction=0.6568778980
+      steer2_latent_probe: linear_probe_test_accuracy=0.8769230843, majority_action_fraction=0.6831530139, margin=0.1937700703
+      decision_summary: reject_before_carla_target22_dominance_and_steer2_oversteer
+    - name: 095edec_corr048_t16_min16_w005_ssf015
+      steer_sequence_fraction: 0.15
+      component_weights: target22=1,steer2=1,corr048=0.05
+      target22_action_probe: recommended_for_clean_rerun=false, action_counts={15:450,10:28,16:20,13:8,19:6,7:10}, moving_steer_fraction=0.1187739464, dominant_action_fraction=0.8620689655
+      target22_latent_probe: linear_probe_test_accuracy=0.9904761910, majority_action_fraction=0.7931034483, margin=0.1973727428
+      steer2_action_probe: recommended_for_clean_rerun=false, action_counts={15:421,10:153,16:58,13:5,7:10}, moving_steer_fraction=0.3338485317, dominant_action_fraction=0.6506955178
+      steer2_latent_probe: linear_probe_test_accuracy=0.9076923132, majority_action_fraction=0.6831530139, margin=0.2245392993
+      decision_summary: reject_before_carla_target22_dominance_and_steer2_oversteer
+  clean_gate_evidence: false
+  next_action: stop plain corr048 weight/ssf sweeps; next patch should control action15/right-turn dominance directly while preserving steer2 false-positive limits
 ```
 
 Decision rules:

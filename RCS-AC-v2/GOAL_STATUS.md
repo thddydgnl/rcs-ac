@@ -19,7 +19,7 @@ Stage 2: Privileged policy clean
 Status:
 
 ```text
-STAGE2_CLEAN_FIRST_CORR048_CANDIDATE_REJECTED_OFFLINE
+STAGE2_CLEAN_FIRST_CORR048_W005_SWEEP_REJECTED_OFFLINE
 ```
 
 Last completed stage:
@@ -90,7 +90,15 @@ The mixed replay included corr048 with no dropped short episodes, but the
 candidate `33d1705_corr048_t16_min16_w025_bf7base` was rejected offline:
 target22 and steer2 latent probes passed, while both action probes failed
 recommended_for_clean_rerun due dominant action 7 fractions above 0.85. No
-official 512 clean eval was run for this candidate.
+official 512 clean eval was run for this candidate. A follow-up corr048=0.05
+sweep reduced action 7 collapse but shifted the failure to action 15/right-turn
+dominance: ssf005 passed steer2 but failed target22 with dominant_action_fraction
+0.8812260536; ssf010 failed target22 at 0.8735632184 and steer2 moving_steer
+0.3137557960; ssf015 failed target22 at 0.8620689655 and steer2 moving_steer
+0.3338485317. No official CARLA eval was run for these offline-rejected
+candidates. Next work should stop plain corr048 weight/ssf sweeps and add or
+use an action15/right-turn dominance control that preserves steer2 false-positive
+limits.
 ```
 
 Pending brief:

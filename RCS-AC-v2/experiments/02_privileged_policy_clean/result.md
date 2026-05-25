@@ -415,6 +415,7 @@ fast35 512 primary eval: commit 0b10ff5, source=windows_carla, status=FAIL, fail
 offline steer2 replay sweep: commit d4c5b70 added sampler priority-window stats, imitation_balance_power, and dominant-action probe gating. Four steer2 candidates were rejected before CARLA: balpow05 {7:647}, balpow0625 {7:647}, balpow075 {4:639,7:8}, and no-balance {7:647}. The replay has priority_window_count=212/617, so the failures point to policy collapse rather than missing steering windows.
 corr050 component guard: after BF7 failed the 512 clean gate and corr050 t12/t16 variants produced identical steer2 distributions, the trainer now records component_sampler_stats plus sampler included/dropped episode lists and fails fast if an explicit positive component weight has no sequence_length-eligible episodes. Local test: PYTHONPATH=RCS-AC-v2/code pytest -q RCS-AC-v2/tests/test_privileged_replay_training.py -> 29 passed. Windows clean clone pulled commit 32a65cb and confirmed both mixed_t22_steer2_corr050_t12 and mixed_t22_steer2_corr050_t16 have corr050 episodes length 10, below sequence_length=16, so the corr050 component was never entering training.
 corr048 min16 branch: Windows CARLA collection at route_progress>=0.48 produced 4 eligible correction episodes with lengths [17,17,17,17] and action_counts={2:16,5:32,8:20}. The mixed replay component_sampler_stats confirmed corr048 included_episodes=4, dropped_short_episodes=0, window_count=8, configured probability 0.2. CUDA training completed for 33d1705_corr048_t16_min16_w025_bf7base, but cross-replay gate rejected before CARLA: target22 dominant_action_fraction=0.9272030651 and steer2 dominant_action_fraction=0.9119010819, even though both latent probes passed.
+corr048 w005 sweep: subagent sidecar recommended corr048=0.05. Three CUDA candidates were trained/probed and all rejected before CARLA. ssf005 passed steer2 but failed target22 with action15 dominant_action_fraction=0.8812260536. ssf010 failed target22 at 0.8735632184 and steer2 moving_steer_fraction=0.3137557960. ssf015 failed target22 at 0.8620689655 and steer2 moving_steer_fraction=0.3338485317. This shows corr048 weight/ssf sweeps shifted the failure from action7 collapse to action15/right-turn dominance; official 512 clean eval remains blocked by offline gates.
 ```
 
 ## Blockers / Next Gate
@@ -447,7 +448,9 @@ source in this round.
 Patch the 512 collision by keeping the component eligibility guard, but do not
 promote the first corr048 min16 candidate. It entered training correctly and
 then over-corrected into dominant straight action 7 on both target22 and
-steer2. The next candidate must reduce this straight-action collapse before
-any official 512 clean eval is attempted. Do not start raw/fusion work until
-the 512-step result is PASS or explicitly blocked after classified retry
-attempts.
+steer2. Lowering corr048 weight fixed the action7 collapse but exposed action15
+dominance / right-turn false positives. The next candidate should directly
+control action15/right-turn dominance while preserving the steer2 moving-steer
+gate, rather than continuing plain corr048 weight/ssf sweeps. Do not start
+raw/fusion work until the 512-step result is PASS or explicitly blocked after
+classified retry attempts.
