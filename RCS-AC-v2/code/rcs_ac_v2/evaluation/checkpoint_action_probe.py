@@ -83,9 +83,14 @@ def probe_checkpoint_actions(
     runner = load_stage2_policy_runner(config)
 
     action_counts: Counter[int] = Counter()
+    label_action_counts: Counter[int] = Counter()
     reverse_count = 0
     nonzero_throttle_count = 0
     moving_steer_count = 0
+    label_moving_steer_count = 0
+    action_match_count = 0
+    predicted_moving_on_label_nonmoving_count = 0
+    predicted_nonmoving_on_label_moving_count = 0
     left_moving_steer_count = 0
     right_moving_steer_count = 0
     zero_throttle_steer_count = 0
@@ -96,6 +101,7 @@ def probe_checkpoint_actions(
         with np.load(replay_path, allow_pickle=False) as data:
             bev = np.asarray(data["privileged_bev"], dtype=np.float32)
             ego = np.asarray(data["privileged_ego"], dtype=np.float32)
+            replay_action = np.asarray(data["action"], dtype=np.int64)
         steps = min(max_steps_per_file, int(bev.shape[0]))
         runner.reset()
         for index in range(steps):
@@ -107,18 +113,23 @@ def probe_checkpoint_actions(
             if tuple(logits.shape) != (1, 1, len(RAW2DRIVE_ACTIONS)) or not torch.isfinite(logits).all():
                 raise ValueError("policy logits must be finite [1,1,39]")
             action_id = int(torch.argmax(logits, dim=-1).item())
+            label_action_id = int(replay_action[index])
             runner.observe_action(action_id)
             action = get_discrete_action(action_id)
+            label_action = get_discrete_action(label_action_id)
+            action_is_moving_steer = _is_forward_steer_action(action)
+            label_is_moving_steer = _is_forward_steer_action(label_action)
             action_counts[action_id] += 1
+            label_action_counts[label_action_id] += 1
+            action_match_count += int(action_id == label_action_id)
             reverse_count += int(action.reverse)
             nonzero_throttle_count += int(float(action.throttle) > 0.0 and not action.reverse)
-            moving_steer_count += int(_is_forward_steer_action(action))
-            left_moving_steer_count += int(
-                _is_forward_steer_action(action) and float(action.steer) < 0.0
-            )
-            right_moving_steer_count += int(
-                _is_forward_steer_action(action) and float(action.steer) > 0.0
-            )
+            moving_steer_count += int(action_is_moving_steer)
+            label_moving_steer_count += int(label_is_moving_steer)
+            predicted_moving_on_label_nonmoving_count += int(action_is_moving_steer and not label_is_moving_steer)
+            predicted_nonmoving_on_label_moving_count += int((not action_is_moving_steer) and label_is_moving_steer)
+            left_moving_steer_count += int(action_is_moving_steer and float(action.steer) < 0.0)
+            right_moving_steer_count += int(action_is_moving_steer and float(action.steer) > 0.0)
             zero_throttle_steer_count += int(
                 abs(float(action.steer)) > 0.0 and float(action.throttle) == 0.0 and not action.reverse
             )
@@ -129,6 +140,14 @@ def probe_checkpoint_actions(
     unique_action_ids = sorted(action_counts)
     nonzero_throttle_fraction = float(nonzero_throttle_count) / float(total) if total else 0.0
     moving_steer_fraction = float(moving_steer_count) / float(total) if total else 0.0
+    label_moving_steer_fraction = float(label_moving_steer_count) / float(total) if total else 0.0
+    action_match_fraction = float(action_match_count) / float(total) if total else 0.0
+    predicted_moving_on_label_nonmoving_fraction = (
+        float(predicted_moving_on_label_nonmoving_count) / float(total) if total else 0.0
+    )
+    predicted_nonmoving_on_label_moving_fraction = (
+        float(predicted_nonmoving_on_label_moving_count) / float(total) if total else 0.0
+    )
     zero_throttle_fraction = float(zero_throttle_count) / float(total) if total else 0.0
     zero_throttle_steer_fraction = float(zero_throttle_steer_count) / float(total) if total else 0.0
     previous_action8_count = int(action_counts.get(8, 0))
@@ -162,7 +181,10 @@ def probe_checkpoint_actions(
         "probed_actions": total,
         "probed_files": probed_files,
         "action_counts": {str(key): int(action_counts[key]) for key in unique_action_ids},
+        "label_action_counts": {str(key): int(label_action_counts[key]) for key in sorted(label_action_counts)},
         "unique_action_ids": unique_action_ids,
+        "action_match_count": int(action_match_count),
+        "action_match_fraction": action_match_fraction,
         "dominant_action_id": int(max(action_counts, key=action_counts.get)) if action_counts else None,
         "dominant_action_count": int(dominant_action_count),
         "dominant_action_fraction": dominant_action_fraction,
@@ -171,6 +193,12 @@ def probe_checkpoint_actions(
         "nonzero_throttle_fraction": nonzero_throttle_fraction,
         "moving_steer_action_count": int(moving_steer_count),
         "moving_steer_fraction": moving_steer_fraction,
+        "label_moving_steer_action_count": int(label_moving_steer_count),
+        "label_moving_steer_fraction": label_moving_steer_fraction,
+        "predicted_moving_on_label_nonmoving_count": int(predicted_moving_on_label_nonmoving_count),
+        "predicted_moving_on_label_nonmoving_fraction": predicted_moving_on_label_nonmoving_fraction,
+        "predicted_nonmoving_on_label_moving_count": int(predicted_nonmoving_on_label_moving_count),
+        "predicted_nonmoving_on_label_moving_fraction": predicted_nonmoving_on_label_moving_fraction,
         "nonzero_steer_action_count": int(moving_steer_count),
         "nonzero_steer_fraction": moving_steer_fraction,
         "left_moving_steer_action_count": int(left_moving_steer_count),

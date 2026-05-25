@@ -171,8 +171,27 @@ following CARLA-free replay candidates were checked. None is clean PASS evidence
   - target22 action/latent: pass.
   - steer2 latent: pass.
   - steer2 action rejected, moving steer fraction `0.2148377125`.
+- `balpow025_iw5_ssf025_seed20260525_cuda`:
+  - target22 action/latent: pass.
+  - steer2 latent: pass.
+  - steer2 action rejected, moving steer fraction `0.2411128284`.
+- `balpow025_iw5_ssf025_seed20260523_cuda`:
+  - target22 action/latent: pass.
+  - steer2 latent: pass.
+  - steer2 action rejected, moving steer fraction `0.2689335394`.
 
 Current best offline candidate remains `balpow025_iw5_ssf025_cuda`, close to the
-`0.20` moving steer gate. The wrapper now exposes `-Seed`, so the next low-cost
-step is a seed sweep around `balpow025_iw5_ssf025_cuda` before running any
+`0.20` moving steer gate. The wrapper now exposes `-Seed`, but two nearby seed
+checks moved the steer2 action gate in the wrong direction. The next step should
+be a structural action diagnostic or a narrower regularization candidate, not
 official 512 clean eval.
+
+Observed steer2 failure pattern:
+
+- `balpow025_iw5_ssf025_cuda` overproduced moving steer by only `0.0132921175`
+  above gate.
+- Lowering `SteerSequenceFraction` to `0.20`, lowering `ImitationWeight` to `4`,
+  or changing seed did not improve the gate.
+- The failure is mostly argmax action distribution on steer2 replay while latent
+  separability remains healthy. Diagnose policy action logits/replay-label
+  agreement before promoting any candidate.

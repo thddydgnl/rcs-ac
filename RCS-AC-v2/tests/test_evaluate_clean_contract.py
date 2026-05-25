@@ -616,6 +616,17 @@ def test_candidate_gate_summary_runner_static_contract() -> None:
     assert "exit $LASTEXITCODE" in text
 
 
+def test_checkpoint_action_probe_records_replay_label_diagnostics_static_contract() -> None:
+    module = Path(__file__).resolve().parents[1] / "code" / "rcs_ac_v2" / "evaluation" / "checkpoint_action_probe.py"
+    text = module.read_text()
+    assert 'replay_action = np.asarray(data["action"], dtype=np.int64)' in text
+    assert "label_action_counts" in text
+    assert "action_match_fraction" in text
+    assert "label_moving_steer_fraction" in text
+    assert "predicted_moving_on_label_nonmoving_fraction" in text
+    assert "predicted_nonmoving_on_label_moving_fraction" in text
+
+
 def test_target24_candidate_cycle_runner_static_contract() -> None:
     script = Path(__file__).resolve().parents[1] / "scripts" / "windows" / "run_stage2_target24_candidate_cycle.ps1"
     text = script.read_text()
