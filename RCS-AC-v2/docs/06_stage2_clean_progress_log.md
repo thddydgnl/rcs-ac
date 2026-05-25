@@ -91,20 +91,51 @@ clean PASS evidence.
   mixed replay but reduce class-balance strength instead of only changing
   `SteerSequenceFraction`.
 
+### mixed target22 + steer2, balpow025 + ssf025
+
+- Training output:
+  - `RCS-AC-v2\experiments\02_privileged_policy_clean\checkpoints\windows_replay_7f87656_mixed_target22_steer2_aux1_balpow025_iw5_ssf025`
+  - `SteerSequenceFraction=0.25`
+  - `ImitationWeight=5.0`
+  - `ImitationBalancePower=0.25`
+  - `WorldModelActionAuxWeight=1.0`
+- Training completed:
+  - `TRAIN_EXIT_CODE=0`
+  - checkpoint manifest sha256:
+    `bc1628f2d7a2ad8ff5057f6ef17a1e35759d5276ff001942c6113d4b1869ab2f`
+- Cross replay gate:
+  - target22 action/latent probes passed:
+    - action moving steer fraction: `0.1149425287`
+    - action dominant fraction: `0.7662835249`
+    - latent test accuracy: `0.9904761910`
+    - latent margin: `0.1973727428`
+  - steer2 latent probe passed:
+    - test accuracy: `0.8999999762`
+    - majority: `0.6831530139`
+    - margin: `0.2168469622`
+  - steer2 action probe rejected:
+    - moving steer fraction: `0.2132921175`, gate max `0.20`.
+    - dominant action fraction: `0.6862442040`
+    - recommended: `false`
+- Decision: close but reject, do not run official 512 clean eval. Reducing
+  class-balance power from `0.5` to `0.25` improved steer2 action balance from
+  `0.2225656878` to `0.2132921175`, but not enough.
+
 ## Active restart point
 
-The next candidate keeps `SteerSequenceFraction=0.25` because it was closer to
-the steer2 action gate, but lowers class-balance power from `0.5` to `0.25`.
-This is still a CARLA-free replay training/probe step:
+The next candidate keeps `SteerSequenceFraction=0.25`, lowers class-balance power
+again from `0.25` to `0.125`, and was already launched as a detached Windows
+task before Windows went offline. This is still a CARLA-free replay
+training/probe step. After Windows reconnects, check this candidate first:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File RCS-AC-v2\scripts\windows\run_stage2_mixed_candidate_cycle.ps1 `
   -ProjectRoot C:\Users\thddy\Documents\code\RCS-AC-first-official-v2-7f87656 `
-  -OutputDir RCS-AC-v2\experiments\02_privileged_policy_clean\checkpoints\windows_replay_7f87656_mixed_target22_steer2_aux1_balpow025_iw5_ssf025 `
-  -CrossProbeOutputDir RCS-AC-v2\experiments\02_privileged_policy_clean\windows_512\7f87656_mixed_target22_steer2_aux1_balpow025_iw5_ssf025_cross_probe `
-  -TaskName RCSV2Stage2MixedT22Steer2Bal025Ssf025 `
+  -OutputDir RCS-AC-v2\experiments\02_privileged_policy_clean\checkpoints\windows_replay_7f87656_mixed_target22_steer2_aux1_balpow0125_iw5_ssf025 `
+  -CrossProbeOutputDir RCS-AC-v2\experiments\02_privileged_policy_clean\windows_512\7f87656_mixed_target22_steer2_aux1_balpow0125_iw5_ssf025_cross_probe `
+  -TaskName RCSV2Stage2MixedT22Steer2Bal0125Ssf025 `
   -SteerSequenceFraction 0.25 `
-  -ImitationBalancePower 0.25 `
+  -ImitationBalancePower 0.125 `
   -MakeReplayIfMissing `
   -StartIfMissing `
   -ProbeWhenReady
