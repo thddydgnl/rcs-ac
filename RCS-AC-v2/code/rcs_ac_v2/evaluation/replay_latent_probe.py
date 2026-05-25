@@ -26,7 +26,7 @@ def probe_replay_latent_separability(
     train_steps: int = 300,
     learning_rate: float = 1e-2,
     seed: int = 20260524,
-    device: str = "cpu",
+    device: str = "auto",
     output_path: str | Path | None = None,
 ) -> dict[str, Any]:
     if train_steps <= 0:
@@ -134,7 +134,7 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--train-steps", type=int, default=300)
     parser.add_argument("--learning-rate", type=float, default=1e-2)
     parser.add_argument("--seed", type=int, default=20260524)
-    parser.add_argument("--device", default="cpu")
+    parser.add_argument("--device", default="auto")
     parser.add_argument("--output", default="")
     args = parser.parse_args(argv)
     result = probe_replay_latent_separability(

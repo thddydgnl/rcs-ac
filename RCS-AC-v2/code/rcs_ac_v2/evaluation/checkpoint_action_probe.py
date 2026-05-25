@@ -60,7 +60,7 @@ def probe_checkpoint_actions(
     max_nonzero_steer_fraction: float = 0.5,
     max_dominant_action_fraction: float = 0.85,
     max_previous_stuck_action8_fraction: float = 0.05,
-    device: str = "cpu",
+    device: str = "auto",
     output_path: str | Path | None = None,
 ) -> dict[str, Any]:
     if max_steps_per_file <= 0:
@@ -241,7 +241,7 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--max-nonzero-steer-fraction", type=float, default=0.5)
     parser.add_argument("--max-dominant-action-fraction", type=float, default=0.85)
     parser.add_argument("--max-previous-stuck-action8-fraction", type=float, default=0.05)
-    parser.add_argument("--device", default="cpu")
+    parser.add_argument("--device", default="auto")
     args = parser.parse_args(argv)
     if args.output_config:
         build_checkpoint_filled_config(

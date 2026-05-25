@@ -127,7 +127,9 @@ The next candidate keeps `SteerSequenceFraction=0.25`, lowers class-balance powe
 again from `0.25` to `0.125`, and was already launched as a detached Windows
 task before Windows went offline. This is still a CARLA-free replay
 training/probe step. Stage 2 replay training/probe now defaults to `Device=cuda`;
-after Windows reconnects, verify CUDA first and then check this candidate:
+direct Python probe entrypoints default to `--device auto`, which chooses CUDA
+when available. After Windows reconnects, verify CUDA first and then check this
+candidate:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File RCS-AC-v2\scripts\windows\check_stage2_windows_dependencies.ps1 `

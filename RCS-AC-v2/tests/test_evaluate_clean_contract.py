@@ -519,6 +519,16 @@ def test_stage2_windows_replay_training_and_probe_default_to_cuda_static_contrac
         assert '[string]$Device = "cuda"' in text, script_name
 
 
+def test_stage2_python_probe_entrypoints_default_to_auto_static_contract() -> None:
+    code_dir = Path(__file__).resolve().parents[1] / "code" / "rcs_ac_v2" / "evaluation"
+    action_probe = (code_dir / "checkpoint_action_probe.py").read_text()
+    latent_probe = (code_dir / "replay_latent_probe.py").read_text()
+
+    for text in [action_probe, latent_probe]:
+        assert 'device: str = "auto"' in text
+        assert 'parser.add_argument("--device", default="auto")' in text
+
+
 def test_stage2_replay_training_wrappers_expose_seed_static_contract() -> None:
     scripts_dir = Path(__file__).resolve().parents[1] / "scripts" / "windows"
     train = (scripts_dir / "train_stage2_privileged_from_replay.ps1").read_text()
