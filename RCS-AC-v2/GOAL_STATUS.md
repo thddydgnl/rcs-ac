@@ -19,7 +19,7 @@ Stage 2: Privileged policy clean
 Status:
 
 ```text
-STAGE2_CLEAN_FIRST_LATE_RIGHT_PLANONLY_READY
+STAGE2_CLEAN_FIRST_LATE_RIGHT_RESUME_WRAPPER_READY
 ```
 
 Last completed stage:
@@ -121,20 +121,21 @@ Before Stage 2 checkpoint promotion, Windows privileged-observation validation, 
 Last pulse:
 
 ```text
-2026-05-26 Stage 2 clean-first resume: Turing audited the late-right candidate
-resume path and found the latest wrapper was correct, but GOAL_STATUS still
-pointed at an older clean-clone path and docs/06 had older restart context that
-could confuse a Windows resume. The fix was integrated: canonical next command
-now points to run_stage2_late_right_margin_candidate.ps1 in the
-official-v2-7f87656 clone, the wrapper exposes -PlanOnly, and the wrapper/docs
-print the official-512 blocker until stage2_candidate_cross_replay_gate.json
-reports ready_for_clean_eval=true.
+2026-05-26 Stage 2 clean-first continuation: Epicurus audited the Windows
+unreachable path and confirmed a single resume wrapper is aligned with the
+clean-first goal as long as it remains offline candidate orchestration only.
+The fix was integrated: resume_stage2_late_right_margin_candidate.ps1 now
+sequences git pull, dependency/CUDA check, late-right PlanOnly, candidate
+check/start/probe, and explicit gate summary without ever calling official 512
+clean eval. Official 512 remains blocked until the offline gate summary reports
+ready_for_clean_eval=true.
 ```
 
 Active agents:
 
 ```text
-No active sub-agents. Turing was closed after the 2026-05-26 late-right resume
+No active sub-agents. Epicurus was closed after the 2026-05-26 resume-wrapper
+audit. Turing was closed after the 2026-05-26 late-right resume
 path audit. Confucius was closed after the 2026-05-26 spawn-failure
 documentation audit. Raman and Linnaeus were closed after their 2026-05-26
 audits. Helmholtz and Fermat completed earlier Stage 2 route-late steering and
@@ -222,8 +223,8 @@ Patch the 512-step collision failure before raw/fusion work:
 current local branch is codex/rcs-ac-v2-raw2drive
 canonical Windows clean clone for the next Stage 2 candidate is C:\Users\thddy\Documents\code\RCS-AC-first-official-v2-7f87656
 pull latest origin/codex/rcs-ac-v2-raw2drive before every Windows run
-next canonical command is scripts/windows/run_stage2_late_right_margin_candidate.ps1 with -Device cuda; first run it once with -PlanOnly to print resolved args/gate paths without git pull, CUDA guard, scheduled task launch, replay creation, or probing
-then run scripts/windows/run_stage2_late_right_margin_candidate.ps1 with -MakeReplayIfMissing -StartIfMissing -ProbeWhenReady -Device cuda
+next canonical command is scripts/windows/resume_stage2_late_right_margin_candidate.ps1 with -MakeReplayIfMissing -StartIfMissing -ProbeWhenReady -Device cuda; it runs git pull, dependency/CUDA check, late-right -PlanOnly, candidate wrapper, and gate summary, but it never runs official 512 clean eval
+manual fallback is scripts/windows/run_stage2_late_right_margin_candidate.ps1 with -Device cuda; first run it once with -PlanOnly to print resolved args/gate paths without git pull, CUDA guard, scheduled task launch, replay creation, or probing, then run it with -MakeReplayIfMissing -StartIfMissing -ProbeWhenReady -Device cuda
 after probing, run summarize_stage2_candidate_gate.ps1 with explicit -ProjectRoot C:\Users\thddy\Documents\code\RCS-AC-first-official-v2-7f87656, -CandidateName late_right_margin, and -GatePath RCS-AC-v2\experiments\02_privileged_policy_clean\windows_512\f7d903a2_mixed_t22_steer2_aux1_iw5_ssf005_rightmargin_w1_cap131619_pre0666_cross_probe\stage2_candidate_cross_replay_gate.json
 do not run official 512 clean eval unless that gate summary reports ready_for_clean_eval=true
 use the 512 failure evidence in RCS-AC-v2\experiments\02_privileged_policy_clean\windows_512\b4c8e58_fast35_primary512

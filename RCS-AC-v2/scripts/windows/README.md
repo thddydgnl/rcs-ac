@@ -64,6 +64,7 @@ start_stage2_replay_training_detached.ps1
 check_stage2_replay_training_detached.ps1
 make_stage2_mixed_replay_manifest.ps1
 run_stage2_mixed_candidate_cycle.ps1
+resume_stage2_late_right_margin_candidate.ps1
 probe_stage2_checkpoint_actions.ps1
 probe_stage2_candidate_cross_replays.ps1
 summarize_stage2_candidate_gate.ps1
@@ -179,6 +180,26 @@ bracket을 위한 다음 clean-first 후보 wrapper다. target22 + steer2 mixed 
 재연결 직후에는 먼저 `-PlanOnly`를 붙여 resolved runner args, output dir,
 gate path, official-eval blocker 문구를 확인한다. `-PlanOnly`는 git pull,
 CUDA guard, scheduled task launch, replay 생성, probe를 실행하지 않는다.
+
+resume_stage2_late_right_margin_candidate.ps1는 현재 canonical Stage 2
+clean-first resume wrapper다. Windows가 다시 붙으면 이 wrapper를 먼저 쓴다.
+순서는 git pull, dependency/CUDA check, late-right `-PlanOnly`, candidate
+check/start/probe, gate summary다. 이 wrapper도 official 512 clean eval을
+실행하지 않으며, gate summary가 `ready_for_clean_eval=true`를 보고할 때까지
+512 clean eval은 계속 별도 보류한다.
+
+Canonical late-right resume command:
+
+```powershell
+Set-Location C:\Users\thddy\Documents\code\RCS-AC-first-official-v2-7f87656
+
+powershell -ExecutionPolicy Bypass -File RCS-AC-v2\scripts\windows\resume_stage2_late_right_margin_candidate.ps1 `
+  -ProjectRoot C:\Users\thddy\Documents\code\RCS-AC-first-official-v2-7f87656 `
+  -MakeReplayIfMissing `
+  -StartIfMissing `
+  -ProbeWhenReady `
+  -Device cuda
+```
 
 Target-24 재개 명령:
 

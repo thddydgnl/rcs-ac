@@ -931,6 +931,29 @@ def test_late_right_margin_candidate_runner_static_contract() -> None:
     assert "RESOLVED_ARGS=" in text
 
 
+def test_late_right_margin_resume_runner_static_contract() -> None:
+    script = Path(__file__).resolve().parents[1] / "scripts" / "windows" / "resume_stage2_late_right_margin_candidate.ps1"
+    text = script.read_text()
+    assert "STAGE2_LATE_RIGHT_RESUME_READY=True" in text
+    assert "check_stage2_windows_dependencies.ps1" in text
+    assert "run_stage2_late_right_margin_candidate.ps1" in text
+    assert "summarize_stage2_candidate_gate.ps1" in text
+    assert "run_stage2_clean_eval.ps1" not in text
+    assert '[string]$ProjectRoot = "C:\\Users\\thddy\\Documents\\code\\RCS-AC-first-official-v2-7f87656"' in text
+    assert '[string]$Device = "cuda"' in text
+    assert "[switch]$PlanOnly" in text
+    assert "[switch]$MakeReplayIfMissing" in text
+    assert "[switch]$StartIfMissing" in text
+    assert "[switch]$ProbeWhenReady" in text
+    assert '"-ProjectRoot", $ProjectRoot' in text
+    assert '"-Device", $Device' in text
+    assert '$PlanArgs = $CandidateArgs + "-PlanOnly"' in text
+    assert "-CandidateName late_right_margin" in text
+    assert "-FallbackCandidateName target22" in text
+    assert "STAGE2_LATE_RIGHT_RESUME_GATE_SUMMARY_REJECTED=True" in text
+    assert "OFFICIAL_512_CLEAN_EVAL_NOT_CALLED_BY_THIS_WRAPPER=True" in text
+
+
 def test_stage2_replay_collector_exposes_late_segment_recording_static_contract() -> None:
     scripts_dir = Path(__file__).resolve().parents[1] / "scripts" / "windows"
     script = (scripts_dir / "collect_stage2_privileged_replay.ps1").read_text()

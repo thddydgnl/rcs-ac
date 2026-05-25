@@ -1740,7 +1740,12 @@ below `18 km/h`. Do not start raw/fusion.
   - `PYTHONPATH=RCS-AC-v2/code pytest -q RCS-AC-v2/tests`
     passed: `144 passed`.
 - Next CUDA candidate after Windows reconnect:
-  - run the dedicated wrapper:
+  - run the canonical resume wrapper first:
+    `RCS-AC-v2\scripts\windows\resume_stage2_late_right_margin_candidate.ps1`.
+  - this wrapper runs git pull, dependency/CUDA check, late-right `-PlanOnly`,
+    the candidate wrapper, and gate summary, but never runs official 512 clean
+    eval.
+  - fallback/manual candidate wrapper:
     `RCS-AC-v2\scripts\windows\run_stage2_late_right_margin_candidate.ps1`.
   - use target22 + steer2 mixed replay first so the new diagnostic loss is
     tested without additional correction/offroad component confounds.
@@ -1762,15 +1767,19 @@ below `18 km/h`. Do not start raw/fusion.
 
 ```powershell
 Set-Location C:\Users\thddy\Documents\code\RCS-AC-first-official-v2-7f87656
-git pull --ff-only
 
-powershell -ExecutionPolicy Bypass -File RCS-AC-v2\scripts\windows\run_stage2_late_right_margin_candidate.ps1 `
+powershell -ExecutionPolicy Bypass -File RCS-AC-v2\scripts\windows\resume_stage2_late_right_margin_candidate.ps1 `
   -ProjectRoot C:\Users\thddy\Documents\code\RCS-AC-first-official-v2-7f87656 `
   -MakeReplayIfMissing `
   -StartIfMissing `
   -ProbeWhenReady `
-  -Device cuda `
-  -PlanOnly
+  -Device cuda
+```
+
+Manual fallback if the resume wrapper cannot be used:
+
+```powershell
+git pull --ff-only
 
 powershell -ExecutionPolicy Bypass -File RCS-AC-v2\scripts\windows\run_stage2_late_right_margin_candidate.ps1 `
   -ProjectRoot C:\Users\thddy\Documents\code\RCS-AC-first-official-v2-7f87656 `
