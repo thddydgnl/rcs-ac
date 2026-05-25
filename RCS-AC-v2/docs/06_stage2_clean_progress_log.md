@@ -2405,11 +2405,278 @@ Interpretation:
   The next patch should directly control action15/right-moving dominance while
   preserving the steer2 false-positive gate.
 - The current repeated failure is now more structural than a single route-local
-  replay weight: target22 remains healthy, but steer2 repeatedly sticks at
-  `{10:91,15:213,7:297}` and moving steer `0.2117465224`.
-- Next work should inspect why the mixed replay sampler/training objective maps
-  these candidates to the same steer2 logits before running more CARLA. A useful
-  next diagnostic is to compare per-component sampled batches and per-component
-  validation action probes for `target22`, `steer2`, and `corr050` inside the
-  replay trainer, then decide whether the policy needs a component-aware loss or
-  a stricter steer2 false-positive objective.
+  replay weight: corr048 weight/ssf changes can move the collapse target, but
+  they do not reliably produce a route-dependent policy distribution that passes
+  target22 and steer2 together.
+- Next work should directly constrain action15/right-turn dominance and still
+  treat steer2 moving-steer false positives as a hard pre-CARLA gate.
+
+### 2026-05-26 - first direct action15 cap
+
+The first direct action15-control candidate reused the best corr048 low-weight
+setting and added the existing action-mass cap hook:
+
+```text
+candidate: 8b78015_corr048_w005_ssf005_cap15w1c82
+ComponentSampleWeights: target22=1, steer2=1, corr048=0.05
+SteerSequenceFraction: 0.05
+ActionMassCapWeight: 1.0
+ActionMassCaps: 15=0.82
+```
+
+Windows CUDA training completed successfully and the cross-replay probe ran
+from the clean clone. The gate rejected the candidate before official CARLA:
+
+- target22:
+  - `recommended_for_clean_rerun=false`.
+  - action_counts `{15:460,4:34,10:6,13:2,19:2,1:2,7:16}`.
+  - moving_steer_fraction `0.0881226054`.
+  - dominant_action_fraction `0.8812260536`.
+  - latent test accuracy `0.9904761910`.
+- steer2:
+  - `recommended_for_clean_rerun=true`.
+  - action_counts `{15:438,7:141,4:55,1:10,12:3}`.
+  - moving_steer_fraction `0.1051004637`.
+  - dominant_action_fraction `0.6769706337`.
+  - latent test accuracy `0.8999999762`.
+
+Decision:
+
+- Do not run official 512 clean eval for
+  `8b78015_corr048_w005_ssf005_cap15w1c82`.
+- The action15 cap did not change the target22 distribution enough to clear
+  the `dominant_action_fraction <= 0.85` pre-CARLA gate.
+- The useful signal is that steer2 stayed healthy, so a stronger or
+  target22/route-aware action15 control is the next smallest candidate.
+
+The stronger mass-cap follow-up,
+`8b78015_corr048_w005_ssf005_cap15w4c80`, used
+`ActionMassCapWeight=4.0` and `ActionMassCaps=15=0.80`. It produced the same
+target22 and steer2 action counts as `cap15w1c82`, so it was also rejected
+before CARLA. The failure mode is argmax-level action15 dominance, not merely
+softmax mass above a cap.
+
+### 2026-05-26 - route action15 logit cap and official 512 rerun
+
+The next candidate used the existing route action logit cap hook:
+
+```text
+candidate: 8b78015_corr048_w005_ssf005_logit15w05m0
+RouteActionLogitCapWeight: 0.5
+RouteActionLogitCapIds: 15
+RouteActionLogitCapMargin: 0.0
+RouteActionLogitCapMinRouteProgress: 0.0
+RouteActionLogitCapMaxRouteProgress: 1.0
+```
+
+Cross-replay gate:
+
+- target22:
+  - `recommended_for_clean_rerun=true`.
+  - action_counts `{15:442,4:40,7:38,19:2}`.
+  - moving_steer_fraction `0.0804597701`.
+  - dominant_action_fraction `0.8467432950`.
+  - latent test accuracy `0.9904761910`.
+- steer2:
+  - `recommended_for_clean_rerun=true`.
+  - action_counts `{15:420,7:167,4:49,1:8,12:3}`.
+  - moving_steer_fraction `0.0927357032`.
+  - dominant_action_fraction `0.6491499227`.
+  - latent test accuracy `0.8999999762`.
+- gate: `ready_for_clean_eval=true`.
+
+Official 512 clean eval:
+
+- source: `windows_carla`.
+- status: `FAIL`.
+- failure_class: `driving`.
+- done_reason: `collision`.
+- steps: `146/512`.
+- route_progress: `0.6666666667`.
+- collision_count/offroad_count/stuck_count: `1/0/0`.
+- clean action_counts: `{15:117,7:17,4:10,12:2}`.
+- failure tail:
+  - step144: action12, throttle `0.7`, steer `-0.1`,
+    route_progress `0.6666666667`.
+  - step145: action12, throttle `0.7`, steer `-0.1`, collision `true`.
+
+Decision:
+
+- The route action15 logit cap materially improved clean progress: it cleared
+  offline gates and moved the official failure from the earlier route-progress
+  0.53-0.54 region to 0.6667.
+- It is still not a clean PASS. Do not start raw/fusion work.
+- The next candidate should patch the late `0.64-0.70` high-throttle-left
+  action12 collision, preferably with a route-local logit/throttle control that
+  is checked offline before another official 512 eval.
+
+### 2026-05-26 - route action12/15 logit cap
+
+The next candidate expanded the same logit cap to include the collision-tail
+action12:
+
+```text
+candidate: 8b78015_corr048_w005_ssf005_logit1215w05m0
+RouteActionLogitCapWeight: 0.5
+RouteActionLogitCapIds: 12,15
+RouteActionLogitCapMargin: 0.0
+RouteActionLogitCapMinRouteProgress: 0.0
+RouteActionLogitCapMaxRouteProgress: 1.0
+```
+
+Cross-replay gate:
+
+- target22:
+  - `recommended_for_clean_rerun=true`.
+  - action_counts `{15:442,4:40,7:38,19:2}`.
+  - moving_steer_fraction `0.0804597701`.
+  - dominant_action_fraction `0.8467432950`.
+  - latent test accuracy `0.9904761910`.
+- steer2:
+  - `recommended_for_clean_rerun=true`.
+  - action_counts `{15:419,7:170,4:48,1:8,12:2}`.
+  - moving_steer_fraction `0.0896445131`.
+  - dominant_action_fraction `0.6476043277`.
+  - latent test accuracy `0.8999999762`.
+- gate: `ready_for_clean_eval=true`.
+
+Official 512 clean eval:
+
+- source: `windows_carla`.
+- status: `FAIL`.
+- failure_class: `driving`.
+- done_reason: `collision`.
+- steps: `146/512`.
+- route_progress: `0.6666666667`.
+- collision_count/offroad_count/stuck_count: `1/0/0`.
+- clean action_counts: `{15:116,7:18,4:10,1:1,12:1}`.
+- failure tail:
+  - step145: action12, throttle `0.7`, steer `-0.1`,
+    route_progress `0.6666666667`, collision `true`.
+
+Decision:
+
+- Adding action12 to the weak full-route logit cap reduced clean action12 from
+  two steps to one, but the remaining action12 still caused the same collision.
+- The next candidate should not run CARLA until it passes target22/steer2
+  cross replay. Prefer a stronger action12/15 logit cap or a route-local
+  throttle/logit control around route_progress `0.64-0.70`.
+
+### 2026-05-26 - route action12/15 logit-cap bracket
+
+Two bracket candidates tested whether the full-route 12/15 logit cap should be
+stronger.
+
+`8b78015_corr048_w005_ssf005_logit1215w2m0` used:
+
+```text
+RouteActionLogitCapWeight: 2.0
+RouteActionLogitCapIds: 12,15
+```
+
+It was rejected before CARLA:
+
+- target22 action_counts `{7:480,4:40,19:2}`.
+- target22 dominant_action_fraction `0.9195402299`.
+- steer2 action_counts `{7:589,4:51,1:7}`.
+- steer2 dominant_action_fraction `0.9103554869`.
+- gate: `ready_for_clean_eval=false`.
+
+`8b78015_corr048_w005_ssf005_logit1215w1m0` used:
+
+```text
+RouteActionLogitCapWeight: 1.0
+RouteActionLogitCapIds: 12,15
+```
+
+Cross-replay gate passed:
+
+- target22 action_counts `{7:262,15:220,4:38,19:2}`.
+- target22 dominant_action_fraction `0.5019157088`.
+- steer2 action_counts `{7:383,15:208,4:49,1:7}`.
+- steer2 dominant_action_fraction `0.5919629057`.
+- steer2 moving_steer_fraction `0.0865533230`.
+- gate: `ready_for_clean_eval=true`.
+
+Official 512 clean eval failed:
+
+- source: `windows_carla`.
+- status: `FAIL`.
+- failure_class: `driving`.
+- done_reason: `collision`.
+- steps: `148/512`.
+- route_progress: `0.5384615385`.
+- collision_count/offroad_count/stuck_count: `1/1/0`.
+- clean action_counts: `{15:80,7:47,10:10,16:5,19:4,13:2}`.
+- failure tail:
+  - steps 144-147: action19, throttle `0.3`, steer `0.5`,
+    route_progress `0.5384615385`.
+  - step147: collision `true`, offroad `true`.
+
+Decision:
+
+- Full-route 12/15 logit-cap weight is now bracketed:
+  - `0.5` reaches route_progress `0.6667` but leaves one action12 collision.
+  - `1.0` shifts into earlier action19 right-oversteer.
+  - `2.0` fails offline by action7 dominance.
+- Stop full-route logit-weight sweeps.
+- Next candidate should preserve the w0.5 full-route action15 behavior and add
+  a late route-local action12/throttle control around route_progress
+  `0.64-0.70`.
+
+### 2026-05-26 - late route throttle ceiling
+
+The next candidate kept the useful full-route action15 logit cap and added a
+route-local throttle ceiling in the failure window:
+
+```text
+candidate: 8b78015_corr048_w005_ssf005_logit15w05_lateceil03w4
+RouteActionLogitCapWeight: 0.5
+RouteActionLogitCapIds: 15
+RouteThrottleCeilingWeight: 4.0
+RouteThrottleCeiling: 0.3
+RouteThrottleCeilingMinRouteProgress: 0.64
+RouteThrottleCeilingMaxRouteProgress: 0.70
+```
+
+Cross-replay gate:
+
+- target22:
+  - `recommended_for_clean_rerun=true`.
+  - action_counts `{15:442,4:40,7:38,19:2}`.
+  - moving_steer_fraction `0.0804597701`.
+  - dominant_action_fraction `0.8467432950`.
+  - latent test accuracy `0.9904761910`.
+- steer2:
+  - `recommended_for_clean_rerun=true`.
+  - action_counts `{15:414,4:48,7:177,1:8}`.
+  - moving_steer_fraction `0.0865533230`.
+  - dominant_action_fraction `0.6398763524`.
+  - latent test accuracy `0.8999999762`.
+- gate: `ready_for_clean_eval=true`.
+
+Official 512 clean eval:
+
+- source: `windows_carla`.
+- status: `FAIL`.
+- failure_class: `driving`.
+- done_reason: `collision`.
+- steps: `146/512`.
+- route_progress: `0.6666666667`.
+- collision_count/offroad_count/stuck_count: `1/0/0`.
+- clean action_counts: `{15:116,7:19,4:10,1:1}`.
+- failure tail:
+  - steps 140-145 stayed at throttle `0.3` with action7 straight controls.
+  - step145: action7, throttle `0.3`, steer `0.0`,
+    route_progress `0.6666666667`, collision `true`.
+
+Decision:
+
+- The route-local throttle ceiling removed the high-throttle action12 tail, so
+  the previous immediate action12 failure has been patched.
+- The same route-progress collision remains under slow straight action7,
+  meaning the next smallest patch should not continue throttle-only tuning.
+- Next work should collect or reuse a late collision-window replay around
+  route_progress `0.64-0.70`, then train a route-local correction that changes
+  late-window action selection without broad full-route logit caps. Do not
+  start raw/fusion work before this privileged clean gate passes.

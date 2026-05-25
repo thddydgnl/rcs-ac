@@ -451,6 +451,122 @@ candidate to "ready for 512 clean eval"; it is not a clean PASS.
       decision_summary: reject_before_carla_target22_dominance_and_steer2_oversteer
   clean_gate_evidence: false
   next_action: stop plain corr048 weight/ssf sweeps; next patch should control action15/right-turn dominance directly while preserving steer2 false-positive limits
+
+2026-05-26:
+  state: corr048_w005_cap15_rejected_by_cross_replay_gate
+  commit: 8b78015
+  candidate: 8b78015_corr048_w005_ssf005_cap15w1c82
+  checkpoint_output_dir: RCS-AC-v2\experiments\02_privileged_policy_clean\checkpoints\8b78015_corr048_w005_ssf005_cap15w1c82
+  cross_probe_output_dir: RCS-AC-v2\experiments\02_privileged_policy_clean\windows_512\8b78015_corr048_w005_ssf005_cap15w1c82_cross_probe
+  control_change: ActionMassCapWeight=1.0, ActionMassCaps=15=0.82
+  target22_action_probe: recommended_for_clean_rerun=false, action_counts={15:460,4:34,10:6,13:2,19:2,1:2,7:16}, moving_steer_fraction=0.0881226054, dominant_action_fraction=0.8812260536
+  target22_latent_probe: linear_probe_test_accuracy=0.9904761910, majority_action_fraction=0.7931034483, margin=0.1973727428
+  steer2_action_probe: recommended_for_clean_rerun=true, action_counts={15:438,7:141,4:55,1:10,12:3}, moving_steer_fraction=0.1051004637, dominant_action_fraction=0.6769706337
+  steer2_latent_probe: linear_probe_test_accuracy=0.8999999762, majority_action_fraction=0.6831530139, margin=0.2168469622
+  gate_failures: target22 action probe recommended_for_clean_rerun is not true
+  decision_summary: reject_before_carla_target22_action15_dominance
+  clean_gate_evidence: false
+  next_action: do not run official 512 clean eval for cap15w1c82; if continuing this line, tighten action15 control enough to move target22 dominant_action_fraction below 0.85 while watching that steer2 moving_steer_fraction stays below 0.20
+
+2026-05-26:
+  state: corr048_w005_cap15w4_rejected_by_cross_replay_gate
+  commit: 8b78015
+  candidate: 8b78015_corr048_w005_ssf005_cap15w4c80
+  control_change: ActionMassCapWeight=4.0, ActionMassCaps=15=0.80
+  target22_action_probe: recommended_for_clean_rerun=false, action_counts={15:460,4:34,10:6,13:2,19:2,1:2,7:16}, moving_steer_fraction=0.0881226054, dominant_action_fraction=0.8812260536
+  steer2_action_probe: recommended_for_clean_rerun=true, action_counts={15:438,7:141,4:55,1:10,12:3}, moving_steer_fraction=0.1051004637, dominant_action_fraction=0.6769706337
+  gate_failures: target22 action probe recommended_for_clean_rerun is not true
+  decision_summary: reject_before_carla_same_as_cap15w1
+  clean_gate_evidence: false
+
+2026-05-26:
+  state: corr048_w005_logit15_official512_fail_collision
+  commit: 8b78015
+  candidate: 8b78015_corr048_w005_ssf005_logit15w05m0
+  checkpoint_output_dir: RCS-AC-v2\experiments\02_privileged_policy_clean\checkpoints\8b78015_corr048_w005_ssf005_logit15w05m0
+  cross_probe_output_dir: RCS-AC-v2\experiments\02_privileged_policy_clean\windows_512\8b78015_corr048_w005_ssf005_logit15w05m0_cross_probe
+  official_run_output_dir: RCS-AC-v2\experiments\02_privileged_policy_clean\windows_512\8b78015_corr048_w005_ssf005_logit15w05m0_official_clean512
+  control_change: RouteActionLogitCapWeight=0.5, RouteActionLogitCapIds=15, RouteActionLogitCapMargin=0.0, RouteActionLogitCapMinRouteProgress=0.0, RouteActionLogitCapMaxRouteProgress=1.0
+  target22_action_probe: recommended_for_clean_rerun=true, action_counts={15:442,4:40,7:38,19:2}, moving_steer_fraction=0.0804597701, dominant_action_fraction=0.8467432950
+  target22_latent_probe: linear_probe_test_accuracy=0.9904761910, majority_action_fraction=0.7931034483, margin=0.1973727428
+  steer2_action_probe: recommended_for_clean_rerun=true, action_counts={15:420,7:167,4:49,1:8,12:3}, moving_steer_fraction=0.0927357032, dominant_action_fraction=0.6491499227
+  steer2_latent_probe: linear_probe_test_accuracy=0.8999999762, majority_action_fraction=0.6831530139, margin=0.2168469622
+  cross_replay_gate: ready_for_clean_eval=true, failures=[]
+  official_512_summary: source=windows_carla, status=FAIL, failure_class=driving, done_reason=collision, steps=146/512, route_progress=0.6666666667, collision_count=1, offroad_count=0, stuck_count=0, clean_gate_pass=false
+  official_512_action_counts: {15:117,7:17,4:10,12:2}
+  official_512_failure_tail: step144 action12 throttle=0.7 steer=-0.1 route_progress=0.6666666667; step145 action12 throttle=0.7 steer=-0.1 collision=true
+  clean_gate_evidence: false
+  next_action: patch the late route_progress 0.64-0.70 high-throttle-left collision, likely by using a route-local logit/throttle control on action12 before another official 512 eval
+
+2026-05-26:
+  state: corr048_w005_logit1215_official512_fail_collision
+  commit: 8b78015
+  candidate: 8b78015_corr048_w005_ssf005_logit1215w05m0
+  checkpoint_output_dir: RCS-AC-v2\experiments\02_privileged_policy_clean\checkpoints\8b78015_corr048_w005_ssf005_logit1215w05m0
+  cross_probe_output_dir: RCS-AC-v2\experiments\02_privileged_policy_clean\windows_512\8b78015_corr048_w005_ssf005_logit1215w05m0_cross_probe
+  official_run_output_dir: RCS-AC-v2\experiments\02_privileged_policy_clean\windows_512\8b78015_corr048_w005_ssf005_logit1215w05m0_official_clean512
+  control_change: RouteActionLogitCapWeight=0.5, RouteActionLogitCapIds=12,15, RouteActionLogitCapMargin=0.0, RouteActionLogitCapMinRouteProgress=0.0, RouteActionLogitCapMaxRouteProgress=1.0
+  target22_action_probe: recommended_for_clean_rerun=true, action_counts={15:442,4:40,7:38,19:2}, moving_steer_fraction=0.0804597701, dominant_action_fraction=0.8467432950
+  target22_latent_probe: linear_probe_test_accuracy=0.9904761910, majority_action_fraction=0.7931034483, margin=0.1973727428
+  steer2_action_probe: recommended_for_clean_rerun=true, action_counts={15:419,7:170,4:48,1:8,12:2}, moving_steer_fraction=0.0896445131, dominant_action_fraction=0.6476043277
+  steer2_latent_probe: linear_probe_test_accuracy=0.8999999762, majority_action_fraction=0.6831530139, margin=0.2168469622
+  cross_replay_gate: ready_for_clean_eval=true, failures=[]
+  official_512_summary: source=windows_carla, status=FAIL, failure_class=driving, done_reason=collision, steps=146/512, route_progress=0.6666666667, collision_count=1, offroad_count=0, stuck_count=0, clean_gate_pass=false
+  official_512_action_counts: {15:116,7:18,4:10,1:1,12:1}
+  official_512_failure_tail: step145 action12 throttle=0.7 steer=-0.1 route_progress=0.6666666667 collision=true
+  clean_gate_evidence: false
+  next_action: action12 remains the immediate collision action despite the weak 12,15 logit cap; try a stronger 12,15 logit cap or route-local throttle/logit control offline before another official 512 eval
+
+2026-05-26:
+  state: corr048_w005_logit1215w2_rejected_by_cross_replay_gate
+  commit: 8b78015
+  candidate: 8b78015_corr048_w005_ssf005_logit1215w2m0
+  control_change: RouteActionLogitCapWeight=2.0, RouteActionLogitCapIds=12,15, RouteActionLogitCapMargin=0.0
+  target22_action_probe: recommended_for_clean_rerun=false, action_counts={7:480,4:40,19:2}, moving_steer_fraction=0.0804597701, dominant_action_fraction=0.9195402299
+  target22_latent_probe: linear_probe_test_accuracy=0.9904761910, majority_action_fraction=0.7931034483, margin=0.1973727428
+  steer2_action_probe: recommended_for_clean_rerun=false, action_counts={7:589,4:51,1:7}, moving_steer_fraction=0.0896445131, dominant_action_fraction=0.9103554869
+  steer2_latent_probe: linear_probe_test_accuracy=0.8999999762, majority_action_fraction=0.6831530139, margin=0.2168469622
+  gate_failures: target22 action probe recommended_for_clean_rerun is not true; steer2 action probe recommended_for_clean_rerun is not true
+  decision_summary: reject_before_carla_full_route_logit_cap_too_strong
+  clean_gate_evidence: false
+
+2026-05-26:
+  state: corr048_w005_logit1215w1_official512_fail_collision_offroad
+  commit: 8b78015
+  candidate: 8b78015_corr048_w005_ssf005_logit1215w1m0
+  checkpoint_output_dir: RCS-AC-v2\experiments\02_privileged_policy_clean\checkpoints\8b78015_corr048_w005_ssf005_logit1215w1m0
+  cross_probe_output_dir: RCS-AC-v2\experiments\02_privileged_policy_clean\windows_512\8b78015_corr048_w005_ssf005_logit1215w1m0_cross_probe
+  official_run_output_dir: RCS-AC-v2\experiments\02_privileged_policy_clean\windows_512\8b78015_corr048_w005_ssf005_logit1215w1m0_official_clean512
+  control_change: RouteActionLogitCapWeight=1.0, RouteActionLogitCapIds=12,15, RouteActionLogitCapMargin=0.0
+  target22_action_probe: recommended_for_clean_rerun=true, action_counts={7:262,15:220,4:38,19:2}, moving_steer_fraction=0.0766283525, dominant_action_fraction=0.5019157088
+  target22_latent_probe: linear_probe_test_accuracy=0.9904761910, majority_action_fraction=0.7931034483, margin=0.1973727428
+  steer2_action_probe: recommended_for_clean_rerun=true, action_counts={7:383,15:208,4:49,1:7}, moving_steer_fraction=0.0865533230, dominant_action_fraction=0.5919629057
+  steer2_latent_probe: linear_probe_test_accuracy=0.8999999762, majority_action_fraction=0.6831530139, margin=0.2168469622
+  cross_replay_gate: ready_for_clean_eval=true, failures=[]
+  official_512_summary: source=windows_carla, status=FAIL, failure_class=driving, done_reason=collision, steps=148/512, route_progress=0.5384615385, collision_count=1, offroad_count=1, stuck_count=0, clean_gate_pass=false
+  official_512_action_counts: {15:80,7:47,10:10,16:5,19:4,13:2}
+  official_512_failure_tail: steps144-147 action19 throttle=0.3 steer=0.5 route_progress=0.5384615385; step147 collision=true offroad=true
+  clean_gate_evidence: false
+  next_action: stop full-route 12,15 logit-weight sweeps; w0.5 reaches route_progress 0.6667 while w1.0 reintroduces earlier right-oversteer, so next use route-local late action12/throttle control while preserving action15 w0.5 behavior
+
+2026-05-26:
+  state: corr048_w005_logit15_late_throttle_ceiling_official512_fail_collision
+  commit: 8b78015
+  candidate: 8b78015_corr048_w005_ssf005_logit15w05_lateceil03w4
+  checkpoint_output_dir: RCS-AC-v2\experiments\02_privileged_policy_clean\checkpoints\8b78015_corr048_w005_ssf005_logit15w05_lateceil03w4
+  cross_probe_output_dir: RCS-AC-v2\experiments\02_privileged_policy_clean\windows_512\8b78015_corr048_w005_ssf005_logit15w05_lateceil03w4_cross_probe
+  official_run_output_dir: RCS-AC-v2\experiments\02_privileged_policy_clean\windows_512\8b78015_corr048_w005_ssf005_logit15w05_lateceil03w4_official_clean512
+  control_change: RouteActionLogitCapWeight=0.5, RouteActionLogitCapIds=15, RouteActionLogitCapMargin=0.0, RouteThrottleCeilingWeight=4.0, RouteThrottleCeiling=0.3, RouteThrottleCeilingMinRouteProgress=0.64, RouteThrottleCeilingMaxRouteProgress=0.70
+  target22_action_probe: recommended_for_clean_rerun=true, action_counts={15:442,4:40,7:38,19:2}, moving_steer_fraction=0.0804597701, dominant_action_fraction=0.8467432950
+  target22_latent_probe: linear_probe_test_accuracy=0.9904761910, majority_action_fraction=0.7931034483, margin=0.1973727428
+  steer2_action_probe: recommended_for_clean_rerun=true, action_counts={15:414,4:48,7:177,1:8}, moving_steer_fraction=0.0865533230, dominant_action_fraction=0.6398763524
+  steer2_latent_probe: linear_probe_test_accuracy=0.8999999762, majority_action_fraction=0.6831530139, margin=0.2168469622
+  cross_replay_gate: ready_for_clean_eval=true, failures=[]
+  official_512_summary: source=windows_carla, status=FAIL, failure_class=driving, done_reason=collision, steps=146/512, route_progress=0.6666666667, collision_count=1, offroad_count=0, stuck_count=0, clean_gate_pass=false
+  official_512_action_counts: {15:116,7:19,4:10,1:1}
+  official_512_failure_tail: steps140-145 mostly action7 throttle=0.3 steer=0.0; step145 action7 throttle=0.3 steer=0.0 route_progress=0.6666666667 collision=true
+  clean_gate_evidence: false
+  next_action: stop throttle-only late-window tuning; action12 high-throttle tail is gone, but the same geometry still collides under slow straight action7, so collect or use late collision-window replay/correction around route_progress 0.64-0.70 before another official 512 eval
 ```
 
 Decision rules:

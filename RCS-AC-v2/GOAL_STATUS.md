@@ -19,7 +19,7 @@ Stage 2: Privileged policy clean
 Status:
 
 ```text
-STAGE2_CLEAN_FIRST_CORR048_W005_SWEEP_REJECTED_OFFLINE
+STAGE2_CLEAN_FIRST_LATECEIL_OFFICIAL512_FAIL
 ```
 
 Last completed stage:
@@ -98,7 +98,61 @@ dominance: ssf005 passed steer2 but failed target22 with dominant_action_fractio
 0.3338485317. No official CARLA eval was run for these offline-rejected
 candidates. Next work should stop plain corr048 weight/ssf sweeps and add or
 use an action15/right-turn dominance control that preserves steer2 false-positive
-limits.
+limits. The first direct control candidate,
+`8b78015_corr048_w005_ssf005_cap15w1c82`, trained on Windows CUDA with
+`ActionMassCapWeight=1.0` and `ActionMassCaps=15=0.82`. It preserved the
+steer2 action gate (`recommended_for_clean_rerun=true`,
+moving_steer_fraction=0.1051004637, dominant_action_fraction=0.6769706337),
+but target22 stayed just over the dominant-action gate
+(`action_counts={15:460,4:34,10:6,13:2,19:2,1:2,7:16}`,
+dominant_action_fraction=0.8812260536). The cross-replay gate rejected the
+candidate before official CARLA eval with failure
+`target22: action probe recommended_for_clean_rerun is not true`.
+Stronger `ActionMassCapWeight=4.0, ActionMassCaps=15=0.80` produced the same
+action distributions, so global action-mass capping is not an effective argmax
+control in this setting. The next candidate,
+`8b78015_corr048_w005_ssf005_logit15w05m0`, used the existing
+`RouteActionLogitCap` hook on action 15 with weight 0.5 and margin 0.0. It
+passed the target22/steer2 cross-replay gate with `ready_for_clean_eval=true`:
+target22 dominant_action_fraction=0.8467432950, steer2
+moving_steer_fraction=0.0927357032, and both latent margins above 0.15.
+Official Windows CARLA 512 eval was then run from the clean clone after CARLA
+readiness. It failed as `source=windows_carla`, `status=FAIL`,
+`failure_class=driving`, `done_reason=collision`, steps=146/512,
+route_progress=0.6666666667, collision_count=1, offroad_count=0,
+stuck_count=0. Clean action_counts were {15:117,7:17,4:10,12:2}; the last two
+steps selected action12 (`throttle=0.7`, `steer=-0.1`) and the collision
+occurred on the second action12. CARLA was stopped after the run. A follow-up
+`8b78015_corr048_w005_ssf005_logit1215w05m0` candidate expanded the same
+argmax-level logit cap to actions 12 and 15. It preserved the offline gate
+(`ready_for_clean_eval=true`; target22 dominant_action_fraction=0.8467432950,
+steer2 moving_steer_fraction=0.0896445131), but official 512 still failed as
+collision at steps=146/512 and route_progress=0.6666666667. Clean action_counts
+were {15:116,7:18,4:10,1:1,12:1}; the only action12 occurred at step145 and
+collided immediately. CARLA was stopped after the run. A stronger
+`logit1215w2m0` candidate was rejected offline because both target22 and steer2
+collapsed back to dominant action7. The bracket midpoint
+`logit1215w1m0` passed offline, but official 512 failed earlier at
+route_progress=0.5384615385 with collision+offroad after action19
+(`throttle=0.3`, `steer=0.5`) repeated at steps 144-147. This means simply
+raising the full-route 12/15 logit cap trades the late action12 collision for
+earlier right-oversteer. Stop full-route logit-weight sweeps; next candidate
+should keep the offline-passing w0.5 action15 control and add a route-local
+late throttle/action12 control around route_progress 0.64-0.70. The first
+route-local throttle-ceiling follow-up,
+`8b78015_corr048_w005_ssf005_logit15w05_lateceil03w4`, kept the full-route
+action15 logit cap and added `RouteThrottleCeilingWeight=4.0`,
+`RouteThrottleCeiling=0.3` for route_progress 0.64-0.70. It passed the
+target22/steer2 cross-replay gate and removed clean-run action12 from the
+failure tail, but official Windows CARLA 512 still failed as
+`done_reason=collision`, steps=146/512, route_progress=0.6666666667,
+collision_count=1, offroad_count=0, stuck_count=0. Clean action_counts were
+{15:116,7:19,4:10,1:1}; the final step selected action7
+(`throttle=0.3`, `steer=0.0`) at route_progress=0.6667 and collided. CARLA was
+stopped after the run and RTX 3080 reported 65C/0% utilization. This narrows
+the next patch away from high-throttle action12 and toward a late-route
+collision-window correction/replay or local action selection change that
+handles the 0.64-0.70 geometry without reintroducing action19 right-oversteer.
 ```
 
 Pending brief:
