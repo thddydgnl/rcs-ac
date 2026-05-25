@@ -248,13 +248,13 @@ GPU 사용을 보장해야 하는 replay 학습/probe/clean eval 재개 전에�
 `-RequireCuda`를 붙여 `torch.cuda.is_available()`와 CUDA device name을 먼저
 확인한다. Stage 2 replay 학습, action probe, latent probe, candidate cycle
 wrapper, official clean eval wrapper의 기본값은 모두 `Device=cuda`이며, 직접
-Python entrypoint를 실행할 때도 기본 `--device auto`가 CUDA 가능 환경에서는
-GPU를 선택한다. GPU가 불안정하거나 PyTorch CUDA가 깨진 원인 분석 때만
+Python training/probe entrypoint를 실행할 때도 기본 `--device cuda`로 GPU를
+요구한다. GPU가 불안정하거나 PyTorch CUDA가 깨진 원인 분석 때만
 명시적으로 `-Device cpu` 또는 `--device cpu`를 붙여 후퇴한다.
 CPU 후퇴 run은 clean 성능 확보용 공식 후보가 아니라 진단용으로 기록한다.
 2026-05-25 이후 Stage 2 replay 학습/probe/clean eval wrapper는 시작 시
-`assert_stage2_cuda_available.ps1`를 호출한다. `Device=cuda` 또는 `Device=auto`
-인데 PyTorch CUDA가 잡히지 않으면 run을 시작하지 않고 실패한다. 따라서
+`assert_stage2_cuda_available.ps1`를 호출한다. `Device=cuda`인데 PyTorch CUDA가
+잡히지 않으면 run을 시작하지 않고 실패한다. 따라서
 Windows 재부팅 뒤에는 별도 확인을 잊어도 wrapper 로그에
 `STAGE2_CUDA_GUARD_AVAILABLE=True`, `STAGE2_CUDA_GUARD_DEVICE_NAME=...`,
 `STAGE2_CUDA_GUARD_TENSOR_DEVICE=cuda:0`가 먼저 남아야 정상이다. `Device=cpu`는

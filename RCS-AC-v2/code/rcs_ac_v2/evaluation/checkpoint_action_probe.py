@@ -66,7 +66,7 @@ def probe_checkpoint_actions(
     max_nonzero_steer_fraction: float = 0.5,
     max_dominant_action_fraction: float = 0.85,
     max_previous_stuck_action8_fraction: float = 0.05,
-    device: str = "auto",
+    device: str = "cuda",
     forbidden_action_ids: tuple[int, ...] = (),
     output_path: str | Path | None = None,
 ) -> dict[str, Any]:
@@ -249,7 +249,7 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--max-nonzero-steer-fraction", type=float, default=0.5)
     parser.add_argument("--max-dominant-action-fraction", type=float, default=0.85)
     parser.add_argument("--max-previous-stuck-action8-fraction", type=float, default=0.05)
-    parser.add_argument("--device", default="auto")
+    parser.add_argument("--device", default="cuda")
     parser.add_argument("--forbidden-action-id", action="append", type=int, default=[])
     args = parser.parse_args(argv)
     if args.output_config:

@@ -539,14 +539,21 @@ def test_stage2_cuda_guard_fails_when_cuda_is_requested_but_missing_static_contr
     assert "Remove-Item -Force -ErrorAction SilentlyContinue $ProbePath" in text
 
 
-def test_stage2_python_probe_entrypoints_default_to_auto_static_contract() -> None:
+def test_stage2_python_probe_entrypoints_default_to_cuda_static_contract() -> None:
     code_dir = Path(__file__).resolve().parents[1] / "code" / "rcs_ac_v2" / "evaluation"
     action_probe = (code_dir / "checkpoint_action_probe.py").read_text()
     latent_probe = (code_dir / "replay_latent_probe.py").read_text()
+    trainer = (
+        Path(__file__).resolve().parents[1]
+        / "code"
+        / "rcs_ac_v2"
+        / "training"
+        / "train_stage2_privileged_from_replay.py"
+    ).read_text()
 
-    for text in [action_probe, latent_probe]:
-        assert 'device: str = "auto"' in text
-        assert 'parser.add_argument("--device", default="auto")' in text
+    for text in [action_probe, latent_probe, trainer]:
+        assert 'device: str = "cuda"' in text
+        assert 'parser.add_argument("--device", default="cuda")' in text
 
 
 def test_stage2_cross_probe_wrappers_support_forbidden_action_ids_static_contract() -> None:

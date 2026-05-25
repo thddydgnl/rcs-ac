@@ -59,7 +59,7 @@ def train_stage2_privileged_from_replay(
     moving_steer_nonmoving_margin: float = 0.25,
     world_model_action_aux_weight: float = 0.0,
     hidden_dim: int = 128,
-    device: str = "auto",
+    device: str = "cuda",
 ) -> ReplayTrainingResult:
     if world_model_steps <= 0 or policy_steps <= 0:
         raise ValueError("world_model_steps and policy_steps must be positive")
@@ -371,7 +371,7 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--moving-steer-nonmoving-margin", type=float, default=0.25)
     parser.add_argument("--world-model-action-aux-weight", type=float, default=0.0)
     parser.add_argument("--hidden-dim", type=int, default=128)
-    parser.add_argument("--device", default="auto")
+    parser.add_argument("--device", default="cuda")
     args = parser.parse_args(argv)
     result = train_stage2_privileged_from_replay(
         replay_paths=[Path(item) for item in args.replay],
