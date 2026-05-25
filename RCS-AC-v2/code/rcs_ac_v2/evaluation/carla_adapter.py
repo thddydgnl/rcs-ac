@@ -663,9 +663,18 @@ def _forbidden_action_ids_for_config(config: dict[str, Any]) -> tuple[int, ...]:
     carla_config = config.get("carla", {})
     env_action_format = str(carla_config.get("env_action_format", "direct_3d"))
     allow_reverse = bool(carla_config.get("allow_reverse_direct_3d", False))
+    forbidden_ids = {int(action_id) for action_id in carla_config.get("forbidden_action_ids", ())}
+    invalid_ids = sorted(action_id for action_id in forbidden_ids if action_id < 0 or action_id >= len(RAW2DRIVE_ACTIONS))
+    if invalid_ids:
+        raise CleanEvalRuntimeFailure(
+            "contract",
+            "forbidden_action_ids_out_of_range",
+            f"invalid forbidden_action_ids={invalid_ids}",
+        )
     if allow_reverse or env_action_format not in {"direct_3d", "stage4_v2"}:
-        return ()
-    return tuple(action.action_id for action in RAW2DRIVE_ACTIONS if action.reverse)
+        return tuple(sorted(forbidden_ids))
+    forbidden_ids.update(action.action_id for action in RAW2DRIVE_ACTIONS if action.reverse)
+    return tuple(sorted(forbidden_ids))
 
 
 def _validate_world_model_config(cfg: PrivilegedWorldModelConfig, config: dict[str, Any]) -> None:

@@ -284,6 +284,7 @@ def test_observation_adapter_accepts_stage2_privileged_shapes(tmp_path) -> None:
 
 def test_policy_runner_loads_checkpoints_and_returns_logits(tmp_path) -> None:
     config = _base_config(tmp_path)
+    config["carla"]["forbidden_action_ids"] = [19]
     _write_stage2_checkpoints(tmp_path, config)
     runner = load_stage2_policy_runner(config)
 
@@ -308,12 +309,14 @@ def test_policy_runner_loads_checkpoints_and_returns_logits(tmp_path) -> None:
     assert torch.isfinite(second["logits"]).all()
     reverse_ids = [action.action_id for action in RAW2DRIVE_ACTIONS if action.reverse]
     assert torch.all(second["logits"][..., reverse_ids] < -1.0e8)
+    assert torch.all(second["logits"][..., [19]] < -1.0e8)
 
 
 def test_policy_runner_allows_reverse_logits_only_when_bridge_supports_reverse(tmp_path) -> None:
     config = _base_config(tmp_path)
     config["carla"]["env_action_format"] = "raw2drive_control_dict"
     config["carla"]["allow_reverse_direct_3d"] = True
+    config["carla"]["forbidden_action_ids"] = [19]
     _write_stage2_checkpoints(tmp_path, config)
     runner = load_stage2_policy_runner(config)
 
@@ -328,6 +331,16 @@ def test_policy_runner_allows_reverse_logits_only_when_bridge_supports_reverse(t
     reverse_ids = [action.action_id for action in RAW2DRIVE_ACTIONS if action.reverse]
     assert torch.isfinite(output["logits"][..., reverse_ids]).all()
     assert not torch.all(output["logits"][..., reverse_ids] < -1.0e8)
+    assert torch.all(output["logits"][..., [19]] < -1.0e8)
+
+
+def test_policy_runner_rejects_invalid_forbidden_action_ids(tmp_path) -> None:
+    config = _base_config(tmp_path)
+    config["carla"]["forbidden_action_ids"] = [39]
+    _write_stage2_checkpoints(tmp_path, config)
+
+    with pytest.raises(CleanEvalRuntimeFailure, match="invalid forbidden_action_ids"):
+        load_stage2_policy_runner(config)
 
 
 def test_policy_runner_rejects_bad_checkpoint_sha(tmp_path) -> None:

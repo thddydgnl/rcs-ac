@@ -268,3 +268,38 @@ became strong enough. The next structural fix adds
 directly penalizes moving-steer logits that approach or exceed the best
 non-moving logit. Continue with CUDA replay training/probe only; official 512
 clean eval remains blocked until `ready_for_clean_eval=true`.
+
+Non-moving margin follow-up:
+
+- `balpow025_iw5_ssf025_msfpa20_msmm05_cuda`:
+  - target22 action/latent: pass.
+  - steer2 latent: pass.
+  - steer2 action still rejected by one action bucket, moving steer fraction
+    `0.2009273570`, gate max `0.20`.
+- `balpow025_iw5_ssf025_msfpa20_msmm10_cuda`:
+  - target22 action/latent: pass.
+  - steer2 action/latent: pass.
+  - steer2 moving steer fraction `0.1978361669`.
+  - cross replay gate: `ready_for_clean_eval=true`.
+
+Official 512 clean eval for `msmm10`:
+
+- run output:
+  `RCS-AC-v2\experiments\02_privileged_policy_clean\windows_512\7f87656_mixed_target22_steer2_aux1_balpow025_iw5_ssf025_msfpa20_msmm10_cuda_official_clean512`
+- source: `windows_carla`
+- status: `FAIL`
+- done reason: `offroad`
+- steps: `257` / `512`
+- collision count: `0`
+- offroad count: `1`
+- route progress: `0.5128205128`
+- tail actions: mostly action `16` (`throttle=0.3`, `steer=0.3`), then action
+  `19` (`throttle=0.3`, `steer=0.5`) immediately before offroad.
+
+Decision: Stage 2 finally produced an offline-promotable candidate, but the
+official CARLA clean gate still fails by late offroad rather than collision. Do
+not mark clean PASS and do not start raw/fusion. The next smallest patch is a
+configurable CARLA safety action mask using the existing policy runner
+`forbidden_action_ids` path, then re-run offline probe and official 512 clean
+with action `19` masked. This keeps the experiment in privileged clean recovery
+and targets the observed failure tail directly.
