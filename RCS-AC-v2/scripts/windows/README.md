@@ -186,7 +186,9 @@ clean-first resume wrapper다. Windows가 다시 붙으면 이 wrapper를 먼저
 순서는 git pull, dependency/CUDA check, late-right `-PlanOnly`, candidate
 check/start/probe, gate summary다. 이 wrapper도 official 512 clean eval을
 실행하지 않으며, gate summary가 `ready_for_clean_eval=true`를 보고할 때까지
-512 clean eval은 계속 별도 보류한다.
+512 clean eval은 계속 별도 보류한다. detached training이 아직 실행 중이면
+`STAGE2_LATE_RIGHT_RESUME_CANDIDATE_RUNNING=True`를 출력하고 exit `3`으로
+끝내며, 같은 명령을 나중에 다시 실행해 check/probe를 이어간다.
 
 Canonical late-right resume command:
 

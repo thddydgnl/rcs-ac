@@ -950,6 +950,7 @@ def test_late_right_margin_resume_runner_static_contract() -> None:
     assert '$PlanArgs = $CandidateArgs + "-PlanOnly"' in text
     assert "-CandidateName late_right_margin" in text
     assert "-FallbackCandidateName target22" in text
+    assert "STAGE2_LATE_RIGHT_RESUME_CANDIDATE_RUNNING=True" in text
     assert "STAGE2_LATE_RIGHT_RESUME_GATE_SUMMARY_REJECTED=True" in text
     assert "OFFICIAL_512_CLEAN_EVAL_NOT_CALLED_BY_THIS_WRAPPER=True" in text
 

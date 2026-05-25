@@ -98,7 +98,13 @@ Write-Host "STAGE2_LATE_RIGHT_RESUME_PLANONLY_OK=True"
 if (-not $PlanOnly -and -not $SummarizeOnly) {
     Write-Host "STAGE2_LATE_RIGHT_RESUME_CANDIDATE_BEGIN=True"
     powershell @CandidateArgs
-    if ($LASTEXITCODE -ne 0) {
+    $CandidateExitCode = $LASTEXITCODE
+    if ($CandidateExitCode -eq 3) {
+        Write-Host "STAGE2_LATE_RIGHT_RESUME_CANDIDATE_RUNNING=True"
+        Write-Host "STAGE2_LATE_RIGHT_RESUME_NEXT_ACTION=Rerun this wrapper with -ProbeWhenReady after detached training finishes."
+        exit 3
+    }
+    if ($CandidateExitCode -ne 0) {
         Write-Host "STAGE2_LATE_RIGHT_RESUME_CANDIDATE_OK=False"
         exit 4
     }

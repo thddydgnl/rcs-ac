@@ -1745,6 +1745,10 @@ below `18 km/h`. Do not start raw/fusion.
   - this wrapper runs git pull, dependency/CUDA check, late-right `-PlanOnly`,
     the candidate wrapper, and gate summary, but never runs official 512 clean
     eval.
+  - if detached training is still running, it reports
+    `STAGE2_LATE_RIGHT_RESUME_CANDIDATE_RUNNING=True` and exits `3` so the same
+    command can be retried later without treating the running task as a failed
+    candidate.
   - fallback/manual candidate wrapper:
     `RCS-AC-v2\scripts\windows\run_stage2_late_right_margin_candidate.ps1`.
   - use target22 + steer2 mixed replay first so the new diagnostic loss is
