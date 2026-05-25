@@ -1807,3 +1807,108 @@ Only run official 512 clean eval if the gate summary reports
   - log evidence included:
     `policy requires hardware attestation, but device does not support it`.
   - no Windows CUDA/CARLA run was attempted from this patch in this turn.
+
+## 2026-05-26 Windows Remote Resume And Late-Right Offline Gates
+
+Windows remote execution was resumed through the documented Mac -> userspace
+Tailscale SOCKS -> Windows SSH path:
+
+- Windows node: `100.87.219.58`.
+- Windows clean clone:
+  `C:\Users\thddy\Documents\code\RCS-AC-first-official-v2-7f87656`.
+- CARLA readiness guard passed with Town04 loaded.
+- CUDA guard passed on `NVIDIA GeForce RTX 3080`; Stage 2 training/probe
+  commands used `Device=cuda`.
+
+Infrastructure fixes committed and pushed before/while resuming:
+
+- `2ee1b4c`: fixed empty `ComponentSampleWeights` propagation in
+  `run_stage2_mixed_candidate_cycle.ps1`.
+- `5b7ee99`: preserved gate summaries when a candidate is rejected during
+  `resume_stage2_late_right_margin_candidate.ps1`.
+- `b462386`: added route-progress-bin action probe diagnostics so rejected
+  candidates show where moving-steer false positives concentrate.
+
+Late-right canonical candidate:
+
+- checkpoint:
+  `f7d903a2_mixed_t22_steer2_aux1_iw5_ssf005_rightmargin_w1_cap131619_pre0666`.
+- target22 cross replay:
+  - action/latent probes passed.
+  - moving steer fraction: `0.1149425287`.
+  - latent test accuracy: `0.9904761910`.
+- steer2 cross replay:
+  - latent probe passed.
+  - action probe rejected.
+  - moving steer fraction: `0.2380216383`, gate max `0.20`.
+  - decision summary: `run_target22_fallback`.
+- Route-bin diagnostic showed the remaining false positives concentrated around
+  route `0.50-0.60` and `0.66-0.70`, not in the early straight segment.
+- Decision: reject, do not run official 512 clean eval.
+
+Target22 fallback replay candidate:
+
+- checkpoint:
+  `windows_replay_7f87656_target22_aux1_balpow05_iw5_rerun_20260525T064214`.
+- target22 cross replay passed.
+- steer2 cross replay rejected:
+  - moving steer fraction: `0.3292117465`.
+  - latent test accuracy: `0.7769230604`, below gate `0.80`.
+- Route-bin diagnostic showed near-total predicted moving steer after route
+  `0.50`, so this fallback is worse than the late-right candidate on steer2.
+- Decision: reject, do not run official 512 clean eval.
+
+All-steer route action cap candidate:
+
+- checkpoint:
+  `b462386_mixed_t22_steer2_lateright_allsteercap012_pre050066`.
+- route action mass cap:
+  - ids: `1,4,10,12,13,16,19,21`.
+  - cap: `0.12`.
+  - route window: `0.50-0.66`.
+  - weight: `4`.
+- target22 cross replay passed:
+  - moving steer fraction: `0.1187739464`.
+  - latent test accuracy: `0.9904761910`.
+- steer2 cross replay:
+  - latent probe passed.
+  - action probe rejected.
+  - moving steer fraction: `0.2194744977`, gate max `0.20`.
+  - latent margin over majority: `0.2399239138`.
+- Route-bin diagnostic showed this candidate improved over the late-right
+  baseline, but remaining false positives persist in route `0.50-0.60` and
+  especially `0.66-0.70`.
+- Decision: close but reject, do not run official 512 clean eval.
+
+Current active CUDA offline candidate:
+
+- checkpoint/output dir:
+  `b462386_mixed_t22_steer2_allsteercap010_pre050070`.
+- task:
+  `RCSV2Stage2B462AllSteerCap010Pre050070`.
+- route action mass cap:
+  - ids: `1,4,10,12,13,16,19,21`.
+  - cap: `0.10`.
+  - route window: `0.50-0.70`.
+  - weight: `5`.
+- started as detached Windows CUDA training.
+- latest check:
+  - task state: `Running`.
+  - manifest exists: `False`.
+  - ready for probe: `False`.
+
+Resume command for the active candidate:
+
+```powershell
+Set-Location C:\Users\thddy\Documents\code\RCS-AC-first-official-v2-7f87656
+
+powershell -ExecutionPolicy Bypass -File RCS-AC-v2\scripts\windows\check_stage2_replay_training_detached.ps1 `
+  -ProjectRoot C:\Users\thddy\Documents\code\RCS-AC-first-official-v2-7f87656 `
+  -OutputDir RCS-AC-v2\experiments\02_privileged_policy_clean\checkpoints\b462386_mixed_t22_steer2_allsteercap010_pre050070 `
+  -TaskName RCSV2Stage2B462AllSteerCap010Pre050070
+```
+
+When `TRAIN_READY_FOR_PROBE=True`, rerun
+`run_stage2_mixed_candidate_cycle.ps1` with the same output/probe dirs and
+`-ProbeWhenReady`. Promote to official 512 clean eval only if
+`stage2_candidate_cross_replay_gate.json` reports `ready_for_clean_eval=true`.

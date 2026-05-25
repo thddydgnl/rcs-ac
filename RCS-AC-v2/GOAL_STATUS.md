@@ -19,7 +19,7 @@ Stage 2: Privileged policy clean
 Status:
 
 ```text
-STAGE2_CLEAN_FIRST_BLOCKED_ON_WINDOWS_CONNECTIVITY
+STAGE2_CLEAN_FIRST_WINDOWS_CUDA_OFFLINE_GATE_IN_PROGRESS
 ```
 
 Last completed stage:
@@ -57,18 +57,17 @@ Add Agent B when editing code/config/test/logging/checkpoint wiring.
 Last findings summary:
 
 ```text
-2026-05-26 resume: sub-agent spawn can fail for both operations and call-shape
-reasons. Historical failures included `agent thread limit reached` from
-completed/obsolete agent threads occupying slots. This turn also reproduced the
-full-history fork constraint: when `fork_context=true`, omit agent_type/model/
-reasoning overrides. Raman audited the docs and recommended documenting tool
-unavailable, state mismatch, over-spawn, invalid spawn request, close/reuse/
-retry, and manual Agent A/B/C role simulation. docs/02 and docs/05 now include
-that recovery path. Commit f7d903a2 added the late right-steer margin patch and
-the next Windows reconnect step is to run
-scripts/windows/run_stage2_late_right_margin_candidate.ps1 with CUDA, target22 +
-steer2 cross replay gates, and no official 512 eval unless ready_for_clean_eval
-is true. Raw/fusion remain blocked.
+2026-05-26 Windows remote resumed through the documented userspace Tailscale
+SOCKS SSH path to 100.87.219.58. CARLA Town04 readiness and RTX 3080 CUDA guard
+passed. Commits 2ee1b4c, 5b7ee99, and b462386 fixed mixed-candidate argument
+handling, rejected-gate summarization, and route-bin action diagnostics. The
+late-right candidate and target22 fallback were rejected offline, and the first
+all-steer route cap candidate improved steer2 moving-steer fraction to
+0.2194744977 but still failed the 0.20 action gate. A stronger/wider all-steer
+cap candidate is currently running as detached CUDA task
+RCSV2Stage2B462AllSteerCap010Pre050070. No official 512 clean eval should run
+until the cross-replay gate reports ready_for_clean_eval=true. Raw/fusion remain
+blocked.
 ```
 
 Pending brief:
@@ -134,7 +133,8 @@ material clean-performance step requires Windows connectivity.
 Active agents:
 
 ```text
-No active sub-agents. James was closed after the 2026-05-26 blocked audit.
+Feynman completed the 2026-05-26 late-right resume/candidate/probe audit.
+James was closed after the 2026-05-26 blocked audit.
 Epicurus was closed after the 2026-05-26 resume-wrapper
 audit. Turing was closed after the 2026-05-26 late-right resume
 path audit. Confucius was closed after the 2026-05-26 spawn-failure
@@ -256,8 +256,13 @@ paths: Tailscale SSH to 100.87.219.58:22 timed out, LAN SSH to
 the same external-state blocker across repeated goal continuations. Further
 local edits would only polish orchestration and would not materially improve
 clean performance without Windows CUDA/CARLA.
-While remote execution is paused, keep sub-agent pulses for local docs/log/
-script audits; do not let the clean-first goal silently drop sub-agent usage.
+2026-05-26 remote execution is no longer paused. Userspace Tailscale SOCKS SSH
+to Windows is working, and Windows CUDA training/probing is active. Current
+active task is RCSV2Stage2B462AllSteerCap010Pre050070. First poll its detached
+training status; when TRAIN_READY_FOR_PROBE=True, rerun the same mixed candidate
+cycle with -ProbeWhenReady. If ready_for_clean_eval=false, reject and continue
+offline. If ready_for_clean_eval=true, run CARLA readiness guard before any
+official 512 clean eval.
 do not treat the 128 PASS as full clean completion
 use SSH remote on Windows; HTTPS prompts for credentials
 use the v2-local minimal shared_core env builder by default; pass explicit dependency overrides only for local experiments
