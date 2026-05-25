@@ -176,6 +176,9 @@ bracket을 위한 다음 clean-first 후보 wrapper다. target22 + steer2 mixed 
 `13,16,19` 선행 누출을 막는다. 이 wrapper도 offline cross replay gate만
 생성한다. official 512 clean eval은 `stage2_candidate_cross_replay_gate.json`의
 `ready_for_clean_eval=true`를 확인한 뒤 별도 실행한다.
+재연결 직후에는 먼저 `-PlanOnly`를 붙여 resolved runner args, output dir,
+gate path, official-eval blocker 문구를 확인한다. `-PlanOnly`는 git pull,
+CUDA guard, scheduled task launch, replay 생성, probe를 실행하지 않는다.
 
 Target-24 재개 명령:
 

@@ -12,6 +12,7 @@ param(
     [switch]$ForceMixedReplay,
     [switch]$StartIfMissing,
     [switch]$ProbeWhenReady,
+    [switch]$PlanOnly,
     [int]$Seed = 20260524,
     [string]$Device = "cuda"
 )
@@ -26,6 +27,9 @@ Write-Host "OUTPUT_DIR=$OutputDir"
 Write-Host "CROSS_PROBE_OUTPUT_DIR=$CrossProbeOutputDir"
 Write-Host "TASK_NAME=$TaskName"
 Write-Host "DEVICE=$Device"
+Write-Host "OFFICIAL_512_CLEAN_EVAL_BLOCKED_UNTIL_READY_FOR_CLEAN_EVAL=True"
+Write-Host "OFFICIAL_512_CLEAN_EVAL_BLOCKER=Run summarize_stage2_candidate_gate.ps1 on stage2_candidate_cross_replay_gate.json and require ready_for_clean_eval=true before any official 512 clean eval."
+Write-Host "GATE_SUMMARY_COMMAND=powershell -ExecutionPolicy Bypass -File RCS-AC-v2\scripts\windows\summarize_stage2_candidate_gate.ps1 -GatePath $CrossProbeOutputDir\stage2_candidate_cross_replay_gate.json -FallbackCandidateName target22"
 
 $ArgsList = @(
     "-ExecutionPolicy", "Bypass",
@@ -76,6 +80,16 @@ if ($StartIfMissing) {
 }
 if ($ProbeWhenReady) {
     $ArgsList += "-ProbeWhenReady"
+}
+
+if ($PlanOnly) {
+    Write-Host "PLAN_ONLY=True"
+    Write-Host "PLAN_ONLY_NO_GIT_PULL=True"
+    Write-Host "PLAN_ONLY_NO_CUDA_GUARD=True"
+    Write-Host "PLAN_ONLY_NO_SCHEDULED_TASK=True"
+    Write-Host "RESOLVED_RUNNER=$Runner"
+    Write-Host "RESOLVED_ARGS=$($ArgsList -join ' ')"
+    exit 0
 }
 
 powershell @ArgsList

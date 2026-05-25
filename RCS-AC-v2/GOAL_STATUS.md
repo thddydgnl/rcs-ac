@@ -19,7 +19,7 @@ Stage 2: Privileged policy clean
 Status:
 
 ```text
-STAGE2_CLEAN_FIRST_LATE_RIGHT_STEER_MARGIN_PATCH_READY
+STAGE2_CLEAN_FIRST_LATE_RIGHT_PLANONLY_READY
 ```
 
 Last completed stage:
@@ -121,19 +121,21 @@ Before Stage 2 checkpoint promotion, Windows privileged-observation validation, 
 Last pulse:
 
 ```text
-2026-05-26 Stage 2 clean-first resume: Confucius audited sub-agent spawn
-failure documentation and confirmed docs/02 + docs/05 cover thread limit,
-tool unavailable, state mismatch, over-spawn, invalid full-history fork args,
-close/reuse/retry, and manual Agent A/B/C simulation. Recommended additions
-were integrated: explicit fork_context=true-only spawn example and a reminder
-to keep local docs/log/script subagent audits alive while Windows/Tailscale/
-CARLA is unreachable.
+2026-05-26 Stage 2 clean-first resume: Turing audited the late-right candidate
+resume path and found the latest wrapper was correct, but GOAL_STATUS still
+pointed at an older clean-clone path and docs/06 had older restart context that
+could confuse a Windows resume. The fix was integrated: canonical next command
+now points to run_stage2_late_right_margin_candidate.ps1 in the
+official-v2-7f87656 clone, the wrapper exposes -PlanOnly, and the wrapper/docs
+print the official-512 blocker until stage2_candidate_cross_replay_gate.json
+reports ready_for_clean_eval=true.
 ```
 
 Active agents:
 
 ```text
-No active sub-agents. Confucius was closed after the 2026-05-26 spawn-failure
+No active sub-agents. Turing was closed after the 2026-05-26 late-right resume
+path audit. Confucius was closed after the 2026-05-26 spawn-failure
 documentation audit. Raman and Linnaeus were closed after their 2026-05-26
 audits. Helmholtz and Fermat completed earlier Stage 2 route-late steering and
 false-PASS sidecar audits. Close completed/obsolete agents before spawning more.
@@ -218,8 +220,12 @@ Patch the 512-step collision failure before raw/fusion work:
 
 ```text
 current local branch is codex/rcs-ac-v2-raw2drive
-use official clean clone C:\Users\thddy\Documents\code\RCS-AC-first-official-v2-ac11c90
+canonical Windows clean clone for the next Stage 2 candidate is C:\Users\thddy\Documents\code\RCS-AC-first-official-v2-7f87656
 pull latest origin/codex/rcs-ac-v2-raw2drive before every Windows run
+next canonical command is scripts/windows/run_stage2_late_right_margin_candidate.ps1 with -Device cuda; first run it once with -PlanOnly to print resolved args/gate paths without git pull, CUDA guard, scheduled task launch, replay creation, or probing
+then run scripts/windows/run_stage2_late_right_margin_candidate.ps1 with -MakeReplayIfMissing -StartIfMissing -ProbeWhenReady -Device cuda
+after probing, run summarize_stage2_candidate_gate.ps1 on RCS-AC-v2\experiments\02_privileged_policy_clean\windows_512\f7d903a2_mixed_t22_steer2_aux1_iw5_ssf005_rightmargin_w1_cap131619_pre0666_cross_probe\stage2_candidate_cross_replay_gate.json
+do not run official 512 clean eval unless that gate summary reports ready_for_clean_eval=true
 use the 512 failure evidence in RCS-AC-v2\experiments\02_privileged_policy_clean\windows_512\b4c8e58_fast35_primary512
 diagnose why the fast35 policy stayed on straight actions 7/15 through the collision window
 do not move to raw/fusion; privileged 512 clean is still failing
@@ -236,6 +242,11 @@ attestation policy. A system `tailscale status` probe also failed with
 `failed to connect to local Tailscale service; is Tailscale running?`. Remote
 Windows/CUDA execution is paused until Windows is reachable through system
 Tailscale, LAN SSH, or a fixed tailnet device policy.
+2026-05-26 continuation reconnect check repeated the same results: LAN SSH to
+192.168.0.13:22 timed out and `tailscale status` could not connect to the local
+Tailscale service. The clean-first goal remains active; the next meaningful
+remote step is still the late-right `-PlanOnly` dry argument check followed by
+the CUDA candidate wrapper when Windows is reachable.
 While remote execution is paused, keep sub-agent pulses for local docs/log/
 script audits; do not let the clean-first goal silently drop sub-agent usage.
 do not treat the 128 PASS as full clean completion
