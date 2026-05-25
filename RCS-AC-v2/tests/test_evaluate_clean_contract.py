@@ -750,6 +750,17 @@ def test_stage2_replay_training_wrappers_expose_moving_steer_false_positive_stat
     assert '"-RouteActionOverrideWeight", $RouteActionOverrideWeight' in mixed
     assert '"-RouteActionOverrideMaxRouteProgress", $RouteActionOverrideMaxRouteProgress' in mixed
 
+    assert "--route-late-right-steer-margin-weight" in module
+    assert "route_late_right_steer_margin_weight" in module
+    assert "[double]$RouteLateRightSteerMarginWeight = 0.0" in train
+    assert '"--route-late-right-steer-margin-weight", $RouteLateRightSteerMarginWeight' in train
+    assert "[double]$RouteLateRightSteerMarginWeight = 0.0" in start
+    assert "-RouteLateRightSteerMarginWeight $RouteLateRightSteerMarginWeight" in start
+    assert "route_late_right_steer_margin_weight = $RouteLateRightSteerMarginWeight" in start
+    assert "[double]$RouteLateRightSteerMarginWeight = 0.0" in mixed
+    assert '"-RouteLateRightSteerMarginWeight", $RouteLateRightSteerMarginWeight' in mixed
+    assert '"-RouteLateRightSteerMaxRouteProgress", $RouteLateRightSteerMaxRouteProgress' in mixed
+
 
 def test_cross_replay_candidate_probe_runner_static_contract() -> None:
     script = Path(__file__).resolve().parents[1] / "scripts" / "windows" / "probe_stage2_candidate_cross_replays.ps1"

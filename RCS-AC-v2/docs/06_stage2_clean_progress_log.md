@@ -1716,3 +1716,38 @@ too early around route `0.6154-0.6410`. The next smallest patch should add a
 late-right-steer family margin with an explicit pre-`0.666` cap for actions
 `13/16/19`, or reduce action13 pressure while adding a late throttle ceiling
 below `18 km/h`. Do not start raw/fusion.
+
+## 2026-05-26 Late Right-Steer Margin Patch
+
+- Added a route-windowed `route_late_right_steer_margin_*` loss to Stage 2
+  replay training.
+- Purpose:
+  - avoid the generic moving-steer failure where the policy selected left action
+    `4` in the final route band.
+  - encourage only forward right-moving steer actions (`throttle > 0`,
+    `steer > 0`, non-reverse) after the configured route-progress threshold.
+  - keep the existing `route_action_mass_cap_*` available to cap strong-right
+    actions `13/16/19` before route `0.666`.
+- Windows wrappers now expose the same parameters through:
+  - `train_stage2_privileged_from_replay.ps1`
+  - `start_stage2_replay_training_detached.ps1`
+  - `run_stage2_mixed_candidate_cycle.ps1`
+- Strict PDF Stage I mode rejects this diagnostic loss, so strict actor-critic
+  experiments remain separated from clean-recovery candidates.
+- Local verification:
+  - `PYTHONPATH=RCS-AC-v2/code pytest -q RCS-AC-v2/tests/test_privileged_replay_training.py RCS-AC-v2/tests/test_evaluate_clean_contract.py`
+    passed: `66 passed`.
+  - `PYTHONPATH=RCS-AC-v2/code pytest -q RCS-AC-v2/tests`
+    passed: `144 passed`.
+- Next CUDA candidate after Windows reconnect:
+  - keep the latest stable corr056/collision-window hyperparameters.
+  - add late right-steer margin on route `0.666-0.70`.
+  - add pre-window cap for strong-right actions `13,16,19` on route
+    `0.55-0.66`.
+  - keep CUDA mandatory and run target22/steer2 cross replay gate before any
+    official 512 clean eval.
+- Windows connectivity note:
+  - local Tailscale userspace restart failed to provide a usable socket.
+  - log evidence included:
+    `policy requires hardware attestation, but device does not support it`.
+  - no Windows CUDA/CARLA run was attempted from this patch in this turn.

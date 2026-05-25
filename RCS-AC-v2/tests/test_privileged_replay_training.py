@@ -51,6 +51,8 @@ from rcs_ac_v2.training.train_stage2_privileged_from_replay import (
     _parse_component_sample_weight_args,
     _route_action_override_loss,
     _route_late_moving_steer_margin_loss,
+    _route_late_right_steer_margin_loss,
+    _right_moving_steer_action_mask,
     _route_speed_action_mass_cap_loss,
     _route_throttle_ceiling_loss,
     train_stage2_privileged_from_replay,
@@ -820,6 +822,34 @@ def test_moving_steer_nonmoving_margin_loss_penalizes_argmax_risk() -> None:
     )
 
     assert loss.item() == pytest.approx(0.30, abs=1e-5)
+
+
+def test_route_late_right_steer_margin_loss_is_route_windowed_and_directional() -> None:
+    mask = _right_moving_steer_action_mask(action_dim=39, device=torch.device("cpu"))
+    logits = torch.zeros(1, 3, 39)
+    logits[0, 0, 7] = 4.0
+    logits[0, 0, 13] = 3.0
+    logits[0, 1, 7] = 4.0
+    logits[0, 1, 13] = 3.0
+    logits[0, 2, 13] = 4.0
+    logits[0, 2, 7] = 3.0
+    ego = torch.zeros(1, 3, 8)
+    ego[0, :, 0] = 0.5
+    ego[0, 0, 1] = 0.64
+    ego[0, 1, 1] = 0.67
+    ego[0, 2, 1] = 0.67
+
+    loss = _route_late_right_steer_margin_loss(
+        logits=logits,
+        privileged_ego=ego,
+        right_moving_steer_mask=mask,
+        margin=0.25,
+        min_speed_norm=0.0,
+        min_route_progress=0.666,
+        max_route_progress=0.70,
+    )
+
+    assert loss.item() == pytest.approx(0.625, abs=1e-5)
 
 
 def test_imitation_class_weights_favor_rare_actions(tmp_path) -> None:

@@ -68,6 +68,11 @@ def train_stage2_privileged_from_replay(
     route_late_moving_steer_min_speed_norm: float = 0.0,
     route_late_moving_steer_min_route_progress: float = 0.0,
     route_late_moving_steer_max_route_progress: float = 1.0,
+    route_late_right_steer_margin_weight: float = 0.0,
+    route_late_right_steer_margin: float = 0.25,
+    route_late_right_steer_min_speed_norm: float = 0.0,
+    route_late_right_steer_min_route_progress: float = 0.0,
+    route_late_right_steer_max_route_progress: float = 1.0,
     world_model_action_aux_weight: float = 0.0,
     component_sample_weights: dict[str, float] | None = None,
     action_mass_cap_weight: float = 0.0,
@@ -119,6 +124,7 @@ def train_stage2_privileged_from_replay(
             moving_steer_binary_weight=moving_steer_binary_weight,
             moving_steer_nonmoving_margin_weight=moving_steer_nonmoving_margin_weight,
             route_late_moving_steer_margin_weight=route_late_moving_steer_margin_weight,
+            route_late_right_steer_margin_weight=route_late_right_steer_margin_weight,
             world_model_action_aux_weight=world_model_action_aux_weight,
             component_sample_weights=component_sample_weights,
             action_mass_cap_weight=action_mass_cap_weight,
@@ -168,6 +174,23 @@ def train_stage2_privileged_from_replay(
         raise ValueError(
             "route_late_moving_steer_min_route_progress must be <= "
             "route_late_moving_steer_max_route_progress"
+        )
+    if route_late_right_steer_margin_weight < 0.0:
+        raise ValueError("route_late_right_steer_margin_weight must be non-negative")
+    if route_late_right_steer_margin < 0.0:
+        raise ValueError("route_late_right_steer_margin must be non-negative")
+    if not 0.0 <= float(route_late_right_steer_min_speed_norm) <= 1.0:
+        raise ValueError("route_late_right_steer_min_speed_norm must be in [0, 1]")
+    if not 0.0 <= float(route_late_right_steer_min_route_progress) <= 1.0:
+        raise ValueError("route_late_right_steer_min_route_progress must be in [0, 1]")
+    if not 0.0 <= float(route_late_right_steer_max_route_progress) <= 1.0:
+        raise ValueError("route_late_right_steer_max_route_progress must be in [0, 1]")
+    if float(route_late_right_steer_min_route_progress) > float(
+        route_late_right_steer_max_route_progress
+    ):
+        raise ValueError(
+            "route_late_right_steer_min_route_progress must be <= "
+            "route_late_right_steer_max_route_progress"
         )
     if action_mass_cap_weight < 0.0:
         raise ValueError("action_mass_cap_weight must be non-negative")
@@ -327,6 +350,10 @@ def train_stage2_privileged_from_replay(
         entropy_weight=behavior_entropy_weight,
     )
     moving_steer_mask = _moving_steer_action_mask(action_dim=wm_cfg.action_dim, device=resolved_device)
+    right_moving_steer_mask = _right_moving_steer_action_mask(
+        action_dim=wm_cfg.action_dim,
+        device=resolved_device,
+    )
     policy_history: list[dict[str, float]] = []
     valid_action_ids = False
     for _step in range(policy_steps):
@@ -383,6 +410,15 @@ def train_stage2_privileged_from_replay(
             min_route_progress=route_late_moving_steer_min_route_progress,
             max_route_progress=route_late_moving_steer_max_route_progress,
         )
+        route_late_right_steer_margin_loss = _route_late_right_steer_margin_loss(
+            logits=replay_policy.logits,
+            privileged_ego=batch.privileged_ego,
+            right_moving_steer_mask=right_moving_steer_mask,
+            margin=route_late_right_steer_margin,
+            min_speed_norm=route_late_right_steer_min_speed_norm,
+            min_route_progress=route_late_right_steer_min_route_progress,
+            max_route_progress=route_late_right_steer_max_route_progress,
+        )
         action_mass_cap_loss = _action_mass_cap_loss(
             logits=replay_policy.logits,
             action_mass_caps=resolved_action_mass_caps,
@@ -436,6 +472,7 @@ def train_stage2_privileged_from_replay(
             + float(moving_steer_binary_weight) * moving_steer_binary_loss
             + float(moving_steer_nonmoving_margin_weight) * moving_steer_nonmoving_margin_loss
             + float(route_late_moving_steer_margin_weight) * route_late_moving_steer_margin_loss
+            + float(route_late_right_steer_margin_weight) * route_late_right_steer_margin_loss
             + float(action_mass_cap_weight) * action_mass_cap_loss
             + float(route_speed_action_mass_cap_weight) * route_speed_action_mass_cap_loss
             + float(route_action_mass_cap_weight) * route_action_mass_cap_loss
@@ -457,6 +494,9 @@ def train_stage2_privileged_from_replay(
         )
         scalars["route_late_moving_steer_margin"] = float(
             route_late_moving_steer_margin_loss.detach().cpu().item()
+        )
+        scalars["route_late_right_steer_margin"] = float(
+            route_late_right_steer_margin_loss.detach().cpu().item()
         )
         scalars["action_mass_cap"] = float(action_mass_cap_loss.detach().cpu().item())
         scalars["route_speed_action_mass_cap"] = float(
@@ -509,6 +549,15 @@ def train_stage2_privileged_from_replay(
         ),
         "route_late_moving_steer_max_route_progress": float(
             route_late_moving_steer_max_route_progress
+        ),
+        "route_late_right_steer_margin_weight": float(route_late_right_steer_margin_weight),
+        "route_late_right_steer_margin": float(route_late_right_steer_margin),
+        "route_late_right_steer_min_speed_norm": float(route_late_right_steer_min_speed_norm),
+        "route_late_right_steer_min_route_progress": float(
+            route_late_right_steer_min_route_progress
+        ),
+        "route_late_right_steer_max_route_progress": float(
+            route_late_right_steer_max_route_progress
         ),
         "world_model_action_aux_weight": float(world_model_action_aux_weight),
         "component_sample_weights": resolved_component_weights,
@@ -596,6 +645,9 @@ def train_stage2_privileged_from_replay(
                 "final_route_late_moving_steer_margin": policy_history[-1][
                     "route_late_moving_steer_margin"
                 ],
+                "final_route_late_right_steer_margin": policy_history[-1][
+                    "route_late_right_steer_margin"
+                ],
                 "final_action_mass_cap": policy_history[-1]["action_mass_cap"],
                 "final_route_speed_action_mass_cap": policy_history[-1][
                     "route_speed_action_mass_cap"
@@ -644,6 +696,9 @@ def train_stage2_privileged_from_replay(
                 ],
                 "final_route_late_moving_steer_margin": policy_history[-1][
                     "route_late_moving_steer_margin"
+                ],
+                "final_route_late_right_steer_margin": policy_history[-1][
+                    "route_late_right_steer_margin"
                 ],
                 "final_action_mass_cap": policy_history[-1]["action_mass_cap"],
                 "final_route_speed_action_mass_cap": policy_history[-1][
@@ -717,6 +772,11 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--route-late-moving-steer-min-speed-norm", type=float, default=0.0)
     parser.add_argument("--route-late-moving-steer-min-route-progress", type=float, default=0.0)
     parser.add_argument("--route-late-moving-steer-max-route-progress", type=float, default=1.0)
+    parser.add_argument("--route-late-right-steer-margin-weight", type=float, default=0.0)
+    parser.add_argument("--route-late-right-steer-margin", type=float, default=0.25)
+    parser.add_argument("--route-late-right-steer-min-speed-norm", type=float, default=0.0)
+    parser.add_argument("--route-late-right-steer-min-route-progress", type=float, default=0.0)
+    parser.add_argument("--route-late-right-steer-max-route-progress", type=float, default=1.0)
     parser.add_argument("--world-model-action-aux-weight", type=float, default=0.0)
     parser.add_argument("--component-sample-weight", action="append", default=[])
     parser.add_argument("--action-mass-cap-weight", type=float, default=0.0)
@@ -782,6 +842,11 @@ def main(argv: list[str] | None = None) -> None:
         route_late_moving_steer_min_speed_norm=args.route_late_moving_steer_min_speed_norm,
         route_late_moving_steer_min_route_progress=args.route_late_moving_steer_min_route_progress,
         route_late_moving_steer_max_route_progress=args.route_late_moving_steer_max_route_progress,
+        route_late_right_steer_margin_weight=args.route_late_right_steer_margin_weight,
+        route_late_right_steer_margin=args.route_late_right_steer_margin,
+        route_late_right_steer_min_speed_norm=args.route_late_right_steer_min_speed_norm,
+        route_late_right_steer_min_route_progress=args.route_late_right_steer_min_route_progress,
+        route_late_right_steer_max_route_progress=args.route_late_right_steer_max_route_progress,
         world_model_action_aux_weight=args.world_model_action_aux_weight,
         component_sample_weights=_parse_component_sample_weight_args(args.component_sample_weight),
         action_mass_cap_weight=args.action_mass_cap_weight,
@@ -842,6 +907,7 @@ def _validate_pdf_stage1_strict_config(
     moving_steer_binary_weight: float,
     moving_steer_nonmoving_margin_weight: float,
     route_late_moving_steer_margin_weight: float,
+    route_late_right_steer_margin_weight: float,
     world_model_action_aux_weight: float,
     component_sample_weights: dict[str, float] | None,
     action_mass_cap_weight: float,
@@ -881,6 +947,7 @@ def _validate_pdf_stage1_strict_config(
         "moving_steer_binary_weight": moving_steer_binary_weight,
         "moving_steer_nonmoving_margin_weight": moving_steer_nonmoving_margin_weight,
         "route_late_moving_steer_margin_weight": route_late_moving_steer_margin_weight,
+        "route_late_right_steer_margin_weight": route_late_right_steer_margin_weight,
         "world_model_action_aux_weight": world_model_action_aux_weight,
         "action_mass_cap_weight": action_mass_cap_weight,
         "route_speed_action_mass_cap_weight": route_speed_action_mass_cap_weight,
@@ -1041,9 +1108,24 @@ def _moving_steer_action_ids() -> tuple[int, ...]:
     )
 
 
+def _right_moving_steer_action_ids() -> tuple[int, ...]:
+    return tuple(
+        action.action_id
+        for action in RAW2DRIVE_ACTIONS
+        if float(action.throttle) > 0.0 and float(action.steer) > 0.0 and not action.reverse
+    )
+
+
 def _moving_steer_action_mask(*, action_dim: int, device: torch.device) -> torch.Tensor:
     mask = torch.zeros(action_dim, dtype=torch.bool, device=device)
     for action_id in _moving_steer_action_ids():
+        mask[action_id] = True
+    return mask
+
+
+def _right_moving_steer_action_mask(*, action_dim: int, device: torch.device) -> torch.Tensor:
+    mask = torch.zeros(action_dim, dtype=torch.bool, device=device)
+    for action_id in _right_moving_steer_action_ids():
         mask[action_id] = True
     return mask
 
@@ -1125,6 +1207,33 @@ def _route_late_moving_steer_margin_loss(
     moving_top = selected_logits[:, moving_steer_mask].max(dim=-1).values
     nonmoving_top = selected_logits[:, ~moving_steer_mask].max(dim=-1).values
     return F.relu(nonmoving_top - moving_top + float(margin)).mean()
+
+
+def _route_late_right_steer_margin_loss(
+    *,
+    logits: torch.Tensor,
+    privileged_ego: torch.Tensor,
+    right_moving_steer_mask: torch.Tensor,
+    margin: float,
+    min_speed_norm: float,
+    min_route_progress: float,
+    max_route_progress: float,
+) -> torch.Tensor:
+    flat_logits = logits.reshape(-1, logits.shape[-1])
+    flat_ego = privileged_ego.reshape(-1, privileged_ego.shape[-1])
+    speed_norm = flat_ego[:, 0]
+    route_progress = flat_ego[:, 1]
+    late_route = (
+        (speed_norm >= float(min_speed_norm))
+        & (route_progress >= float(min_route_progress))
+        & (route_progress <= float(max_route_progress))
+    )
+    selected_logits = flat_logits[late_route]
+    if int(selected_logits.shape[0]) == 0:
+        return flat_logits.sum() * 0.0
+    right_top = selected_logits[:, right_moving_steer_mask].max(dim=-1).values
+    nonright_top = selected_logits[:, ~right_moving_steer_mask].max(dim=-1).values
+    return F.relu(nonright_top - right_top + float(margin)).mean()
 
 
 def _action_mass_cap_loss(

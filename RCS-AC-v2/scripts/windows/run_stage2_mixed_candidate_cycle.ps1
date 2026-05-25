@@ -32,6 +32,11 @@ param(
     [double]$MovingSteerBinaryWeight = 0.0,
     [double]$MovingSteerNonmovingMarginWeight = 0.0,
     [double]$MovingSteerNonmovingMargin = 0.25,
+    [double]$RouteLateRightSteerMarginWeight = 0.0,
+    [double]$RouteLateRightSteerMargin = 0.25,
+    [double]$RouteLateRightSteerMinSpeedNorm = 0.0,
+    [double]$RouteLateRightSteerMinRouteProgress = 0.0,
+    [double]$RouteLateRightSteerMaxRouteProgress = 1.0,
     [double]$WorldModelActionAuxWeight = 1.0,
     [string]$ComponentSampleWeights = "",
     [double]$ActionMassCapWeight = 0.0,
@@ -250,6 +255,11 @@ $LatestPointer = [ordered]@{
     moving_steer_binary_weight = $MovingSteerBinaryWeight
     moving_steer_nonmoving_margin_weight = $MovingSteerNonmovingMarginWeight
     moving_steer_nonmoving_margin = $MovingSteerNonmovingMargin
+    route_late_right_steer_margin_weight = $RouteLateRightSteerMarginWeight
+    route_late_right_steer_margin = $RouteLateRightSteerMargin
+    route_late_right_steer_min_speed_norm = $RouteLateRightSteerMinSpeedNorm
+    route_late_right_steer_min_route_progress = $RouteLateRightSteerMinRouteProgress
+    route_late_right_steer_max_route_progress = $RouteLateRightSteerMaxRouteProgress
     component_sample_weights = $ComponentSampleWeights
     action_mass_cap_weight = $ActionMassCapWeight
     action_mass_caps = $ActionMassCaps
@@ -308,6 +318,11 @@ $StartArgs = @(
     "-MovingSteerBinaryWeight", $MovingSteerBinaryWeight,
     "-MovingSteerNonmovingMarginWeight", $MovingSteerNonmovingMarginWeight,
     "-MovingSteerNonmovingMargin", $MovingSteerNonmovingMargin,
+    "-RouteLateRightSteerMarginWeight", $RouteLateRightSteerMarginWeight,
+    "-RouteLateRightSteerMargin", $RouteLateRightSteerMargin,
+    "-RouteLateRightSteerMinSpeedNorm", $RouteLateRightSteerMinSpeedNorm,
+    "-RouteLateRightSteerMinRouteProgress", $RouteLateRightSteerMinRouteProgress,
+    "-RouteLateRightSteerMaxRouteProgress", $RouteLateRightSteerMaxRouteProgress,
     "-WorldModelActionAuxWeight", $WorldModelActionAuxWeight,
     "-ComponentSampleWeights", $ComponentSampleWeights,
     "-ActionMassCapWeight", $ActionMassCapWeight,
