@@ -28,6 +28,11 @@ param(
     [double]$RouteSpeedMinSpeedNorm = 0.0,
     [double]$RouteSpeedMinRouteProgress = 0.0,
     [double]$RouteSpeedMaxRouteProgress = 1.0,
+    [double]$RouteThrottleCeilingWeight = 0.0,
+    [double]$RouteThrottleCeiling = 1.0,
+    [double]$RouteThrottleMinSpeedNorm = 0.0,
+    [double]$RouteThrottleMinRouteProgress = 0.0,
+    [double]$RouteThrottleMaxRouteProgress = 1.0,
     [int]$HiddenDim = 128,
     [string]$Device = "cuda"
 )
@@ -75,6 +80,11 @@ $TrainArgs = @(
     "--route-speed-min-speed-norm", $RouteSpeedMinSpeedNorm,
     "--route-speed-min-route-progress", $RouteSpeedMinRouteProgress,
     "--route-speed-max-route-progress", $RouteSpeedMaxRouteProgress,
+    "--route-throttle-ceiling-weight", $RouteThrottleCeilingWeight,
+    "--route-throttle-ceiling", $RouteThrottleCeiling,
+    "--route-throttle-min-speed-norm", $RouteThrottleMinSpeedNorm,
+    "--route-throttle-min-route-progress", $RouteThrottleMinRouteProgress,
+    "--route-throttle-max-route-progress", $RouteThrottleMaxRouteProgress,
     "--hidden-dim", $HiddenDim,
     "--device", $Device
 )

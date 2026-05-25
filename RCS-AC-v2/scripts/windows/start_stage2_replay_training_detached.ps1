@@ -28,6 +28,11 @@ param(
     [double]$RouteSpeedMinSpeedNorm = 0.0,
     [double]$RouteSpeedMinRouteProgress = 0.0,
     [double]$RouteSpeedMaxRouteProgress = 1.0,
+    [double]$RouteThrottleCeilingWeight = 0.0,
+    [double]$RouteThrottleCeiling = 1.0,
+    [double]$RouteThrottleMinSpeedNorm = 0.0,
+    [double]$RouteThrottleMinRouteProgress = 0.0,
+    [double]$RouteThrottleMaxRouteProgress = 1.0,
     [int]$HiddenDim = 128,
     [string]$Device = "cuda",
     [string]$LogPath = "",
@@ -98,7 +103,7 @@ $InnerCommand = @"
 "DETACHED_TRAIN_STARTED=`$(Get-Date -Format o)" | Set-Content -Path `$LogPath
 try {
     Set-Location $QuotedProjectRoot
-    powershell -ExecutionPolicy Bypass -File $QuotedTrainingScript -ProjectRoot $QuotedProjectRoot -ReplayPath $QuotedReplayPath -ReplayManifestPath $QuotedReplayManifestPath -OutputDir $QuotedOutputDir -Seed $Seed -SequenceLength $SequenceLength -BatchSize $BatchSize -WorldModelSteps $WorldModelSteps -PolicySteps $PolicySteps -LearningRate $LearningRate -ImitationWeight $ImitationWeight -BehaviorWeight $BehaviorWeight -ImitationBalancePower $ImitationBalancePower -SteerSequenceFraction $SteerSequenceFraction -MovingSteerFalsePositiveWeight $MovingSteerFalsePositiveWeight -MovingSteerBinaryWeight $MovingSteerBinaryWeight -MovingSteerNonmovingMarginWeight $MovingSteerNonmovingMarginWeight -MovingSteerNonmovingMargin $MovingSteerNonmovingMargin -WorldModelActionAuxWeight $WorldModelActionAuxWeight$ComponentSampleWeightsArg -ActionMassCapWeight $ActionMassCapWeight$ActionMassCapsArg -RouteSpeedActionMassCapWeight $RouteSpeedActionMassCapWeight$RouteSpeedActionIdsArg -RouteSpeedActionMassCap $RouteSpeedActionMassCap -RouteSpeedMinSpeedNorm $RouteSpeedMinSpeedNorm -RouteSpeedMinRouteProgress $RouteSpeedMinRouteProgress -RouteSpeedMaxRouteProgress $RouteSpeedMaxRouteProgress$ImitationClassBalanceArg -HiddenDim $HiddenDim -Device $QuotedDevice *>&1 | Tee-Object -FilePath `$LogPath -Append
+    powershell -ExecutionPolicy Bypass -File $QuotedTrainingScript -ProjectRoot $QuotedProjectRoot -ReplayPath $QuotedReplayPath -ReplayManifestPath $QuotedReplayManifestPath -OutputDir $QuotedOutputDir -Seed $Seed -SequenceLength $SequenceLength -BatchSize $BatchSize -WorldModelSteps $WorldModelSteps -PolicySteps $PolicySteps -LearningRate $LearningRate -ImitationWeight $ImitationWeight -BehaviorWeight $BehaviorWeight -ImitationBalancePower $ImitationBalancePower -SteerSequenceFraction $SteerSequenceFraction -MovingSteerFalsePositiveWeight $MovingSteerFalsePositiveWeight -MovingSteerBinaryWeight $MovingSteerBinaryWeight -MovingSteerNonmovingMarginWeight $MovingSteerNonmovingMarginWeight -MovingSteerNonmovingMargin $MovingSteerNonmovingMargin -WorldModelActionAuxWeight $WorldModelActionAuxWeight$ComponentSampleWeightsArg -ActionMassCapWeight $ActionMassCapWeight$ActionMassCapsArg -RouteSpeedActionMassCapWeight $RouteSpeedActionMassCapWeight$RouteSpeedActionIdsArg -RouteSpeedActionMassCap $RouteSpeedActionMassCap -RouteSpeedMinSpeedNorm $RouteSpeedMinSpeedNorm -RouteSpeedMinRouteProgress $RouteSpeedMinRouteProgress -RouteSpeedMaxRouteProgress $RouteSpeedMaxRouteProgress -RouteThrottleCeilingWeight $RouteThrottleCeilingWeight -RouteThrottleCeiling $RouteThrottleCeiling -RouteThrottleMinSpeedNorm $RouteThrottleMinSpeedNorm -RouteThrottleMinRouteProgress $RouteThrottleMinRouteProgress -RouteThrottleMaxRouteProgress $RouteThrottleMaxRouteProgress$ImitationClassBalanceArg -HiddenDim $HiddenDim -Device $QuotedDevice *>&1 | Tee-Object -FilePath `$LogPath -Append
     `$Code = `$LASTEXITCODE
 }
 catch {
@@ -154,6 +159,11 @@ $LaunchManifest = [ordered]@{
     route_speed_min_speed_norm = $RouteSpeedMinSpeedNorm
     route_speed_min_route_progress = $RouteSpeedMinRouteProgress
     route_speed_max_route_progress = $RouteSpeedMaxRouteProgress
+    route_throttle_ceiling_weight = $RouteThrottleCeilingWeight
+    route_throttle_ceiling = $RouteThrottleCeiling
+    route_throttle_min_speed_norm = $RouteThrottleMinSpeedNorm
+    route_throttle_min_route_progress = $RouteThrottleMinRouteProgress
+    route_throttle_max_route_progress = $RouteThrottleMaxRouteProgress
     hidden_dim = $HiddenDim
     device = $Device
     created_at = (Get-Date -Format o)

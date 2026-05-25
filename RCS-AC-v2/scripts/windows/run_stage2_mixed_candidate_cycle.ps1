@@ -42,6 +42,11 @@ param(
     [double]$RouteSpeedMinSpeedNorm = 0.0,
     [double]$RouteSpeedMinRouteProgress = 0.0,
     [double]$RouteSpeedMaxRouteProgress = 1.0,
+    [double]$RouteThrottleCeilingWeight = 0.0,
+    [double]$RouteThrottleCeiling = 1.0,
+    [double]$RouteThrottleMinSpeedNorm = 0.0,
+    [double]$RouteThrottleMinRouteProgress = 0.0,
+    [double]$RouteThrottleMaxRouteProgress = 1.0,
     [int]$HiddenDim = 128,
     [string]$ForbiddenActionIds = "",
     [string]$Device = "cuda"
@@ -274,6 +279,11 @@ $StartArgs = @(
     "-RouteSpeedMinSpeedNorm", $RouteSpeedMinSpeedNorm,
     "-RouteSpeedMinRouteProgress", $RouteSpeedMinRouteProgress,
     "-RouteSpeedMaxRouteProgress", $RouteSpeedMaxRouteProgress,
+    "-RouteThrottleCeilingWeight", $RouteThrottleCeilingWeight,
+    "-RouteThrottleCeiling", $RouteThrottleCeiling,
+    "-RouteThrottleMinSpeedNorm", $RouteThrottleMinSpeedNorm,
+    "-RouteThrottleMinRouteProgress", $RouteThrottleMinRouteProgress,
+    "-RouteThrottleMaxRouteProgress", $RouteThrottleMaxRouteProgress,
     "-HiddenDim", $HiddenDim,
     "-Device", $Device,
     "-TaskName", $TaskName

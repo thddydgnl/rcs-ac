@@ -697,6 +697,19 @@ def test_stage2_replay_training_wrappers_expose_moving_steer_false_positive_stat
     assert '"-RouteSpeedActionMassCapWeight", $RouteSpeedActionMassCapWeight' in mixed
     assert '$StartArgs += @("-RouteSpeedActionIds", $RouteSpeedActionIds)' in mixed
 
+    assert "--route-throttle-ceiling-weight" in module
+    assert "--route-throttle-ceiling" in module
+    assert "[double]$RouteThrottleCeilingWeight = 0.0" in train
+    assert "[double]$RouteThrottleCeiling = 1.0" in train
+    assert '"--route-throttle-ceiling-weight", $RouteThrottleCeilingWeight' in train
+    assert '"--route-throttle-min-route-progress", $RouteThrottleMinRouteProgress' in train
+    assert "[double]$RouteThrottleCeilingWeight = 0.0" in start
+    assert "-RouteThrottleCeilingWeight $RouteThrottleCeilingWeight" in start
+    assert "route_throttle_ceiling_weight = $RouteThrottleCeilingWeight" in start
+    assert "[double]$RouteThrottleCeilingWeight = 0.0" in mixed
+    assert '"-RouteThrottleCeilingWeight", $RouteThrottleCeilingWeight' in mixed
+    assert '"-RouteThrottleMaxRouteProgress", $RouteThrottleMaxRouteProgress' in mixed
+
 
 def test_cross_replay_candidate_probe_runner_static_contract() -> None:
     script = Path(__file__).resolve().parents[1] / "scripts" / "windows" / "probe_stage2_candidate_cross_replays.ps1"
