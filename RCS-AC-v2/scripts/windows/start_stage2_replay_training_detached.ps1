@@ -9,7 +9,8 @@ param(
     [int]$WorldModelSteps = 200,
     [int]$PolicySteps = 200,
     [double]$LearningRate = 0.0003,
-    [double]$ImitationWeight = 1.0,
+    [switch]$PdfStage1Strict,
+    [double]$ImitationWeight = 0.0,
     [double]$BehaviorWeight = 1.0,
     [switch]$ImitationClassBalance,
     [double]$ImitationBalancePower = 1.0,
@@ -101,6 +102,10 @@ $ImitationClassBalanceArg = ""
 if ($ImitationClassBalance) {
     $ImitationClassBalanceArg = " -ImitationClassBalance"
 }
+$PdfStage1StrictArg = ""
+if ($PdfStage1Strict) {
+    $PdfStage1StrictArg = " -PdfStage1Strict"
+}
 $ComponentSampleWeightsArg = ""
 if ($ComponentSampleWeights -ne "") {
     $ComponentSampleWeightsArg = " -ComponentSampleWeights $QuotedComponentSampleWeights"
@@ -124,7 +129,7 @@ $InnerCommand = @"
 "DETACHED_TRAIN_STARTED=`$(Get-Date -Format o)" | Set-Content -Path `$LogPath
 try {
     Set-Location $QuotedProjectRoot
-    powershell -ExecutionPolicy Bypass -File $QuotedTrainingScript -ProjectRoot $QuotedProjectRoot -ReplayPath $QuotedReplayPath -ReplayManifestPath $QuotedReplayManifestPath -OutputDir $QuotedOutputDir -Seed $Seed -SequenceLength $SequenceLength -BatchSize $BatchSize -WorldModelSteps $WorldModelSteps -PolicySteps $PolicySteps -LearningRate $LearningRate -ImitationWeight $ImitationWeight -BehaviorWeight $BehaviorWeight -ImitationBalancePower $ImitationBalancePower -SteerSequenceFraction $SteerSequenceFraction -MovingSteerFalsePositiveWeight $MovingSteerFalsePositiveWeight -MovingSteerBinaryWeight $MovingSteerBinaryWeight -MovingSteerNonmovingMarginWeight $MovingSteerNonmovingMarginWeight -MovingSteerNonmovingMargin $MovingSteerNonmovingMargin -WorldModelActionAuxWeight $WorldModelActionAuxWeight$ComponentSampleWeightsArg -ActionMassCapWeight $ActionMassCapWeight$ActionMassCapsArg -RouteSpeedActionMassCapWeight $RouteSpeedActionMassCapWeight$RouteSpeedActionIdsArg -RouteSpeedActionMassCap $RouteSpeedActionMassCap -RouteSpeedMinSpeedNorm $RouteSpeedMinSpeedNorm -RouteSpeedMinRouteProgress $RouteSpeedMinRouteProgress -RouteSpeedMaxRouteProgress $RouteSpeedMaxRouteProgress -RouteActionMassCapWeight $RouteActionMassCapWeight$RouteActionMassCapIdsArg -RouteActionMassCap $RouteActionMassCap -RouteActionMassCapMinSpeedNorm $RouteActionMassCapMinSpeedNorm -RouteActionMassCapMinRouteProgress $RouteActionMassCapMinRouteProgress -RouteActionMassCapMaxRouteProgress $RouteActionMassCapMaxRouteProgress -RouteThrottleCeilingWeight $RouteThrottleCeilingWeight -RouteThrottleCeiling $RouteThrottleCeiling -RouteThrottleMinSpeedNorm $RouteThrottleMinSpeedNorm -RouteThrottleMinRouteProgress $RouteThrottleMinRouteProgress -RouteThrottleMaxRouteProgress $RouteThrottleMaxRouteProgress -RouteLateThrottleCeilingWeight $RouteLateThrottleCeilingWeight -RouteLateThrottleCeiling $RouteLateThrottleCeiling -RouteLateThrottleMinSpeedNorm $RouteLateThrottleMinSpeedNorm -RouteLateThrottleMinRouteProgress $RouteLateThrottleMinRouteProgress -RouteLateThrottleMaxRouteProgress $RouteLateThrottleMaxRouteProgress -RouteActionOverrideWeight $RouteActionOverrideWeight -RouteActionOverrideId $RouteActionOverrideId -RouteActionOverrideMinSpeedNorm $RouteActionOverrideMinSpeedNorm -RouteActionOverrideMinRouteProgress $RouteActionOverrideMinRouteProgress -RouteActionOverrideMaxRouteProgress $RouteActionOverrideMaxRouteProgress$ImitationClassBalanceArg -HiddenDim $HiddenDim -Device $QuotedDevice *>&1 | Tee-Object -FilePath `$LogPath -Append
+    powershell -ExecutionPolicy Bypass -File $QuotedTrainingScript -ProjectRoot $QuotedProjectRoot -ReplayPath $QuotedReplayPath -ReplayManifestPath $QuotedReplayManifestPath -OutputDir $QuotedOutputDir -Seed $Seed -SequenceLength $SequenceLength -BatchSize $BatchSize -WorldModelSteps $WorldModelSteps -PolicySteps $PolicySteps -LearningRate $LearningRate -ImitationWeight $ImitationWeight -BehaviorWeight $BehaviorWeight -ImitationBalancePower $ImitationBalancePower -SteerSequenceFraction $SteerSequenceFraction -MovingSteerFalsePositiveWeight $MovingSteerFalsePositiveWeight -MovingSteerBinaryWeight $MovingSteerBinaryWeight -MovingSteerNonmovingMarginWeight $MovingSteerNonmovingMarginWeight -MovingSteerNonmovingMargin $MovingSteerNonmovingMargin -WorldModelActionAuxWeight $WorldModelActionAuxWeight$ComponentSampleWeightsArg -ActionMassCapWeight $ActionMassCapWeight$ActionMassCapsArg -RouteSpeedActionMassCapWeight $RouteSpeedActionMassCapWeight$RouteSpeedActionIdsArg -RouteSpeedActionMassCap $RouteSpeedActionMassCap -RouteSpeedMinSpeedNorm $RouteSpeedMinSpeedNorm -RouteSpeedMinRouteProgress $RouteSpeedMinRouteProgress -RouteSpeedMaxRouteProgress $RouteSpeedMaxRouteProgress -RouteActionMassCapWeight $RouteActionMassCapWeight$RouteActionMassCapIdsArg -RouteActionMassCap $RouteActionMassCap -RouteActionMassCapMinSpeedNorm $RouteActionMassCapMinSpeedNorm -RouteActionMassCapMinRouteProgress $RouteActionMassCapMinRouteProgress -RouteActionMassCapMaxRouteProgress $RouteActionMassCapMaxRouteProgress -RouteThrottleCeilingWeight $RouteThrottleCeilingWeight -RouteThrottleCeiling $RouteThrottleCeiling -RouteThrottleMinSpeedNorm $RouteThrottleMinSpeedNorm -RouteThrottleMinRouteProgress $RouteThrottleMinRouteProgress -RouteThrottleMaxRouteProgress $RouteThrottleMaxRouteProgress -RouteLateThrottleCeilingWeight $RouteLateThrottleCeilingWeight -RouteLateThrottleCeiling $RouteLateThrottleCeiling -RouteLateThrottleMinSpeedNorm $RouteLateThrottleMinSpeedNorm -RouteLateThrottleMinRouteProgress $RouteLateThrottleMinRouteProgress -RouteLateThrottleMaxRouteProgress $RouteLateThrottleMaxRouteProgress -RouteActionOverrideWeight $RouteActionOverrideWeight -RouteActionOverrideId $RouteActionOverrideId -RouteActionOverrideMinSpeedNorm $RouteActionOverrideMinSpeedNorm -RouteActionOverrideMinRouteProgress $RouteActionOverrideMinRouteProgress -RouteActionOverrideMaxRouteProgress $RouteActionOverrideMaxRouteProgress$ImitationClassBalanceArg$PdfStage1StrictArg -HiddenDim $HiddenDim -Device $QuotedDevice *>&1 | Tee-Object -FilePath `$LogPath -Append
     `$Code = `$LASTEXITCODE
 }
 catch {
@@ -161,6 +166,7 @@ $LaunchManifest = [ordered]@{
     world_model_steps = $WorldModelSteps
     policy_steps = $PolicySteps
     learning_rate = $LearningRate
+    pdf_stage1_strict = [bool]$PdfStage1Strict
     imitation_weight = $ImitationWeight
     behavior_weight = $BehaviorWeight
     imitation_class_balance = [bool]$ImitationClassBalance

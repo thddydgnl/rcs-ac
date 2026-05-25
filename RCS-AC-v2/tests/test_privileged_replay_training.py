@@ -523,6 +523,60 @@ def test_replay_training_exports_clean_eval_loadable_checkpoints(tmp_path) -> No
     assert Path(tmp_path / "stage2_checkpoint_action_probe.json").exists()
 
 
+def test_pdf_stage1_strict_replay_training_allows_only_actor_critic_path(tmp_path) -> None:
+    replay_path = save_privileged_replay_episode(
+        tmp_path / "episode_pdfstrict_0000.npz",
+        **_replay_arrays(length=8),
+    )
+    replay_config_path = tmp_path / "clean_128.yaml"
+    replay_config_path.write_text("stage: stage2_privileged_policy_clean\n")
+    replay_manifest_path = write_privileged_replay_manifest(
+        tmp_path / "stage2_privileged_replay_manifest.json",
+        config_path=replay_config_path,
+        episode_paths=[replay_path],
+        extra={"git_commit": "abc1234"},
+    )
+
+    result = train_stage2_privileged_from_replay(
+        replay_paths=[replay_path],
+        replay_manifest_path=replay_manifest_path,
+        output_dir=tmp_path / "checkpoints",
+        seed=12,
+        sequence_length=4,
+        batch_size=2,
+        world_model_steps=2,
+        policy_steps=2,
+        pdf_stage1_strict=True,
+        behavior_weight=1.0,
+        imitation_weight=0.0,
+        hidden_dim=32,
+        device="cpu",
+    )
+
+    manifest = json.loads(result.manifest_path.read_text())
+    assert manifest["pdf_stage1_strict"] is True
+    assert manifest["behavior_weight"] == 1.0
+    assert manifest["imitation_weight"] == 0.0
+    assert manifest["world_model_action_aux_weight"] == 0.0
+    assert manifest["component_sample_weights"] == {}
+    assert manifest["route_action_override_weight"] == 0.0
+    assert manifest["policy"]["metrics"]["valid_action_ids"] is True
+
+
+def test_pdf_stage1_strict_rejects_non_pdf_diagnostic_policy_settings(tmp_path) -> None:
+    with pytest.raises(ValueError, match="pdf_stage1_strict forbids"):
+        train_stage2_privileged_from_replay(
+            replay_paths=[tmp_path / "missing.npz"],
+            replay_manifest_path=tmp_path / "missing_manifest.json",
+            output_dir=tmp_path / "checkpoints",
+            pdf_stage1_strict=True,
+            imitation_weight=1.0,
+            route_action_override_weight=0.5,
+            route_action_override_id=10,
+            device="cpu",
+        )
+
+
 def test_action_mass_cap_loss_penalizes_over_cap_action_mass() -> None:
     caps = _parse_action_mass_cap_args(["7=0.25,15=0.5"])
     logits = torch.zeros(2, 3, 39)

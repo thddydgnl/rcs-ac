@@ -9,7 +9,8 @@ param(
     [int]$WorldModelSteps = 200,
     [int]$PolicySteps = 200,
     [double]$LearningRate = 0.0003,
-    [double]$ImitationWeight = 1.0,
+    [switch]$PdfStage1Strict,
+    [double]$ImitationWeight = 0.0,
     [double]$BehaviorWeight = 1.0,
     [switch]$ImitationClassBalance,
     [double]$ImitationBalancePower = 1.0,
@@ -133,6 +134,9 @@ if ($RouteActionMassCapIds -ne "") {
 }
 if ($ImitationClassBalance) {
     $TrainArgs += "--imitation-class-balance"
+}
+if ($PdfStage1Strict) {
+    $TrainArgs += "--pdf-stage1-strict"
 }
 & py @TrainArgs
 exit $LASTEXITCODE

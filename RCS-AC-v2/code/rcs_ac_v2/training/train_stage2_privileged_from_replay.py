@@ -48,7 +48,8 @@ def train_stage2_privileged_from_replay(
     policy_steps: int = 200,
     learning_rate: float = 3e-4,
     policy_learning_rate: float | None = None,
-    imitation_weight: float = 1.0,
+    pdf_stage1_strict: bool = False,
+    imitation_weight: float = 0.0,
     behavior_weight: float = 1.0,
     imitation_class_balance: bool = False,
     imitation_balance_power: float = 1.0,
@@ -93,6 +94,28 @@ def train_stage2_privileged_from_replay(
 ) -> ReplayTrainingResult:
     if world_model_steps <= 0 or policy_steps <= 0:
         raise ValueError("world_model_steps and policy_steps must be positive")
+    if pdf_stage1_strict:
+        _validate_pdf_stage1_strict_config(
+            imitation_weight=imitation_weight,
+            behavior_weight=behavior_weight,
+            imitation_class_balance=imitation_class_balance,
+            steer_sequence_fraction=steer_sequence_fraction,
+            moving_steer_false_positive_weight=moving_steer_false_positive_weight,
+            moving_steer_binary_weight=moving_steer_binary_weight,
+            moving_steer_nonmoving_margin_weight=moving_steer_nonmoving_margin_weight,
+            world_model_action_aux_weight=world_model_action_aux_weight,
+            component_sample_weights=component_sample_weights,
+            action_mass_cap_weight=action_mass_cap_weight,
+            action_mass_caps=action_mass_caps,
+            route_speed_action_mass_cap_weight=route_speed_action_mass_cap_weight,
+            route_speed_action_ids=route_speed_action_ids,
+            route_action_mass_cap_weight=route_action_mass_cap_weight,
+            route_action_mass_cap_ids=route_action_mass_cap_ids,
+            route_throttle_ceiling_weight=route_throttle_ceiling_weight,
+            route_late_throttle_ceiling_weight=route_late_throttle_ceiling_weight,
+            route_action_override_weight=route_action_override_weight,
+            route_action_override_id=route_action_override_id,
+        )
     if world_model_action_aux_weight < 0.0:
         raise ValueError("world_model_action_aux_weight must be non-negative")
     if moving_steer_false_positive_weight < 0.0:
@@ -401,6 +424,7 @@ def train_stage2_privileged_from_replay(
         "batch_size": int(batch_size),
         "world_model_steps": int(world_model_steps),
         "policy_steps": int(policy_steps),
+        "pdf_stage1_strict": bool(pdf_stage1_strict),
         "imitation_weight": float(imitation_weight),
         "behavior_weight": float(behavior_weight),
         "imitation_class_balance": bool(imitation_class_balance),
@@ -591,7 +615,8 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--policy-steps", type=int, default=200)
     parser.add_argument("--learning-rate", type=float, default=3e-4)
     parser.add_argument("--policy-learning-rate", type=float, default=None)
-    parser.add_argument("--imitation-weight", type=float, default=1.0)
+    parser.add_argument("--pdf-stage1-strict", action="store_true")
+    parser.add_argument("--imitation-weight", type=float, default=0.0)
     parser.add_argument("--behavior-weight", type=float, default=1.0)
     parser.add_argument("--imitation-class-balance", action="store_true")
     parser.add_argument("--imitation-balance-power", type=float, default=1.0)
@@ -645,6 +670,7 @@ def main(argv: list[str] | None = None) -> None:
         policy_steps=args.policy_steps,
         learning_rate=args.learning_rate,
         policy_learning_rate=args.policy_learning_rate,
+        pdf_stage1_strict=args.pdf_stage1_strict,
         imitation_weight=args.imitation_weight,
         behavior_weight=args.behavior_weight,
         imitation_class_balance=args.imitation_class_balance,
@@ -697,6 +723,67 @@ def _resolve_device(device: str) -> torch.device:
     if device == "auto":
         return torch.device("cuda" if torch.cuda.is_available() else "cpu")
     return torch.device(device)
+
+
+def _validate_pdf_stage1_strict_config(
+    *,
+    imitation_weight: float,
+    behavior_weight: float,
+    imitation_class_balance: bool,
+    steer_sequence_fraction: float,
+    moving_steer_false_positive_weight: float,
+    moving_steer_binary_weight: float,
+    moving_steer_nonmoving_margin_weight: float,
+    world_model_action_aux_weight: float,
+    component_sample_weights: dict[str, float] | None,
+    action_mass_cap_weight: float,
+    action_mass_caps: dict[int, float] | None,
+    route_speed_action_mass_cap_weight: float,
+    route_speed_action_ids: tuple[int, ...],
+    route_action_mass_cap_weight: float,
+    route_action_mass_cap_ids: tuple[int, ...],
+    route_throttle_ceiling_weight: float,
+    route_late_throttle_ceiling_weight: float,
+    route_action_override_weight: float,
+    route_action_override_id: int,
+) -> None:
+    """Reject diagnostic losses that are outside Raw2Drive Algorithm 1 Stage I."""
+    violations: list[str] = []
+    if float(behavior_weight) <= 0.0:
+        violations.append("behavior_weight must be positive")
+    if float(imitation_weight) != 0.0:
+        violations.append("imitation_weight must be 0")
+    if imitation_class_balance:
+        violations.append("imitation_class_balance must be disabled")
+    if float(steer_sequence_fraction) != 0.0:
+        violations.append("steer_sequence_fraction must be 0")
+    for name, value in {
+        "moving_steer_false_positive_weight": moving_steer_false_positive_weight,
+        "moving_steer_binary_weight": moving_steer_binary_weight,
+        "moving_steer_nonmoving_margin_weight": moving_steer_nonmoving_margin_weight,
+        "world_model_action_aux_weight": world_model_action_aux_weight,
+        "action_mass_cap_weight": action_mass_cap_weight,
+        "route_speed_action_mass_cap_weight": route_speed_action_mass_cap_weight,
+        "route_action_mass_cap_weight": route_action_mass_cap_weight,
+        "route_throttle_ceiling_weight": route_throttle_ceiling_weight,
+        "route_late_throttle_ceiling_weight": route_late_throttle_ceiling_weight,
+        "route_action_override_weight": route_action_override_weight,
+    }.items():
+        if float(value) != 0.0:
+            violations.append(f"{name} must be 0")
+    if component_sample_weights:
+        violations.append("component_sample_weights must be empty")
+    if action_mass_caps:
+        violations.append("action_mass_caps must be empty")
+    if route_speed_action_ids:
+        violations.append("route_speed_action_ids must be empty")
+    if route_action_mass_cap_ids:
+        violations.append("route_action_mass_cap_ids must be empty")
+    if int(route_action_override_id) != -1:
+        violations.append("route_action_override_id must be -1")
+    if violations:
+        joined = "; ".join(violations)
+        raise ValueError(f"pdf_stage1_strict forbids non-PDF Stage I settings: {joined}")
 
 
 def _make_imitation_class_weights(
