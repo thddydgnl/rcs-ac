@@ -69,22 +69,28 @@ function Invoke-ReplayProbePair {
 
     Write-Host "STAGE2_CROSS_REPLAY_PROBE_BEGIN=$ReplayName"
     Write-Host "REPLAY_MANIFEST_PATH=$ReplayManifestPath"
-    powershell -ExecutionPolicy Bypass -File $ActionProbeScript `
-        -ProjectRoot $ProjectRoot `
-        -ConfigPath $ConfigPath `
-        -CheckpointManifestPath $CheckpointManifestPath `
-        -ReplayManifestPath $ReplayManifestPath `
-        -OutputConfigPath $OutputConfigPath `
-        -OutputPath $ActionProbePath `
-        -MaxStepsPerFile $MaxStepsPerFile `
-        -MinNonzeroThrottleFraction $MinNonzeroThrottleFraction `
-        -MinNonzeroSteerFraction $MinNonzeroSteerFraction `
-        -MinNonzeroSteerCount $MinNonzeroSteerCount `
-        -MaxNonzeroSteerFraction $MaxNonzeroSteerFraction `
-        -MaxDominantActionFraction $MaxDominantActionFraction `
-        -MaxPreviousStuckAction8Fraction $MaxPreviousStuckAction8Fraction `
-        -ForbiddenActionIds ($ResolvedForbiddenActionIds -join ",") `
-        -Device $Device
+    $ActionProbeArgs = @(
+        "-ExecutionPolicy", "Bypass",
+        "-File", $ActionProbeScript,
+        "-ProjectRoot", $ProjectRoot,
+        "-ConfigPath", $ConfigPath,
+        "-CheckpointManifestPath", $CheckpointManifestPath,
+        "-ReplayManifestPath", $ReplayManifestPath,
+        "-OutputConfigPath", $OutputConfigPath,
+        "-OutputPath", $ActionProbePath,
+        "-MaxStepsPerFile", $MaxStepsPerFile,
+        "-MinNonzeroThrottleFraction", $MinNonzeroThrottleFraction,
+        "-MinNonzeroSteerFraction", $MinNonzeroSteerFraction,
+        "-MinNonzeroSteerCount", $MinNonzeroSteerCount,
+        "-MaxNonzeroSteerFraction", $MaxNonzeroSteerFraction,
+        "-MaxDominantActionFraction", $MaxDominantActionFraction,
+        "-MaxPreviousStuckAction8Fraction", $MaxPreviousStuckAction8Fraction,
+        "-Device", $Device
+    )
+    if ($ResolvedForbiddenActionIds.Count -gt 0) {
+        $ActionProbeArgs += @("-ForbiddenActionIds", ($ResolvedForbiddenActionIds -join ","))
+    }
+    powershell @ActionProbeArgs
     if ($LASTEXITCODE -ne 0) {
         exit $LASTEXITCODE
     }

@@ -567,7 +567,8 @@ def test_stage2_cross_probe_wrappers_support_forbidden_action_ids_static_contrac
     assert '"--forbidden-action-id", $ActionId' in action_probe
     assert '[string]$ForbiddenActionIds = ""' in cross_probe
     assert "$ResolvedForbiddenActionIds = @()" in cross_probe
-    assert '-ForbiddenActionIds ($ResolvedForbiddenActionIds -join ",")' in cross_probe
+    assert '$ActionProbeArgs += @("-ForbiddenActionIds", ($ResolvedForbiddenActionIds -join ","))' in cross_probe
+    assert "if ($ResolvedForbiddenActionIds.Count -gt 0)" in cross_probe
     assert '[string]$ForbiddenActionIds = ""' in mixed_cycle
     assert '$CrossProbeArgs += @("-ForbiddenActionIds", $ForbiddenActionIds)' in mixed_cycle
     assert 'if ($ForbiddenActionIds -ne "")' in mixed_cycle
