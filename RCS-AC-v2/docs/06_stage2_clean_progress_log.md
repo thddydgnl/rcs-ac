@@ -1098,3 +1098,64 @@ Decision: this is the next Stage 2 direction because the last two official
 clean runs bracketed action `13` strength but did not solve the route `0.64+`
 collision. The cap lets the candidate learn a late correction without leaking
 action `13/16` into the already fragile approach band.
+
+Route-local cap plus moderate late override:
+
+- `bc47fd5_corr056w4_cap1316_override13w05_cuda`:
+  - same original corr056 hyperparameters.
+  - added route action mass cap:
+    - action ids `13,16`.
+    - cap `0.08`.
+    - route window `0.55-0.66`, speed norm `>=0.0`.
+    - weight `4.0`.
+  - kept late route-local override:
+    - action `13`.
+    - route window `0.66-0.70`.
+    - weight `0.5`.
+  - CUDA training/checkpoint validation: pass on `NVIDIA GeForce RTX 3080`.
+  - cross replay gate: `ready_for_clean_eval=true`.
+  - target22 action probe:
+    - action counts `{"10":18,"15":110,"4":22,"7":372}`.
+    - dominant action fraction `0.7126436782`.
+    - moving steer fraction `0.0766283525`.
+  - steer2 action probe:
+    - action counts `{"10":2,"12":2,"13":16,"15":87,"4":66,"7":474}`.
+    - dominant action fraction `0.7326120556`.
+    - moving steer fraction `0.1329211747`.
+  - official 512 clean:
+    - run output:
+      `RCS-AC-v2\experiments\02_privileged_policy_clean\windows_512\bc47fd5_corr056w4_cap1316_override13w05_cuda_official_clean512`
+    - status: `FAIL`, clean gate pass: `false`.
+    - done reason: `collision`.
+    - steps: `189` / `512`.
+    - route progress: `0.6410256410`.
+    - collision count: `1`, offroad count: `1`.
+    - final action band: action `12` appeared at route `0.6154`, then action
+      `15/7`, then action `13` at route `0.6410`; collision happened while
+      still moving around `25 km/h`.
+
+Decision: action capping reduced early `13/16` leakage in offline probes, but
+official driving still failed earlier than the `9be6b2f` baseline because the
+vehicle stayed too fast through the late correction band. The next Stage 2
+change should keep the early `0.56-0.60` throttle ceiling and add a second,
+late route throttle ceiling for `0.64-0.70`; reusing only the single existing
+throttle ceiling would remove the early constraint that helped reach route
+`0.6667`.
+
+Late throttle ceiling support:
+
+- Added `route_late_throttle_*` training parameters to Stage 2 replay training
+  and Windows wrappers.
+- Purpose: preserve the early `route_throttle_*` ceiling at `0.56-0.60` while
+  adding an independent late speed/throttle reduction in the collision band.
+- Targeted next CUDA candidate:
+  - keep original `9be6b2f_corr056_w4` hyperparameters.
+  - keep early `route_throttle_ceiling=0.35` on route `0.56-0.60`.
+  - add `route_late_throttle_ceiling=0.20-0.25` on route `0.64-0.70`.
+  - start without an action `13` override, or keep action `13` override very
+    weak, because stronger steering already regressed to route `0.6154-0.6410`
+    collisions.
+  - keep CUDA guard mandatory.
+- Local verification:
+  - targeted Stage 2 tests: `61 passed`.
+  - full `RCS-AC-v2/tests`: `139 passed`.

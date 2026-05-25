@@ -397,6 +397,11 @@ def test_replay_training_exports_clean_eval_loadable_checkpoints(tmp_path) -> No
         route_throttle_min_speed_norm=0.7,
         route_throttle_min_route_progress=0.56,
         route_throttle_max_route_progress=0.60,
+        route_late_throttle_ceiling_weight=0.45,
+        route_late_throttle_ceiling=0.2,
+        route_late_throttle_min_speed_norm=0.0,
+        route_late_throttle_min_route_progress=0.64,
+        route_late_throttle_max_route_progress=0.70,
         route_action_override_weight=0.6,
         route_action_override_id=10,
         route_action_override_min_speed_norm=0.5,
@@ -454,6 +459,11 @@ def test_replay_training_exports_clean_eval_loadable_checkpoints(tmp_path) -> No
     assert manifest["route_throttle_min_speed_norm"] == 0.7
     assert manifest["route_throttle_min_route_progress"] == 0.56
     assert manifest["route_throttle_max_route_progress"] == 0.6
+    assert manifest["route_late_throttle_ceiling_weight"] == 0.45
+    assert manifest["route_late_throttle_ceiling"] == 0.2
+    assert manifest["route_late_throttle_min_speed_norm"] == 0.0
+    assert manifest["route_late_throttle_min_route_progress"] == 0.64
+    assert manifest["route_late_throttle_max_route_progress"] == 0.7
     assert manifest["route_action_override_weight"] == 0.6
     assert manifest["route_action_override_id"] == 10
     assert manifest["route_action_override_min_speed_norm"] == 0.5
@@ -467,6 +477,7 @@ def test_replay_training_exports_clean_eval_loadable_checkpoints(tmp_path) -> No
     assert manifest["policy"]["metrics"]["final_route_speed_action_mass_cap"] >= 0.0
     assert manifest["policy"]["metrics"]["final_route_action_mass_cap"] >= 0.0
     assert manifest["policy"]["metrics"]["final_route_throttle_ceiling"] >= 0.0
+    assert manifest["policy"]["metrics"]["final_route_late_throttle_ceiling"] >= 0.0
     assert manifest["policy"]["metrics"]["final_route_action_override"] >= 0.0
     assert manifest["sampler"]["requested_priority_sample_fraction"] == 0.0
     assert "priority_window_count" in manifest["sampler"]

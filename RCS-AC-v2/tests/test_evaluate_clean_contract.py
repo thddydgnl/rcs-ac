@@ -727,6 +727,17 @@ def test_stage2_replay_training_wrappers_expose_moving_steer_false_positive_stat
     assert '"-RouteThrottleCeilingWeight", $RouteThrottleCeilingWeight' in mixed
     assert '"-RouteThrottleMaxRouteProgress", $RouteThrottleMaxRouteProgress' in mixed
 
+    assert "--route-late-throttle-ceiling-weight" in module
+    assert "[double]$RouteLateThrottleCeilingWeight = 0.0" in train
+    assert '"--route-late-throttle-ceiling-weight", $RouteLateThrottleCeilingWeight' in train
+    assert '"--route-late-throttle-max-route-progress", $RouteLateThrottleMaxRouteProgress' in train
+    assert "[double]$RouteLateThrottleCeilingWeight = 0.0" in start
+    assert "-RouteLateThrottleCeilingWeight $RouteLateThrottleCeilingWeight" in start
+    assert "route_late_throttle_ceiling_weight = $RouteLateThrottleCeilingWeight" in start
+    assert "[double]$RouteLateThrottleCeilingWeight = 0.0" in mixed
+    assert '"-RouteLateThrottleCeilingWeight", $RouteLateThrottleCeilingWeight' in mixed
+    assert '"-RouteLateThrottleMaxRouteProgress", $RouteLateThrottleMaxRouteProgress' in mixed
+
     assert "--route-action-override-weight" in module
     assert "--route-action-override-id" in module
     assert "[double]$RouteActionOverrideWeight = 0.0" in train

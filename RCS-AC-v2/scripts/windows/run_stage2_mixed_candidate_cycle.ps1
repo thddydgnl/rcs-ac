@@ -53,6 +53,11 @@ param(
     [double]$RouteThrottleMinSpeedNorm = 0.0,
     [double]$RouteThrottleMinRouteProgress = 0.0,
     [double]$RouteThrottleMaxRouteProgress = 1.0,
+    [double]$RouteLateThrottleCeilingWeight = 0.0,
+    [double]$RouteLateThrottleCeiling = 1.0,
+    [double]$RouteLateThrottleMinSpeedNorm = 0.0,
+    [double]$RouteLateThrottleMinRouteProgress = 0.0,
+    [double]$RouteLateThrottleMaxRouteProgress = 1.0,
     [double]$RouteActionOverrideWeight = 0.0,
     [int]$RouteActionOverrideId = -1,
     [double]$RouteActionOverrideMinSpeedNorm = 0.0,
@@ -260,6 +265,16 @@ $LatestPointer = [ordered]@{
     route_action_mass_cap_min_speed_norm = $RouteActionMassCapMinSpeedNorm
     route_action_mass_cap_min_route_progress = $RouteActionMassCapMinRouteProgress
     route_action_mass_cap_max_route_progress = $RouteActionMassCapMaxRouteProgress
+    route_throttle_ceiling_weight = $RouteThrottleCeilingWeight
+    route_throttle_ceiling = $RouteThrottleCeiling
+    route_throttle_min_speed_norm = $RouteThrottleMinSpeedNorm
+    route_throttle_min_route_progress = $RouteThrottleMinRouteProgress
+    route_throttle_max_route_progress = $RouteThrottleMaxRouteProgress
+    route_late_throttle_ceiling_weight = $RouteLateThrottleCeilingWeight
+    route_late_throttle_ceiling = $RouteLateThrottleCeiling
+    route_late_throttle_min_speed_norm = $RouteLateThrottleMinSpeedNorm
+    route_late_throttle_min_route_progress = $RouteLateThrottleMinRouteProgress
+    route_late_throttle_max_route_progress = $RouteLateThrottleMaxRouteProgress
     route_action_override_weight = $RouteActionOverrideWeight
     route_action_override_id = $RouteActionOverrideId
     route_action_override_min_speed_norm = $RouteActionOverrideMinSpeedNorm
@@ -311,6 +326,11 @@ $StartArgs = @(
     "-RouteThrottleMinSpeedNorm", $RouteThrottleMinSpeedNorm,
     "-RouteThrottleMinRouteProgress", $RouteThrottleMinRouteProgress,
     "-RouteThrottleMaxRouteProgress", $RouteThrottleMaxRouteProgress,
+    "-RouteLateThrottleCeilingWeight", $RouteLateThrottleCeilingWeight,
+    "-RouteLateThrottleCeiling", $RouteLateThrottleCeiling,
+    "-RouteLateThrottleMinSpeedNorm", $RouteLateThrottleMinSpeedNorm,
+    "-RouteLateThrottleMinRouteProgress", $RouteLateThrottleMinRouteProgress,
+    "-RouteLateThrottleMaxRouteProgress", $RouteLateThrottleMaxRouteProgress,
     "-RouteActionOverrideWeight", $RouteActionOverrideWeight,
     "-RouteActionOverrideId", $RouteActionOverrideId,
     "-RouteActionOverrideMinSpeedNorm", $RouteActionOverrideMinSpeedNorm,
