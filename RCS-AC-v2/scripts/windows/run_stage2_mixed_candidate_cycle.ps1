@@ -37,6 +37,11 @@ Set-Location $ProjectRoot
 if (-not $SkipGitPull) {
     git pull --ff-only
 }
+$CudaAssertScript = Join-Path $ProjectRoot "RCS-AC-v2\scripts\windows\assert_stage2_cuda_available.ps1"
+powershell -ExecutionPolicy Bypass -File $CudaAssertScript -ProjectRoot $ProjectRoot -Device $Device
+if ($LASTEXITCODE -ne 0) {
+    exit $LASTEXITCODE
+}
 
 $MixedManifestPath = Join-Path $MixedReplayDir "stage2_privileged_replay_manifest.json"
 $PrimaryReplayManifestPath = Join-Path $PrimaryReplayDir "stage2_privileged_replay_manifest.json"

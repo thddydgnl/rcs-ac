@@ -41,6 +41,11 @@ if ($PrimaryReplayName -eq "") {
 if (-not $SkipGitPull) {
     git pull --ff-only
 }
+$CudaAssertScript = Join-Path $ProjectRoot "RCS-AC-v2\scripts\windows\assert_stage2_cuda_available.ps1"
+powershell -ExecutionPolicy Bypass -File $CudaAssertScript -ProjectRoot $ProjectRoot -Device $Device
+if ($LASTEXITCODE -ne 0) {
+    exit $LASTEXITCODE
+}
 
 $RequestedOutputDir = $OutputDir
 $LatestPointerPath = "${RequestedOutputDir}.latest.json"

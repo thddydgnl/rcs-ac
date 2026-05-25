@@ -131,6 +131,12 @@ direct Python probe entrypoints default to `--device auto`, which chooses CUDA
 when available. After Windows reconnects, verify CUDA first and then check this
 candidate:
 
+Update 2026-05-25: the Windows Stage 2 replay training/probe wrappers now invoke
+`assert_stage2_cuda_available.ps1` before scheduling or probing. Any `Device=cuda`
+or `Device=auto` run fails fast if PyTorch CUDA is unavailable. Use explicit
+`Device=cpu` only for diagnostic fallback runs; do not count CPU fallback runs as
+official clean-performance candidates.
+
 ```powershell
 powershell -ExecutionPolicy Bypass -File RCS-AC-v2\scripts\windows\check_stage2_windows_dependencies.ps1 `
   -ProjectRoot C:\Users\thddy\Documents\code\RCS-AC-first-official-v2-7f87656 `

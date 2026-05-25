@@ -250,6 +250,14 @@ GPU 사용을 보장해야 하는 replay 학습/probe 재개 전에는 `-Require
 CUDA 가능 환경에서는 GPU를 선택한다. GPU가 불안정하거나 PyTorch CUDA가 깨진
 원인 분석 때만 명시적으로 `-Device cpu` 또는 `--device cpu`를 붙여 후퇴한다.
 CPU 후퇴 run은 clean 성능 확보용 공식 후보가 아니라 진단용으로 기록한다.
+2026-05-25 이후 Stage 2 replay 학습/probe wrapper는 시작 시
+`assert_stage2_cuda_available.ps1`를 호출한다. `Device=cuda` 또는 `Device=auto`
+인데 PyTorch CUDA가 잡히지 않으면 run을 시작하지 않고 실패한다. 따라서
+Windows 재부팅 뒤에는 별도 확인을 잊어도 wrapper 로그에
+`STAGE2_CUDA_GUARD_AVAILABLE=True`, `STAGE2_CUDA_GUARD_DEVICE_NAME=...`,
+`STAGE2_CUDA_GUARD_TENSOR_DEVICE=cuda:0`가 먼저 남아야 정상이다. `Device=cpu`는
+명시적 진단 override로만 허용하며 로그에
+`STAGE2_CUDA_GUARD_CPU_DIAGNOSTIC_OVERRIDE=True`가 남는다.
 candidate cycle wrapper는 `-Seed`도 그대로 replay training까지 전달한다.
 가장 가까운 후보가 action gate 근처에서 흔들릴 때는 새 OutputDir/TaskName과
 함께 seed sweep을 먼저 돌려, 이미 실패한 artifact를 덮어쓰지 않고 비교한다.

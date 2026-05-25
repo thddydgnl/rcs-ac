@@ -28,6 +28,11 @@ Set-Location $ProjectRoot
 if (-not $SkipGitPull) {
     git pull --ff-only
 }
+$CudaAssertScript = Join-Path $ProjectRoot "RCS-AC-v2\scripts\windows\assert_stage2_cuda_available.ps1"
+powershell -ExecutionPolicy Bypass -File $CudaAssertScript -ProjectRoot $ProjectRoot -Device $Device
+if ($LASTEXITCODE -ne 0) {
+    exit $LASTEXITCODE
+}
 
 if ($ReplayOutputDir -eq "") {
     $ReplayOutputDir = "RCS-AC-v2\experiments\02_privileged_policy_clean\replay\windows_privileged_7f87656_${CandidateName}_failure_window"

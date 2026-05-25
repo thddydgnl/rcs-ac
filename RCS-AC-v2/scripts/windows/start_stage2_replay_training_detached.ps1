@@ -33,6 +33,11 @@ function Quote-PowerShellString {
 }
 
 Set-Location $ProjectRoot
+$CudaAssertScript = Join-Path $ProjectRoot "RCS-AC-v2\scripts\windows\assert_stage2_cuda_available.ps1"
+powershell -ExecutionPolicy Bypass -File $CudaAssertScript -ProjectRoot $ProjectRoot -Device $Device
+if ($LASTEXITCODE -ne 0) {
+    exit $LASTEXITCODE
+}
 if ($ReplayManifestPath -eq "") {
     $ReplayManifestPath = Join-Path $ReplayPath "stage2_privileged_replay_manifest.json"
 }

@@ -517,6 +517,23 @@ def test_stage2_windows_replay_training_and_probe_default_to_cuda_static_contrac
     for script_name in script_names:
         text = (scripts_dir / script_name).read_text()
         assert '[string]$Device = "cuda"' in text, script_name
+        assert "assert_stage2_cuda_available.ps1" in text, script_name
+
+
+def test_stage2_cuda_guard_fails_when_cuda_is_requested_but_missing_static_contract() -> None:
+    script = (
+        Path(__file__).resolve().parents[1]
+        / "scripts"
+        / "windows"
+        / "assert_stage2_cuda_available.ps1"
+    )
+    text = script.read_text()
+    assert 'STAGE2_CUDA_GUARD_REQUESTED_DEVICE=$Device' in text
+    assert 'STAGE2_CUDA_GUARD_CPU_DIAGNOSTIC_OVERRIDE=True' in text
+    assert "torch.cuda.is_available()" in text
+    assert "STAGE2_CUDA_GUARD_DEVICE_NAME" in text
+    assert "STAGE2_CUDA_GUARD_ERROR=CUDA is required for this Stage 2 run" in text
+    assert "sys.exit(10)" in text
 
 
 def test_stage2_python_probe_entrypoints_default_to_auto_static_contract() -> None:
