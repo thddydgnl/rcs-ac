@@ -1677,3 +1677,42 @@ clean-first patch should distinguish right-moving steering from left-moving
 steering in the late route window, or use an action-family/right-steer margin
 instead of a generic moving-steer margin. This is still Stage 2 privileged
 clean FAIL; raw and fusion remain blocked.
+
+Route-late moving-steer plus weak action13 candidate:
+
+- checkpoint:
+  `cc8ac46_mixed_t22_steer2_aux1_iw5_ssf005_latemove_w1_late13w05_r0666`.
+- training:
+  - CUDA: `NVIDIA GeForce RTX 3080`.
+  - same `bbea3a5` route-late moving-steer margin setup.
+  - added `RouteActionOverrideWeight=0.5`.
+  - added `RouteActionOverrideId=13`.
+  - route window `0.666-0.70`.
+- cross replay gate:
+  - `ready_for_clean_eval=true`.
+  - target22 action counts:
+    `{"10":6,"13":6,"15":64,"16":22,"19":2,"4":12,"7":410}`.
+  - target22 moving steer fraction: `0.0919540230`.
+  - steer2 action counts: `{"13":30,"15":64,"16":27,"4":55,"7":471}`.
+  - steer2 moving steer fraction: `0.1731066461`.
+- official 512 clean:
+  - run output:
+    `RCS-AC-v2\experiments\02_privileged_policy_clean\windows_512\cc8ac46_mixed_t22_steer2_aux1_iw5_ssf005_latemove_w1_late13w05_r0666_official512`.
+  - source: `windows_carla`.
+  - commit: `cc8ac46c6d33c62ee1047108778d97ec33a18da3`.
+  - status: `FAIL`, clean gate pass: `false`.
+  - done reason: `collision`.
+  - steps: `302` / `512`.
+  - metrics rows: `302`.
+  - route progress: `0.6410256410`.
+  - collision/offroad/stuck: `1/0/0`.
+  - final action band: action `13` appeared at route `0.6154`, then action
+    `13/16` dominated at `0.6410`; collision happened before reaching the
+    previous `0.6667` failure point.
+
+Decision: the clean failure is now bracketed. Action `10` right steer is too
+weak at route `0.6667`, while action `13/16` pressure is too strong or leaks
+too early around route `0.6154-0.6410`. The next smallest patch should add a
+late-right-steer family margin with an explicit pre-`0.666` cap for actions
+`13/16/19`, or reduce action13 pressure while adding a late throttle ceiling
+below `18 km/h`. Do not start raw/fusion.
