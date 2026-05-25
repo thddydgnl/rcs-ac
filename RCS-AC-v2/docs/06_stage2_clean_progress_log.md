@@ -1630,3 +1630,50 @@ The next clean-first patch is a route-windowed late moving-steer margin loss
 that applies only after route progress `>=0.666`, so it can encourage a moving
 steer family without hard-coding one action or leaking the correction into the
 fragile approach band.
+
+Route-late moving-steer margin candidate:
+
+- code commit: `bbea3a5`.
+- checkpoint:
+  `bbea3a5_mixed_t22_steer2_aux1_iw5_ssf005_nobal_latemove_w1_r0666`.
+- training:
+  - CUDA: `NVIDIA GeForce RTX 3080`.
+  - `WorldModelActionAuxWeight=1.0`.
+  - `ImitationWeight=5.0`.
+  - `BehaviorWeight=0.0`.
+  - `SteerSequenceFraction=0.05`.
+  - `RouteLateMovingSteerMarginWeight=1.0`.
+  - `RouteLateMovingSteerMargin=0.25`.
+  - route window `0.666-0.70`.
+- local verification before Windows pull:
+  - full `RCS-AC-v2/tests`: `143 passed`.
+  - `scripts/check_git_hygiene.sh`: pass for v2.
+- cross replay gate:
+  - `ready_for_clean_eval=true`.
+  - target22 action counts:
+    `{"10":8,"13":6,"15":64,"16":20,"19":2,"4":10,"7":412}`.
+  - target22 moving steer fraction: `0.0881226054`.
+  - target22 latent test accuracy: `0.9904761910`.
+  - steer2 action counts: `{"15":64,"4":96,"7":487}`.
+  - steer2 moving steer fraction: `0.1483771252`.
+  - steer2 latent test accuracy: `0.9153845906`.
+- official 512 clean:
+  - run output:
+    `RCS-AC-v2\experiments\02_privileged_policy_clean\windows_512\bbea3a5_mixed_t22_steer2_aux1_iw5_ssf005_nobal_latemove_w1_r0666_official512`.
+  - source: `windows_carla`.
+  - commit: `bbea3a5e5f586c0143992007818a068be9db85b0`.
+  - status: `FAIL`, clean gate pass: `false`.
+  - done reason: `collision`.
+  - steps: `327` / `512`.
+  - metrics rows: `327`.
+  - route progress: `0.6666666667`.
+  - collision/offroad/stuck: `1/0/0`.
+  - final action band: action `4` left steer was selected repeatedly from
+    route `0.6410`, then action `7`, then action `4` again at `0.6667`.
+
+Decision: route-windowing prevented early global steering collapse, but the
+generic moving-steer family can choose the wrong direction. The next smallest
+clean-first patch should distinguish right-moving steering from left-moving
+steering in the late route window, or use an action-family/right-steer margin
+instead of a generic moving-steer margin. This is still Stage 2 privileged
+clean FAIL; raw and fusion remain blocked.
