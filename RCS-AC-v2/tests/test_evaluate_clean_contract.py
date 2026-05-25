@@ -973,9 +973,12 @@ def test_stage2_replay_collector_exposes_late_segment_recording_static_contract(
     assert '"--record-after-route-progress", $RecordAfterRouteProgress' in script
     assert "[int]$MinRecordedSteps = 1" in script
     assert '"--min-recorded-steps", $MinRecordedSteps' in script
+    assert "[double]$MinRecordedThrottle = 0.0" in script
+    assert '"--min-recorded-throttle", $MinRecordedThrottle' in script
     assert "record_after_route_progress" in module
     assert "warmup_steps" in module
     assert "min_recorded_steps" in module
+    assert "min_recorded_throttle" in module
 
 
 def test_windows_dependency_probe_static_contract() -> None:

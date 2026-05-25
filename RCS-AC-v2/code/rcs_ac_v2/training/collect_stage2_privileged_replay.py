@@ -36,6 +36,7 @@ def select_privileged_replay_action(
     *,
     target_speed_kmh: float = 18.0,
     steer_sign: float = -1.0,
+    min_throttle: float = 0.0,
 ) -> int:
     speed = _finite_float(info.get("speed_kmh", 0.0))
     heading_error = _finite_float(info.get("heading_error", 0.0))
@@ -50,6 +51,7 @@ def select_privileged_replay_action(
         desired_throttle = 0.3
     if abs(desired_steer) > 0.45:
         desired_throttle = min(desired_throttle, 0.3)
+    desired_throttle = max(float(min_throttle), float(desired_throttle))
 
     best_id = 0
     best_score = float("inf")
@@ -75,6 +77,7 @@ def collect_episode(
     steer_sign: float = -1.0,
     record_after_route_progress: float = 0.0,
     min_recorded_steps: int = 1,
+    min_recorded_throttle: float = 0.0,
     warmup_policy_runner: Any | None = None,
 ) -> dict[str, Any]:
     if max_steps <= 0:
@@ -83,6 +86,8 @@ def collect_episode(
         raise ValueError("record_after_route_progress must be non-negative")
     if min_recorded_steps <= 0:
         raise ValueError("min_recorded_steps must be positive")
+    if not 0.0 <= float(min_recorded_throttle) <= 1.0:
+        raise ValueError("min_recorded_throttle must be in [0, 1]")
     reset = env.reset()
     obs = dict(reset["obs"])
     info = dict(reset.get("info", {}))
@@ -104,6 +109,7 @@ def collect_episode(
                 info,
                 target_speed_kmh=target_speed_kmh,
                 steer_sign=steer_sign,
+                min_throttle=float(min_recorded_throttle) if should_record else 0.0,
             )
         else:
             action_id = _select_warmup_policy_action(warmup_policy_runner, obs, info)
@@ -154,6 +160,7 @@ def collect_episode(
             "max_route_progress": float(max_route_progress),
             "warmup_steps": int(warmup_steps),
             "recorded_steps": int(len(action_rows)),
+            "min_recorded_throttle": float(min_recorded_throttle),
         },
     }
 
@@ -168,6 +175,7 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--steer-sign", type=float, default=-1.0)
     parser.add_argument("--record-after-route-progress", type=float, default=0.0)
     parser.add_argument("--min-recorded-steps", type=int, default=1)
+    parser.add_argument("--min-recorded-throttle", type=float, default=0.0)
     parser.add_argument("--warmup-policy-config", default="")
     parser.add_argument("--max-attempts", type=int, default=0)
     parser.add_argument("--skip-failed-episodes", action="store_true")
@@ -203,6 +211,7 @@ def main(argv: list[str] | None = None) -> None:
                     steer_sign=float(args.steer_sign),
                     record_after_route_progress=float(args.record_after_route_progress),
                     min_recorded_steps=int(args.min_recorded_steps),
+                    min_recorded_throttle=float(args.min_recorded_throttle),
                     warmup_policy_runner=warmup_policy_runner,
                 )
             except Exception as exc:
@@ -255,6 +264,7 @@ def main(argv: list[str] | None = None) -> None:
             "steer_sign": float(args.steer_sign),
             "record_after_route_progress": float(args.record_after_route_progress),
             "min_recorded_steps": int(args.min_recorded_steps),
+            "min_recorded_throttle": float(args.min_recorded_throttle),
             "warmup_policy_config": str(args.warmup_policy_config or ""),
             "max_attempts": max_attempts,
             "failed_attempt_count": len(failed_attempts),

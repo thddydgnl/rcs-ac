@@ -8,6 +8,7 @@ param(
     [double]$SteerSign = -1.0,
     [double]$RecordAfterRouteProgress = 0.0,
     [int]$MinRecordedSteps = 1,
+    [double]$MinRecordedThrottle = 0.0,
     [string]$WarmupPolicyConfig = "",
     [int]$MaxAttempts = 0,
     [switch]$SkipFailedEpisodes,
@@ -107,6 +108,7 @@ $CollectArgs = @(
     "--steer-sign", $SteerSign,
     "--record-after-route-progress", $RecordAfterRouteProgress,
     "--min-recorded-steps", $MinRecordedSteps,
+    "--min-recorded-throttle", $MinRecordedThrottle,
     "--max-attempts", $MaxAttempts
 )
 if ($WarmupPolicyConfig -ne "") {

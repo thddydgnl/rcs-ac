@@ -417,6 +417,34 @@ def test_replay_collector_waypoint_distance_does_not_force_zero_throttle() -> No
     assert get_discrete_action(action_id).throttle > 0.0
 
 
+def test_replay_collector_can_force_minimum_recorded_throttle() -> None:
+    action_id = select_privileged_replay_action(
+        {
+            "speed_kmh": 31.0,
+            "heading_error": 0.0,
+            "lane_offset": -3.0,
+        },
+        target_speed_kmh=24.0,
+        min_throttle=0.3,
+    )
+
+    action = get_discrete_action(action_id)
+    assert action.throttle >= 0.3
+    assert action_id != 34
+
+
+def test_collect_episode_records_minimum_throttle_metadata() -> None:
+    episode = collect_episode(
+        _FakeCollectorEnv(),
+        max_steps=5,
+        record_after_route_progress=0.25,
+        min_recorded_steps=2,
+        min_recorded_throttle=0.3,
+    )
+
+    assert episode["metadata"]["min_recorded_throttle"] == 0.3
+
+
 def test_replay_training_exports_clean_eval_loadable_checkpoints(tmp_path) -> None:
     replay_path = save_privileged_replay_episode(
         tmp_path / "episode_target22_0000.npz",
@@ -920,13 +948,16 @@ def test_late_replay_collector_supports_policy_warmup_static_contract() -> None:
     assert "failed_attempts" in collector
     assert "--skip-failed-episodes" in collector
     assert "--max-attempts" in collector
+    assert "--min-recorded-throttle" in collector
     assert "_select_warmup_policy_action" in collector
     assert "warmup_policy_runner.observe_action(action_id)" in collector
     assert '[string]$WarmupPolicyConfig = ""' in wrapper
     assert "[int]$MaxAttempts = 0" in wrapper
     assert "[switch]$SkipFailedEpisodes" in wrapper
+    assert "[double]$MinRecordedThrottle = 0.0" in wrapper
     assert '"--warmup-policy-config", $WarmupPolicyConfig' in wrapper
     assert '"--max-attempts", $MaxAttempts' in wrapper
+    assert '"--min-recorded-throttle", $MinRecordedThrottle' in wrapper
     assert '"--skip-failed-episodes"' in wrapper
 
 
