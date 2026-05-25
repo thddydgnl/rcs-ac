@@ -918,3 +918,56 @@ post-`0.64` action override instead of adding more global route064 replay mass.
 A conservative first probe is action `10` (`throttle=0.3`, `steer=0.1`) in the
 `route_progress=0.64-0.70` window with a moderate override weight, then apply
 the existing target22/steer2 offline gate before any official clean eval.
+
+Route-local override candidate results:
+
+- `5f77791_corr056w4_override10_cuda`:
+  - route-local override: action `10`, route window `0.64-0.70`, weight `2.0`.
+  - CUDA training/checkpoint validation: pass on `NVIDIA GeForce RTX 3080`.
+  - cross replay gate: `ready_for_clean_eval=false`.
+  - target22 passed, but steer2 failed because moving steer was too high:
+    `0.3292117465`.
+  - official clean intentionally skipped.
+- `5f77791_corr056w4_override10w1_cuda`:
+  - same as above with override weight `1.0`.
+  - cross replay gate: `ready_for_clean_eval=false`.
+  - target22 passed, but steer2 again failed with moving steer `0.3307573416`.
+  - official clean intentionally skipped.
+  - interpretation: this pair used different surrounding hyperparameters from
+    the previous `9be6b2f_corr056_w4_speedcap_cuda` candidate, so the excessive
+    steer2 moving-steer rate was not a clean test of override weight alone.
+- `5f77791_corr056w4_override10orig_cuda`:
+  - restored the previous `9be6b2f_corr056_w4_speedcap_cuda` hyperparameters:
+    `imitation_balance_power=0.25`, `steer_sequence_fraction=0.25`,
+    `moving_steer_false_positive_weight=2.0`,
+    `moving_steer_nonmoving_margin_weight=1.0`.
+  - added route-local override: action `10`, route window `0.64-0.70`,
+    weight `1.0`.
+  - CUDA training/checkpoint validation: pass on `NVIDIA GeForce RTX 3080`.
+  - cross replay gate: `ready_for_clean_eval=true`.
+  - target22 action probe:
+    - action counts `{"13":4,"15":110,"16":24,"19":4,"4":16,"7":364}`.
+    - dominant action fraction `0.6973180077`.
+    - moving steer fraction `0.0919540230`.
+  - steer2 action probe:
+    - action counts `{"10":59,"15":84,"4":59,"7":445}`.
+    - dominant action fraction `0.6877897991`.
+    - moving steer fraction `0.1823802164`.
+  - official 512 clean:
+    - run output:
+      `RCS-AC-v2\experiments\02_privileged_policy_clean\windows_512\5f77791_corr056w4_override10orig_cuda_official_clean512`
+    - status: `FAIL`, clean gate pass: `false`.
+    - done reason: `collision`.
+    - steps: `297` / `512`.
+    - route progress: `0.6666666667`.
+    - collision count: `1`, offroad count: `0`.
+    - final action band: action `10` dominated from route `0.6410` through
+      collision at route `0.6667`.
+
+Decision: Stage 2 is not complete, but it is now more diagnosable. The
+route-local override can pass the offline target22/steer2 gate when combined
+with the original corr056 hyperparameters, but action `10` is insufficient to
+clear the route `0.6667` collision. The next Stage 2 candidate should keep the
+same hyperparameters and test a stronger/rightward post-`0.64` target action
+or a short action schedule rather than continuing to increase global replay
+weights.
