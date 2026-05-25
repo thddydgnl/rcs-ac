@@ -106,6 +106,24 @@ if (-not $PlanOnly -and -not $SummarizeOnly) {
     }
     if ($CandidateExitCode -ne 0) {
         Write-Host "STAGE2_LATE_RIGHT_RESUME_CANDIDATE_OK=False"
+        if ($ProbeWhenReady -and (Test-Path $GatePath)) {
+            Write-Host "STAGE2_LATE_RIGHT_RESUME_GATE_EXISTS=True"
+            powershell -ExecutionPolicy Bypass -File $SummaryScript `
+                -ProjectRoot $ProjectRoot `
+                -GatePath $GatePath `
+                -CandidateName late_right_margin `
+                -FallbackCandidateName target22
+            $SummaryExitCode = $LASTEXITCODE
+            if ($SummaryExitCode -eq 4) {
+                Write-Host "STAGE2_LATE_RIGHT_RESUME_GATE_SUMMARY_REJECTED=True"
+            }
+            elseif ($SummaryExitCode -ne 0) {
+                Write-Host "STAGE2_LATE_RIGHT_RESUME_GATE_SUMMARY_OK=False"
+            }
+            else {
+                Write-Host "STAGE2_LATE_RIGHT_RESUME_GATE_SUMMARY_READY_FOR_CLEAN_EVAL=True"
+            }
+        }
         exit 4
     }
     Write-Host "STAGE2_LATE_RIGHT_RESUME_CANDIDATE_OK=True"
