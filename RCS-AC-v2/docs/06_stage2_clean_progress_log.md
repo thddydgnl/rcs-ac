@@ -2096,3 +2096,179 @@ Follow-up:
   not solve the route `0.49-0.54` clean failure. The next implementation patch
   adds a route-window action-logit cap loss so selected high-speed actions are
   pushed below the best non-capped action at the logit/argmax level.
+
+## 2026-05-26 - Route-window action-logit cap candidates
+
+Commit `78fa94b` added a route-window action-logit cap loss to Stage 2 replay
+training and the Windows wrappers. Commit `0382d07` fixed the detached Windows
+training command so the route override max-progress argument is always passed
+before the new logit-cap arguments.
+
+The strong logit-cap candidate
+`78fa94b_mixed_t22_steer2_latecap045_msfpa20_msmm10_logitcap15161921_r048056`
+used BF7 plus:
+
+- `RouteActionLogitCapWeight=4.0`.
+- `RouteActionLogitCapIds=15,16,19,21`.
+- `RouteActionLogitCapMargin=0.20`.
+- route window `0.48-0.56`.
+
+Result: rejected offline, no official clean eval.
+
+- target22 action probe passed:
+  - action counts `{1:2,10:6,13:8,15:390,19:2,4:24,7:90}`.
+  - moving steer fraction `0.0804597701`.
+  - dominant action 15 fraction `0.7471264368`.
+  - latent test accuracy `0.9904761910`.
+- steer2 action probe failed:
+  - action counts `{1:4,10:91,12:2,15:374,4:41,7:135}`.
+  - moving steer fraction `0.2132921175`.
+  - latent test accuracy `0.8923076987`.
+- diagnosis: the loss was too strong and pushed the policy toward action 15
+  globally instead of only removing the clean-failure action tail.
+
+The weak logit-cap candidate
+`0382d07_mixed_t22_steer2_latecap045_msfpa20_msmm10_logitcap15161921_w1m005_r048056`
+used BF7 plus:
+
+- `RouteActionLogitCapWeight=1.0`.
+- `RouteActionLogitCapIds=15,16,19,21`.
+- `RouteActionLogitCapMargin=0.05`.
+- route window `0.48-0.56`.
+
+It trained on Windows CUDA and was also rejected offline:
+
+- target22 action probe passed:
+  - action counts `{1:2,10:6,13:4,15:244,16:2,19:4,4:24,7:236}`.
+  - moving steer fraction `0.0804597701`.
+  - dominant action 15 fraction `0.4674329502`.
+  - latent test accuracy `0.9904761910`.
+- steer2 action probe failed:
+  - action counts `{1:4,10:91,12:2,15:224,4:40,7:286}`.
+  - moving steer fraction `0.2117465224`.
+  - latent test accuracy `0.8923076987`.
+
+Decision:
+
+- Do not run official CARLA eval for either logit-cap candidate.
+- The route `0.48-0.56` family repeatedly fails the steer2 offline gate around
+  moving-steer fraction `0.211-0.213`, while BF7 without the added cap already
+  passed steer2 at `0.1978361669`.
+- The clean bottleneck is not solved by suppressing individual high-right or
+  high-throttle actions after BF7. That search tends to shift the policy toward
+  action 15 or slightly increase mid-route false-positive steering.
+- The next candidate should be a narrower, less global intervention: either
+  re-collect the route `0.49-0.56` failure-window replay at a lower target speed
+  so labels encode the slower correction directly, or use a very narrow
+  route-progress action override/cap that is checked offline before any CARLA
+  command.
+
+## 2026-05-26 - BF7 route 0.50 correction replay branch
+
+The narrow action-override probe
+`0382d07_mixed_t22_steer2_latecap045_msfpa20_msmm10_override5w050_r048056`
+kept BF7 and added:
+
+- `RouteActionOverrideWeight=0.5`.
+- `RouteActionOverrideId=5`.
+- route window `0.48-0.56`.
+
+Result: rejected offline, no official clean eval.
+
+- target22 passed:
+  - action counts `{1:2,10:8,12:4,13:2,15:408,16:2,19:6,4:20,7:70}`.
+  - moving steer fraction `0.0842911877`.
+  - dominant action 15 fraction `0.7816091954`.
+  - latent test accuracy `0.9904761910`.
+- steer2 failed:
+  - action counts `{1:2,10:89,12:2,15:238,4:42,5:6,7:268}`.
+  - moving steer fraction `0.2086553323`.
+  - zero-throttle action 5 appeared only 6/647 times.
+  - latent test accuracy `0.8923076987`.
+
+Decision: a direct route override in the existing mixed replay is not enough.
+It does not teach the official failure band strongly enough and still fails the
+steer2 action gate.
+
+A new BF7-warmup correction replay was collected from the official failure
+band:
+
+- output:
+  `RCS-AC-v2\experiments\02_privileged_policy_clean\replay\bf7_route050_collision_window_t12_min5`.
+- collection config:
+  - BF7 checkpoint-filled config as both runtime and warmup policy.
+  - target speed `12 km/h`.
+  - record after route progress `0.50`.
+  - `4` episodes, `256` max steps, `12` max attempts, skip failed episodes.
+- manifest written with clean_gate_evidence=false.
+
+Two BF7-base mixed-replay candidates used this replay as `corr050` with
+target22 and steer2:
+
+- `0382d07_corr050_t12_w025_bf7base`:
+  - mixed replay: `8` episodes, `1209` steps.
+  - component weights: `target22=1,steer2=1,corr050=0.25`.
+  - target22 passed:
+    - action counts `{1:2,10:8,13:2,15:244,16:4,19:4,4:22,7:236}`.
+    - moving steer fraction `0.0804597701`.
+    - latent test accuracy `0.9904761910`.
+  - steer2 failed:
+    - action counts `{1:4,10:91,12:2,15:213,4:40,7:297}`.
+    - moving steer fraction `0.2117465224`.
+    - latent test accuracy `0.8923076987`.
+- `0382d07_corr050_t12_w010_bf7base`:
+  - component weights: `target22=1,steer2=1,corr050=0.10`.
+  - target22 and steer2 probes matched the w0.25 action distributions.
+  - steer2 again failed with moving steer fraction `0.2117465224`.
+
+Decision:
+
+- Do not run official CARLA eval for the t12 correction candidates.
+- Lowering the correction component weight did not change the offline action
+  distribution, so t12 correction labels are not resolving the steer2
+  false-positive steering boundary.
+- Continue with a medium-speed correction replay at target speed `16 km/h`
+  before changing the training objective again.
+
+The medium-speed BF7-warmup correction replay was then collected:
+
+- output:
+  `RCS-AC-v2\experiments\02_privileged_policy_clean\replay\bf7_route050_collision_window_t16_min5`.
+- collection config:
+  - BF7 checkpoint-filled config as both runtime and warmup policy.
+  - target speed `16 km/h`.
+  - record after route progress `0.50`.
+  - `4` episodes, `256` max steps, `12` max attempts, skip failed episodes.
+
+Two t16 candidates were trained:
+
+- `0382d07_corr050_t16_w025_bf7base`:
+  - component weights: `target22=1,steer2=1,corr050=0.25`.
+  - target22 passed with the same healthy distribution as t12:
+    `{1:2,10:8,13:2,15:244,16:4,19:4,4:22,7:236}`.
+  - steer2 failed:
+    - action counts `{1:4,10:91,12:2,15:213,4:40,7:297}`.
+    - moving steer fraction `0.2117465224`.
+    - latent test accuracy `0.8923076987`.
+- `0382d07_corr050_t16_w025_msfpa30_bf7base`:
+  - same t16 mixed replay and component weights.
+  - raised `MovingSteerFalsePositiveWeight` from `2.0` to `3.0`.
+  - target22 again passed with the same distribution.
+  - steer2 again failed with the same action counts and moving steer fraction
+    `0.2117465224`.
+
+Decision:
+
+- Do not run official CARLA eval for the t16 or msfpa30 candidates.
+- The corr050 branch is not moving the policy distribution in the problematic
+  steer2 bins, even when the correction replay target speed changes from `12`
+  to `16` and the false-positive weight increases to `3.0`.
+- The current repeated failure is now more structural than a single route-local
+  replay weight: target22 remains healthy, but steer2 repeatedly sticks at
+  `{10:91,15:213,7:297}` and moving steer `0.2117465224`.
+- Next work should inspect why the mixed replay sampler/training objective maps
+  these candidates to the same steer2 logits before running more CARLA. A useful
+  next diagnostic is to compare per-component sampled batches and per-component
+  validation action probes for `target22`, `steer2`, and `corr050` inside the
+  replay trainer, then decide whether the policy needs a component-aware loss or
+  a stricter steer2 false-positive objective.

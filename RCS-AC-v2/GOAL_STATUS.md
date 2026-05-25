@@ -19,7 +19,7 @@ Stage 2: Privileged policy clean
 Status:
 
 ```text
-STAGE2_CLEAN_FIRST_WINDOWS_CUDA_THROTTLE_CEILING_CANDIDATE_IN_PROGRESS
+STAGE2_CLEAN_FIRST_CORR050_BRANCH_REJECTED_OFFLINE
 ```
 
 Last completed stage:
@@ -69,9 +69,11 @@ false-positive steering. BF7 combined the late cap with false-positive and
 non-moving margin losses and passed the target22/steer2 cross-replay gate, but
 official 512 clean failed at route_progress=0.5384615385. Diagnostic forbidden
 action runs for 19, then 16/19, then 16/19/21 shifted collision to offroad but
-did not improve route progress. The current next candidate should preserve BF7
-and add a route-window throttle ceiling around route 0.48-0.56. No raw/fusion
-work should start before privileged 512 clean is stable.
+did not improve route progress. The subsequent throttle-ceiling, high-throttle
+mass-cap, action15-mask, and route-window action-logit-cap candidates were all
+rejected offline before official clean eval; their common failure mode is
+steer2 moving-steer fraction just above the 0.20 gate. No raw/fusion work should
+start before privileged 512 clean is stable.
 ```
 
 Pending brief:
@@ -283,6 +285,32 @@ steer2 still exceeded the moving-steer gate at 0.2040185471. Soft throttle/mass
 caps are not changing argmax enough. The current code patch adds
 RouteActionLogitCap* so route-window high-speed action ids can be pushed below
 the best non-capped action at the logit level before another CUDA candidate.
+2026-05-26 strong and weak RouteActionLogitCap candidates were both rejected
+offline before official CARLA eval. Strong weight pushed action 15 dominance
+too high and still failed steer2; weak weight reduced the disturbance but again
+failed steer2 at moving_steer_fraction=0.2117465224. Current active Windows
+CUDA task is
+0382d07_mixed_t22_steer2_latecap045_msfpa20_msmm10_override5w050_r048056,
+which preserves BF7 and trains zero-throttle action 5 in route 0.48-0.56 with
+RouteActionOverrideWeight=0.5. Poll RCSV2Stage2Override5W050R048056; if it
+passes target22/steer2 cross replay gate, run CARLA readiness guard before a
+single official 512 clean eval. If it fails offline, reject without CARLA.
+2026-05-26 override5w050 was rejected offline: target22 passed but steer2
+failed at moving_steer_fraction=0.2086553323, with action 5 appearing only
+6/647 times. A BF7-warmup route050 correction replay at target speed 12 was
+collected, then corr050_t12 weights 0.25 and 0.10 were trained on Windows CUDA.
+Both were rejected offline because steer2 stayed at moving_steer_fraction
+0.2117465224 while target22 remained healthy. Current active Windows CUDA task
+is 0382d07_corr050_t16_w025_bf7base, using a target-speed-16 route050
+correction replay. Poll RCSV2Stage2Corr050T16W025; only run official 512 if
+target22/steer2 cross replay gate reports ready_for_clean_eval=true.
+2026-05-26 corr050_t16_w025 and corr050_t16_w025_msfpa30 were also rejected
+offline. Both preserved target22 but failed steer2 with the same action counts
+{1:4,10:91,12:2,15:213,4:40,7:297} and moving_steer_fraction=0.2117465224.
+No official CARLA eval was run for these candidates. Next work should stop
+plain corr050 replay-weight sweeps and inspect per-component sampler/loss
+behavior or add a component-aware steer2 false-positive diagnostic before
+another CUDA candidate.
 do not treat the 128 PASS as full clean completion
 use SSH remote on Windows; HTTPS prompts for credentials
 use the v2-local minimal shared_core env builder by default; pass explicit dependency overrides only for local experiments
