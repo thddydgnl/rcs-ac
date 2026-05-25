@@ -670,6 +670,7 @@ def test_stage2_replay_training_wrappers_expose_moving_steer_false_positive_stat
     assert '$TrainArgs += @("--action-mass-cap", $ActionMassCaps)' in train
     assert "[double]$ActionMassCapWeight = 0.0" in start
     assert "[string]$ActionMassCaps = \"\"" in start
+    assert "[AllowEmptyString()][string]$Value" in start
     assert "-ActionMassCapWeight $ActionMassCapWeight" in start
     assert "-ActionMassCaps $QuotedActionMassCaps" in start
     assert "action_mass_cap_weight = $ActionMassCapWeight" in start

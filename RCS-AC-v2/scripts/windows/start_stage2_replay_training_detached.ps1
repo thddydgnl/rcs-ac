@@ -39,7 +39,7 @@ param(
 $ErrorActionPreference = "Stop"
 
 function Quote-PowerShellString {
-    param([Parameter(Mandatory = $true)][string]$Value)
+    param([Parameter(Mandatory = $true)][AllowEmptyString()][string]$Value)
     return "'" + ($Value -replace "'", "''") + "'"
 }
 
