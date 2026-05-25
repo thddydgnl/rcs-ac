@@ -142,17 +142,23 @@ Write-Host "MIXED_CANDIDATE_CHECK_EXIT_CODE=$CheckExitCode"
 if ($CheckExitCode -eq 0) {
     Write-Host "MIXED_CANDIDATE_TRAIN_READY_FOR_PROBE=True"
     if ($ProbeWhenReady) {
-        powershell -ExecutionPolicy Bypass -File $CrossProbeScript `
-            -ProjectRoot $ProjectRoot `
-            -ConfigPath $ConfigPath `
-            -CheckpointManifestPath $CheckpointManifestPath `
-            -OutputDir $CrossProbeOutputDir `
-            -PrimaryReplayName $PrimaryReplayName `
-            -PrimaryReplayManifestPath $PrimaryReplayManifestPath `
-            -SecondaryReplayName $SecondaryReplayName `
-            -SecondaryReplayManifestPath $SecondaryReplayManifestPath `
-            -ForbiddenActionIds $ForbiddenActionIds `
-            -Device $Device
+        $CrossProbeArgs = @(
+            "-ExecutionPolicy", "Bypass",
+            "-File", $CrossProbeScript,
+            "-ProjectRoot", $ProjectRoot,
+            "-ConfigPath", $ConfigPath,
+            "-CheckpointManifestPath", $CheckpointManifestPath,
+            "-OutputDir", $CrossProbeOutputDir,
+            "-PrimaryReplayName", $PrimaryReplayName,
+            "-PrimaryReplayManifestPath", $PrimaryReplayManifestPath,
+            "-SecondaryReplayName", $SecondaryReplayName,
+            "-SecondaryReplayManifestPath", $SecondaryReplayManifestPath,
+            "-Device", $Device
+        )
+        if ($ForbiddenActionIds -ne "") {
+            $CrossProbeArgs += @("-ForbiddenActionIds", $ForbiddenActionIds)
+        }
+        powershell @CrossProbeArgs
         exit $LASTEXITCODE
     }
     exit 0

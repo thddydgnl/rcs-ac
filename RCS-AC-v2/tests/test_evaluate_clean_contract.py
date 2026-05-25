@@ -569,7 +569,8 @@ def test_stage2_cross_probe_wrappers_support_forbidden_action_ids_static_contrac
     assert "$ResolvedForbiddenActionIds = @()" in cross_probe
     assert '-ForbiddenActionIds ($ResolvedForbiddenActionIds -join ",")' in cross_probe
     assert '[string]$ForbiddenActionIds = ""' in mixed_cycle
-    assert "-ForbiddenActionIds $ForbiddenActionIds" in mixed_cycle
+    assert '$CrossProbeArgs += @("-ForbiddenActionIds", $ForbiddenActionIds)' in mixed_cycle
+    assert 'if ($ForbiddenActionIds -ne "")' in mixed_cycle
     assert 'parser.add_argument("--forbidden-action-id", action="append", type=int, default=[])' in python_probe
     assert "forbidden_action_ids=tuple(args.forbidden_action_id)" in python_probe
     assert '"forbidden_action_ids"' in python_probe
@@ -716,8 +717,8 @@ def test_mixed_candidate_cycle_runner_static_contract() -> None:
     assert "MIXED_CANDIDATE_TRAIN_RUNNING=True" in text
     assert "MIXED_CANDIDATE_TRAIN_READY_FOR_PROBE=True" in text
     assert "-ReplayPath $MixedReplayDir" in text
-    assert "-PrimaryReplayManifestPath $PrimaryReplayManifestPath" in text
-    assert "-SecondaryReplayManifestPath $SecondaryReplayManifestPath" in text
+    assert '"-PrimaryReplayManifestPath", $PrimaryReplayManifestPath' in text
+    assert '"-SecondaryReplayManifestPath", $SecondaryReplayManifestPath' in text
     assert "[double]$SteerSequenceFraction = 0.15" in text
     assert "[int]$Seed = 20260524" in text
 
