@@ -48,6 +48,7 @@ from rcs_ac_v2.training.train_stage2_privileged_from_replay import (
     _moving_steer_action_ids,
     _parse_action_mass_cap_args,
     _parse_component_sample_weight_args,
+    _route_speed_action_mass_cap_loss,
     train_stage2_privileged_from_replay,
 )
 
@@ -377,6 +378,12 @@ def test_replay_training_exports_clean_eval_loadable_checkpoints(tmp_path) -> No
         component_sample_weights={"target22": 0.5},
         action_mass_cap_weight=0.2,
         action_mass_caps={7: 0.7, 15: 0.55},
+        route_speed_action_mass_cap_weight=0.3,
+        route_speed_action_ids=(7, 15),
+        route_speed_action_mass_cap=0.4,
+        route_speed_min_speed_norm=0.75,
+        route_speed_min_route_progress=0.55,
+        route_speed_max_route_progress=0.75,
         hidden_dim=32,
         device="cpu",
     )
@@ -412,11 +419,18 @@ def test_replay_training_exports_clean_eval_loadable_checkpoints(tmp_path) -> No
     assert manifest["component_sample_weights"] == {"target22": 0.5}
     assert manifest["action_mass_cap_weight"] == 0.2
     assert manifest["action_mass_caps"] == {"7": 0.7, "15": 0.55}
+    assert manifest["route_speed_action_mass_cap_weight"] == 0.3
+    assert manifest["route_speed_action_ids"] == [7, 15]
+    assert manifest["route_speed_action_mass_cap"] == 0.4
+    assert manifest["route_speed_min_speed_norm"] == 0.75
+    assert manifest["route_speed_min_route_progress"] == 0.55
+    assert manifest["route_speed_max_route_progress"] == 0.75
     assert manifest["world_model"]["metrics"]["final_action_aux"] >= 0.0
     assert manifest["policy"]["metrics"]["final_moving_steer_false_positive"] >= 0.0
     assert manifest["policy"]["metrics"]["final_moving_steer_binary"] >= 0.0
     assert manifest["policy"]["metrics"]["final_moving_steer_nonmoving_margin"] >= 0.0
     assert manifest["policy"]["metrics"]["final_action_mass_cap"] >= 0.0
+    assert manifest["policy"]["metrics"]["final_route_speed_action_mass_cap"] >= 0.0
     assert manifest["sampler"]["requested_priority_sample_fraction"] == 0.0
     assert "priority_window_count" in manifest["sampler"]
     assert manifest["sampler"]["episode_sample_probabilities"] == [1.0]
@@ -473,6 +487,36 @@ def test_action_mass_cap_loss_penalizes_over_cap_action_mass() -> None:
     assert caps == {7: 0.25, 15: 0.5}
     assert high_loss > low_loss
     assert empty_loss.item() == pytest.approx(0.0)
+
+
+def test_route_speed_action_mass_cap_loss_is_conditional_on_ego_window() -> None:
+    logits = torch.zeros(1, 3, 39)
+    logits[..., 15] = 8.0
+    ego = torch.zeros(1, 3, 8)
+    ego[..., 0] = torch.tensor([[0.9, 0.4, 0.9]])
+    ego[..., 1] = torch.tensor([[0.6, 0.6, 0.9]])
+
+    active_loss = _route_speed_action_mass_cap_loss(
+        logits=logits,
+        privileged_ego=ego,
+        action_ids=(15,),
+        cap=0.2,
+        min_speed_norm=0.8,
+        min_route_progress=0.55,
+        max_route_progress=0.75,
+    )
+    inactive_loss = _route_speed_action_mass_cap_loss(
+        logits=logits,
+        privileged_ego=ego,
+        action_ids=(15,),
+        cap=0.2,
+        min_speed_norm=1.0,
+        min_route_progress=0.55,
+        max_route_progress=0.75,
+    )
+
+    assert active_loss.item() > 0.0
+    assert inactive_loss.item() == pytest.approx(0.0)
 
 
 def test_moving_steer_false_positive_loss_penalizes_nonmoving_labels() -> None:

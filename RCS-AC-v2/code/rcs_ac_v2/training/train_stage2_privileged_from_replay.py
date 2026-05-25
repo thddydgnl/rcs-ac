@@ -61,6 +61,12 @@ def train_stage2_privileged_from_replay(
     component_sample_weights: dict[str, float] | None = None,
     action_mass_cap_weight: float = 0.0,
     action_mass_caps: dict[int, float] | None = None,
+    route_speed_action_mass_cap_weight: float = 0.0,
+    route_speed_action_ids: tuple[int, ...] = (),
+    route_speed_action_mass_cap: float = 1.0,
+    route_speed_min_speed_norm: float = 0.0,
+    route_speed_min_route_progress: float = 0.0,
+    route_speed_max_route_progress: float = 1.0,
     hidden_dim: int = 128,
     device: str = "cuda",
 ) -> ReplayTrainingResult:
@@ -78,6 +84,19 @@ def train_stage2_privileged_from_replay(
         raise ValueError("moving_steer_nonmoving_margin must be non-negative")
     if action_mass_cap_weight < 0.0:
         raise ValueError("action_mass_cap_weight must be non-negative")
+    if route_speed_action_mass_cap_weight < 0.0:
+        raise ValueError("route_speed_action_mass_cap_weight must be non-negative")
+    resolved_route_speed_action_ids = _normalize_action_id_tuple(route_speed_action_ids)
+    if not 0.0 <= float(route_speed_action_mass_cap) <= 1.0:
+        raise ValueError("route_speed_action_mass_cap must be in [0, 1]")
+    if not 0.0 <= float(route_speed_min_speed_norm) <= 1.0:
+        raise ValueError("route_speed_min_speed_norm must be in [0, 1]")
+    if not 0.0 <= float(route_speed_min_route_progress) <= 1.0:
+        raise ValueError("route_speed_min_route_progress must be in [0, 1]")
+    if not 0.0 <= float(route_speed_max_route_progress) <= 1.0:
+        raise ValueError("route_speed_max_route_progress must be in [0, 1]")
+    if float(route_speed_min_route_progress) > float(route_speed_max_route_progress):
+        raise ValueError("route_speed_min_route_progress must be <= route_speed_max_route_progress")
     seed_everything(seed)
     resolved_device = _resolve_device(device)
     output = Path(output_dir)
@@ -207,6 +226,15 @@ def train_stage2_privileged_from_replay(
             logits=replay_policy.logits,
             action_mass_caps=resolved_action_mass_caps,
         )
+        route_speed_action_mass_cap_loss = _route_speed_action_mass_cap_loss(
+            logits=replay_policy.logits,
+            privileged_ego=batch.privileged_ego,
+            action_ids=resolved_route_speed_action_ids,
+            cap=route_speed_action_mass_cap,
+            min_speed_norm=route_speed_min_speed_norm,
+            min_route_progress=route_speed_min_route_progress,
+            max_route_progress=route_speed_max_route_progress,
+        )
         total_loss = (
             float(behavior_weight) * losses.total
             + float(imitation_weight) * imitation_loss
@@ -214,6 +242,7 @@ def train_stage2_privileged_from_replay(
             + float(moving_steer_binary_weight) * moving_steer_binary_loss
             + float(moving_steer_nonmoving_margin_weight) * moving_steer_nonmoving_margin_loss
             + float(action_mass_cap_weight) * action_mass_cap_loss
+            + float(route_speed_action_mass_cap_weight) * route_speed_action_mass_cap_loss
         )
         total_loss.backward()
         torch.nn.utils.clip_grad_norm_(policy.parameters(), max_norm=10.0)
@@ -228,6 +257,9 @@ def train_stage2_privileged_from_replay(
             moving_steer_nonmoving_margin_loss.detach().cpu().item()
         )
         scalars["action_mass_cap"] = float(action_mass_cap_loss.detach().cpu().item())
+        scalars["route_speed_action_mass_cap"] = float(
+            route_speed_action_mass_cap_loss.detach().cpu().item()
+        )
         scalars["combined_total"] = float(total_loss.detach().cpu().item())
         policy_history.append(scalars)
         valid_action_ids = bool(
@@ -259,6 +291,12 @@ def train_stage2_privileged_from_replay(
         "component_sample_weights": resolved_component_weights,
         "action_mass_cap_weight": float(action_mass_cap_weight),
         "action_mass_caps": {str(key): value for key, value in resolved_action_mass_caps.items()},
+        "route_speed_action_mass_cap_weight": float(route_speed_action_mass_cap_weight),
+        "route_speed_action_ids": list(resolved_route_speed_action_ids),
+        "route_speed_action_mass_cap": float(route_speed_action_mass_cap),
+        "route_speed_min_speed_norm": float(route_speed_min_speed_norm),
+        "route_speed_min_route_progress": float(route_speed_min_route_progress),
+        "route_speed_max_route_progress": float(route_speed_max_route_progress),
         "sampler": sampler_stats,
         "replay_manifest": {
             "path": str(replay_manifest_path),
@@ -304,6 +342,9 @@ def train_stage2_privileged_from_replay(
                     "moving_steer_nonmoving_margin"
                 ],
                 "final_action_mass_cap": policy_history[-1]["action_mass_cap"],
+                "final_route_speed_action_mass_cap": policy_history[-1][
+                    "route_speed_action_mass_cap"
+                ],
                 "final_actor": policy_history[-1]["actor"],
                 "final_critic": policy_history[-1]["critic"],
                 "final_entropy": policy_history[-1]["entropy"],
@@ -341,6 +382,9 @@ def train_stage2_privileged_from_replay(
                     "moving_steer_nonmoving_margin"
                 ],
                 "final_action_mass_cap": policy_history[-1]["action_mass_cap"],
+                "final_route_speed_action_mass_cap": policy_history[-1][
+                    "route_speed_action_mass_cap"
+                ],
                 "valid_action_ids": valid_action_ids,
             },
         },
@@ -396,6 +440,12 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--component-sample-weight", action="append", default=[])
     parser.add_argument("--action-mass-cap-weight", type=float, default=0.0)
     parser.add_argument("--action-mass-cap", action="append", default=[])
+    parser.add_argument("--route-speed-action-mass-cap-weight", type=float, default=0.0)
+    parser.add_argument("--route-speed-action-ids", default="")
+    parser.add_argument("--route-speed-action-mass-cap", type=float, default=1.0)
+    parser.add_argument("--route-speed-min-speed-norm", type=float, default=0.0)
+    parser.add_argument("--route-speed-min-route-progress", type=float, default=0.0)
+    parser.add_argument("--route-speed-max-route-progress", type=float, default=1.0)
     parser.add_argument("--hidden-dim", type=int, default=128)
     parser.add_argument("--device", default="cuda")
     args = parser.parse_args(argv)
@@ -423,6 +473,12 @@ def main(argv: list[str] | None = None) -> None:
         component_sample_weights=_parse_component_sample_weight_args(args.component_sample_weight),
         action_mass_cap_weight=args.action_mass_cap_weight,
         action_mass_caps=_parse_action_mass_cap_args(args.action_mass_cap),
+        route_speed_action_mass_cap_weight=args.route_speed_action_mass_cap_weight,
+        route_speed_action_ids=_parse_action_id_list(args.route_speed_action_ids),
+        route_speed_action_mass_cap=args.route_speed_action_mass_cap,
+        route_speed_min_speed_norm=args.route_speed_min_speed_norm,
+        route_speed_min_route_progress=args.route_speed_min_route_progress,
+        route_speed_max_route_progress=args.route_speed_max_route_progress,
         hidden_dim=args.hidden_dim,
         device=args.device,
     )
@@ -521,6 +577,23 @@ def _normalize_action_mass_caps(caps: dict[int, float] | None) -> dict[int, floa
             raise ValueError("action mass caps must be in [0, 1]")
         normalized[action_id] = cap
     return normalized
+
+
+def _parse_action_id_list(value: str) -> tuple[int, ...]:
+    if str(value).strip() == "":
+        return ()
+    return _normalize_action_id_tuple(tuple(int(item.strip()) for item in str(value).split(",") if item.strip()))
+
+
+def _normalize_action_id_tuple(action_ids: tuple[int, ...]) -> tuple[int, ...]:
+    normalized: list[int] = []
+    for raw_action_id in action_ids:
+        action_id = int(raw_action_id)
+        if action_id < 0 or action_id >= len(RAW2DRIVE_ACTIONS):
+            raise ValueError(f"action_id must be in [0, {len(RAW2DRIVE_ACTIONS) - 1}]")
+        if action_id not in normalized:
+            normalized.append(action_id)
+    return tuple(normalized)
 
 
 def _make_episode_sample_weights(
@@ -624,6 +697,36 @@ def _action_mass_cap_loss(
         for action_id, cap in action_mass_caps.items()
     ]
     return torch.stack(penalties).mean()
+
+
+def _route_speed_action_mass_cap_loss(
+    *,
+    logits: torch.Tensor,
+    privileged_ego: torch.Tensor,
+    action_ids: tuple[int, ...],
+    cap: float,
+    min_speed_norm: float,
+    min_route_progress: float,
+    max_route_progress: float,
+) -> torch.Tensor:
+    flat_logits = logits.reshape(-1, logits.shape[-1])
+    if not action_ids:
+        return flat_logits.sum() * 0.0
+    flat_ego = privileged_ego.reshape(-1, privileged_ego.shape[-1])
+    speed_norm = flat_ego[:, 0]
+    route_progress = flat_ego[:, 1]
+    mask = (
+        (speed_norm >= float(min_speed_norm))
+        & (route_progress >= float(min_route_progress))
+        & (route_progress <= float(max_route_progress))
+    )
+    selected_logits = flat_logits[mask]
+    if int(selected_logits.shape[0]) == 0:
+        return flat_logits.sum() * 0.0
+    probs = torch.softmax(selected_logits, dim=-1)
+    ids = torch.as_tensor(action_ids, dtype=torch.long, device=logits.device)
+    selected_mass = probs.index_select(dim=-1, index=ids).sum(dim=-1)
+    return F.relu(selected_mass - float(cap)).pow(2).mean()
 
 
 def _world_model_action_auxiliary_loss(

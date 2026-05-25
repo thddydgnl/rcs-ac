@@ -679,6 +679,23 @@ def test_stage2_replay_training_wrappers_expose_moving_steer_false_positive_stat
     assert "-ActionMassCapWeight $ActionMassCapWeight" in mixed
     assert "-ActionMassCaps $ActionMassCaps" in mixed
 
+    assert "--route-speed-action-mass-cap-weight" in module
+    assert "--route-speed-action-ids" in module
+    assert "[double]$RouteSpeedActionMassCapWeight = 0.0" in train
+    assert "[string]$RouteSpeedActionIds = \"\"" in train
+    assert '"--route-speed-action-mass-cap-weight", $RouteSpeedActionMassCapWeight' in train
+    assert '$TrainArgs += @("--route-speed-action-ids", $RouteSpeedActionIds)' in train
+    assert "[double]$RouteSpeedActionMassCapWeight = 0.0" in start
+    assert "[string]$RouteSpeedActionIds = \"\"" in start
+    assert "-RouteSpeedActionMassCapWeight $RouteSpeedActionMassCapWeight" in start
+    assert "-RouteSpeedActionIds $QuotedRouteSpeedActionIds" in start
+    assert "route_speed_action_mass_cap_weight = $RouteSpeedActionMassCapWeight" in start
+    assert "route_speed_action_ids = $RouteSpeedActionIds" in start
+    assert "[double]$RouteSpeedActionMassCapWeight = 0.0" in mixed
+    assert "[string]$RouteSpeedActionIds = \"\"" in mixed
+    assert "-RouteSpeedActionMassCapWeight $RouteSpeedActionMassCapWeight" in mixed
+    assert "-RouteSpeedActionIds $RouteSpeedActionIds" in mixed
+
 
 def test_cross_replay_candidate_probe_runner_static_contract() -> None:
     script = Path(__file__).resolve().parents[1] / "scripts" / "windows" / "probe_stage2_candidate_cross_replays.ps1"

@@ -22,6 +22,12 @@ param(
     [string]$ComponentSampleWeights = "",
     [double]$ActionMassCapWeight = 0.0,
     [string]$ActionMassCaps = "",
+    [double]$RouteSpeedActionMassCapWeight = 0.0,
+    [string]$RouteSpeedActionIds = "",
+    [double]$RouteSpeedActionMassCap = 1.0,
+    [double]$RouteSpeedMinSpeedNorm = 0.0,
+    [double]$RouteSpeedMinRouteProgress = 0.0,
+    [double]$RouteSpeedMaxRouteProgress = 1.0,
     [int]$HiddenDim = 128,
     [string]$Device = "cuda"
 )
@@ -64,6 +70,11 @@ $TrainArgs = @(
     "--moving-steer-nonmoving-margin", $MovingSteerNonmovingMargin,
     "--world-model-action-aux-weight", $WorldModelActionAuxWeight,
     "--action-mass-cap-weight", $ActionMassCapWeight,
+    "--route-speed-action-mass-cap-weight", $RouteSpeedActionMassCapWeight,
+    "--route-speed-action-mass-cap", $RouteSpeedActionMassCap,
+    "--route-speed-min-speed-norm", $RouteSpeedMinSpeedNorm,
+    "--route-speed-min-route-progress", $RouteSpeedMinRouteProgress,
+    "--route-speed-max-route-progress", $RouteSpeedMaxRouteProgress,
     "--hidden-dim", $HiddenDim,
     "--device", $Device
 )
@@ -72,6 +83,9 @@ if ($ComponentSampleWeights -ne "") {
 }
 if ($ActionMassCaps -ne "") {
     $TrainArgs += @("--action-mass-cap", $ActionMassCaps)
+}
+if ($RouteSpeedActionIds -ne "") {
+    $TrainArgs += @("--route-speed-action-ids", $RouteSpeedActionIds)
 }
 if ($ImitationClassBalance) {
     $TrainArgs += "--imitation-class-balance"

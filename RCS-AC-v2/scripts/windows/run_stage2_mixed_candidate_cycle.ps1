@@ -36,6 +36,12 @@ param(
     [string]$ComponentSampleWeights = "",
     [double]$ActionMassCapWeight = 0.0,
     [string]$ActionMassCaps = "",
+    [double]$RouteSpeedActionMassCapWeight = 0.0,
+    [string]$RouteSpeedActionIds = "",
+    [double]$RouteSpeedActionMassCap = 1.0,
+    [double]$RouteSpeedMinSpeedNorm = 0.0,
+    [double]$RouteSpeedMinRouteProgress = 0.0,
+    [double]$RouteSpeedMaxRouteProgress = 1.0,
     [int]$HiddenDim = 128,
     [string]$ForbiddenActionIds = "",
     [string]$Device = "cuda"
@@ -226,6 +232,12 @@ $LatestPointer = [ordered]@{
     component_sample_weights = $ComponentSampleWeights
     action_mass_cap_weight = $ActionMassCapWeight
     action_mass_caps = $ActionMassCaps
+    route_speed_action_mass_cap_weight = $RouteSpeedActionMassCapWeight
+    route_speed_action_ids = $RouteSpeedActionIds
+    route_speed_action_mass_cap = $RouteSpeedActionMassCap
+    route_speed_min_speed_norm = $RouteSpeedMinSpeedNorm
+    route_speed_min_route_progress = $RouteSpeedMinRouteProgress
+    route_speed_max_route_progress = $RouteSpeedMaxRouteProgress
     updated_at = (Get-Date -Format o)
 }
 $LatestPointer | ConvertTo-Json -Depth 4 | Set-Content -Path $LatestPointerPath
@@ -256,6 +268,12 @@ powershell -ExecutionPolicy Bypass -File $StartScript `
     -ComponentSampleWeights $ComponentSampleWeights `
     -ActionMassCapWeight $ActionMassCapWeight `
     -ActionMassCaps $ActionMassCaps `
+    -RouteSpeedActionMassCapWeight $RouteSpeedActionMassCapWeight `
+    -RouteSpeedActionIds $RouteSpeedActionIds `
+    -RouteSpeedActionMassCap $RouteSpeedActionMassCap `
+    -RouteSpeedMinSpeedNorm $RouteSpeedMinSpeedNorm `
+    -RouteSpeedMinRouteProgress $RouteSpeedMinRouteProgress `
+    -RouteSpeedMaxRouteProgress $RouteSpeedMaxRouteProgress `
     -HiddenDim $HiddenDim `
     -Device $Device `
     -TaskName $TaskName

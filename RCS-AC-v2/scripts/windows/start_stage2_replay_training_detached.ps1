@@ -22,6 +22,12 @@ param(
     [string]$ComponentSampleWeights = "",
     [double]$ActionMassCapWeight = 0.0,
     [string]$ActionMassCaps = "",
+    [double]$RouteSpeedActionMassCapWeight = 0.0,
+    [string]$RouteSpeedActionIds = "",
+    [double]$RouteSpeedActionMassCap = 1.0,
+    [double]$RouteSpeedMinSpeedNorm = 0.0,
+    [double]$RouteSpeedMinRouteProgress = 0.0,
+    [double]$RouteSpeedMaxRouteProgress = 1.0,
     [int]$HiddenDim = 128,
     [string]$Device = "cuda",
     [string]$LogPath = "",
@@ -65,6 +71,7 @@ $QuotedOutputDir = Quote-PowerShellString $ResolvedOutputDir
 $QuotedDevice = Quote-PowerShellString $Device
 $QuotedComponentSampleWeights = Quote-PowerShellString $ComponentSampleWeights
 $QuotedActionMassCaps = Quote-PowerShellString $ActionMassCaps
+$QuotedRouteSpeedActionIds = Quote-PowerShellString $RouteSpeedActionIds
 $QuotedLogPath = Quote-PowerShellString $ResolvedLogPath
 $InnerScriptPath = Join-Path $ResolvedOutputDir "train_stage2_privileged_from_replay.detached.ps1"
 $QuotedInnerScriptPath = Quote-PowerShellString $InnerScriptPath
@@ -79,7 +86,7 @@ $InnerCommand = @"
 "DETACHED_TRAIN_STARTED=`$(Get-Date -Format o)" | Set-Content -Path `$LogPath
 try {
     Set-Location $QuotedProjectRoot
-    powershell -ExecutionPolicy Bypass -File $QuotedTrainingScript -ProjectRoot $QuotedProjectRoot -ReplayPath $QuotedReplayPath -ReplayManifestPath $QuotedReplayManifestPath -OutputDir $QuotedOutputDir -Seed $Seed -SequenceLength $SequenceLength -BatchSize $BatchSize -WorldModelSteps $WorldModelSteps -PolicySteps $PolicySteps -LearningRate $LearningRate -ImitationWeight $ImitationWeight -BehaviorWeight $BehaviorWeight -ImitationBalancePower $ImitationBalancePower -SteerSequenceFraction $SteerSequenceFraction -MovingSteerFalsePositiveWeight $MovingSteerFalsePositiveWeight -MovingSteerBinaryWeight $MovingSteerBinaryWeight -MovingSteerNonmovingMarginWeight $MovingSteerNonmovingMarginWeight -MovingSteerNonmovingMargin $MovingSteerNonmovingMargin -WorldModelActionAuxWeight $WorldModelActionAuxWeight -ComponentSampleWeights $QuotedComponentSampleWeights -ActionMassCapWeight $ActionMassCapWeight -ActionMassCaps $QuotedActionMassCaps$ImitationClassBalanceArg -HiddenDim $HiddenDim -Device $QuotedDevice *>&1 | Tee-Object -FilePath `$LogPath -Append
+    powershell -ExecutionPolicy Bypass -File $QuotedTrainingScript -ProjectRoot $QuotedProjectRoot -ReplayPath $QuotedReplayPath -ReplayManifestPath $QuotedReplayManifestPath -OutputDir $QuotedOutputDir -Seed $Seed -SequenceLength $SequenceLength -BatchSize $BatchSize -WorldModelSteps $WorldModelSteps -PolicySteps $PolicySteps -LearningRate $LearningRate -ImitationWeight $ImitationWeight -BehaviorWeight $BehaviorWeight -ImitationBalancePower $ImitationBalancePower -SteerSequenceFraction $SteerSequenceFraction -MovingSteerFalsePositiveWeight $MovingSteerFalsePositiveWeight -MovingSteerBinaryWeight $MovingSteerBinaryWeight -MovingSteerNonmovingMarginWeight $MovingSteerNonmovingMarginWeight -MovingSteerNonmovingMargin $MovingSteerNonmovingMargin -WorldModelActionAuxWeight $WorldModelActionAuxWeight -ComponentSampleWeights $QuotedComponentSampleWeights -ActionMassCapWeight $ActionMassCapWeight -ActionMassCaps $QuotedActionMassCaps -RouteSpeedActionMassCapWeight $RouteSpeedActionMassCapWeight -RouteSpeedActionIds $QuotedRouteSpeedActionIds -RouteSpeedActionMassCap $RouteSpeedActionMassCap -RouteSpeedMinSpeedNorm $RouteSpeedMinSpeedNorm -RouteSpeedMinRouteProgress $RouteSpeedMinRouteProgress -RouteSpeedMaxRouteProgress $RouteSpeedMaxRouteProgress$ImitationClassBalanceArg -HiddenDim $HiddenDim -Device $QuotedDevice *>&1 | Tee-Object -FilePath `$LogPath -Append
     `$Code = `$LASTEXITCODE
 }
 catch {
@@ -129,6 +136,12 @@ $LaunchManifest = [ordered]@{
     component_sample_weights = $ComponentSampleWeights
     action_mass_cap_weight = $ActionMassCapWeight
     action_mass_caps = $ActionMassCaps
+    route_speed_action_mass_cap_weight = $RouteSpeedActionMassCapWeight
+    route_speed_action_ids = $RouteSpeedActionIds
+    route_speed_action_mass_cap = $RouteSpeedActionMassCap
+    route_speed_min_speed_norm = $RouteSpeedMinSpeedNorm
+    route_speed_min_route_progress = $RouteSpeedMinRouteProgress
+    route_speed_max_route_progress = $RouteSpeedMaxRouteProgress
     hidden_dim = $HiddenDim
     device = $Device
     created_at = (Get-Date -Format o)
