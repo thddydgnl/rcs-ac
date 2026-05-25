@@ -19,7 +19,7 @@ Stage 2: Privileged policy clean
 Status:
 
 ```text
-STAGE2_CLEAN_FIRST_RESUMED__PDF_INTERNAL_ACTOR_COLLAPSE_DIAG
+STAGE2_CLEAN_FIRST_ROUTE_LATE_STEER_MARGIN_PATCH
 ```
 
 Last completed stage:
@@ -61,6 +61,10 @@ Last findings summary:
 Root cause was completed legacy sub-agent threads still occupying the thread limit.
 Completed/obsolete agents were closed, a fresh explorer was spawned, and
 docs/02_persistent_subagent_goal_protocol.md now documents close/reuse/retry recovery.
+Two new explorer agents were then used successfully: one recommended a
+route-windowed late moving-steer margin loss, and one audited false-PASS risk.
+The gate audit says the latest evidence is 512 clean FAIL, not PASS; raw/fusion
+remain blocked.
 ```
 
 Pending brief:
@@ -94,7 +98,7 @@ Stage 2 replay path Windows scratch check at commit e1c9c86 passed dependency pr
 PDF Stage I strict replay training was added at commit f9a7f44. The trainer now has `pdf_stage1_strict=true`, default `imitation_weight=0.0`, rejects route-local diagnostic losses/action caps/overrides/component weighting in strict mode, and records the strict flag in checkpoint manifests.
 Two PDF Stage I strict Windows CUDA candidates were run from clean clone `C:\Users\thddy\Documents\code\RCS-AC-first-official-v2-7f87656` on RTX 3080: `f9a7f44_pdf_stage1_strict_actorcritic` with 200/200 steps and `f9a7f44_pdf_stage1_strict_actorcritic_wm2000_pi1000` with 2000/1000 steps. Both are rejected offline and are not clean evidence. The short run collapsed to action 24 on target22/steer2; the long run improved latent separability but collapsed to action 13 on both replays.
 The next PDF-aligned patch exposed behavior actor-critic hyperparameters and removed forced zero bootstrap so the policy can use value bootstrap through `compute_behavior_loss`. This remains inside Algorithm 1 Stage I actor-critic optimization and does not add imitation or route-local correction.
-Entropy strict candidate `22a374f_pdf_stage1_strict_entropy005_wm2000_pi1000` trained on Windows CUDA and was rejected offline: target22 latent margin passed, steer2 latent margin remained below gate, and action probes collapsed to action 7 on both target22 and steer2. Entropy changed the collapsed action but did not produce a state-dependent actor.
+Entropy strict candidate `22a374f_pdf_stage1_strict_entropy005_wm2000_pi1000` trained on Windows CUDA and was rejected offline: target22 latent margin passed, steer2 latent margin remained below gate, and action probes collapsed to action 7 on both target22 and steer2. Entropy changed the collapsed action but did not produce a state-dependent actor. Strict actor-collapse probe at commit b5a12e1 then showed both actor actions and world-model counterfactual best actions collapse to action 7 on target22 and steer2, so pure PDF Stage I actor-critic remains blocked by state-independent imagined returns rather than only actor logits.
 Windows official sync lane now uses SSH GitHub access, not HTTPS. Clean clone path C:\Users\thddy\Documents\code\RCS-AC-first-official-v2-ac11c90 was created at commit ac11c90 after enabling core.longpaths. The v1.1 env config is now copied under RCS-AC-v2 and the adapter owns the minimal shared_core env builder, so the clean clone should only need sibling shared_core as an external runtime dependency.
 Official Windows clean clone was pulled to commit e42dc6a after fixing optional PowerShell dependency arguments. From that clean clone, dependency check, CARLA Town04 readiness, simulator-state privileged observation provenance, BEV/ego shape/finite checks, and neutral-step safety checks all passed with clean_gate_evidence=false.
 First Windows CARLA run must follow docs/03_windows_carla_remote_execution_workflow.md.
@@ -119,8 +123,9 @@ Last pulse:
 Active agents:
 
 ```text
-Descartes active for Stage 2 strict actor-collapse read-only diagnosis.
-Before spawning more agents, close completed/obsolete agents or reuse existing agents to avoid thread-limit failure.
+Helmholtz and Fermat completed Stage 2 route-late steering and false-PASS
+sidecar audits; close completed agents before spawning more to avoid thread
+limit failure.
 ```
 
 Latest integrated findings:
@@ -169,6 +174,8 @@ Official 512-step primary clean run from the clean clone at commit 0b10ff5628b2b
 Offline steer2 replay sweep at commit d4c5b70 rejected four checkpoint candidates before CARLA: balance_power=0.5 -> {7:647}, balance_power=0.625 -> {7:647}, balance_power=0.75 -> {4:639,7:8}, no class balance -> {7:647}. The replay sampler reported priority_window_count=212/617, so steering windows exist; the current replay-imitation policy objective is collapsing to one dominant action instead of learning state-dependent straight/steer decisions.
 Offline latent separability probe at commit 7902e44 compared the same four rejected steer2 candidates. Each candidate used 647 replay samples, latent_dim=160, majority_action_fraction=0.6831530139103554, linear_probe_train_accuracy=0.7698259353637695, and linear_probe_test_accuracy=0.7384615540504456. This is above baseline but too weak to justify another clean run; patch latent/action separability or the sequence-aware policy objective before rerunning CARLA.
 Action-aux replay training at commit 7f87656 added WorldModelActionAuxWeight and produced the first post-collision candidate that passed offline gates: action_counts={1:8,4:73,7:436,10:14,12:1,15:115}, moving_steer_fraction=0.14837712519319937, dominant_action_fraction=0.6738794435857806, recommended_for_clean_rerun=true, and latent linear_probe_test_accuracy=0.9076923131942749. Official 512 eval from clean clone C:\Users\thddy\Documents\code\RCS-AC-first-official-v2-7f87656 still failed with source=windows_carla, status=FAIL, done_reason=collision, steps=178/512, route_progress=0.6410256410256411, metrics_rows=178, clean action_counts={1:2,4:15,7:76,10:3,15:82}. The next patch should address speed/turn timing around route_progress 0.59-0.64, not raw/fusion.
+Commit b5a12e1 non-route-local fallback `b5a12e1_mixed_t22_steer2_aux1_iw5_ssf005_nobal` passed offline cross replay gates, but official 512 clean failed with source=windows_carla, status=FAIL, clean_gate_pass=false, done_reason=collision, steps=305/512, metrics_rows=305, route_progress=0.6666666666666666, collision/offroad/stuck=1/0/0. Final tail still selected action 7 straight, so speed was reduced but final turning did not occur.
+Late action10 override candidate `b5a12e1_mixed_t22_steer2_aux1_iw5_ssf005_nobal_late10w075_r0666` passed offline cross replay gates and official 512 clean failed with source=windows_carla, status=FAIL, clean_gate_pass=false, done_reason=collision, steps=325/512, metrics_rows=325, route_progress=0.6666666666666666, collision/offroad/stuck=1/0/0. Final tail selected action 10 from step 309 onward, proving the late turn can affect execution, but steer=0.1 is too weak to clear the turn. Next patch adds route_late_moving_steer_margin loss so only route_progress>=0.666 pushes the moving-steer family without early leakage.
 Target-24 failure-window replay was collected from the 7f87656 clean clone with 2 episodes / 520 steps / target_speed_kmh=24.0 and action_counts={7:386,10:26,13:8,15:74,16:20,19:6}. Windows/Tailscale disconnected during the first target-24 action-aux checkpoint training attempt, so checkpoint/probe status is pending; resume by checking whether windows_replay_7f87656_t24_aux1_balpow05_iw5 has a manifest, then run action+latent probes before any new 512 clean eval.
 Detached replay training resume support was hardened after the Windows disconnect: start_stage2_replay_training_detached.ps1 now writes train_stage2_privileged_from_replay.launch.json in the checkpoint output directory, and check_stage2_replay_training_detached.ps1 can recover LogPath/TaskName from that launch manifest using only OutputDir. Local RCS-AC-v2 tests still pass with 109 passed.
 Candidate cross-replay probing was added so target-24 candidates must pass action+latent probes on both the target-24 replay and the existing steer2 replay before any new 512 clean eval.
@@ -327,6 +334,8 @@ FAST35_REPLAY_CHECKPOINT_PROMOTED
 FAST35_ACTION_PROBE_PASS
 FAST35_128_CLEAN_PASS
 CARLA_512_PRIMARY_FAIL_COLLISION
+B5A12E1_512_FAIL_COLLISION_ROUTE0666
+B5A12E1_LATE10_512_FAIL_COLLISION_ROUTE0666
 ```
 
 Do not start Stage 3 raw sensor work or any fusion ablation until:

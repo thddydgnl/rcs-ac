@@ -1535,3 +1535,98 @@ Late throttle ceiling support:
 - Local verification:
   - targeted Stage 2 tests: `61 passed`.
   - full `RCS-AC-v2/tests`: `139 passed`.
+
+2026-05-26 clean-first resume after sub-agent thread-limit recovery:
+
+- Sub-agent creation failure root cause:
+  - `agent thread limit reached` was caused by completed legacy sub-agent
+    threads still occupying the available thread slots.
+  - Completed/obsolete threads were closed, then two bounded explorer agents
+    were spawned successfully for this work packet.
+  - The persistent sub-agent protocol now documents close/reuse/retry recovery.
+- Strict PDF-internal actor-collapse diagnostic:
+  - commit: `b5a12e1`.
+  - diagnostic: `strict_actor_collapse_probe.py`.
+  - rejected strict entropy candidate:
+    `22a374f_pdf_stage1_strict_entropy005_wm2000_pi1000`.
+  - target22 and steer2 probes both produced:
+    - actor action counts: `{"7":256}`.
+    - counterfactual best action counts: `{"7":256}`.
+    - actor equals counterfactual best fraction: `1.0`.
+  - decision: collapse is not only actor logits; the world model's
+    counterfactual returns also globally prefer action `7`. Pure PDF Stage I
+    strict actor-critic remains blocked until the reward/continue/imagination
+    side can produce state-dependent action returns.
+- Non-route-local fallback candidate:
+  - checkpoint:
+    `b5a12e1_mixed_t22_steer2_aux1_iw5_ssf005_nobal`.
+  - training source:
+    `windows_privileged_7f87656_mixed_target22_steer2`.
+  - CUDA: `NVIDIA GeForce RTX 3080`.
+  - objective:
+    - `WorldModelActionAuxWeight=1.0`.
+    - `ImitationWeight=5.0`.
+    - `BehaviorWeight=0.0`.
+    - `SteerSequenceFraction=0.05`.
+    - no imitation class balancing.
+  - cross replay gate:
+    - `ready_for_clean_eval=true`.
+    - target22 action counts: `{"12":2,"15":82,"4":28,"7":410}`.
+    - target22 moving steer fraction: `0.0574712644`.
+    - target22 latent test accuracy: `0.9904761910`.
+    - steer2 action counts: `{"15":78,"4":34,"7":535}`.
+    - steer2 moving steer fraction: `0.0525502318`.
+    - steer2 latent test accuracy: `0.9153845906`.
+  - official 512 clean:
+    - run output:
+      `RCS-AC-v2\experiments\02_privileged_policy_clean\windows_512\b5a12e1_mixed_t22_steer2_aux1_iw5_ssf005_nobal_official512`.
+    - source: `windows_carla`.
+    - commit: `b5a12e1280e489f1a0aabc5e07e514781628b330`.
+    - status: `FAIL`, clean gate pass: `false`.
+    - done reason: `collision`.
+    - steps: `305` / `512`.
+    - metrics rows: `305`.
+    - route progress: `0.6666666667`.
+    - collision/offroad/stuck: `1/0/0`.
+    - final action band: speed was reduced to about `18 km/h`, but action
+      `7` straight still dominated at route `0.6410-0.6667`; collision occurred
+      at step `304`.
+- Late action10 override candidate:
+  - checkpoint:
+    `b5a12e1_mixed_t22_steer2_aux1_iw5_ssf005_nobal_late10w075_r0666`.
+  - route override:
+    - action `10` (`throttle=0.3`, `steer=0.1`).
+    - route window `0.666-0.70`.
+    - weight `0.75`.
+  - CUDA detached training completed with valid checkpoint manifest.
+  - cross replay gate:
+    - `ready_for_clean_eval=true`.
+    - target22 action counts:
+      `{"10":16,"13":6,"15":64,"16":2,"19":4,"4":18,"7":412}`.
+    - target22 moving steer fraction: `0.0881226054`.
+    - target22 latent test accuracy: `0.9904761910`.
+    - steer2 action counts: `{"10":51,"13":2,"15":64,"4":52,"7":478}`.
+    - steer2 moving steer fraction: `0.1622874807`.
+    - steer2 latent test accuracy: `0.9153845906`.
+  - official 512 clean:
+    - run output:
+      `RCS-AC-v2\experiments\02_privileged_policy_clean\windows_512\b5a12e1_mixed_t22_steer2_aux1_iw5_ssf005_nobal_late10w075_r0666_official512`.
+    - source: `windows_carla`.
+    - commit: `b5a12e1280e489f1a0aabc5e07e514781628b330`.
+    - status: `FAIL`, clean gate pass: `false`.
+    - done reason: `collision`.
+    - steps: `325` / `512`.
+    - metrics rows: `325`.
+    - route progress: `0.6666666667`.
+    - collision/offroad/stuck: `1/0/0`.
+    - final action band: action `10` appeared from step `309` through `324`;
+      this proves the late turn target now affects executed actions, but the
+      weak `steer=0.1` correction is still insufficient to clear the turn.
+
+Decision: this is still Stage 2 privileged clean FAIL, not clean PASS. The
+important improvement is that the failure moved from "no final steering effect"
+to "late steering effect exists but is too weak." Raw and fusion remain blocked.
+The next clean-first patch is a route-windowed late moving-steer margin loss
+that applies only after route progress `>=0.666`, so it can encourage a moving
+steer family without hard-coding one action or leaking the correction into the
+fragile approach band.

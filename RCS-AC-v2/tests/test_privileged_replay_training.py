@@ -50,6 +50,7 @@ from rcs_ac_v2.training.train_stage2_privileged_from_replay import (
     _parse_action_mass_cap_args,
     _parse_component_sample_weight_args,
     _route_action_override_loss,
+    _route_late_moving_steer_margin_loss,
     _route_speed_action_mass_cap_loss,
     _route_throttle_ceiling_loss,
     train_stage2_privileged_from_replay,
@@ -251,6 +252,41 @@ def test_candidate_decision_summary_waits_for_missing_gate(tmp_path) -> None:
     assert result["decision"] == "wait_for_cross_replay_gate"
     assert result["clean_gate_evidence"] is False
     assert "missing gate file" in result["failures"][0]
+
+
+def test_route_late_moving_steer_margin_loss_does_not_leak_early() -> None:
+    moving_mask = _moving_steer_action_mask(action_dim=39, device=torch.device("cpu"))
+    logits = torch.zeros(1, 3, 39)
+    logits[..., 7] = 3.0
+    logits[..., 10] = 0.0
+    action = torch.full((1, 3), 7, dtype=torch.long)
+    ego = torch.zeros(1, 3, 8)
+    ego[..., 0] = 0.8
+    ego[..., 1] = torch.tensor([0.60, 0.65, 0.70])
+
+    early_only = _route_late_moving_steer_margin_loss(
+        logits=logits[:, :2],
+        privileged_ego=ego[:, :2],
+        action=action[:, :2],
+        moving_steer_mask=moving_mask,
+        margin=0.25,
+        min_speed_norm=0.0,
+        min_route_progress=0.666,
+        max_route_progress=0.75,
+    )
+    late = _route_late_moving_steer_margin_loss(
+        logits=logits,
+        privileged_ego=ego,
+        action=action,
+        moving_steer_mask=moving_mask,
+        margin=0.25,
+        min_speed_norm=0.0,
+        min_route_progress=0.666,
+        max_route_progress=0.75,
+    )
+
+    assert early_only.item() == pytest.approx(0.0)
+    assert late.item() > 0.0
 
 
 class _FakeCollectorEnv:
