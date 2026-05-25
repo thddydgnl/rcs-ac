@@ -57,6 +57,12 @@ Use persistent sub-agents throughout the goal, not only at the beginning.
 If multi-agent tools are not loaded, use tool_search for "multi-agent spawn manage sub-agents".
 If spawning fails with `agent thread limit reached`, close completed/obsolete
 sub-agents first, reuse existing agents when possible, then retry spawn.
+If spawning fails with invalid spawn arguments during a full-history fork,
+retry with `fork_context=true` only and omit agent_type/model/reasoning overrides.
+If spawning still fails after cleanup/reuse, record the exact error in
+GOAL_STATUS.md and continue with manual role simulation: Agent A evidence audit,
+Agent C contract/gate audit, and Agent B wiring audit when code/config/test
+files are edited.
 At stage entry or work-packet entry, spawn at least:
 - Agent A: Goal/Status Evidence Analyst
 - Agent C: Raw2Drive Contract/Gate Verifier

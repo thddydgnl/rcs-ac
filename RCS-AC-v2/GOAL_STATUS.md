@@ -57,13 +57,14 @@ Add Agent B when editing code/config/test/logging/checkpoint wiring.
 Last findings summary:
 
 ```text
-2026-05-26 resume: sub-agent spawn failed once with `agent thread limit reached`.
-Root cause was completed legacy sub-agent threads still occupying the thread limit.
-Completed/obsolete agents were closed, a fresh explorer was spawned, and
-docs/02_persistent_subagent_goal_protocol.md now documents close/reuse/retry recovery.
-Two new explorer agents were then used successfully: one recommended a
-route-windowed late moving-steer margin loss, and one audited false-PASS risk.
-The gate audit says the latest evidence is 512 clean FAIL, not PASS; raw/fusion
+2026-05-26 resume: sub-agent spawn can fail for both operations and call-shape
+reasons. Historical failures included `agent thread limit reached` from
+completed/obsolete agent threads occupying slots. This turn also reproduced the
+full-history fork constraint: when `fork_context=true`, omit agent_type/model/
+reasoning overrides. Raman audited the docs and recommended documenting tool
+unavailable, state mismatch, over-spawn, invalid spawn request, close/reuse/
+retry, and manual Agent A/B/C role simulation. docs/02 and docs/05 now include
+that recovery path. The goal continues with Stage 2 clean-first work; raw/fusion
 remain blocked.
 ```
 
@@ -123,9 +124,10 @@ Last pulse:
 Active agents:
 
 ```text
-Helmholtz and Fermat completed Stage 2 route-late steering and false-PASS
-sidecar audits; close completed agents before spawning more to avoid thread
-limit failure.
+Raman completed the sub-agent spawn-failure documentation audit on 2026-05-26.
+Helmholtz and Fermat completed earlier Stage 2 route-late steering and
+false-PASS sidecar audits. Close completed/obsolete agents before spawning more
+to avoid thread limit failure.
 ```
 
 Latest integrated findings:

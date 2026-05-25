@@ -140,7 +140,7 @@ tool_search로 "multi-agent spawn manage sub-agents"를 검색한다.
 문서의 역할 구조를 main agent가 수동으로 수행한다.
 ```
 
-### 1.1 Subagent thread-limit recovery
+### 1.1 Subagent spawn failure recovery
 
 서브에이전트 도구가 있는데도 spawn이 실패할 수 있다. 2026-05-26 goal
 resume 중 실제로 다음 에러가 발생했다.
@@ -149,22 +149,65 @@ resume 중 실제로 다음 에러가 발생했다.
 collab spawn failed: agent thread limit reached
 ```
 
-원인:
+또한 같은 resume 중 다음 호출 제약도 확인했다.
 
 ```text
-이전 goal turn에서 생성한 sub-agent thread들이 완료 상태로 남아 있었고,
-새 agent를 추가로 만들 수 있는 thread limit을 초과했다.
+fork_context=true로 full-history fork를 만들 때는 agent_type/model/reasoning_effort를 같이 지정하지 않는다.
+필요하면 fork_context=true만 쓰거나, fork_context=false에서 agent_type을 지정한다.
 ```
 
-이 경우 모델/프롬프트 문제가 아니라 운영 문제다. 처리 순서는 다음과 같다.
+가능한 원인:
 
 ```text
-1. GOAL_STATUS.md 또는 environment_context의 subagents 목록을 확인한다.
-2. 이미 completed 상태인 agent는 close_agent로 닫는다.
-3. 아직 필요한 맥락이 있는 agent는 resume_agent 후 send_input으로 재사용한다.
-4. 같은 질문으로 새 agent를 여러 개 만들지 않는다.
-5. close 후 다시 spawn을 시도한다.
-6. 그래도 실패하면 GOAL_STATUS.md에 "subagent thread limit; manual role simulation used"라고 남긴다.
+thread limit:
+  이전 goal turn의 completed/obsolete/running agent thread가 slot을 점유한다.
+
+tool unavailable:
+  compaction/resume 후 multi-agent tool이 아직 현재 context에 로드되지 않았다.
+
+state mismatch:
+  GOAL_STATUS.md의 Active agents 기록과 실제 tool 상태가 어긋났다.
+
+over-spawn:
+  한 번에 너무 많은 agent를 만들거나 같은 질문으로 반복 spawn했다.
+
+invalid spawn request:
+  full-history fork와 agent_type/model/reasoning override를 함께 지정했다.
+
+overbroad delegation:
+  작업이 너무 넓어 재사용 가능한 agent 대신 새 agent만 계속 만들게 된다.
+```
+
+이 경우 모델 성능 문제가 아니라 운영 문제인 경우가 많다. 처리 순서는 다음과 같다.
+
+```text
+1. 실패 메시지를 그대로 기록한다.
+   예: agent thread limit reached, tool unavailable, invalid spawn arguments, spawn timeout.
+
+2. multi-agent tool이 현재 context에 있는지 확인한다.
+   없으면 tool_search로 "multi-agent spawn manage sub-agents"를 검색한다.
+
+3. GOAL_STATUS.md, environment_context, tool 결과에 남은 agent 상태를 대조한다.
+
+4. completed/obsolete agent를 먼저 close_agent로 닫는다.
+
+5. 아직 유효한 agent가 있으면 새로 만들지 말고 resume_agent/send_input으로 재사용한다.
+
+6. 새 agent는 한 번에 1-2개만 만든다.
+   Stage entry 기본은 Agent A + Agent C이고,
+   code/config/test/logging/checkpoint wiring을 편집할 때만 Agent B를 추가한다.
+
+7. 같은 질문으로 반복 spawn하지 않는다.
+   질문이 같으면 기존 agent 재사용 또는 manual role simulation으로 전환한다.
+
+8. fork_context=true를 쓰는 full-history fork에서는 agent_type/model/reasoning_effort를 생략한다.
+
+9. close/reuse 후에도 spawn이 실패하면 GOAL_STATUS.md에 다음 형식으로 남긴다.
+   "subagent spawn failed: <error>; cleanup attempted; manual role simulation used"
+
+10. sub-agent 실패가 있어도 goal은 멈추지 않는다.
+    main agent가 Agent A/C/B 역할을 수동으로 나누어 read-only audit checklist를 수행한 뒤
+    Implementation Brief -> edit -> validate 순서로 계속 진행한다.
 ```
 
 권장 운영:
