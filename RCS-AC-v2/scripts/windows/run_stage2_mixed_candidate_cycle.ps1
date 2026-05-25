@@ -47,6 +47,11 @@ param(
     [double]$RouteThrottleMinSpeedNorm = 0.0,
     [double]$RouteThrottleMinRouteProgress = 0.0,
     [double]$RouteThrottleMaxRouteProgress = 1.0,
+    [double]$RouteActionOverrideWeight = 0.0,
+    [int]$RouteActionOverrideId = -1,
+    [double]$RouteActionOverrideMinSpeedNorm = 0.0,
+    [double]$RouteActionOverrideMinRouteProgress = 0.0,
+    [double]$RouteActionOverrideMaxRouteProgress = 1.0,
     [int]$HiddenDim = 128,
     [string]$ForbiddenActionIds = "",
     [string]$Device = "cuda"
@@ -243,6 +248,11 @@ $LatestPointer = [ordered]@{
     route_speed_min_speed_norm = $RouteSpeedMinSpeedNorm
     route_speed_min_route_progress = $RouteSpeedMinRouteProgress
     route_speed_max_route_progress = $RouteSpeedMaxRouteProgress
+    route_action_override_weight = $RouteActionOverrideWeight
+    route_action_override_id = $RouteActionOverrideId
+    route_action_override_min_speed_norm = $RouteActionOverrideMinSpeedNorm
+    route_action_override_min_route_progress = $RouteActionOverrideMinRouteProgress
+    route_action_override_max_route_progress = $RouteActionOverrideMaxRouteProgress
     updated_at = (Get-Date -Format o)
 }
 $LatestPointer | ConvertTo-Json -Depth 4 | Set-Content -Path $LatestPointerPath
@@ -284,6 +294,11 @@ $StartArgs = @(
     "-RouteThrottleMinSpeedNorm", $RouteThrottleMinSpeedNorm,
     "-RouteThrottleMinRouteProgress", $RouteThrottleMinRouteProgress,
     "-RouteThrottleMaxRouteProgress", $RouteThrottleMaxRouteProgress,
+    "-RouteActionOverrideWeight", $RouteActionOverrideWeight,
+    "-RouteActionOverrideId", $RouteActionOverrideId,
+    "-RouteActionOverrideMinSpeedNorm", $RouteActionOverrideMinSpeedNorm,
+    "-RouteActionOverrideMinRouteProgress", $RouteActionOverrideMinRouteProgress,
+    "-RouteActionOverrideMaxRouteProgress", $RouteActionOverrideMaxRouteProgress,
     "-HiddenDim", $HiddenDim,
     "-Device", $Device,
     "-TaskName", $TaskName

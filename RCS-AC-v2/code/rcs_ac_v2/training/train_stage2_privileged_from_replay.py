@@ -72,6 +72,11 @@ def train_stage2_privileged_from_replay(
     route_throttle_min_speed_norm: float = 0.0,
     route_throttle_min_route_progress: float = 0.0,
     route_throttle_max_route_progress: float = 1.0,
+    route_action_override_weight: float = 0.0,
+    route_action_override_id: int = -1,
+    route_action_override_min_speed_norm: float = 0.0,
+    route_action_override_min_route_progress: float = 0.0,
+    route_action_override_max_route_progress: float = 1.0,
     hidden_dim: int = 128,
     device: str = "cuda",
 ) -> ReplayTrainingResult:
@@ -114,6 +119,18 @@ def train_stage2_privileged_from_replay(
         raise ValueError("route_throttle_max_route_progress must be in [0, 1]")
     if float(route_throttle_min_route_progress) > float(route_throttle_max_route_progress):
         raise ValueError("route_throttle_min_route_progress must be <= route_throttle_max_route_progress")
+    if route_action_override_weight < 0.0:
+        raise ValueError("route_action_override_weight must be non-negative")
+    if route_action_override_id != -1:
+        _normalize_action_id_tuple((route_action_override_id,))
+    if not 0.0 <= float(route_action_override_min_speed_norm) <= 1.0:
+        raise ValueError("route_action_override_min_speed_norm must be in [0, 1]")
+    if not 0.0 <= float(route_action_override_min_route_progress) <= 1.0:
+        raise ValueError("route_action_override_min_route_progress must be in [0, 1]")
+    if not 0.0 <= float(route_action_override_max_route_progress) <= 1.0:
+        raise ValueError("route_action_override_max_route_progress must be in [0, 1]")
+    if float(route_action_override_min_route_progress) > float(route_action_override_max_route_progress):
+        raise ValueError("route_action_override_min_route_progress must be <= route_action_override_max_route_progress")
     seed_everything(seed)
     resolved_device = _resolve_device(device)
     output = Path(output_dir)
@@ -260,6 +277,14 @@ def train_stage2_privileged_from_replay(
             min_route_progress=route_throttle_min_route_progress,
             max_route_progress=route_throttle_max_route_progress,
         )
+        route_action_override_loss = _route_action_override_loss(
+            logits=replay_policy.logits,
+            privileged_ego=batch.privileged_ego,
+            action_id=route_action_override_id,
+            min_speed_norm=route_action_override_min_speed_norm,
+            min_route_progress=route_action_override_min_route_progress,
+            max_route_progress=route_action_override_max_route_progress,
+        )
         total_loss = (
             float(behavior_weight) * losses.total
             + float(imitation_weight) * imitation_loss
@@ -269,6 +294,7 @@ def train_stage2_privileged_from_replay(
             + float(action_mass_cap_weight) * action_mass_cap_loss
             + float(route_speed_action_mass_cap_weight) * route_speed_action_mass_cap_loss
             + float(route_throttle_ceiling_weight) * route_throttle_ceiling_loss
+            + float(route_action_override_weight) * route_action_override_loss
         )
         total_loss.backward()
         torch.nn.utils.clip_grad_norm_(policy.parameters(), max_norm=10.0)
@@ -287,6 +313,7 @@ def train_stage2_privileged_from_replay(
             route_speed_action_mass_cap_loss.detach().cpu().item()
         )
         scalars["route_throttle_ceiling"] = float(route_throttle_ceiling_loss.detach().cpu().item())
+        scalars["route_action_override"] = float(route_action_override_loss.detach().cpu().item())
         scalars["combined_total"] = float(total_loss.detach().cpu().item())
         policy_history.append(scalars)
         valid_action_ids = bool(
@@ -329,6 +356,11 @@ def train_stage2_privileged_from_replay(
         "route_throttle_min_speed_norm": float(route_throttle_min_speed_norm),
         "route_throttle_min_route_progress": float(route_throttle_min_route_progress),
         "route_throttle_max_route_progress": float(route_throttle_max_route_progress),
+        "route_action_override_weight": float(route_action_override_weight),
+        "route_action_override_id": int(route_action_override_id),
+        "route_action_override_min_speed_norm": float(route_action_override_min_speed_norm),
+        "route_action_override_min_route_progress": float(route_action_override_min_route_progress),
+        "route_action_override_max_route_progress": float(route_action_override_max_route_progress),
         "sampler": sampler_stats,
         "replay_manifest": {
             "path": str(replay_manifest_path),
@@ -378,6 +410,7 @@ def train_stage2_privileged_from_replay(
                     "route_speed_action_mass_cap"
                 ],
                 "final_route_throttle_ceiling": policy_history[-1]["route_throttle_ceiling"],
+                "final_route_action_override": policy_history[-1]["route_action_override"],
                 "final_actor": policy_history[-1]["actor"],
                 "final_critic": policy_history[-1]["critic"],
                 "final_entropy": policy_history[-1]["entropy"],
@@ -419,6 +452,7 @@ def train_stage2_privileged_from_replay(
                     "route_speed_action_mass_cap"
                 ],
                 "final_route_throttle_ceiling": policy_history[-1]["route_throttle_ceiling"],
+                "final_route_action_override": policy_history[-1]["route_action_override"],
                 "valid_action_ids": valid_action_ids,
             },
         },
@@ -485,6 +519,11 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--route-throttle-min-speed-norm", type=float, default=0.0)
     parser.add_argument("--route-throttle-min-route-progress", type=float, default=0.0)
     parser.add_argument("--route-throttle-max-route-progress", type=float, default=1.0)
+    parser.add_argument("--route-action-override-weight", type=float, default=0.0)
+    parser.add_argument("--route-action-override-id", type=int, default=-1)
+    parser.add_argument("--route-action-override-min-speed-norm", type=float, default=0.0)
+    parser.add_argument("--route-action-override-min-route-progress", type=float, default=0.0)
+    parser.add_argument("--route-action-override-max-route-progress", type=float, default=1.0)
     parser.add_argument("--hidden-dim", type=int, default=128)
     parser.add_argument("--device", default="cuda")
     args = parser.parse_args(argv)
@@ -523,6 +562,11 @@ def main(argv: list[str] | None = None) -> None:
         route_throttle_min_speed_norm=args.route_throttle_min_speed_norm,
         route_throttle_min_route_progress=args.route_throttle_min_route_progress,
         route_throttle_max_route_progress=args.route_throttle_max_route_progress,
+        route_action_override_weight=args.route_action_override_weight,
+        route_action_override_id=args.route_action_override_id,
+        route_action_override_min_speed_norm=args.route_action_override_min_speed_norm,
+        route_action_override_min_route_progress=args.route_action_override_min_route_progress,
+        route_action_override_max_route_progress=args.route_action_override_max_route_progress,
         hidden_dim=args.hidden_dim,
         device=args.device,
     )
@@ -801,6 +845,40 @@ def _route_throttle_ceiling_loss(
     )
     expected_throttle = torch.softmax(selected_logits, dim=-1).matmul(throttle)
     return F.relu(expected_throttle - float(ceiling)).pow(2).mean()
+
+
+def _route_action_override_loss(
+    *,
+    logits: torch.Tensor,
+    privileged_ego: torch.Tensor,
+    action_id: int,
+    min_speed_norm: float,
+    min_route_progress: float,
+    max_route_progress: float,
+) -> torch.Tensor:
+    flat_logits = logits.reshape(-1, logits.shape[-1])
+    if int(action_id) < 0:
+        return flat_logits.sum() * 0.0
+    if int(action_id) >= flat_logits.shape[-1]:
+        raise ValueError("route action override action_id is outside logits action dimension")
+    flat_ego = privileged_ego.reshape(-1, privileged_ego.shape[-1])
+    speed_norm = flat_ego[:, 0]
+    route_progress = flat_ego[:, 1]
+    mask = (
+        (speed_norm >= float(min_speed_norm))
+        & (route_progress >= float(min_route_progress))
+        & (route_progress <= float(max_route_progress))
+    )
+    selected_logits = flat_logits[mask]
+    if int(selected_logits.shape[0]) == 0:
+        return flat_logits.sum() * 0.0
+    target = torch.full(
+        (selected_logits.shape[0],),
+        int(action_id),
+        dtype=torch.long,
+        device=selected_logits.device,
+    )
+    return F.cross_entropy(selected_logits, target)
 
 
 def _world_model_action_auxiliary_loss(

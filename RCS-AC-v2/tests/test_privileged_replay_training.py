@@ -48,6 +48,7 @@ from rcs_ac_v2.training.train_stage2_privileged_from_replay import (
     _moving_steer_action_ids,
     _parse_action_mass_cap_args,
     _parse_component_sample_weight_args,
+    _route_action_override_loss,
     _route_speed_action_mass_cap_loss,
     _route_throttle_ceiling_loss,
     train_stage2_privileged_from_replay,
@@ -390,6 +391,11 @@ def test_replay_training_exports_clean_eval_loadable_checkpoints(tmp_path) -> No
         route_throttle_min_speed_norm=0.7,
         route_throttle_min_route_progress=0.56,
         route_throttle_max_route_progress=0.60,
+        route_action_override_weight=0.6,
+        route_action_override_id=10,
+        route_action_override_min_speed_norm=0.5,
+        route_action_override_min_route_progress=0.64,
+        route_action_override_max_route_progress=0.70,
         hidden_dim=32,
         device="cpu",
     )
@@ -436,6 +442,11 @@ def test_replay_training_exports_clean_eval_loadable_checkpoints(tmp_path) -> No
     assert manifest["route_throttle_min_speed_norm"] == 0.7
     assert manifest["route_throttle_min_route_progress"] == 0.56
     assert manifest["route_throttle_max_route_progress"] == 0.6
+    assert manifest["route_action_override_weight"] == 0.6
+    assert manifest["route_action_override_id"] == 10
+    assert manifest["route_action_override_min_speed_norm"] == 0.5
+    assert manifest["route_action_override_min_route_progress"] == 0.64
+    assert manifest["route_action_override_max_route_progress"] == 0.7
     assert manifest["world_model"]["metrics"]["final_action_aux"] >= 0.0
     assert manifest["policy"]["metrics"]["final_moving_steer_false_positive"] >= 0.0
     assert manifest["policy"]["metrics"]["final_moving_steer_binary"] >= 0.0
@@ -443,6 +454,7 @@ def test_replay_training_exports_clean_eval_loadable_checkpoints(tmp_path) -> No
     assert manifest["policy"]["metrics"]["final_action_mass_cap"] >= 0.0
     assert manifest["policy"]["metrics"]["final_route_speed_action_mass_cap"] >= 0.0
     assert manifest["policy"]["metrics"]["final_route_throttle_ceiling"] >= 0.0
+    assert manifest["policy"]["metrics"]["final_route_action_override"] >= 0.0
     assert manifest["sampler"]["requested_priority_sample_fraction"] == 0.0
     assert "priority_window_count" in manifest["sampler"]
     assert manifest["sampler"]["episode_sample_probabilities"] == [1.0]
@@ -557,6 +569,43 @@ def test_route_throttle_ceiling_loss_penalizes_expected_throttle_in_window() -> 
 
     assert active_loss.item() > 0.0
     assert inactive_loss.item() == pytest.approx(0.0)
+
+
+def test_route_action_override_loss_is_conditional_on_ego_window() -> None:
+    logits = torch.zeros(1, 3, 39)
+    logits[..., 7] = 8.0
+    ego = torch.zeros(1, 3, 8)
+    ego[..., 0] = torch.tensor([[0.9, 0.4, 0.9]])
+    ego[..., 1] = torch.tensor([[0.66, 0.66, 0.9]])
+
+    active_loss = _route_action_override_loss(
+        logits=logits,
+        privileged_ego=ego,
+        action_id=10,
+        min_speed_norm=0.8,
+        min_route_progress=0.64,
+        max_route_progress=0.70,
+    )
+    inactive_loss = _route_action_override_loss(
+        logits=logits,
+        privileged_ego=ego,
+        action_id=10,
+        min_speed_norm=1.0,
+        min_route_progress=0.64,
+        max_route_progress=0.70,
+    )
+    disabled_loss = _route_action_override_loss(
+        logits=logits,
+        privileged_ego=ego,
+        action_id=-1,
+        min_speed_norm=0.0,
+        min_route_progress=0.0,
+        max_route_progress=1.0,
+    )
+
+    assert active_loss.item() > 1.0
+    assert inactive_loss.item() == pytest.approx(0.0)
+    assert disabled_loss.item() == pytest.approx(0.0)
 
 
 def test_moving_steer_false_positive_loss_penalizes_nonmoving_labels() -> None:

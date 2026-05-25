@@ -889,3 +889,32 @@ move should stop treating route064 as another global replay-weight component and
 instead implement a route-local corrective target or label override for the
 post-`0.64` collision window. Fusion ablation remains blocked until a privileged
 clean pass exists.
+
+Route-local override implementation:
+
+- Added a Stage 2 replay-training option for a route-window corrective action
+  target:
+  - `route_action_override_weight`
+  - `route_action_override_id`
+  - `route_action_override_min_speed_norm`
+  - `route_action_override_min_route_progress`
+  - `route_action_override_max_route_progress`
+- The override is implemented as an additional cross-entropy loss only on
+  replay samples whose privileged ego state is inside the configured speed/route
+  window. It does not rewrite replay artifacts, so replay provenance and clean
+  evidence boundaries remain intact.
+- Windows wrappers now pass the option through:
+  - `train_stage2_privileged_from_replay.ps1`
+  - `start_stage2_replay_training_detached.ps1`
+  - `run_stage2_mixed_candidate_cycle.ps1`
+- Validation:
+  - `PYTHONPATH=RCS-AC-v2/code pytest -q RCS-AC-v2/tests/test_privileged_replay_training.py RCS-AC-v2/tests/test_evaluate_clean_contract.py`
+    passed: `61 passed`.
+  - `PYTHONPATH=RCS-AC-v2/code pytest -q RCS-AC-v2/tests`
+    passed: `139 passed`.
+
+Next candidate should use the existing useful route056 correction plus a
+post-`0.64` action override instead of adding more global route064 replay mass.
+A conservative first probe is action `10` (`throttle=0.3`, `steer=0.1`) in the
+`route_progress=0.64-0.70` window with a moderate override weight, then apply
+the existing target22/steer2 offline gate before any official clean eval.

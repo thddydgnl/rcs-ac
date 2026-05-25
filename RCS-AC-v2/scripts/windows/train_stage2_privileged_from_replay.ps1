@@ -33,6 +33,11 @@ param(
     [double]$RouteThrottleMinSpeedNorm = 0.0,
     [double]$RouteThrottleMinRouteProgress = 0.0,
     [double]$RouteThrottleMaxRouteProgress = 1.0,
+    [double]$RouteActionOverrideWeight = 0.0,
+    [int]$RouteActionOverrideId = -1,
+    [double]$RouteActionOverrideMinSpeedNorm = 0.0,
+    [double]$RouteActionOverrideMinRouteProgress = 0.0,
+    [double]$RouteActionOverrideMaxRouteProgress = 1.0,
     [int]$HiddenDim = 128,
     [string]$Device = "cuda"
 )
@@ -85,6 +90,11 @@ $TrainArgs = @(
     "--route-throttle-min-speed-norm", $RouteThrottleMinSpeedNorm,
     "--route-throttle-min-route-progress", $RouteThrottleMinRouteProgress,
     "--route-throttle-max-route-progress", $RouteThrottleMaxRouteProgress,
+    "--route-action-override-weight", $RouteActionOverrideWeight,
+    "--route-action-override-id", $RouteActionOverrideId,
+    "--route-action-override-min-speed-norm", $RouteActionOverrideMinSpeedNorm,
+    "--route-action-override-min-route-progress", $RouteActionOverrideMinRouteProgress,
+    "--route-action-override-max-route-progress", $RouteActionOverrideMaxRouteProgress,
     "--hidden-dim", $HiddenDim,
     "--device", $Device
 )
