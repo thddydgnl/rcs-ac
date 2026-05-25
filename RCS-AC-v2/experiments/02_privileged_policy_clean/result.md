@@ -414,6 +414,7 @@ fast35 128 clean eval: commit 37a0875, source=windows_carla, status=PASS, clean_
 fast35 512 primary eval: commit 0b10ff5, source=windows_carla, status=FAIL, failure_class=driving, done_reason=collision, steps=311/512, collision_count=1, offroad_count=0, stuck_count=0, route_progress=0.5641025641025641, episode_return=19.066852226147766, metrics_rows=311, adapter_errors=0, runtime_errors=0, action_counts={7:308,15:3}
 offline steer2 replay sweep: commit d4c5b70 added sampler priority-window stats, imitation_balance_power, and dominant-action probe gating. Four steer2 candidates were rejected before CARLA: balpow05 {7:647}, balpow0625 {7:647}, balpow075 {4:639,7:8}, and no-balance {7:647}. The replay has priority_window_count=212/617, so the failures point to policy collapse rather than missing steering windows.
 corr050 component guard: after BF7 failed the 512 clean gate and corr050 t12/t16 variants produced identical steer2 distributions, the trainer now records component_sampler_stats plus sampler included/dropped episode lists and fails fast if an explicit positive component weight has no sequence_length-eligible episodes. Local test: PYTHONPATH=RCS-AC-v2/code pytest -q RCS-AC-v2/tests/test_privileged_replay_training.py -> 29 passed. Windows clean clone pulled commit 32a65cb and confirmed both mixed_t22_steer2_corr050_t12 and mixed_t22_steer2_corr050_t16 have corr050 episodes length 10, below sequence_length=16, so the corr050 component was never entering training.
+corr048 min16 branch: Windows CARLA collection at route_progress>=0.48 produced 4 eligible correction episodes with lengths [17,17,17,17] and action_counts={2:16,5:32,8:20}. The mixed replay component_sampler_stats confirmed corr048 included_episodes=4, dropped_short_episodes=0, window_count=8, configured probability 0.2. CUDA training completed for 33d1705_corr048_t16_min16_w025_bf7base, but cross-replay gate rejected before CARLA: target22 dominant_action_fraction=0.9272030651 and steer2 dominant_action_fraction=0.9119010819, even though both latent probes passed.
 ```
 
 ## Blockers / Next Gate
@@ -443,11 +444,10 @@ source in this round.
 
 ## Next Action
 
-Patch the 512 collision by first verifying that any new failure-window
-component actually contributes sequence_length-eligible replay windows. If the
-existing corr050 component was dropped as too short, recollect it with
-MinRecordedSteps at least sequence_length before retraining. Then retrain
-replay-source checkpoints, rerun the checkpoint action/latent probes, and only
-rerun the 512 clean gate if the offline cross-replay gate passes. Do not start
-raw/fusion work until the 512-step result is PASS or explicitly blocked after
-classified retry attempts.
+Patch the 512 collision by keeping the component eligibility guard, but do not
+promote the first corr048 min16 candidate. It entered training correctly and
+then over-corrected into dominant straight action 7 on both target22 and
+steer2. The next candidate must reduce this straight-action collapse before
+any official 512 clean eval is attempted. Do not start raw/fusion work until
+the 512-step result is PASS or explicitly blocked after classified retry
+attempts.

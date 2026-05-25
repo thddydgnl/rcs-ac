@@ -19,7 +19,7 @@ Stage 2: Privileged policy clean
 Status:
 
 ```text
-STAGE2_CLEAN_FIRST_CORR050_SHORT_EPISODES_CONFIRMED
+STAGE2_CLEAN_FIRST_CORR048_CANDIDATE_REJECTED_OFFLINE
 ```
 
 Last completed stage:
@@ -83,7 +83,14 @@ confirmed both mixed_t22_steer2_corr050_t12 and mixed_t22_steer2_corr050_t16
 have corr050 episodes of length 10 while sequence_length=16, so corr050 was
 filtered out of training entirely. The next clean-first action is to recollect
 the collision-window component with MinRecordedSteps >= 16 or longer contiguous
-windows before training another corr050 candidate.
+windows before training another corr050 candidate. A corrected route-progress
+0.48 component was then collected at commit 33d1705 with 4 episodes, 68 total
+steps, episode_lengths=[17,17,17,17], and action_counts={2:16,5:32,8:20}.
+The mixed replay included corr048 with no dropped short episodes, but the
+candidate `33d1705_corr048_t16_min16_w025_bf7base` was rejected offline:
+target22 and steer2 latent probes passed, while both action probes failed
+recommended_for_clean_rerun due dominant action 7 fractions above 0.85. No
+official 512 clean eval was run for this candidate.
 ```
 
 Pending brief:

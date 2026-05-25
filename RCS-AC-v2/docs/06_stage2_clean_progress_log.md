@@ -2263,6 +2263,75 @@ Decision:
 - The corr050 branch is not moving the policy distribution in the problematic
   steer2 bins, even when the correction replay target speed changes from `12`
   to `16` and the false-positive weight increases to `3.0`.
+
+### 2026-05-26 - corr050 short-window diagnosis and corr048 min16 retry
+
+The identical corr050 candidate distributions were traced to replay component
+eligibility, not to an effective correction signal:
+
+- The trainer now writes `component_sampler_stats` and sampler included/dropped
+  episode lists.
+- If an explicitly positive component weight has zero episodes with
+  `length >= sequence_length`, training raises before spending CUDA time.
+- Windows clean clone diagnostic confirmed both
+  `mixed_t22_steer2_corr050_t12` and `mixed_t22_steer2_corr050_t16` had
+  corr050 lengths `[10,10,10,10]` while `sequence_length=16`.
+
+The route-progress trigger was moved from `0.50` to `0.48` so the collision
+window would be long enough:
+
+- corrected replay:
+  `RCS-AC-v2\experiments\02_privileged_policy_clean\replay\bf7_route048_collision_window_t16_min16`.
+- episodes: `4`.
+- total_steps: `68`.
+- episode_lengths: `[17,17,17,17]`.
+- action_counts: `{2:16,5:32,8:20}`.
+- clean_gate_evidence: `false`.
+
+The corrected mixed replay was:
+
+```text
+RCS-AC-v2\experiments\02_privileged_policy_clean\replay\mixed_t22_steer2_corr048_t16_min16
+```
+
+Component sampler stats confirmed the correction component now enters training:
+
+```text
+corr048 included_episodes=4
+corr048 dropped_short_episodes=0
+corr048 window_count=8
+configured_episode_sample_prob_by_component={target22:0.4, steer2:0.4, corr048:0.2}
+```
+
+CUDA training completed for:
+
+```text
+RCS-AC-v2\experiments\02_privileged_policy_clean\checkpoints\33d1705_corr048_t16_min16_w025_bf7base
+```
+
+Cross-replay gate rejected before any official CARLA eval:
+
+- target22 action probe:
+  - `recommended_for_clean_rerun=false`.
+  - action_counts `{7:484,4:22,10:8,16:4,19:4}`.
+  - moving_steer_fraction `0.0727969349`.
+  - dominant_action_fraction `0.9272030651`.
+  - latent test accuracy `0.9904761910`.
+- steer2 action probe:
+  - `recommended_for_clean_rerun=false`.
+  - action_counts `{7:590,4:57}`.
+  - moving_steer_fraction `0.0880989181`.
+  - dominant_action_fraction `0.9119010819`.
+  - latent test accuracy `0.8999999762`.
+
+Decision:
+
+- Do not run official 512 clean eval for
+  `33d1705_corr048_t16_min16_w025_bf7base`.
+- The corrected component now participates in training, but the first weight
+  setting over-corrects toward dominant straight action 7.
+- The next branch should keep the min16 replay guard and adjust the objective or
+  component probability to restore BF7-like action diversity before CARLA.
 - The current repeated failure is now more structural than a single route-local
   replay weight: target22 remains healthy, but steer2 repeatedly sticks at
   `{10:91,15:213,7:297}` and moving steer `0.2117465224`.

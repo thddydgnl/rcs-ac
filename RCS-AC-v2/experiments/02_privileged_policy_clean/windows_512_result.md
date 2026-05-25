@@ -401,6 +401,24 @@ candidate to "ready for 512 clean eval"; it is not a clean PASS.
   windows_diagnostic: both mixed_t22_steer2_corr050_t12 and mixed_t22_steer2_corr050_t16 reported lengths [10,10,10,10,314,333,261,261] and raised "component 'corr050' has positive sample weight but no episodes long enough for sequence_length=16"
   clean_gate_evidence: false
   next_action: recollect corr050 with MinRecordedSteps >= sequence_length, rebuild the mixed replay manifest, verify component_sampler_stats includes corr050 windows, then train/probe before any official 512 clean eval
+
+2026-05-26:
+  state: corr048_min16_candidate_rejected_by_cross_replay_gate
+  commit: 33d1705
+  corrected_replay: RCS-AC-v2\experiments\02_privileged_policy_clean\replay\bf7_route048_collision_window_t16_min16
+  corrected_replay_summary: episodes=4, total_steps=68, episode_lengths=[17,17,17,17], action_counts={2:16,5:32,8:20}
+  mixed_replay: RCS-AC-v2\experiments\02_privileged_policy_clean\replay\mixed_t22_steer2_corr048_t16_min16
+  component_sampler_stats: corr048 included_episodes=4, dropped_short_episodes=0, window_count=8, configured_episode_sample_prob_by_component={target22:0.4,steer2:0.4,corr048:0.2}
+  checkpoint_output_dir: RCS-AC-v2\experiments\02_privileged_policy_clean\checkpoints\33d1705_corr048_t16_min16_w025_bf7base
+  cross_probe_output_dir: RCS-AC-v2\experiments\02_privileged_policy_clean\windows_512\33d1705_corr048_t16_min16_w025_bf7base_cross_probe
+  target22_action_probe: recommended_for_clean_rerun=false, action_counts={7:484,4:22,10:8,16:4,19:4}, moving_steer_fraction=0.0727969349, dominant_action_fraction=0.9272030651
+  target22_latent_probe: linear_probe_test_accuracy=0.9904761910, majority_action_fraction=0.7931034483, margin=0.1973727428
+  steer2_action_probe: recommended_for_clean_rerun=false, action_counts={7:590,4:57}, moving_steer_fraction=0.0880989181, dominant_action_fraction=0.9119010819
+  steer2_latent_probe: linear_probe_test_accuracy=0.8999999762, majority_action_fraction=0.6831530139, margin=0.2168469622
+  gate_failures: target22 action probe recommended_for_clean_rerun is not true; steer2 action probe recommended_for_clean_rerun is not true
+  decision_summary: reject_before_carla
+  clean_gate_evidence: false
+  next_action: do not run official 512 for w0.25; if continuing this branch, reduce straight-action collapse before CARLA, for example lower corr048 probability/priority or restore BF7 steer balance while keeping the min16 replay guard
 ```
 
 Decision rules:
