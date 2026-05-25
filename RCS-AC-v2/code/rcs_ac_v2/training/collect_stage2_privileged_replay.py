@@ -93,9 +93,11 @@ def collect_episode(
     cont_rows: list[float] = []
     done_reason = "max_steps_reached"
     warmup_steps = 0
+    max_route_progress = _finite_float(info.get("route_progress", 0.0))
     for _step in range(max_steps):
         _validate_simulator_state_privileged_info(info)
         route_progress = _finite_float(info.get("route_progress", 0.0))
+        max_route_progress = max(max_route_progress, route_progress)
         should_record = route_progress >= float(record_after_route_progress)
         if should_record or warmup_policy_runner is None:
             action_id = select_privileged_replay_action(
@@ -134,7 +136,8 @@ def collect_episode(
     if len(action_rows) < int(min_recorded_steps):
         raise RuntimeError(
             "collector produced too few recorded steps "
-            f"({len(action_rows)} < {int(min_recorded_steps)}) after route_progress>={float(record_after_route_progress)}"
+            f"({len(action_rows)} < {int(min_recorded_steps)}) after route_progress>={float(record_after_route_progress)}; "
+            f"max_route_progress={max_route_progress}; done_reason={done_reason}"
         )
     return {
         "privileged_bev": np.stack(bev_rows).astype(np.float32),
@@ -148,6 +151,7 @@ def collect_episode(
             "target_speed_kmh": float(target_speed_kmh),
             "steer_sign": float(steer_sign),
             "record_after_route_progress": float(record_after_route_progress),
+            "max_route_progress": float(max_route_progress),
             "warmup_steps": int(warmup_steps),
             "recorded_steps": int(len(action_rows)),
         },
