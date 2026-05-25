@@ -567,6 +567,26 @@ candidate to "ready for 512 clean eval"; it is not a clean PASS.
   official_512_failure_tail: steps140-145 mostly action7 throttle=0.3 steer=0.0; step145 action7 throttle=0.3 steer=0.0 route_progress=0.6666666667 collision=true
   clean_gate_evidence: false
   next_action: stop throttle-only late-window tuning; action12 high-throttle tail is gone, but the same geometry still collides under slow straight action7, so collect or use late collision-window replay/correction around route_progress 0.64-0.70 before another official 512 eval
+
+2026-05-26:
+  state: late056_warmup_replay_low_weight_rejected_by_cross_replay_gate
+  commit: 4e9f4b3
+  replay_t16: RCS-AC-v2\experiments\02_privileged_policy_clean\replay\windows_privileged_4e9f4b3_late056_collision_window_t16_min16
+  replay_t16_summary: episodes=4, total_steps=144, action_counts={2:4,28:68,31:24,34:48}, target_speed_kmh=16, record_after_route_progress=0.56, min_recorded_steps=16
+  replay_t24: RCS-AC-v2\experiments\02_privileged_policy_clean\replay\windows_privileged_4e9f4b3_late056_collision_window_t24_min16
+  replay_t24_summary: episodes=4, total_steps=142, action_counts={2:4,28:48,30:18,31:25,34:47}, target_speed_kmh=24, record_after_route_progress=0.56, min_recorded_steps=16
+  candidate: 4e9f4b3_corr048_w005_late056t24_w002_logit15_lateceil
+  mixed_replay_dir: RCS-AC-v2\experiments\02_privileged_policy_clean\replay\mixed_t22_steer2_corr048_late056t24_w002
+  checkpoint_output_dir: RCS-AC-v2\experiments\02_privileged_policy_clean\checkpoints\4e9f4b3_corr048_w005_late056t24_w002_logit15_lateceil
+  cross_probe_output_dir: RCS-AC-v2\experiments\02_privileged_policy_clean\windows_512\4e9f4b3_corr048_w005_late056t24_w002_logit15_lateceil_cross_probe
+  control_change: ComponentSampleWeights=target22=1,steer2=1,corr048=0.05,late056t24=0.02, RouteActionLogitCapWeight=0.5, RouteActionLogitCapIds=15, RouteThrottleCeilingWeight=4.0, RouteThrottleCeiling=0.3, RouteThrottleMinRouteProgress=0.64, RouteThrottleMaxRouteProgress=0.70
+  target22_action_probe: recommended_for_clean_rerun=false, action_counts={15:462,4:42,7:12,12:4,1:2}, moving_steer_fraction=0.0919540230, dominant_action_fraction=0.8850574713
+  target22_latent_probe: linear_probe_test_accuracy=0.9904761910, majority_action_fraction=0.7931034483, margin=0.1973727428
+  steer2_action_probe: recommended_for_clean_rerun=true, action_counts={15:445,7:117,4:57,12:16,1:12}, moving_steer_fraction=0.1313755796, dominant_action_fraction=0.6877897991
+  steer2_latent_probe: linear_probe_test_accuracy=0.9076923132, majority_action_fraction=0.6831530139, margin=0.2245392993
+  cross_replay_gate: ready_for_clean_eval=false, failures=[target22 action probe recommended_for_clean_rerun is not true]
+  clean_gate_evidence: false
+  next_action: do not run official 512; late056 teacher replay is dominated by zero-throttle steering labels and worsens target22 action15 dominance, so change the late labeling/action-selection heuristic or use a different local correction before retrying offline
 ```
 
 Decision rules:

@@ -422,6 +422,7 @@ corr048 logit15 candidate: 8b78015_corr048_w005_ssf005_logit15w05m0 added RouteA
 corr048 logit12/15 candidate: 8b78015_corr048_w005_ssf005_logit1215w05m0 expanded RouteActionLogitCapIds to 12,15. It again passed cross-replay gate: target22 recommended_for_clean_rerun=true with action_counts={15:442,4:40,7:38,19:2}, dominant_action_fraction=0.8467432950; steer2 recommended_for_clean_rerun=true with action_counts={15:419,7:170,4:48,1:8,12:2}, moving_steer_fraction=0.0896445131. Official 512 clean eval still failed as source=windows_carla, status=FAIL, done_reason=collision, steps=146/512, route_progress=0.6666666667, collision_count=1, offroad_count=0, stuck_count=0, action_counts={15:116,7:18,4:10,1:1,12:1}. The only action12 occurred at step145 and collided immediately.
 corr048 logit12/15 bracket: increasing the same full-route 12,15 logit cap to weight 2.0 was rejected offline because target22 collapsed to action7 with dominant_action_fraction=0.9195402299 and steer2 collapsed to action7 with dominant_action_fraction=0.9103554869. The midpoint weight 1.0 passed offline with balanced target22 action_counts={7:262,15:220,4:38,19:2} and steer2 action_counts={7:383,15:208,4:49,1:7}, but official 512 failed earlier at route_progress=0.5384615385 with collision_count=1 and offroad_count=1 after action19 repeated at steps 144-147. The full-route logit cap bracket therefore trades late action12 collision for earlier right-oversteer when strengthened.
 corr048 late throttle ceiling: 8b78015_corr048_w005_ssf005_logit15w05_lateceil03w4 kept the full-route action15 logit cap and added RouteThrottleCeilingWeight=4.0 with RouteThrottleCeiling=0.3 only around route_progress 0.64-0.70. It passed the cross-replay gate: target22 action_counts={15:442,4:40,7:38,19:2}, dominant_action_fraction=0.8467432950; steer2 action_counts={15:414,4:48,7:177,1:8}, moving_steer_fraction=0.0865533230. Official 512 still failed as source=windows_carla, status=FAIL, done_reason=collision, steps=146/512, route_progress=0.6666666667, collision_count=1, offroad_count=0, stuck_count=0, action_counts={15:116,7:19,4:10,1:1}. The high-throttle action12 tail disappeared, but the final collision happened on slow straight action7 at step145. This narrows the next patch to late-window geometry/action selection rather than throttle-only suppression.
+late056 replay follow-up: two warmup correction replays were collected from the lateceil checkpoint-filled config at record_after_route_progress=0.56. The t16 replay produced 4 episodes / 144 steps with action_counts={2:4,28:68,31:24,34:48}; the t24 replay produced 4 episodes / 142 steps with action_counts={2:4,28:48,30:18,31:25,34:47}. Both are eligible by min16 length but are dominated by zero-throttle steering labels. A conservative offline-only mixed candidate, 4e9f4b3_corr048_w005_late056t24_w002_logit15_lateceil, mixed t24 at ComponentSampleWeights target22=1,steer2=1,corr048=0.05,late056t24=0.02 while preserving action15 logit cap and late throttle ceiling. CUDA training completed, steer2 passed, but target22 failed with action_counts={15:462,4:42,7:12,12:4,1:2} and dominant_action_fraction=0.8850574713. No official CARLA eval was run. This rejects the current late056 teacher-label route unless the labeling heuristic is changed to avoid zero-throttle steering labels.
 ```
 
 ## Blockers / Next Gate
@@ -465,8 +466,10 @@ Strengthening the full-route 12,15 cap is not the right next move because
 weight 1.0 reintroduced an earlier action19 right-oversteer collision and
 weight 2.0 failed offline. The late throttle ceiling then removed the
 high-throttle action12 tail but still collided at the same route-progress under
-slow straight action7. The next patch should preserve the w0.5 full-route
-action15 behavior and add a late collision-window replay/correction around
-route_progress 0.64-0.70 that changes geometry/action selection, not only
-throttle. Do not start raw/fusion work until the 512-step result is PASS or
-explicitly blocked after classified retry attempts.
+slow straight action7. The first late056 replay attempt was rejected offline
+because the teacher labels were mostly zero-throttle steering actions and the
+low-weight candidate worsened target22 action15 dominance. The next patch
+should preserve the w0.5 full-route action15 behavior, but change the late
+labeling/action-selection heuristic or use a different local correction around
+route_progress 0.64-0.70. Do not start raw/fusion work until the 512-step
+result is PASS or explicitly blocked after classified retry attempts.

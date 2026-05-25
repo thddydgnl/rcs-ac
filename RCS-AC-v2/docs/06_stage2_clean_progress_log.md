@@ -2680,3 +2680,70 @@ Decision:
   route_progress `0.64-0.70`, then train a route-local correction that changes
   late-window action selection without broad full-route logit caps. Do not
   start raw/fusion work before this privileged clean gate passes.
+
+### 2026-05-26 - late056 warmup replay and low-weight offline reject
+
+Following the lateceil failure, two short correction replays were collected
+from the Windows clean clone with the lateceil checkpoint-filled config as both
+runtime and warmup policy:
+
+- `windows_privileged_4e9f4b3_late056_collision_window_t16_min16`
+  - `RecordAfterRouteProgress=0.56`.
+  - `TargetSpeedKmh=16`.
+  - `MinRecordedSteps=16`.
+  - episodes/steps: `4` / `144`.
+  - action_counts `{2:4,28:68,31:24,34:48}`.
+- `windows_privileged_4e9f4b3_late056_collision_window_t24_min16`
+  - `RecordAfterRouteProgress=0.56`.
+  - `TargetSpeedKmh=24`.
+  - `MinRecordedSteps=16`.
+  - episodes/steps: `4` / `142`.
+  - action_counts `{2:4,28:48,30:18,31:25,34:47}`.
+
+Interpretation:
+
+- Both replays satisfy the min16 eligibility requirement.
+- Both are poor correction labels for the current clean failure because they are
+  dominated by zero-throttle steering actions. The t24 variant contains only 18
+  throttle-positive action30 labels and still has many action34-style
+  zero-throttle labels, which previously caused stuck/collapse failures.
+
+One conservative offline-only candidate tested whether the t24 replay could be
+used at a tiny component weight without damaging target22/steer2:
+
+```text
+candidate: 4e9f4b3_corr048_w005_late056t24_w002_logit15_lateceil
+mixed replay: target22 + steer2 + corr048 + late056t24
+ComponentSampleWeights: target22=1, steer2=1, corr048=0.05, late056t24=0.02
+RouteActionLogitCapWeight: 0.5
+RouteActionLogitCapIds: 15
+RouteThrottleCeilingWeight: 4.0
+RouteThrottleCeiling: 0.3
+RouteThrottle window: 0.64-0.70
+```
+
+CUDA training completed and cross replay rejected before CARLA:
+
+- target22:
+  - `recommended_for_clean_rerun=false`.
+  - action_counts `{15:462,4:42,7:12,12:4,1:2}`.
+  - moving_steer_fraction `0.0919540230`.
+  - dominant_action_fraction `0.8850574713`.
+  - latent test accuracy `0.9904761910`.
+- steer2:
+  - `recommended_for_clean_rerun=true`.
+  - action_counts `{15:445,7:117,4:57,12:16,1:12}`.
+  - moving_steer_fraction `0.1313755796`.
+  - dominant_action_fraction `0.6877897991`.
+  - latent test accuracy `0.9076923132`.
+- gate: `ready_for_clean_eval=false`.
+
+Decision:
+
+- Do not run official 512 clean eval for this candidate.
+- The late056 teacher-label route currently worsens target22 action15
+  dominance, even at low component weight.
+- Next work should change the late replay labeling/action-selection heuristic so
+  the correction component is not dominated by zero-throttle steering labels, or
+  use a different local correction mechanism. Keep the cross-replay gate as the
+  hard pre-CARLA filter.

@@ -19,7 +19,7 @@ Stage 2: Privileged policy clean
 Status:
 
 ```text
-STAGE2_CLEAN_FIRST_LATECEIL_OFFICIAL512_FAIL
+STAGE2_CLEAN_FIRST_LATE056_REPLAY_OFFLINE_REJECT
 ```
 
 Last completed stage:
@@ -153,6 +153,23 @@ stopped after the run and RTX 3080 reported 65C/0% utilization. This narrows
 the next patch away from high-throttle action12 and toward a late-route
 collision-window correction/replay or local action selection change that
 handles the 0.64-0.70 geometry without reintroducing action19 right-oversteer.
+Following that decision, two late056 warmup correction replays were collected
+from the Windows clean clone with the lateceil checkpoint-filled config as both
+runtime and warmup policy: `late056_collision_window_t16_min16` and
+`late056_collision_window_t24_min16`. Both produced sufficient min16 episodes,
+but their labels were mostly zero-throttle steering actions; t24 had 142 total
+steps with action_counts {2:4,28:48,30:18,31:25,34:47}. To avoid a blind CARLA
+run, the t24 replay was mixed at a very low component weight
+(`late056t24=0.02`) with target22, steer2, and corr048 while preserving the
+action15 logit cap plus late throttle ceiling. Windows CUDA training completed
+and steer2 passed offline, but target22 failed with action15 dominance
+(`action_counts={15:462,4:42,7:12,12:4,1:2}`,
+dominant_action_fraction=0.8850574713). The gate returned
+`ready_for_clean_eval=false`, so no official 512 clean eval was run. This
+rejects the current late056 teacher-label route; next work should either change
+the late replay labeling heuristic to avoid zero-throttle steering labels or
+use a different local action-selection correction, then pass cross replay before
+CARLA.
 ```
 
 Pending brief:
