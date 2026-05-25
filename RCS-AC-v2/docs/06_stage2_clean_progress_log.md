@@ -303,3 +303,33 @@ configurable CARLA safety action mask using the existing policy runner
 `forbidden_action_ids` path, then re-run offline probe and official 512 clean
 with action `19` masked. This keeps the experiment in privileged clean recovery
 and targets the observed failure tail directly.
+
+Safety mask follow-up:
+
+- Config support added: `carla.forbidden_action_ids` is now merged with the
+  existing reverse-action mask in the Stage 2 CARLA policy runner.
+- `action19_mask`:
+  - offline cross replay gate: pass, `ready_for_clean_eval=true`.
+  - official 512 clean: fail by offroad.
+  - steps: `257` / `512`.
+  - route progress: `0.5128205128`.
+  - collision count: `0`.
+  - tail action changed from action `19` to repeated action `16`
+    (`throttle=0.3`, `steer=0.3`), then offroad.
+- `action16_19_mask`:
+  - offline cross replay gate: pass, `ready_for_clean_eval=true`.
+  - official 512 clean: fail by offroad.
+  - steps: `349` / `512`.
+  - route progress: `0.7179487179`.
+  - collision count: `0`.
+  - tail actions mostly action `7` (`throttle=0.3`, `steer=0.0`), then action
+    `10` (`throttle=0.3`, `steer=0.1`) immediately before offroad.
+
+Decision: masking high right-steer actions improves route progress but does not
+solve the clean gate. The failure moved later on the route, which suggests the
+policy lacks supervised coverage for the post-0.7 route geometry rather than
+only overusing one action id. The next aligned step is to collect a new Windows
+privileged replay from the later/offroad-prone clean segment, mix it with the
+target22 and steer2 replays, then retrain/probe before another official 512
+run. Do not keep masking progressively weaker steering actions without a new
+replay signal.
