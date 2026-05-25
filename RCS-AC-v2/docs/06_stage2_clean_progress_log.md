@@ -439,3 +439,50 @@ powershell -ExecutionPolicy Bypass -File RCS-AC-v2\scripts\windows\run_stage2_mi
 
 Promote only if the generated `stage2_candidate_cross_replay_gate.json` says
 `ready_for_clean_eval=true`; otherwise continue offline component-weight tuning.
+
+Weighted late/collision replay results:
+
+- `fc0d0ad_mixed_t22_steer2_late068warm1_w025_msmm10_cuda`:
+  - component sample weights: `target22=1,steer2=1,late068warm1=0.25`.
+  - CUDA training manifest/checkpoint validation: pass.
+  - target22 action/latent: pass.
+  - steer2 action/latent: pass.
+  - cross replay gate: `ready_for_clean_eval=true`.
+  - official 512 clean:
+    - run output:
+      `RCS-AC-v2\experiments\02_privileged_policy_clean\windows_512\fc0d0ad_mixed_t22_steer2_late068warm1_w025_msmm10_cuda_official_clean512`
+    - status: `FAIL`, clean gate pass: `false`.
+    - done reason: `collision`.
+    - steps: `304` / `512`.
+    - route progress: `0.6666666667`.
+    - collision count: `1`, offroad count: `0`.
+- `fc0d0ad_policy_warmup_route062_collision_min8` replay:
+  - collected after the weighted-late collision failure, using the weighted-late
+    candidate as warmup policy.
+  - `record_after_route_progress=0.62`, `min_recorded_steps=8`.
+  - 4 episodes, episode lengths `[19,19,19,19]`, total steps `76`.
+  - failed attempts: `0`.
+- `fc0d0ad_mixed_t22_steer2_collision062_w025_msmm10_cuda`:
+  - component sample weights: `target22=1,steer2=1,collision062=0.25`.
+  - CUDA training manifest/checkpoint validation: pass.
+  - target22 action/latent: pass.
+  - steer2 action/latent: pass.
+  - cross replay gate: `ready_for_clean_eval=true`.
+  - official 512 clean:
+    - run output:
+      `RCS-AC-v2\experiments\02_privileged_policy_clean\windows_512\fc0d0ad_mixed_t22_steer2_collision062_w025_msmm10_cuda_official_clean512`
+    - status: `FAIL`, clean gate pass: `false`.
+    - done reason: `offroad`.
+    - steps: `357` / `512`.
+    - route progress: `0.7179487179`.
+    - collision count: `0`, offroad count: `1`.
+    - tail actions include action `12`/`15` throttle `0.7`, then action `7`
+      at final offroad.
+
+Decision: component weighting fixed the offline collapse and produced two
+officially promotable candidates. The route062 collision replay removed the
+collision and restored the previous post-0.7 offroad failure. This is progress,
+but still not clean PASS. Do not start raw/fusion. The next aligned step is to
+collect another policy-warmup replay from the current collision062 candidate at
+`record_after_route_progress=0.70`, because the remaining failure is again the
+post-0.7 offroad segment.
