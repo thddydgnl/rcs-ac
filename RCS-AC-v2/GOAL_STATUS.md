@@ -124,10 +124,9 @@ Last pulse:
 Active agents:
 
 ```text
-Raman completed the sub-agent spawn-failure documentation audit on 2026-05-26.
-Helmholtz and Fermat completed earlier Stage 2 route-late steering and
-false-PASS sidecar audits. Close completed/obsolete agents before spawning more
-to avoid thread limit failure.
+No active sub-agents. Raman and Linnaeus were closed after their 2026-05-26
+audits. Helmholtz and Fermat completed earlier Stage 2 route-late steering and
+false-PASS sidecar audits. Close completed/obsolete agents before spawning more.
 ```
 
 Latest integrated findings:
