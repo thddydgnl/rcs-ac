@@ -236,6 +236,7 @@ class _FakeCollectorEnv:
                 "speed_kmh": 8.0,
                 "heading_error": 1.0,
                 "lane_offset": 0.1,
+                "route_progress": float(self.step_count) * 0.25,
                 "done_reason": "done" if self.step_count >= 3 else "running",
                 **_simulator_privileged_info(),
             },
@@ -263,6 +264,20 @@ def test_collect_episode_writes_valid_replay_fields() -> None:
     assert episode["privileged_ego"].shape == (3, 8)
     assert episode["action"].shape == (3,)
     assert episode["cont"][-1] == 0.0
+
+
+def test_collect_episode_can_record_only_after_route_progress() -> None:
+    episode = collect_episode(
+        _FakeCollectorEnv(),
+        max_steps=5,
+        record_after_route_progress=0.25,
+        min_recorded_steps=2,
+    )
+
+    assert episode["privileged_bev"].shape == (2, 43, 16, 16)
+    assert episode["action"].shape == (2,)
+    assert episode["metadata"]["warmup_steps"] == 1
+    assert episode["metadata"]["record_after_route_progress"] == 0.25
 
 
 def test_replay_collector_explicit_target_speed_overrides_env_default() -> None:

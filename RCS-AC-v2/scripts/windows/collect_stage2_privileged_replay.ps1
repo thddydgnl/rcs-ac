@@ -6,6 +6,8 @@ param(
     [int]$MaxSteps = 256,
     [double]$TargetSpeedKmh = 18.0,
     [double]$SteerSign = -1.0,
+    [double]$RecordAfterRouteProgress = 0.0,
+    [int]$MinRecordedSteps = 1,
     [string]$EnsureCarlaScript = "",
     [string]$StartCarlaScript = "",
     [string]$EnvConfigPathOverride = "",
@@ -98,5 +100,7 @@ Write-Host "OUTPUT_DIR=$OutputDir"
     --episodes $Episodes `
     --max-steps $MaxSteps `
     --target-speed-kmh $TargetSpeedKmh `
-    --steer-sign $SteerSign
+    --steer-sign $SteerSign `
+    --record-after-route-progress $RecordAfterRouteProgress `
+    --min-recorded-steps $MinRecordedSteps
 exit $LASTEXITCODE

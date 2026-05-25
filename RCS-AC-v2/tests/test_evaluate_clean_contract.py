@@ -757,9 +757,26 @@ def test_target_speed_replay_cycle_runner_static_contract() -> None:
     assert '"-PrimaryReplayName", $CandidateName' in text
     assert '"-Seed", $Seed' in text
     assert '"-Device", $Device' in text
-    assert '$CollectArgs += "-SkipCarlaReady"' in text
-    assert '$CycleArgs += "-StartIfMissing"' in text
-    assert '$CycleArgs += "-ProbeWhenReady"' in text
+
+
+def test_stage2_replay_collector_exposes_late_segment_recording_static_contract() -> None:
+    scripts_dir = Path(__file__).resolve().parents[1] / "scripts" / "windows"
+    script = (scripts_dir / "collect_stage2_privileged_replay.ps1").read_text()
+    module = (
+        Path(__file__).resolve().parents[1]
+        / "code"
+        / "rcs_ac_v2"
+        / "training"
+        / "collect_stage2_privileged_replay.py"
+    ).read_text()
+
+    assert "[double]$RecordAfterRouteProgress = 0.0" in script
+    assert "--record-after-route-progress $RecordAfterRouteProgress" in script
+    assert "[int]$MinRecordedSteps = 1" in script
+    assert "--min-recorded-steps $MinRecordedSteps" in script
+    assert "record_after_route_progress" in module
+    assert "warmup_steps" in module
+    assert "min_recorded_steps" in module
 
 
 def test_windows_dependency_probe_static_contract() -> None:

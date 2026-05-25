@@ -73,9 +73,15 @@ def collect_episode(
     max_steps: int,
     target_speed_kmh: float = 18.0,
     steer_sign: float = -1.0,
+    record_after_route_progress: float = 0.0,
+    min_recorded_steps: int = 1,
 ) -> dict[str, Any]:
     if max_steps <= 0:
         raise ValueError("max_steps must be positive")
+    if record_after_route_progress < 0.0:
+        raise ValueError("record_after_route_progress must be non-negative")
+    if min_recorded_steps <= 0:
+        raise ValueError("min_recorded_steps must be positive")
     reset = env.reset()
     obs = dict(reset["obs"])
     info = dict(reset.get("info", {}))
@@ -85,6 +91,7 @@ def collect_episode(
     reward_rows: list[float] = []
     cont_rows: list[float] = []
     done_reason = "max_steps_reached"
+    warmup_steps = 0
     for _step in range(max_steps):
         _validate_simulator_state_privileged_info(info)
         action_id = select_privileged_replay_action(
@@ -92,17 +99,23 @@ def collect_episode(
             target_speed_kmh=target_speed_kmh,
             steer_sign=steer_sign,
         )
-        bev_rows.append(_stage2_bev_to_numpy(obs["privileged_bev"]))
-        ego_rows.append(_stage2_ego_to_numpy(obs["privileged_ego"]))
-        action_rows.append(action_id)
+        route_progress = _finite_float(info.get("route_progress", 0.0))
+        should_record = route_progress >= float(record_after_route_progress)
+        if should_record:
+            bev_rows.append(_stage2_bev_to_numpy(obs["privileged_bev"]))
+            ego_rows.append(_stage2_ego_to_numpy(obs["privileged_ego"]))
+            action_rows.append(action_id)
+        else:
+            warmup_steps += 1
 
         control = to_carla_control(get_discrete_action(action_id))
         step = _step_env(env, control)
         next_info = dict(step.get("info", {}))
         done = bool(step.get("done", False))
         truncated = bool(step.get("truncated", False))
-        reward_rows.append(_finite_float(step.get("reward", next_info.get("reward", 0.0))))
-        cont_rows.append(0.0 if done and not truncated else 1.0)
+        if should_record:
+            reward_rows.append(_finite_float(step.get("reward", next_info.get("reward", 0.0))))
+            cont_rows.append(0.0 if done and not truncated else 1.0)
         obs = dict(step["obs"])
         info = next_info
         if done:
@@ -112,8 +125,11 @@ def collect_episode(
             done_reason = str(info.get("done_reason", "truncated"))
             break
 
-    if not action_rows:
-        raise RuntimeError("collector produced an empty episode")
+    if len(action_rows) < int(min_recorded_steps):
+        raise RuntimeError(
+            "collector produced too few recorded steps "
+            f"({len(action_rows)} < {int(min_recorded_steps)}) after route_progress>={float(record_after_route_progress)}"
+        )
     return {
         "privileged_bev": np.stack(bev_rows).astype(np.float32),
         "privileged_ego": np.stack(ego_rows).astype(np.float32),
@@ -125,6 +141,9 @@ def collect_episode(
             "done_reason": done_reason,
             "target_speed_kmh": float(target_speed_kmh),
             "steer_sign": float(steer_sign),
+            "record_after_route_progress": float(record_after_route_progress),
+            "warmup_steps": int(warmup_steps),
+            "recorded_steps": int(len(action_rows)),
         },
     }
 
@@ -137,6 +156,8 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--max-steps", type=int, default=256)
     parser.add_argument("--target-speed-kmh", type=float, default=18.0)
     parser.add_argument("--steer-sign", type=float, default=-1.0)
+    parser.add_argument("--record-after-route-progress", type=float, default=0.0)
+    parser.add_argument("--min-recorded-steps", type=int, default=1)
     args = parser.parse_args(argv)
 
     config_path = Path(args.config)
@@ -153,6 +174,8 @@ def main(argv: list[str] | None = None) -> None:
                 max_steps=int(args.max_steps),
                 target_speed_kmh=float(args.target_speed_kmh),
                 steer_sign=float(args.steer_sign),
+                record_after_route_progress=float(args.record_after_route_progress),
+                min_recorded_steps=int(args.min_recorded_steps),
             )
             path = output_dir / f"episode_{episode_index:04d}.npz"
             metadata = default_replay_metadata(
@@ -187,6 +210,8 @@ def main(argv: list[str] | None = None) -> None:
             "run_kind": "official_clean_clone_replay_collection",
             "target_speed_kmh": float(args.target_speed_kmh),
             "steer_sign": float(args.steer_sign),
+            "record_after_route_progress": float(args.record_after_route_progress),
+            "min_recorded_steps": int(args.min_recorded_steps),
         },
     )
     print(f"STAGE2_PRIVILEGED_REPLAY_MANIFEST={manifest_path}")
