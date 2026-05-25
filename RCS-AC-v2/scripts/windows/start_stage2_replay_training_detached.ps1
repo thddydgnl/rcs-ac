@@ -79,6 +79,18 @@ $ImitationClassBalanceArg = ""
 if ($ImitationClassBalance) {
     $ImitationClassBalanceArg = " -ImitationClassBalance"
 }
+$ComponentSampleWeightsArg = ""
+if ($ComponentSampleWeights -ne "") {
+    $ComponentSampleWeightsArg = " -ComponentSampleWeights $QuotedComponentSampleWeights"
+}
+$ActionMassCapsArg = ""
+if ($ActionMassCaps -ne "") {
+    $ActionMassCapsArg = " -ActionMassCaps $QuotedActionMassCaps"
+}
+$RouteSpeedActionIdsArg = ""
+if ($RouteSpeedActionIds -ne "") {
+    $RouteSpeedActionIdsArg = " -RouteSpeedActionIds $QuotedRouteSpeedActionIds"
+}
 
 $InnerCommand = @"
 `$ErrorActionPreference = 'Stop'
@@ -86,7 +98,7 @@ $InnerCommand = @"
 "DETACHED_TRAIN_STARTED=`$(Get-Date -Format o)" | Set-Content -Path `$LogPath
 try {
     Set-Location $QuotedProjectRoot
-    powershell -ExecutionPolicy Bypass -File $QuotedTrainingScript -ProjectRoot $QuotedProjectRoot -ReplayPath $QuotedReplayPath -ReplayManifestPath $QuotedReplayManifestPath -OutputDir $QuotedOutputDir -Seed $Seed -SequenceLength $SequenceLength -BatchSize $BatchSize -WorldModelSteps $WorldModelSteps -PolicySteps $PolicySteps -LearningRate $LearningRate -ImitationWeight $ImitationWeight -BehaviorWeight $BehaviorWeight -ImitationBalancePower $ImitationBalancePower -SteerSequenceFraction $SteerSequenceFraction -MovingSteerFalsePositiveWeight $MovingSteerFalsePositiveWeight -MovingSteerBinaryWeight $MovingSteerBinaryWeight -MovingSteerNonmovingMarginWeight $MovingSteerNonmovingMarginWeight -MovingSteerNonmovingMargin $MovingSteerNonmovingMargin -WorldModelActionAuxWeight $WorldModelActionAuxWeight -ComponentSampleWeights $QuotedComponentSampleWeights -ActionMassCapWeight $ActionMassCapWeight -ActionMassCaps $QuotedActionMassCaps -RouteSpeedActionMassCapWeight $RouteSpeedActionMassCapWeight -RouteSpeedActionIds $QuotedRouteSpeedActionIds -RouteSpeedActionMassCap $RouteSpeedActionMassCap -RouteSpeedMinSpeedNorm $RouteSpeedMinSpeedNorm -RouteSpeedMinRouteProgress $RouteSpeedMinRouteProgress -RouteSpeedMaxRouteProgress $RouteSpeedMaxRouteProgress$ImitationClassBalanceArg -HiddenDim $HiddenDim -Device $QuotedDevice *>&1 | Tee-Object -FilePath `$LogPath -Append
+    powershell -ExecutionPolicy Bypass -File $QuotedTrainingScript -ProjectRoot $QuotedProjectRoot -ReplayPath $QuotedReplayPath -ReplayManifestPath $QuotedReplayManifestPath -OutputDir $QuotedOutputDir -Seed $Seed -SequenceLength $SequenceLength -BatchSize $BatchSize -WorldModelSteps $WorldModelSteps -PolicySteps $PolicySteps -LearningRate $LearningRate -ImitationWeight $ImitationWeight -BehaviorWeight $BehaviorWeight -ImitationBalancePower $ImitationBalancePower -SteerSequenceFraction $SteerSequenceFraction -MovingSteerFalsePositiveWeight $MovingSteerFalsePositiveWeight -MovingSteerBinaryWeight $MovingSteerBinaryWeight -MovingSteerNonmovingMarginWeight $MovingSteerNonmovingMarginWeight -MovingSteerNonmovingMargin $MovingSteerNonmovingMargin -WorldModelActionAuxWeight $WorldModelActionAuxWeight$ComponentSampleWeightsArg -ActionMassCapWeight $ActionMassCapWeight$ActionMassCapsArg -RouteSpeedActionMassCapWeight $RouteSpeedActionMassCapWeight$RouteSpeedActionIdsArg -RouteSpeedActionMassCap $RouteSpeedActionMassCap -RouteSpeedMinSpeedNorm $RouteSpeedMinSpeedNorm -RouteSpeedMinRouteProgress $RouteSpeedMinRouteProgress -RouteSpeedMaxRouteProgress $RouteSpeedMaxRouteProgress$ImitationClassBalanceArg -HiddenDim $HiddenDim -Device $QuotedDevice *>&1 | Tee-Object -FilePath `$LogPath -Append
     `$Code = `$LASTEXITCODE
 }
 catch {
