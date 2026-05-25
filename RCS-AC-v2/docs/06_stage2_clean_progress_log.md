@@ -213,3 +213,30 @@ It is over-predicting moving steer on teacher non-moving frames, especially on
 the steer2 replay. The next structural fix should penalize predicted moving
 steer on non-moving replay labels or add a non-moving/steer agreement diagnostic
 to training, then re-run the offline cross replay gate before any 512 clean eval.
+
+False-positive penalty follow-up:
+
+- `balpow025_iw5_ssf025_msfpa05_cuda`:
+  - target22 action/latent: pass.
+  - steer2 latent: pass.
+  - steer2 action rejected, moving steer fraction `0.2102009274`.
+- `balpow025_iw5_ssf025_msfpa10_cuda`:
+  - target22 action/latent: pass.
+  - steer2 latent: pass.
+  - steer2 action rejected, moving steer fraction `0.2086553323`.
+- `balpow025_iw5_ssf025_msfpa20_cuda`:
+  - target22 action/latent: pass.
+  - steer2 latent: pass.
+  - steer2 action rejected by one action bucket, moving steer fraction
+    `0.2009273570`, gate max `0.20`.
+- `balpow025_iw5_ssf025_msfpa25_cuda`:
+  - target22 action/latent: pass.
+  - steer2 latent: pass.
+  - steer2 action still rejected, moving steer fraction `0.2009273570`.
+
+Decision: false-positive-only regularization improved the gate but saturated just
+above the threshold. Do not relax the gate and do not run official 512 clean eval
+from these candidates. The next implementation adds an optional moving-steer
+binary auxiliary loss, default `0.0`, so future CUDA candidates can directly
+supervise whether replay frames should be moving-steer while preserving the
+existing action imitation loss.

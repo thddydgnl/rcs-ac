@@ -25,6 +25,7 @@ param(
     [double]$ImitationBalancePower = 0.5,
     [double]$SteerSequenceFraction = 0.15,
     [double]$MovingSteerFalsePositiveWeight = 0.0,
+    [double]$MovingSteerBinaryWeight = 0.0,
     [double]$WorldModelActionAuxWeight = 1.0,
     [int]$HiddenDim = 128,
     [string]$Device = "cuda"
@@ -166,6 +167,7 @@ $LatestPointer = [ordered]@{
     seed = $Seed
     steer_sequence_fraction = $SteerSequenceFraction
     moving_steer_false_positive_weight = $MovingSteerFalsePositiveWeight
+    moving_steer_binary_weight = $MovingSteerBinaryWeight
     updated_at = (Get-Date -Format o)
 }
 $LatestPointer | ConvertTo-Json -Depth 4 | Set-Content -Path $LatestPointerPath
@@ -189,6 +191,7 @@ powershell -ExecutionPolicy Bypass -File $StartScript `
     -ImitationBalancePower $ImitationBalancePower `
     -SteerSequenceFraction $SteerSequenceFraction `
     -MovingSteerFalsePositiveWeight $MovingSteerFalsePositiveWeight `
+    -MovingSteerBinaryWeight $MovingSteerBinaryWeight `
     -WorldModelActionAuxWeight $WorldModelActionAuxWeight `
     -HiddenDim $HiddenDim `
     -Device $Device `

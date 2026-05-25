@@ -580,6 +580,20 @@ def test_stage2_replay_training_wrappers_expose_moving_steer_false_positive_stat
     assert "[double]$MovingSteerFalsePositiveWeight = 0.0" in target_speed
     assert '"-MovingSteerFalsePositiveWeight", $MovingSteerFalsePositiveWeight' in target_speed
 
+    assert "--moving-steer-binary-weight" in module
+    assert "moving_steer_binary_weight" in module
+    assert "[double]$MovingSteerBinaryWeight = 0.0" in train
+    assert '"--moving-steer-binary-weight", $MovingSteerBinaryWeight' in train
+    assert "[double]$MovingSteerBinaryWeight = 0.0" in start
+    assert "-MovingSteerBinaryWeight $MovingSteerBinaryWeight" in start
+    assert "moving_steer_binary_weight = $MovingSteerBinaryWeight" in start
+    assert "[double]$MovingSteerBinaryWeight = 0.0" in mixed
+    assert "-MovingSteerBinaryWeight $MovingSteerBinaryWeight" in mixed
+    assert "[double]$MovingSteerBinaryWeight = 0.0" in target
+    assert "-MovingSteerBinaryWeight $MovingSteerBinaryWeight" in target
+    assert "[double]$MovingSteerBinaryWeight = 0.0" in target_speed
+    assert '"-MovingSteerBinaryWeight", $MovingSteerBinaryWeight' in target_speed
+
 
 def test_cross_replay_candidate_probe_runner_static_contract() -> None:
     script = Path(__file__).resolve().parents[1] / "scripts" / "windows" / "probe_stage2_candidate_cross_replays.ps1"
