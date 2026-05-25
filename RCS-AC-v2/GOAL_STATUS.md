@@ -232,8 +232,10 @@ use summarize_stage2_candidate_gate.ps1 on stage2_candidate_cross_replay_gate.js
 rerun probe_stage2_candidate_cross_replays.ps1 before any new 512 clean gate; require action probes to pass on target-24 and steer2, and latent probes to remain materially stronger than majority baseline
 2026-05-26 reconnect check: LAN SSH probe to 192.168.0.13:22 timed out from
 the Mac, and earlier userspace Tailscale failed under the tailnet hardware
-attestation policy. Remote Windows/CUDA execution is paused until Windows is
-reachable through system Tailscale, LAN SSH, or a fixed tailnet device policy.
+attestation policy. A system `tailscale status` probe also failed with
+`failed to connect to local Tailscale service; is Tailscale running?`. Remote
+Windows/CUDA execution is paused until Windows is reachable through system
+Tailscale, LAN SSH, or a fixed tailnet device policy.
 While remote execution is paused, keep sub-agent pulses for local docs/log/
 script audits; do not let the clean-first goal silently drop sub-agent usage.
 do not treat the 128 PASS as full clean completion
