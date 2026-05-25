@@ -19,7 +19,7 @@ Stage 2: Privileged policy clean
 Status:
 
 ```text
-STAGE2_CLEAN_FIRST_COMPONENT_SAMPLER_GUARD_ADDED
+STAGE2_CLEAN_FIRST_CORR050_SHORT_EPISODES_CONFIRMED
 ```
 
 Last completed stage:
@@ -78,6 +78,12 @@ showed identical steer2 distributions across target-speed/weight variants. A
 component-sampler guard was added so replay training now records included and
 dropped short episodes per component and fails fast when a positive-weight
 component has no episodes long enough for the configured sequence_length.
+After pulling commit 32a65cb on the Windows clean clone, the diagnostic guard
+confirmed both mixed_t22_steer2_corr050_t12 and mixed_t22_steer2_corr050_t16
+have corr050 episodes of length 10 while sequence_length=16, so corr050 was
+filtered out of training entirely. The next clean-first action is to recollect
+the collision-window component with MinRecordedSteps >= 16 or longer contiguous
+windows before training another corr050 candidate.
 ```
 
 Pending brief:

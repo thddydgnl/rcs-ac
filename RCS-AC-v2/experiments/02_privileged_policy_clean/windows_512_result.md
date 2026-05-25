@@ -391,14 +391,16 @@ candidate to "ready for 512 clean eval"; it is not a clean PASS.
   target22_status: replay collected and detached training started as RCSV2Stage2target22Aux1BalPow05; Windows SSH/Tailscale became unreachable before completion check
 
 2026-05-26:
-  state: corr050_branch_rejected_offline_and_guarded
+  state: corr050_branch_rejected_offline_and_short_episode_cause_confirmed
+  commit: 32a65cb
   cause_under_test: BF7 512 clean collision window near route_progress 0.50
   replay_branches: bf7_route050_collision_window_t12_min5 and bf7_route050_collision_window_t16_min5
   candidate_result: corr050 t12/t16 weight and false-positive variants were rejected before official CARLA eval because steer2 moving-steer false positives stayed above the 0.20 gate
   diagnostic_finding: identical steer2 distributions across corr050 variants can happen when short component episodes are filtered out by sequence_length or when episode-level weights are not visible in realized batches
   integrated_patch: replay training now records component_sampler_stats and sampler included/dropped episode lists, and raises before training if an explicitly positive component weight has no sequence_length-eligible episodes
+  windows_diagnostic: both mixed_t22_steer2_corr050_t12 and mixed_t22_steer2_corr050_t16 reported lengths [10,10,10,10,314,333,261,261] and raised "component 'corr050' has positive sample weight but no episodes long enough for sequence_length=16"
   clean_gate_evidence: false
-  next_action: pull the guard on Windows, run a tiny diagnostic against the existing mixed replay, then recollect corr050 with MinRecordedSteps >= sequence_length or stop using that component if it cannot contribute eligible windows
+  next_action: recollect corr050 with MinRecordedSteps >= sequence_length, rebuild the mixed replay manifest, verify component_sampler_stats includes corr050 windows, then train/probe before any official 512 clean eval
 ```
 
 Decision rules:
