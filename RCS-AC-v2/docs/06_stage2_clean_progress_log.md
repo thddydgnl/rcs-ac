@@ -195,3 +195,19 @@ Observed steer2 failure pattern:
 - The failure is mostly argmax action distribution on steer2 replay while latent
   separability remains healthy. Diagnose policy action logits/replay-label
   agreement before promoting any candidate.
+
+Label diagnostic on `balpow025_iw5_ssf025_cuda` steer2 replay:
+
+- output:
+  `RCS-AC-v2\experiments\02_privileged_policy_clean\windows_512\diagnostics\balpow025_iw5_ssf025_cuda_steer2_label_action_probe.json`
+- action match fraction: `0.7697063369`
+- teacher label moving steer fraction: `0.1298299845`
+- predicted moving steer fraction: `0.2132921175`
+- predicted moving on label-nonmoving fraction: `0.0896445131`
+- predicted nonmoving on label-moving fraction: `0.0061823802`
+
+Interpretation: the near-best candidate is not mainly missing steering labels.
+It is over-predicting moving steer on teacher non-moving frames, especially on
+the steer2 replay. The next structural fix should penalize predicted moving
+steer on non-moving replay labels or add a non-moving/steer agreement diagnostic
+to training, then re-run the offline cross replay gate before any 512 clean eval.
