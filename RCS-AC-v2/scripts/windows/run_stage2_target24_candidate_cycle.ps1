@@ -22,6 +22,7 @@ param(
     [double]$BehaviorWeight = 0.0,
     [double]$ImitationBalancePower = 0.5,
     [double]$SteerSequenceFraction = 0.10,
+    [double]$MovingSteerFalsePositiveWeight = 0.0,
     [double]$WorldModelActionAuxWeight = 1.0,
     [int]$HiddenDim = 128,
     [string]$Device = "cuda"
@@ -148,6 +149,7 @@ powershell -ExecutionPolicy Bypass -File $StartScript `
     -ImitationClassBalance `
     -ImitationBalancePower $ImitationBalancePower `
     -SteerSequenceFraction $SteerSequenceFraction `
+    -MovingSteerFalsePositiveWeight $MovingSteerFalsePositiveWeight `
     -WorldModelActionAuxWeight $WorldModelActionAuxWeight `
     -HiddenDim $HiddenDim `
     -Device $Device `

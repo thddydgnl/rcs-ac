@@ -14,6 +14,7 @@ param(
     [switch]$ImitationClassBalance,
     [double]$ImitationBalancePower = 1.0,
     [double]$SteerSequenceFraction = 0.0,
+    [double]$MovingSteerFalsePositiveWeight = 0.0,
     [double]$WorldModelActionAuxWeight = 0.0,
     [int]$HiddenDim = 128,
     [string]$Device = "cuda"
@@ -46,6 +47,7 @@ $TrainArgs = @(
     "--behavior-weight", $BehaviorWeight,
     "--imitation-balance-power", $ImitationBalancePower,
     "--steer-sequence-fraction", $SteerSequenceFraction,
+    "--moving-steer-false-positive-weight", $MovingSteerFalsePositiveWeight,
     "--world-model-action-aux-weight", $WorldModelActionAuxWeight,
     "--hidden-dim", $HiddenDim,
     "--device", $Device

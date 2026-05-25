@@ -12,6 +12,7 @@ param(
     [string]$CrossProbeOutputDir = "",
     [string]$SecondaryReplayManifestPath = "RCS-AC-v2\experiments\02_privileged_policy_clean\replay\windows_privileged_6e74d9e_long512_t25_steer2_probe\stage2_privileged_replay_manifest.json",
     [string]$TaskName = "",
+    [double]$MovingSteerFalsePositiveWeight = 0.0,
     [switch]$SkipGitPull,
     [switch]$SkipCarlaReady,
     [switch]$CollectIfMissing,
@@ -100,6 +101,7 @@ $CycleArgs = @(
     "-CandidateName", $CandidateName,
     "-PrimaryReplayName", $CandidateName,
     "-Seed", $Seed,
+    "-MovingSteerFalsePositiveWeight", $MovingSteerFalsePositiveWeight,
     "-Device", $Device,
     "-SkipGitPull"
 )

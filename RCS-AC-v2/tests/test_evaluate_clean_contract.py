@@ -541,6 +541,36 @@ def test_stage2_replay_training_wrappers_expose_seed_static_contract() -> None:
     assert '"-Seed", $Seed' in target_speed
 
 
+def test_stage2_replay_training_wrappers_expose_moving_steer_false_positive_static_contract() -> None:
+    scripts_dir = Path(__file__).resolve().parents[1] / "scripts" / "windows"
+    train = (scripts_dir / "train_stage2_privileged_from_replay.ps1").read_text()
+    start = (scripts_dir / "start_stage2_replay_training_detached.ps1").read_text()
+    mixed = (scripts_dir / "run_stage2_mixed_candidate_cycle.ps1").read_text()
+    target = (scripts_dir / "run_stage2_target24_candidate_cycle.ps1").read_text()
+    target_speed = (scripts_dir / "run_stage2_target_speed_replay_cycle.ps1").read_text()
+    module = (
+        Path(__file__).resolve().parents[1]
+        / "code"
+        / "rcs_ac_v2"
+        / "training"
+        / "train_stage2_privileged_from_replay.py"
+    ).read_text()
+
+    assert "--moving-steer-false-positive-weight" in module
+    assert "moving_steer_false_positive_weight" in module
+    assert "[double]$MovingSteerFalsePositiveWeight = 0.0" in train
+    assert '"--moving-steer-false-positive-weight", $MovingSteerFalsePositiveWeight' in train
+    assert "[double]$MovingSteerFalsePositiveWeight = 0.0" in start
+    assert "-MovingSteerFalsePositiveWeight $MovingSteerFalsePositiveWeight" in start
+    assert "moving_steer_false_positive_weight = $MovingSteerFalsePositiveWeight" in start
+    assert "[double]$MovingSteerFalsePositiveWeight = 0.0" in mixed
+    assert "-MovingSteerFalsePositiveWeight $MovingSteerFalsePositiveWeight" in mixed
+    assert "[double]$MovingSteerFalsePositiveWeight = 0.0" in target
+    assert "-MovingSteerFalsePositiveWeight $MovingSteerFalsePositiveWeight" in target
+    assert "[double]$MovingSteerFalsePositiveWeight = 0.0" in target_speed
+    assert '"-MovingSteerFalsePositiveWeight", $MovingSteerFalsePositiveWeight' in target_speed
+
+
 def test_cross_replay_candidate_probe_runner_static_contract() -> None:
     script = Path(__file__).resolve().parents[1] / "scripts" / "windows" / "probe_stage2_candidate_cross_replays.ps1"
     text = script.read_text()

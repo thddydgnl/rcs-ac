@@ -14,6 +14,7 @@ param(
     [switch]$ImitationClassBalance,
     [double]$ImitationBalancePower = 1.0,
     [double]$SteerSequenceFraction = 0.0,
+    [double]$MovingSteerFalsePositiveWeight = 0.0,
     [double]$WorldModelActionAuxWeight = 0.0,
     [int]$HiddenDim = 128,
     [string]$Device = "cuda",
@@ -65,7 +66,7 @@ $InnerCommand = @"
 "DETACHED_TRAIN_STARTED=`$(Get-Date -Format o)" | Set-Content -Path `$LogPath
 try {
     Set-Location $QuotedProjectRoot
-    powershell -ExecutionPolicy Bypass -File $QuotedTrainingScript -ProjectRoot $QuotedProjectRoot -ReplayPath $QuotedReplayPath -ReplayManifestPath $QuotedReplayManifestPath -OutputDir $QuotedOutputDir -Seed $Seed -SequenceLength $SequenceLength -BatchSize $BatchSize -WorldModelSteps $WorldModelSteps -PolicySteps $PolicySteps -LearningRate $LearningRate -ImitationWeight $ImitationWeight -BehaviorWeight $BehaviorWeight -ImitationBalancePower $ImitationBalancePower -SteerSequenceFraction $SteerSequenceFraction -WorldModelActionAuxWeight $WorldModelActionAuxWeight$ImitationClassBalanceArg -HiddenDim $HiddenDim -Device $QuotedDevice *>&1 | Tee-Object -FilePath `$LogPath -Append
+    powershell -ExecutionPolicy Bypass -File $QuotedTrainingScript -ProjectRoot $QuotedProjectRoot -ReplayPath $QuotedReplayPath -ReplayManifestPath $QuotedReplayManifestPath -OutputDir $QuotedOutputDir -Seed $Seed -SequenceLength $SequenceLength -BatchSize $BatchSize -WorldModelSteps $WorldModelSteps -PolicySteps $PolicySteps -LearningRate $LearningRate -ImitationWeight $ImitationWeight -BehaviorWeight $BehaviorWeight -ImitationBalancePower $ImitationBalancePower -SteerSequenceFraction $SteerSequenceFraction -MovingSteerFalsePositiveWeight $MovingSteerFalsePositiveWeight -WorldModelActionAuxWeight $WorldModelActionAuxWeight$ImitationClassBalanceArg -HiddenDim $HiddenDim -Device $QuotedDevice *>&1 | Tee-Object -FilePath `$LogPath -Append
     `$Code = `$LASTEXITCODE
 }
 catch {
@@ -107,6 +108,7 @@ $LaunchManifest = [ordered]@{
     imitation_class_balance = [bool]$ImitationClassBalance
     imitation_balance_power = $ImitationBalancePower
     steer_sequence_fraction = $SteerSequenceFraction
+    moving_steer_false_positive_weight = $MovingSteerFalsePositiveWeight
     world_model_action_aux_weight = $WorldModelActionAuxWeight
     hidden_dim = $HiddenDim
     device = $Device
