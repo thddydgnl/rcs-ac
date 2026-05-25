@@ -477,6 +477,20 @@ def test_checkpoint_action_probe_counts_only_forward_steering() -> None:
     assert _is_forward_steer_action(get_discrete_action(17)) is False
 
 
+def test_late_replay_collector_supports_policy_warmup_static_contract() -> None:
+    root = Path(__file__).resolve().parents[1]
+    collector = (root / "code" / "rcs_ac_v2" / "training" / "collect_stage2_privileged_replay.py").read_text()
+    wrapper = (root / "scripts" / "windows" / "collect_stage2_privileged_replay.ps1").read_text()
+
+    assert "warmup_policy_runner: Any | None = None" in collector
+    assert "load_stage2_policy_runner" in collector
+    assert "warmup_policy_config" in collector
+    assert "_select_warmup_policy_action" in collector
+    assert "warmup_policy_runner.observe_action(action_id)" in collector
+    assert '[string]$WarmupPolicyConfig = ""' in wrapper
+    assert '"--warmup-policy-config", $WarmupPolicyConfig' in wrapper
+
+
 def _simulator_privileged_info() -> dict:
     return {
         "privileged_observation_clean_gate_eligible": True,

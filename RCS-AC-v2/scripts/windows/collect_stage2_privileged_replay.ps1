@@ -8,6 +8,7 @@ param(
     [double]$SteerSign = -1.0,
     [double]$RecordAfterRouteProgress = 0.0,
     [int]$MinRecordedSteps = 1,
+    [string]$WarmupPolicyConfig = "",
     [string]$EnsureCarlaScript = "",
     [string]$StartCarlaScript = "",
     [string]$EnvConfigPathOverride = "",
@@ -94,13 +95,20 @@ if (-not $SkipCarlaReady) {
 Write-Host "STAGE2_PRIVILEGED_REPLAY_COLLECT_READY=True"
 Write-Host "CONFIG_PATH=$ConfigPath"
 Write-Host "OUTPUT_DIR=$OutputDir"
-& py -3.12 -B -m rcs_ac_v2.training.collect_stage2_privileged_replay `
-    --config $ConfigPath `
-    --output-dir $OutputDir `
-    --episodes $Episodes `
-    --max-steps $MaxSteps `
-    --target-speed-kmh $TargetSpeedKmh `
-    --steer-sign $SteerSign `
-    --record-after-route-progress $RecordAfterRouteProgress `
-    --min-recorded-steps $MinRecordedSteps
+$CollectArgs = @(
+    "-3.12", "-B", "-m", "rcs_ac_v2.training.collect_stage2_privileged_replay",
+    "--config", $ConfigPath,
+    "--output-dir", $OutputDir,
+    "--episodes", $Episodes,
+    "--max-steps", $MaxSteps,
+    "--target-speed-kmh", $TargetSpeedKmh,
+    "--steer-sign", $SteerSign,
+    "--record-after-route-progress", $RecordAfterRouteProgress,
+    "--min-recorded-steps", $MinRecordedSteps
+)
+if ($WarmupPolicyConfig -ne "") {
+    $CollectArgs += @("--warmup-policy-config", $WarmupPolicyConfig)
+    Write-Host "WARMUP_POLICY_CONFIG=$WarmupPolicyConfig"
+}
+& py @CollectArgs
 exit $LASTEXITCODE

@@ -17,7 +17,7 @@ import torch
 import yaml
 
 from rcs_ac_v2.env.discrete_actions import RAW2DRIVE_ACTIONS, get_discrete_action, to_carla_control
-from rcs_ac_v2.evaluation.carla_adapter import SharedCoreCarlaEnvAdapter, _build_shared_core_env
+from rcs_ac_v2.evaluation.carla_adapter import SharedCoreCarlaEnvAdapter, _build_shared_core_env, load_stage2_policy_runner
 from rcs_ac_v2.evaluation.privileged_observation import (
     EGO8_SCHEMA_VERSION,
     PRIVILEGED_OBSERVATION_SOURCE,
@@ -75,6 +75,7 @@ def collect_episode(
     steer_sign: float = -1.0,
     record_after_route_progress: float = 0.0,
     min_recorded_steps: int = 1,
+    warmup_policy_runner: Any | None = None,
 ) -> dict[str, Any]:
     if max_steps <= 0:
         raise ValueError("max_steps must be positive")
@@ -94,13 +95,16 @@ def collect_episode(
     warmup_steps = 0
     for _step in range(max_steps):
         _validate_simulator_state_privileged_info(info)
-        action_id = select_privileged_replay_action(
-            info,
-            target_speed_kmh=target_speed_kmh,
-            steer_sign=steer_sign,
-        )
         route_progress = _finite_float(info.get("route_progress", 0.0))
         should_record = route_progress >= float(record_after_route_progress)
+        if should_record or warmup_policy_runner is None:
+            action_id = select_privileged_replay_action(
+                info,
+                target_speed_kmh=target_speed_kmh,
+                steer_sign=steer_sign,
+            )
+        else:
+            action_id = _select_warmup_policy_action(warmup_policy_runner, obs, info)
         if should_record:
             bev_rows.append(_stage2_bev_to_numpy(obs["privileged_bev"]))
             ego_rows.append(_stage2_ego_to_numpy(obs["privileged_ego"]))
@@ -110,6 +114,8 @@ def collect_episode(
 
         control = to_carla_control(get_discrete_action(action_id))
         step = _step_env(env, control)
+        if not should_record and warmup_policy_runner is not None:
+            warmup_policy_runner.observe_action(action_id)
         next_info = dict(step.get("info", {}))
         done = bool(step.get("done", False))
         truncated = bool(step.get("truncated", False))
@@ -158,6 +164,7 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--steer-sign", type=float, default=-1.0)
     parser.add_argument("--record-after-route-progress", type=float, default=0.0)
     parser.add_argument("--min-recorded-steps", type=int, default=1)
+    parser.add_argument("--warmup-policy-config", default="")
     args = parser.parse_args(argv)
 
     config_path = Path(args.config)
@@ -166,9 +173,15 @@ def main(argv: list[str] | None = None) -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
     raw_env = _build_shared_core_env(config)
     env = SharedCoreCarlaEnvAdapter(raw_env, config)
+    warmup_policy_runner = None
+    if args.warmup_policy_config:
+        warmup_policy_config = yaml.safe_load(Path(args.warmup_policy_config).read_text())
+        warmup_policy_runner = load_stage2_policy_runner(warmup_policy_config)
     episode_paths: list[Path] = []
     try:
         for episode_index in range(int(args.episodes)):
+            if warmup_policy_runner is not None:
+                warmup_policy_runner.reset()
             episode = collect_episode(
                 env,
                 max_steps=int(args.max_steps),
@@ -176,6 +189,7 @@ def main(argv: list[str] | None = None) -> None:
                 steer_sign=float(args.steer_sign),
                 record_after_route_progress=float(args.record_after_route_progress),
                 min_recorded_steps=int(args.min_recorded_steps),
+                warmup_policy_runner=warmup_policy_runner,
             )
             path = output_dir / f"episode_{episode_index:04d}.npz"
             metadata = default_replay_metadata(
@@ -212,6 +226,7 @@ def main(argv: list[str] | None = None) -> None:
             "steer_sign": float(args.steer_sign),
             "record_after_route_progress": float(args.record_after_route_progress),
             "min_recorded_steps": int(args.min_recorded_steps),
+            "warmup_policy_config": str(args.warmup_policy_config or ""),
         },
     )
     print(f"STAGE2_PRIVILEGED_REPLAY_MANIFEST={manifest_path}")
@@ -240,6 +255,14 @@ def _step_env(env: Any, control: dict[str, float | bool]) -> dict[str, Any]:
         return env.step(control, policy_diagnostics={"rcs_ac_v2_replay_collector": True})
     except TypeError:
         return env.step(control)
+
+
+def _select_warmup_policy_action(runner: Any, obs: dict[str, Any], info: dict[str, Any]) -> int:
+    output = runner.act(obs, info)
+    logits = output["logits"]
+    if tuple(logits.shape) != (1, 1, len(RAW2DRIVE_ACTIONS)) or not torch.isfinite(logits).all():
+        raise RuntimeError("warmup policy logits must be finite [1,1,39]")
+    return int(torch.argmax(logits, dim=-1).item())
 
 
 def _finite_float(value: Any, default: float = 0.0) -> float:
