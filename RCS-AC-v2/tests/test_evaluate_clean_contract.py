@@ -697,6 +697,23 @@ def test_stage2_replay_training_wrappers_expose_moving_steer_false_positive_stat
     assert '"-RouteSpeedActionMassCapWeight", $RouteSpeedActionMassCapWeight' in mixed
     assert '$StartArgs += @("-RouteSpeedActionIds", $RouteSpeedActionIds)' in mixed
 
+    assert "--route-action-mass-cap-weight" in module
+    assert "--route-action-mass-cap-ids" in module
+    assert "[double]$RouteActionMassCapWeight = 0.0" in train
+    assert "[string]$RouteActionMassCapIds = \"\"" in train
+    assert '"--route-action-mass-cap-weight", $RouteActionMassCapWeight' in train
+    assert '$TrainArgs += @("--route-action-mass-cap-ids", $RouteActionMassCapIds)' in train
+    assert "[double]$RouteActionMassCapWeight = 0.0" in start
+    assert "[string]$RouteActionMassCapIds = \"\"" in start
+    assert "-RouteActionMassCapWeight $RouteActionMassCapWeight" in start
+    assert "-RouteActionMassCapIds $QuotedRouteActionMassCapIds" in start
+    assert "route_action_mass_cap_weight = $RouteActionMassCapWeight" in start
+    assert "route_action_mass_cap_ids = $RouteActionMassCapIds" in start
+    assert "[double]$RouteActionMassCapWeight = 0.0" in mixed
+    assert "[string]$RouteActionMassCapIds = \"\"" in mixed
+    assert '"-RouteActionMassCapWeight", $RouteActionMassCapWeight' in mixed
+    assert '$StartArgs += @("-RouteActionMassCapIds", $RouteActionMassCapIds)' in mixed
+
     assert "--route-throttle-ceiling-weight" in module
     assert "--route-throttle-ceiling" in module
     assert "[double]$RouteThrottleCeilingWeight = 0.0" in train

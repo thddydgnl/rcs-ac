@@ -42,6 +42,12 @@ param(
     [double]$RouteSpeedMinSpeedNorm = 0.0,
     [double]$RouteSpeedMinRouteProgress = 0.0,
     [double]$RouteSpeedMaxRouteProgress = 1.0,
+    [double]$RouteActionMassCapWeight = 0.0,
+    [string]$RouteActionMassCapIds = "",
+    [double]$RouteActionMassCap = 1.0,
+    [double]$RouteActionMassCapMinSpeedNorm = 0.0,
+    [double]$RouteActionMassCapMinRouteProgress = 0.0,
+    [double]$RouteActionMassCapMaxRouteProgress = 1.0,
     [double]$RouteThrottleCeilingWeight = 0.0,
     [double]$RouteThrottleCeiling = 1.0,
     [double]$RouteThrottleMinSpeedNorm = 0.0,
@@ -248,6 +254,12 @@ $LatestPointer = [ordered]@{
     route_speed_min_speed_norm = $RouteSpeedMinSpeedNorm
     route_speed_min_route_progress = $RouteSpeedMinRouteProgress
     route_speed_max_route_progress = $RouteSpeedMaxRouteProgress
+    route_action_mass_cap_weight = $RouteActionMassCapWeight
+    route_action_mass_cap_ids = $RouteActionMassCapIds
+    route_action_mass_cap = $RouteActionMassCap
+    route_action_mass_cap_min_speed_norm = $RouteActionMassCapMinSpeedNorm
+    route_action_mass_cap_min_route_progress = $RouteActionMassCapMinRouteProgress
+    route_action_mass_cap_max_route_progress = $RouteActionMassCapMaxRouteProgress
     route_action_override_weight = $RouteActionOverrideWeight
     route_action_override_id = $RouteActionOverrideId
     route_action_override_min_speed_norm = $RouteActionOverrideMinSpeedNorm
@@ -289,6 +301,11 @@ $StartArgs = @(
     "-RouteSpeedMinSpeedNorm", $RouteSpeedMinSpeedNorm,
     "-RouteSpeedMinRouteProgress", $RouteSpeedMinRouteProgress,
     "-RouteSpeedMaxRouteProgress", $RouteSpeedMaxRouteProgress,
+    "-RouteActionMassCapWeight", $RouteActionMassCapWeight,
+    "-RouteActionMassCap", $RouteActionMassCap,
+    "-RouteActionMassCapMinSpeedNorm", $RouteActionMassCapMinSpeedNorm,
+    "-RouteActionMassCapMinRouteProgress", $RouteActionMassCapMinRouteProgress,
+    "-RouteActionMassCapMaxRouteProgress", $RouteActionMassCapMaxRouteProgress,
     "-RouteThrottleCeilingWeight", $RouteThrottleCeilingWeight,
     "-RouteThrottleCeiling", $RouteThrottleCeiling,
     "-RouteThrottleMinSpeedNorm", $RouteThrottleMinSpeedNorm,
@@ -308,6 +325,9 @@ if ($ActionMassCaps -ne "") {
 }
 if ($RouteSpeedActionIds -ne "") {
     $StartArgs += @("-RouteSpeedActionIds", $RouteSpeedActionIds)
+}
+if ($RouteActionMassCapIds -ne "") {
+    $StartArgs += @("-RouteActionMassCapIds", $RouteActionMassCapIds)
 }
 powershell @StartArgs
 exit $LASTEXITCODE

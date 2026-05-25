@@ -386,6 +386,12 @@ def test_replay_training_exports_clean_eval_loadable_checkpoints(tmp_path) -> No
         route_speed_min_speed_norm=0.75,
         route_speed_min_route_progress=0.55,
         route_speed_max_route_progress=0.75,
+        route_action_mass_cap_weight=0.35,
+        route_action_mass_cap_ids=(13, 16),
+        route_action_mass_cap=0.15,
+        route_action_mass_cap_min_speed_norm=0.5,
+        route_action_mass_cap_min_route_progress=0.55,
+        route_action_mass_cap_max_route_progress=0.66,
         route_throttle_ceiling_weight=0.4,
         route_throttle_ceiling=0.35,
         route_throttle_min_speed_norm=0.7,
@@ -437,6 +443,12 @@ def test_replay_training_exports_clean_eval_loadable_checkpoints(tmp_path) -> No
     assert manifest["route_speed_min_speed_norm"] == 0.75
     assert manifest["route_speed_min_route_progress"] == 0.55
     assert manifest["route_speed_max_route_progress"] == 0.75
+    assert manifest["route_action_mass_cap_weight"] == 0.35
+    assert manifest["route_action_mass_cap_ids"] == [13, 16]
+    assert manifest["route_action_mass_cap"] == 0.15
+    assert manifest["route_action_mass_cap_min_speed_norm"] == 0.5
+    assert manifest["route_action_mass_cap_min_route_progress"] == 0.55
+    assert manifest["route_action_mass_cap_max_route_progress"] == 0.66
     assert manifest["route_throttle_ceiling_weight"] == 0.4
     assert manifest["route_throttle_ceiling"] == 0.35
     assert manifest["route_throttle_min_speed_norm"] == 0.7
@@ -453,6 +465,7 @@ def test_replay_training_exports_clean_eval_loadable_checkpoints(tmp_path) -> No
     assert manifest["policy"]["metrics"]["final_moving_steer_nonmoving_margin"] >= 0.0
     assert manifest["policy"]["metrics"]["final_action_mass_cap"] >= 0.0
     assert manifest["policy"]["metrics"]["final_route_speed_action_mass_cap"] >= 0.0
+    assert manifest["policy"]["metrics"]["final_route_action_mass_cap"] >= 0.0
     assert manifest["policy"]["metrics"]["final_route_throttle_ceiling"] >= 0.0
     assert manifest["policy"]["metrics"]["final_route_action_override"] >= 0.0
     assert manifest["sampler"]["requested_priority_sample_fraction"] == 0.0

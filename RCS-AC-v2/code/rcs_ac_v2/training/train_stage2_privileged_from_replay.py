@@ -67,6 +67,12 @@ def train_stage2_privileged_from_replay(
     route_speed_min_speed_norm: float = 0.0,
     route_speed_min_route_progress: float = 0.0,
     route_speed_max_route_progress: float = 1.0,
+    route_action_mass_cap_weight: float = 0.0,
+    route_action_mass_cap_ids: tuple[int, ...] = (),
+    route_action_mass_cap: float = 1.0,
+    route_action_mass_cap_min_speed_norm: float = 0.0,
+    route_action_mass_cap_min_route_progress: float = 0.0,
+    route_action_mass_cap_max_route_progress: float = 1.0,
     route_throttle_ceiling_weight: float = 0.0,
     route_throttle_ceiling: float = 1.0,
     route_throttle_min_speed_norm: float = 0.0,
@@ -107,6 +113,24 @@ def train_stage2_privileged_from_replay(
         raise ValueError("route_speed_max_route_progress must be in [0, 1]")
     if float(route_speed_min_route_progress) > float(route_speed_max_route_progress):
         raise ValueError("route_speed_min_route_progress must be <= route_speed_max_route_progress")
+    if route_action_mass_cap_weight < 0.0:
+        raise ValueError("route_action_mass_cap_weight must be non-negative")
+    resolved_route_action_mass_cap_ids = _normalize_action_id_tuple(route_action_mass_cap_ids)
+    if not 0.0 <= float(route_action_mass_cap) <= 1.0:
+        raise ValueError("route_action_mass_cap must be in [0, 1]")
+    if not 0.0 <= float(route_action_mass_cap_min_speed_norm) <= 1.0:
+        raise ValueError("route_action_mass_cap_min_speed_norm must be in [0, 1]")
+    if not 0.0 <= float(route_action_mass_cap_min_route_progress) <= 1.0:
+        raise ValueError("route_action_mass_cap_min_route_progress must be in [0, 1]")
+    if not 0.0 <= float(route_action_mass_cap_max_route_progress) <= 1.0:
+        raise ValueError("route_action_mass_cap_max_route_progress must be in [0, 1]")
+    if float(route_action_mass_cap_min_route_progress) > float(
+        route_action_mass_cap_max_route_progress
+    ):
+        raise ValueError(
+            "route_action_mass_cap_min_route_progress must be <= "
+            "route_action_mass_cap_max_route_progress"
+        )
     if route_throttle_ceiling_weight < 0.0:
         raise ValueError("route_throttle_ceiling_weight must be non-negative")
     if not 0.0 <= float(route_throttle_ceiling) <= 1.0:
@@ -269,6 +293,15 @@ def train_stage2_privileged_from_replay(
             min_route_progress=route_speed_min_route_progress,
             max_route_progress=route_speed_max_route_progress,
         )
+        route_action_mass_cap_loss = _route_speed_action_mass_cap_loss(
+            logits=replay_policy.logits,
+            privileged_ego=batch.privileged_ego,
+            action_ids=resolved_route_action_mass_cap_ids,
+            cap=route_action_mass_cap,
+            min_speed_norm=route_action_mass_cap_min_speed_norm,
+            min_route_progress=route_action_mass_cap_min_route_progress,
+            max_route_progress=route_action_mass_cap_max_route_progress,
+        )
         route_throttle_ceiling_loss = _route_throttle_ceiling_loss(
             logits=replay_policy.logits,
             privileged_ego=batch.privileged_ego,
@@ -293,6 +326,7 @@ def train_stage2_privileged_from_replay(
             + float(moving_steer_nonmoving_margin_weight) * moving_steer_nonmoving_margin_loss
             + float(action_mass_cap_weight) * action_mass_cap_loss
             + float(route_speed_action_mass_cap_weight) * route_speed_action_mass_cap_loss
+            + float(route_action_mass_cap_weight) * route_action_mass_cap_loss
             + float(route_throttle_ceiling_weight) * route_throttle_ceiling_loss
             + float(route_action_override_weight) * route_action_override_loss
         )
@@ -312,6 +346,7 @@ def train_stage2_privileged_from_replay(
         scalars["route_speed_action_mass_cap"] = float(
             route_speed_action_mass_cap_loss.detach().cpu().item()
         )
+        scalars["route_action_mass_cap"] = float(route_action_mass_cap_loss.detach().cpu().item())
         scalars["route_throttle_ceiling"] = float(route_throttle_ceiling_loss.detach().cpu().item())
         scalars["route_action_override"] = float(route_action_override_loss.detach().cpu().item())
         scalars["combined_total"] = float(total_loss.detach().cpu().item())
@@ -351,6 +386,16 @@ def train_stage2_privileged_from_replay(
         "route_speed_min_speed_norm": float(route_speed_min_speed_norm),
         "route_speed_min_route_progress": float(route_speed_min_route_progress),
         "route_speed_max_route_progress": float(route_speed_max_route_progress),
+        "route_action_mass_cap_weight": float(route_action_mass_cap_weight),
+        "route_action_mass_cap_ids": list(resolved_route_action_mass_cap_ids),
+        "route_action_mass_cap": float(route_action_mass_cap),
+        "route_action_mass_cap_min_speed_norm": float(route_action_mass_cap_min_speed_norm),
+        "route_action_mass_cap_min_route_progress": float(
+            route_action_mass_cap_min_route_progress
+        ),
+        "route_action_mass_cap_max_route_progress": float(
+            route_action_mass_cap_max_route_progress
+        ),
         "route_throttle_ceiling_weight": float(route_throttle_ceiling_weight),
         "route_throttle_ceiling": float(route_throttle_ceiling),
         "route_throttle_min_speed_norm": float(route_throttle_min_speed_norm),
@@ -409,6 +454,7 @@ def train_stage2_privileged_from_replay(
                 "final_route_speed_action_mass_cap": policy_history[-1][
                     "route_speed_action_mass_cap"
                 ],
+                "final_route_action_mass_cap": policy_history[-1]["route_action_mass_cap"],
                 "final_route_throttle_ceiling": policy_history[-1]["route_throttle_ceiling"],
                 "final_route_action_override": policy_history[-1]["route_action_override"],
                 "final_actor": policy_history[-1]["actor"],
@@ -451,6 +497,7 @@ def train_stage2_privileged_from_replay(
                 "final_route_speed_action_mass_cap": policy_history[-1][
                     "route_speed_action_mass_cap"
                 ],
+                "final_route_action_mass_cap": policy_history[-1]["route_action_mass_cap"],
                 "final_route_throttle_ceiling": policy_history[-1]["route_throttle_ceiling"],
                 "final_route_action_override": policy_history[-1]["route_action_override"],
                 "valid_action_ids": valid_action_ids,
@@ -514,6 +561,12 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--route-speed-min-speed-norm", type=float, default=0.0)
     parser.add_argument("--route-speed-min-route-progress", type=float, default=0.0)
     parser.add_argument("--route-speed-max-route-progress", type=float, default=1.0)
+    parser.add_argument("--route-action-mass-cap-weight", type=float, default=0.0)
+    parser.add_argument("--route-action-mass-cap-ids", default="")
+    parser.add_argument("--route-action-mass-cap", type=float, default=1.0)
+    parser.add_argument("--route-action-mass-cap-min-speed-norm", type=float, default=0.0)
+    parser.add_argument("--route-action-mass-cap-min-route-progress", type=float, default=0.0)
+    parser.add_argument("--route-action-mass-cap-max-route-progress", type=float, default=1.0)
     parser.add_argument("--route-throttle-ceiling-weight", type=float, default=0.0)
     parser.add_argument("--route-throttle-ceiling", type=float, default=1.0)
     parser.add_argument("--route-throttle-min-speed-norm", type=float, default=0.0)
@@ -557,6 +610,12 @@ def main(argv: list[str] | None = None) -> None:
         route_speed_min_speed_norm=args.route_speed_min_speed_norm,
         route_speed_min_route_progress=args.route_speed_min_route_progress,
         route_speed_max_route_progress=args.route_speed_max_route_progress,
+        route_action_mass_cap_weight=args.route_action_mass_cap_weight,
+        route_action_mass_cap_ids=_parse_action_id_list(args.route_action_mass_cap_ids),
+        route_action_mass_cap=args.route_action_mass_cap,
+        route_action_mass_cap_min_speed_norm=args.route_action_mass_cap_min_speed_norm,
+        route_action_mass_cap_min_route_progress=args.route_action_mass_cap_min_route_progress,
+        route_action_mass_cap_max_route_progress=args.route_action_mass_cap_max_route_progress,
         route_throttle_ceiling_weight=args.route_throttle_ceiling_weight,
         route_throttle_ceiling=args.route_throttle_ceiling,
         route_throttle_min_speed_norm=args.route_throttle_min_speed_norm,

@@ -1039,3 +1039,62 @@ the earlier route band and regresses clean performance. The next useful test is
 not a stronger steer or later window at the same loss strength, but a weaker
 action `13` override weight, or a code-level scheduled/masked override that
 prevents action `13/16` from being learned before route `0.66`.
+
+Weaker late stronger-override retry:
+
+- `9533880_corr056w4_override13late66w025_cuda`:
+  - same original corr056 hyperparameters.
+  - route-local override: action `13`, route window `0.66-0.70`,
+    weight `0.25`.
+  - CUDA training/checkpoint validation: pass on `NVIDIA GeForce RTX 3080`.
+  - cross replay gate: `ready_for_clean_eval=true`.
+  - target22 action probe:
+    - action counts `{"10":18,"15":80,"4":22,"7":402}`.
+    - dominant action fraction `0.7701149425`.
+    - moving steer fraction `0.0766283525`.
+  - steer2 action probe:
+    - action counts `{"10":10,"12":4,"13":1,"15":88,"4":66,"7":478}`.
+    - dominant action fraction `0.7387944359`.
+    - moving steer fraction `0.1251931994`.
+  - official 512 clean:
+    - run output:
+      `RCS-AC-v2\experiments\02_privileged_policy_clean\windows_512\9533880_corr056w4_override13late66w025_cuda_official_clean512`
+    - status: `FAIL`, clean gate pass: `false`.
+    - done reason: `collision`.
+    - steps: `307` / `512`.
+    - route progress: `0.6666666667`.
+    - collision count: `1`, offroad count: `0`.
+    - final action band: mostly action `7` from route `0.6410` through
+      collision at route `0.6667`.
+
+Decision: `action13` override strength is bracketed. Weight `1.0` leaks too
+much and causes earlier route `0.6154-0.6410` collisions; weight `0.25` is too
+weak and returns to the route `0.6667` straight-line collision. The next Stage 2
+move should stop searching steering magnitude alone and test a speed/throttle
+reduction after route `0.64`, or add an explicit route-local action schedule
+that can keep the approach stable while changing only the final collision band.
+
+Route-local action cap support:
+
+- Added `route_action_mass_cap_*` training parameters to Stage 2 replay
+  training and Windows wrappers.
+- Purpose: keep approach behavior stable by capping high-steer action mass
+  before the intended late correction window, while preserving the existing
+  `route_speed_action_mass_cap_*` speed/action cap used by the corr056 baseline.
+- Targeted use for the next CUDA candidate:
+  - keep the original `9be6b2f_corr056_w4` hyperparameters.
+  - keep route speed cap on actions `7,15,37` for route `0.55-0.75`.
+  - keep early throttle ceiling for route `0.56-0.60`.
+  - add `route_action_mass_cap_ids="13,16"`.
+  - add `route_action_mass_cap=0.05-0.10`.
+  - apply the cap on route `0.55-0.66`, speed norm `>=0.0`.
+  - then retry a late action `13` override only from route `0.66-0.70` with
+    moderate weight, e.g. `0.5`.
+- Local verification:
+  - targeted Stage 2 tests: `61 passed`.
+  - full `RCS-AC-v2/tests`: `139 passed`.
+
+Decision: this is the next Stage 2 direction because the last two official
+clean runs bracketed action `13` strength but did not solve the route `0.64+`
+collision. The cap lets the candidate learn a late correction without leaking
+action `13/16` into the already fragile approach band.

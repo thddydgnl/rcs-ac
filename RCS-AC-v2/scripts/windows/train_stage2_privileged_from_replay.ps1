@@ -28,6 +28,12 @@ param(
     [double]$RouteSpeedMinSpeedNorm = 0.0,
     [double]$RouteSpeedMinRouteProgress = 0.0,
     [double]$RouteSpeedMaxRouteProgress = 1.0,
+    [double]$RouteActionMassCapWeight = 0.0,
+    [string]$RouteActionMassCapIds = "",
+    [double]$RouteActionMassCap = 1.0,
+    [double]$RouteActionMassCapMinSpeedNorm = 0.0,
+    [double]$RouteActionMassCapMinRouteProgress = 0.0,
+    [double]$RouteActionMassCapMaxRouteProgress = 1.0,
     [double]$RouteThrottleCeilingWeight = 0.0,
     [double]$RouteThrottleCeiling = 1.0,
     [double]$RouteThrottleMinSpeedNorm = 0.0,
@@ -85,6 +91,11 @@ $TrainArgs = @(
     "--route-speed-min-speed-norm", $RouteSpeedMinSpeedNorm,
     "--route-speed-min-route-progress", $RouteSpeedMinRouteProgress,
     "--route-speed-max-route-progress", $RouteSpeedMaxRouteProgress,
+    "--route-action-mass-cap-weight", $RouteActionMassCapWeight,
+    "--route-action-mass-cap", $RouteActionMassCap,
+    "--route-action-mass-cap-min-speed-norm", $RouteActionMassCapMinSpeedNorm,
+    "--route-action-mass-cap-min-route-progress", $RouteActionMassCapMinRouteProgress,
+    "--route-action-mass-cap-max-route-progress", $RouteActionMassCapMaxRouteProgress,
     "--route-throttle-ceiling-weight", $RouteThrottleCeilingWeight,
     "--route-throttle-ceiling", $RouteThrottleCeiling,
     "--route-throttle-min-speed-norm", $RouteThrottleMinSpeedNorm,
@@ -106,6 +117,9 @@ if ($ActionMassCaps -ne "") {
 }
 if ($RouteSpeedActionIds -ne "") {
     $TrainArgs += @("--route-speed-action-ids", $RouteSpeedActionIds)
+}
+if ($RouteActionMassCapIds -ne "") {
+    $TrainArgs += @("--route-action-mass-cap-ids", $RouteActionMassCapIds)
 }
 if ($ImitationClassBalance) {
     $TrainArgs += "--imitation-class-balance"
