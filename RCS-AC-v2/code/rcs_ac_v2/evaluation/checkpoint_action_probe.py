@@ -24,6 +24,7 @@ def build_checkpoint_filled_config(
     base_config_path: str | Path,
     checkpoint_manifest_path: str | Path,
     output_config_path: str | Path | None = None,
+    device: str | None = None,
 ) -> dict[str, Any]:
     base_path = Path(base_config_path)
     manifest_path = Path(checkpoint_manifest_path)
@@ -36,6 +37,8 @@ def build_checkpoint_filled_config(
     if git_commit != "UNSET":
         config["checkpoints"]["world_model"]["commit"] = git_commit
         config["checkpoints"]["policy"]["commit"] = git_commit
+    if device is not None:
+        config["device"] = device
     config["checkpoint_training_manifest"] = {
         "path": str(manifest_path),
         "sha256": sha256_file(manifest_path),
@@ -248,6 +251,7 @@ def main(argv: list[str] | None = None) -> None:
             base_config_path=args.config,
             checkpoint_manifest_path=args.checkpoint_manifest,
             output_config_path=args.output_config,
+            device=args.device,
         )
         print(f"PROMOTED_CONFIG={args.output_config}")
     result = probe_checkpoint_actions(

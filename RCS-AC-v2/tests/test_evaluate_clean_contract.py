@@ -513,6 +513,7 @@ def test_stage2_windows_replay_training_and_probe_default_to_cuda_static_contrac
         "run_stage2_target24_candidate_cycle.ps1",
         "run_stage2_target_speed_replay_cycle.ps1",
         "run_stage2_mixed_candidate_cycle.ps1",
+        "run_stage2_clean_eval.ps1",
     ]
     for script_name in script_names:
         text = (scripts_dir / script_name).read_text()

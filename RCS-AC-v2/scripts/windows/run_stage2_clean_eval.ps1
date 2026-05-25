@@ -10,6 +10,7 @@ param(
     [string]$AdapterFactory = "",
     [string]$RunOutputDir = "",
     [string]$CarlaVersion = "0.9.16",
+    [string]$Device = "cuda",
     [switch]$DryRun,
     [switch]$SkipGitPull,
     [switch]$CheckDependenciesOnly
@@ -35,6 +36,11 @@ function Copy-Stage2RunArtifact {
 }
 
 Set-Location $ProjectRoot
+$CudaAssertScript = Join-Path $ProjectRoot "RCS-AC-v2\scripts\windows\assert_stage2_cuda_available.ps1"
+powershell -ExecutionPolicy Bypass -File $CudaAssertScript -ProjectRoot $ProjectRoot -Device $Device
+if ($LASTEXITCODE -ne 0) {
+    exit $LASTEXITCODE
+}
 $WorkspaceRoot = Split-Path -Parent $ProjectRoot
 if ($SupportCodePath -eq "") {
     $DefaultSupportCodePath = "$ProjectRoot\RCS-AC-v1.1\goal_achieved_round_0002_execution\support_code"
@@ -115,7 +121,7 @@ if ($CheckDependenciesOnly) {
 
 $Commit = (git rev-parse HEAD).Trim()
 $Branch = (git rev-parse --abbrev-ref HEAD).Trim()
-$WindowsCommand = "powershell -ExecutionPolicy Bypass -File RCS-AC-v2\scripts\windows\run_stage2_clean_eval.ps1 -ConfigPath $ConfigPath"
+$WindowsCommand = "powershell -ExecutionPolicy Bypass -File RCS-AC-v2\scripts\windows\run_stage2_clean_eval.ps1 -ConfigPath $ConfigPath -Device $Device"
 if ($AdapterFactory -ne "") {
     $WindowsCommand = "$WindowsCommand -AdapterFactory $AdapterFactory"
 }

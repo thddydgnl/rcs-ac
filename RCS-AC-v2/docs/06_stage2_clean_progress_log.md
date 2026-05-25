@@ -126,14 +126,17 @@ clean PASS evidence.
 The next candidate keeps `SteerSequenceFraction=0.25`, lowers class-balance power
 again from `0.25` to `0.125`, and was already launched as a detached Windows
 task before Windows went offline. This is still a CARLA-free replay
-training/probe step. Stage 2 replay training/probe now defaults to `Device=cuda`;
+training/probe step. Stage 2 replay training/probe/official clean eval now defaults to `Device=cuda`;
 direct Python probe entrypoints default to `--device auto`, which chooses CUDA
 when available. After Windows reconnects, verify CUDA first and then check this
 candidate:
 
-Update 2026-05-25: the Windows Stage 2 replay training/probe wrappers now invoke
-`assert_stage2_cuda_available.ps1` before scheduling or probing. Any `Device=cuda`
-or `Device=auto` run fails fast if PyTorch CUDA is unavailable. Use explicit
+Update 2026-05-25: the Windows Stage 2 replay training/probe/clean eval wrappers now invoke
+`assert_stage2_cuda_available.ps1` before scheduling, probing, or official clean
+eval. Any `Device=cuda` or `Device=auto` run fails fast if PyTorch CUDA is
+unavailable. Checkpoint action probe also writes the selected device into the
+generated clean eval config, so the standard promotion path should leave
+`device: cuda` in `clean_stage2_candidate_with_checkpoints.yaml`. Use explicit
 `Device=cpu` only for diagnostic fallback runs; do not count CPU fallback runs as
 official clean-performance candidates.
 
