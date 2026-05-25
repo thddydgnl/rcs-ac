@@ -324,7 +324,6 @@ $StartArgs = @(
     "-RouteLateRightSteerMinRouteProgress", $RouteLateRightSteerMinRouteProgress,
     "-RouteLateRightSteerMaxRouteProgress", $RouteLateRightSteerMaxRouteProgress,
     "-WorldModelActionAuxWeight", $WorldModelActionAuxWeight,
-    "-ComponentSampleWeights", $ComponentSampleWeights,
     "-ActionMassCapWeight", $ActionMassCapWeight,
     "-RouteSpeedActionMassCapWeight", $RouteSpeedActionMassCapWeight,
     "-RouteSpeedActionMassCap", $RouteSpeedActionMassCap,
@@ -355,6 +354,9 @@ $StartArgs = @(
     "-Device", $Device,
     "-TaskName", $TaskName
 )
+if ($ComponentSampleWeights -ne "") {
+    $StartArgs += @("-ComponentSampleWeights", $ComponentSampleWeights)
+}
 if ($ActionMassCaps -ne "") {
     $StartArgs += @("-ActionMassCaps", $ActionMassCaps)
 }
