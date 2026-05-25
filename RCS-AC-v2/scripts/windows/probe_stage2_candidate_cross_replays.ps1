@@ -17,7 +17,7 @@ param(
     [int]$LatentProbeTrainSteps = 400,
     [double]$MinLatentAccuracyMargin = 0.15,
     [double]$MinLatentTestAccuracy = 0.80,
-    [string]$Device = "cpu"
+    [string]$Device = "cuda"
 )
 
 $ErrorActionPreference = "Stop"

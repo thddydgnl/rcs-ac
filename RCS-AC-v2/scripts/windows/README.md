@@ -10,6 +10,7 @@
 Stage 2 clean eval runner는 있다.
 CARLA readiness/start는 v2-local script를 사용한다.
 Stage 2 privileged replay collection/training runner도 있다.
+Stage 2 replay 학습과 offline probe는 기본 Device=cuda로 실행한다.
 ```
 
 공용 script:
@@ -173,8 +174,13 @@ Target-24 재개 명령:
 Set-Location C:\Users\thddy\Documents\code\RCS-AC-first-official-v2-7f87656
 git pull --ff-only
 
+powershell -ExecutionPolicy Bypass -File RCS-AC-v2\scripts\windows\check_stage2_windows_dependencies.ps1 `
+  -ProjectRoot C:\Users\thddy\Documents\code\RCS-AC-first-official-v2-7f87656 `
+  -RequireCuda
+
 powershell -ExecutionPolicy Bypass -File RCS-AC-v2\scripts\windows\run_stage2_target24_candidate_cycle.ps1 `
   -ProjectRoot C:\Users\thddy\Documents\code\RCS-AC-first-official-v2-7f87656 `
+  -Device cuda `
   -StartIfMissing `
   -ProbeWhenReady
 ```
@@ -187,6 +193,7 @@ powershell -ExecutionPolicy Bypass -File RCS-AC-v2\scripts\windows\run_stage2_ta
   -ProjectRoot C:\Users\thddy\Documents\code\RCS-AC-first-official-v2-7f87656 `
   -CandidateName target22 `
   -TargetSpeedKmh 22 `
+  -Device cuda `
   -CollectIfMissing `
   -StartIfMissing `
   -ProbeWhenReady
@@ -199,6 +206,7 @@ Target-22도 steer2 cross replay에서 reject되면, CARLA 부하를 늘리기 �
 powershell -ExecutionPolicy Bypass -File RCS-AC-v2\scripts\windows\run_stage2_mixed_candidate_cycle.ps1 `
   -ProjectRoot C:\Users\thddy\Documents\code\RCS-AC-first-official-v2-7f87656 `
   -SteerSequenceFraction 0.25 `
+  -Device cuda `
   -MakeReplayIfMissing `
   -StartIfMissing `
   -ProbeWhenReady
@@ -214,6 +222,7 @@ powershell -ExecutionPolicy Bypass -File RCS-AC-v2\scripts\windows\run_stage2_mi
   -CrossProbeOutputDir RCS-AC-v2\experiments\02_privileged_policy_clean\windows_512\7f87656_mixed_target22_steer2_aux1_balpow05_iw5_ssf015_cross_probe `
   -TaskName RCSV2Stage2MixedT22Steer2Ssf015 `
   -SteerSequenceFraction 0.15 `
+  -Device cuda `
   -MakeReplayIfMissing `
   -StartIfMissing `
   -ProbeWhenReady
@@ -234,6 +243,12 @@ powershell -ExecutionPolicy Bypass -File RCS-AC-v2\scripts\windows\summarize_sta
 ```
 check_stage2_windows_dependencies.ps1는 CARLA 실행 전에 v2 code,
 shared_core, env config, readiness script 의존성을 검사한다.
+GPU 사용을 보장해야 하는 replay 학습/probe 재개 전에는 `-RequireCuda`를 붙여
+`torch.cuda.is_available()`와 CUDA device name을 먼저 확인한다. Stage 2 replay
+학습, action probe, latent probe, candidate cycle wrapper의 기본값은 모두
+`Device=cuda`이며, GPU가 불안정하거나 PyTorch CUDA가 깨진 원인 분석 때만
+명시적으로 `-Device cpu`를 붙여 후퇴한다. CPU 후퇴 run은 clean 성능 확보용
+공식 후보가 아니라 진단용으로 기록한다.
 base config의 checkpoint path/sha256은 아직 null이므로 그대로 real mode를
 실행하면 model/world_model_checkpoint_missing 실패로 끝나는 것이 정상이다.
 synthetic checkpoint export는 plumbing 증거일 뿐 clean PASS 증거가 아니다.

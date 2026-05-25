@@ -12,7 +12,7 @@ param(
     [double]$MaxNonzeroSteerFraction = 0.5,
     [double]$MaxDominantActionFraction = 0.85,
     [double]$MaxPreviousStuckAction8Fraction = 0.05,
-    [string]$Device = "cpu"
+    [string]$Device = "cuda"
 )
 
 $ErrorActionPreference = "Stop"

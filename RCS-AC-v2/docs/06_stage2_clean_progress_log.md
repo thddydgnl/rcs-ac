@@ -126,9 +126,14 @@ clean PASS evidence.
 The next candidate keeps `SteerSequenceFraction=0.25`, lowers class-balance power
 again from `0.25` to `0.125`, and was already launched as a detached Windows
 task before Windows went offline. This is still a CARLA-free replay
-training/probe step. After Windows reconnects, check this candidate first:
+training/probe step. Stage 2 replay training/probe now defaults to `Device=cuda`;
+after Windows reconnects, verify CUDA first and then check this candidate:
 
 ```powershell
+powershell -ExecutionPolicy Bypass -File RCS-AC-v2\scripts\windows\check_stage2_windows_dependencies.ps1 `
+  -ProjectRoot C:\Users\thddy\Documents\code\RCS-AC-first-official-v2-7f87656 `
+  -RequireCuda
+
 powershell -ExecutionPolicy Bypass -File RCS-AC-v2\scripts\windows\run_stage2_mixed_candidate_cycle.ps1 `
   -ProjectRoot C:\Users\thddy\Documents\code\RCS-AC-first-official-v2-7f87656 `
   -OutputDir RCS-AC-v2\experiments\02_privileged_policy_clean\checkpoints\windows_replay_7f87656_mixed_target22_steer2_aux1_balpow0125_iw5_ssf025 `
@@ -136,6 +141,7 @@ powershell -ExecutionPolicy Bypass -File RCS-AC-v2\scripts\windows\run_stage2_mi
   -TaskName RCSV2Stage2MixedT22Steer2Bal0125Ssf025 `
   -SteerSequenceFraction 0.25 `
   -ImitationBalancePower 0.125 `
+  -Device cuda `
   -MakeReplayIfMissing `
   -StartIfMissing `
   -ProbeWhenReady

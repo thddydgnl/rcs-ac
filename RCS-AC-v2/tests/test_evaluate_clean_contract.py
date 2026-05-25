@@ -502,9 +502,27 @@ def test_detached_replay_training_check_static_contract() -> None:
     assert "exit 2" in text
 
 
+def test_stage2_windows_replay_training_and_probe_default_to_cuda_static_contract() -> None:
+    scripts_dir = Path(__file__).resolve().parents[1] / "scripts" / "windows"
+    script_names = [
+        "train_stage2_privileged_from_replay.ps1",
+        "start_stage2_replay_training_detached.ps1",
+        "probe_stage2_checkpoint_actions.ps1",
+        "probe_stage2_replay_latents.ps1",
+        "probe_stage2_candidate_cross_replays.ps1",
+        "run_stage2_target24_candidate_cycle.ps1",
+        "run_stage2_target_speed_replay_cycle.ps1",
+        "run_stage2_mixed_candidate_cycle.ps1",
+    ]
+    for script_name in script_names:
+        text = (scripts_dir / script_name).read_text()
+        assert '[string]$Device = "cuda"' in text, script_name
+
+
 def test_cross_replay_candidate_probe_runner_static_contract() -> None:
     script = Path(__file__).resolve().parents[1] / "scripts" / "windows" / "probe_stage2_candidate_cross_replays.ps1"
     text = script.read_text()
+    assert '[string]$Device = "cuda"' in text
     assert "probe_stage2_checkpoint_actions.ps1" in text
     assert "probe_stage2_replay_latents.ps1" in text
     assert '$env:PYTHONPATH = "$ProjectRoot\\RCS-AC-v2\\code;$env:PYTHONPATH"' in text
@@ -541,6 +559,7 @@ def test_mixed_replay_manifest_runner_static_contract() -> None:
 def test_mixed_candidate_cycle_runner_static_contract() -> None:
     script = Path(__file__).resolve().parents[1] / "scripts" / "windows" / "run_stage2_mixed_candidate_cycle.ps1"
     text = script.read_text()
+    assert '[string]$Device = "cuda"' in text
     assert "make_stage2_mixed_replay_manifest.ps1" in text
     assert "check_stage2_replay_training_detached.ps1" in text
     assert "start_stage2_replay_training_detached.ps1" in text
@@ -577,6 +596,7 @@ def test_candidate_gate_summary_runner_static_contract() -> None:
 def test_target24_candidate_cycle_runner_static_contract() -> None:
     script = Path(__file__).resolve().parents[1] / "scripts" / "windows" / "run_stage2_target24_candidate_cycle.ps1"
     text = script.read_text()
+    assert '[string]$Device = "cuda"' in text
     assert "check_stage2_replay_training_detached.ps1" in text
     assert "start_stage2_replay_training_detached.ps1" in text
     assert "probe_stage2_candidate_cross_replays.ps1" in text
@@ -601,6 +621,7 @@ def test_target24_candidate_cycle_runner_static_contract() -> None:
 def test_target_speed_replay_cycle_runner_static_contract() -> None:
     script = Path(__file__).resolve().parents[1] / "scripts" / "windows" / "run_stage2_target_speed_replay_cycle.ps1"
     text = script.read_text()
+    assert '[string]$Device = "cuda"' in text
     assert "collect_stage2_privileged_replay.ps1" in text
     assert "run_stage2_target24_candidate_cycle.ps1" in text
     assert "STAGE2_TARGET_SPEED_REPLAY_CYCLE_READY=True" in text
@@ -612,6 +633,7 @@ def test_target_speed_replay_cycle_runner_static_contract() -> None:
     assert '"-TargetSpeedKmh", $TargetSpeedKmh' in text
     assert '"-CandidateName", $CandidateName' in text
     assert '"-PrimaryReplayName", $CandidateName' in text
+    assert '"-Device", $Device' in text
     assert '$CollectArgs += "-SkipCarlaReady"' in text
     assert '$CycleArgs += "-StartIfMissing"' in text
     assert '$CycleArgs += "-ProbeWhenReady"' in text
@@ -620,6 +642,11 @@ def test_target_speed_replay_cycle_runner_static_contract() -> None:
 def test_windows_dependency_probe_static_contract() -> None:
     script = Path(__file__).resolve().parents[1] / "scripts" / "windows" / "check_stage2_windows_dependencies.ps1"
     text = script.read_text()
+    assert "[switch]$RequireCuda" in text
+    assert "STAGE2_TORCH_CUDA_AVAILABLE=" in text
+    assert "STAGE2_TORCH_CUDA_DEVICE=" in text
+    assert "STAGE2_WINDOWS_CUDA_OK=True" in text
+    assert "STAGE2_WINDOWS_CUDA_OK=False" in text
     assert "STAGE2_DEPENDENCY_$($entry.Name)" in text
     assert "V2_CODE" in text
     assert "V11_SUPPORT_CODE" in text
@@ -633,6 +660,7 @@ def test_windows_dependency_probe_static_contract() -> None:
     assert "SKIPPED:not configured" in text
     assert "exit 2" in text
     assert "exit 3" in text
+    assert "exit 4" in text
 
 
 def test_v2_local_carla_readiness_scripts_are_tracked_contract() -> None:

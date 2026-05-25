@@ -23,7 +23,7 @@ param(
     [double]$SteerSequenceFraction = 0.10,
     [double]$WorldModelActionAuxWeight = 1.0,
     [int]$HiddenDim = 128,
-    [string]$Device = "cpu"
+    [string]$Device = "cuda"
 )
 
 $ErrorActionPreference = "Stop"

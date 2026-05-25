@@ -15,7 +15,8 @@ param(
     [switch]$SkipCarlaReady,
     [switch]$CollectIfMissing,
     [switch]$StartIfMissing,
-    [switch]$ProbeWhenReady
+    [switch]$ProbeWhenReady,
+    [string]$Device = "cuda"
 )
 
 $ErrorActionPreference = "Stop"
@@ -97,6 +98,7 @@ $CycleArgs = @(
     "-TaskName", $TaskName,
     "-CandidateName", $CandidateName,
     "-PrimaryReplayName", $CandidateName,
+    "-Device", $Device,
     "-SkipGitPull"
 )
 if ($StartIfMissing) {

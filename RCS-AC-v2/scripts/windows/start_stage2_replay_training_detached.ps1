@@ -15,7 +15,7 @@ param(
     [double]$SteerSequenceFraction = 0.0,
     [double]$WorldModelActionAuxWeight = 0.0,
     [int]$HiddenDim = 128,
-    [string]$Device = "auto",
+    [string]$Device = "cuda",
     [string]$LogPath = "",
     [string]$TaskName = "RCSV2Stage2ReplayTrain",
     [string]$InteractiveUser = "song\song",

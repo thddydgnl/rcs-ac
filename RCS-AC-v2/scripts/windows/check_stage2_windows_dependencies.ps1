@@ -7,7 +7,8 @@ param(
     [string]$SupportCodePath = "",
     [string]$V11CodePath = "",
     [string]$SharedCorePath = "",
-    [switch]$SkipPythonImportProbe
+    [switch]$SkipPythonImportProbe,
+    [switch]$RequireCuda
 )
 
 $ErrorActionPreference = "Stop"
@@ -124,6 +125,29 @@ for module in modules:
         Write-Host "STAGE2_WINDOWS_DEPENDENCIES_OK=False"
         exit 3
     }
+}
+
+if ($RequireCuda) {
+    $cudaProbeCode = @"
+import torch
+available = torch.cuda.is_available()
+print('STAGE2_TORCH_CUDA_AVAILABLE=' + str(available))
+print('STAGE2_TORCH_CUDA_DEVICE=' + (torch.cuda.get_device_name(0) if available else 'NO_CUDA'))
+if not available:
+    raise SystemExit(4)
+"@
+
+    $previousErrorActionPreference = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
+    $cudaOutput = & py -3.12 -B -c $cudaProbeCode 2>&1
+    $ErrorActionPreference = $previousErrorActionPreference
+    Write-Host $cudaOutput
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "STAGE2_WINDOWS_CUDA_OK=False"
+        Write-Host "STAGE2_WINDOWS_DEPENDENCIES_OK=False"
+        exit 4
+    }
+    Write-Host "STAGE2_WINDOWS_CUDA_OK=True"
 }
 
 Write-Host "STAGE2_WINDOWS_DEPENDENCIES_OK=True"

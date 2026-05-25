@@ -6,7 +6,7 @@ param(
     [string]$OutputPath = "",
     [int]$TrainSteps = 300,
     [double]$LearningRate = 0.01,
-    [string]$Device = "cpu"
+    [string]$Device = "cuda"
 )
 
 $ErrorActionPreference = "Stop"
