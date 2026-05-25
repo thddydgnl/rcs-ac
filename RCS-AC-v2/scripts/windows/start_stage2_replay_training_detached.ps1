@@ -3,6 +3,7 @@ param(
     [string]$ReplayPath = "RCS-AC-v2\experiments\02_privileged_policy_clean\replay\windows_privileged",
     [string]$ReplayManifestPath = "",
     [string]$OutputDir = "RCS-AC-v2\experiments\02_privileged_policy_clean\checkpoints\windows_replay",
+    [int]$Seed = 20260524,
     [int]$SequenceLength = 16,
     [int]$BatchSize = 8,
     [int]$WorldModelSteps = 200,
@@ -64,7 +65,7 @@ $InnerCommand = @"
 "DETACHED_TRAIN_STARTED=`$(Get-Date -Format o)" | Set-Content -Path `$LogPath
 try {
     Set-Location $QuotedProjectRoot
-    powershell -ExecutionPolicy Bypass -File $QuotedTrainingScript -ProjectRoot $QuotedProjectRoot -ReplayPath $QuotedReplayPath -ReplayManifestPath $QuotedReplayManifestPath -OutputDir $QuotedOutputDir -SequenceLength $SequenceLength -BatchSize $BatchSize -WorldModelSteps $WorldModelSteps -PolicySteps $PolicySteps -LearningRate $LearningRate -ImitationWeight $ImitationWeight -BehaviorWeight $BehaviorWeight -ImitationBalancePower $ImitationBalancePower -SteerSequenceFraction $SteerSequenceFraction -WorldModelActionAuxWeight $WorldModelActionAuxWeight$ImitationClassBalanceArg -HiddenDim $HiddenDim -Device $QuotedDevice *>&1 | Tee-Object -FilePath `$LogPath -Append
+    powershell -ExecutionPolicy Bypass -File $QuotedTrainingScript -ProjectRoot $QuotedProjectRoot -ReplayPath $QuotedReplayPath -ReplayManifestPath $QuotedReplayManifestPath -OutputDir $QuotedOutputDir -Seed $Seed -SequenceLength $SequenceLength -BatchSize $BatchSize -WorldModelSteps $WorldModelSteps -PolicySteps $PolicySteps -LearningRate $LearningRate -ImitationWeight $ImitationWeight -BehaviorWeight $BehaviorWeight -ImitationBalancePower $ImitationBalancePower -SteerSequenceFraction $SteerSequenceFraction -WorldModelActionAuxWeight $WorldModelActionAuxWeight$ImitationClassBalanceArg -HiddenDim $HiddenDim -Device $QuotedDevice *>&1 | Tee-Object -FilePath `$LogPath -Append
     `$Code = `$LASTEXITCODE
 }
 catch {
@@ -95,6 +96,7 @@ $LaunchManifest = [ordered]@{
     log_path = $ResolvedLogPath
     inner_script_path = $InnerScriptPath
     task_name = $TaskName
+    seed = $Seed
     sequence_length = $SequenceLength
     batch_size = $BatchSize
     world_model_steps = $WorldModelSteps

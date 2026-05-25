@@ -12,6 +12,7 @@ param(
     [switch]$SkipGitPull,
     [switch]$StartIfMissing,
     [switch]$ProbeWhenReady,
+    [int]$Seed = 20260524,
     [int]$SequenceLength = 16,
     [int]$BatchSize = 8,
     [int]$WorldModelSteps = 1200,
@@ -136,6 +137,7 @@ powershell -ExecutionPolicy Bypass -File $StartScript `
     -ReplayPath $ReplayPath `
     -ReplayManifestPath $ReplayManifestPath `
     -OutputDir $RerunOutputDir `
+    -Seed $Seed `
     -SequenceLength $SequenceLength `
     -BatchSize $BatchSize `
     -WorldModelSteps $WorldModelSteps `

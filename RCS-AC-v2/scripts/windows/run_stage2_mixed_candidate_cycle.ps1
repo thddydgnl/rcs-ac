@@ -14,6 +14,7 @@ param(
     [switch]$ForceMixedReplay,
     [switch]$StartIfMissing,
     [switch]$ProbeWhenReady,
+    [int]$Seed = 20260524,
     [int]$SequenceLength = 16,
     [int]$BatchSize = 8,
     [int]$WorldModelSteps = 1500,
@@ -161,6 +162,7 @@ $LatestPointer = [ordered]@{
     primary_replay_manifest_path = $PrimaryReplayManifestPath
     secondary_replay_manifest_path = $SecondaryReplayManifestPath
     task_name = $TaskName
+    seed = $Seed
     steer_sequence_fraction = $SteerSequenceFraction
     updated_at = (Get-Date -Format o)
 }
@@ -173,6 +175,7 @@ powershell -ExecutionPolicy Bypass -File $StartScript `
     -ReplayPath $MixedReplayDir `
     -ReplayManifestPath $MixedManifestPath `
     -OutputDir $RerunOutputDir `
+    -Seed $Seed `
     -SequenceLength $SequenceLength `
     -BatchSize $BatchSize `
     -WorldModelSteps $WorldModelSteps `

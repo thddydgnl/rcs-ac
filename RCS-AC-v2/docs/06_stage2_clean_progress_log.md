@@ -149,3 +149,30 @@ powershell -ExecutionPolicy Bypass -File RCS-AC-v2\scripts\windows\run_stage2_mi
 
 Promote to official 512 clean eval only if `stage2_candidate_cross_replay_gate.json`
 has `ready_for_clean_eval=true`.
+
+## CUDA follow-up candidates
+
+After the GPU default update, Windows CUDA readiness passed on RTX 3080 and the
+following CARLA-free replay candidates were checked. None is clean PASS evidence.
+
+- `balpow0125_iw5_ssf025_cuda`:
+  - target22 action/latent: pass.
+  - steer2 latent: pass.
+  - steer2 action rejected, moving steer fraction `0.2720247295`.
+- `balpow025_iw5_ssf025_cuda`:
+  - target22 action/latent: pass.
+  - steer2 latent: pass.
+  - steer2 action rejected, moving steer fraction `0.2132921175`.
+- `balpow025_iw5_ssf020_cuda`:
+  - target22 action/latent: pass.
+  - steer2 latent: pass.
+  - steer2 action rejected, moving steer fraction `0.2982998454`.
+- `balpow025_iw4_ssf025_cuda`:
+  - target22 action/latent: pass.
+  - steer2 latent: pass.
+  - steer2 action rejected, moving steer fraction `0.2148377125`.
+
+Current best offline candidate remains `balpow025_iw5_ssf025_cuda`, close to the
+`0.20` moving steer gate. The wrapper now exposes `-Seed`, so the next low-cost
+step is a seed sweep around `balpow025_iw5_ssf025_cuda` before running any
+official 512 clean eval.

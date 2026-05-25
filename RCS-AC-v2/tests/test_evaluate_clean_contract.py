@@ -519,6 +519,28 @@ def test_stage2_windows_replay_training_and_probe_default_to_cuda_static_contrac
         assert '[string]$Device = "cuda"' in text, script_name
 
 
+def test_stage2_replay_training_wrappers_expose_seed_static_contract() -> None:
+    scripts_dir = Path(__file__).resolve().parents[1] / "scripts" / "windows"
+    train = (scripts_dir / "train_stage2_privileged_from_replay.ps1").read_text()
+    start = (scripts_dir / "start_stage2_replay_training_detached.ps1").read_text()
+    mixed = (scripts_dir / "run_stage2_mixed_candidate_cycle.ps1").read_text()
+    target = (scripts_dir / "run_stage2_target24_candidate_cycle.ps1").read_text()
+    target_speed = (scripts_dir / "run_stage2_target_speed_replay_cycle.ps1").read_text()
+
+    assert "[int]$Seed = 20260524" in train
+    assert '"--seed", $Seed' in train
+    assert "[int]$Seed = 20260524" in start
+    assert "-Seed $Seed" in start
+    assert "seed = $Seed" in start
+    assert "[int]$Seed = 20260524" in mixed
+    assert "-Seed $Seed" in mixed
+    assert "seed = $Seed" in mixed
+    assert "[int]$Seed = 20260524" in target
+    assert "-Seed $Seed" in target
+    assert "[int]$Seed = 20260524" in target_speed
+    assert '"-Seed", $Seed' in target_speed
+
+
 def test_cross_replay_candidate_probe_runner_static_contract() -> None:
     script = Path(__file__).resolve().parents[1] / "scripts" / "windows" / "probe_stage2_candidate_cross_replays.ps1"
     text = script.read_text()
@@ -579,6 +601,7 @@ def test_mixed_candidate_cycle_runner_static_contract() -> None:
     assert "-PrimaryReplayManifestPath $PrimaryReplayManifestPath" in text
     assert "-SecondaryReplayManifestPath $SecondaryReplayManifestPath" in text
     assert "[double]$SteerSequenceFraction = 0.15" in text
+    assert "[int]$Seed = 20260524" in text
 
 
 def test_candidate_gate_summary_runner_static_contract() -> None:
@@ -612,6 +635,7 @@ def test_target24_candidate_cycle_runner_static_contract() -> None:
     assert "[switch]$StartIfMissing" in text
     assert "[switch]$ProbeWhenReady" in text
     assert '[string]$CandidateName = "target24"' in text
+    assert "[int]$Seed = 20260524" in text
     assert '$PrimaryReplayName = $CandidateName' in text
     assert "-WorldModelActionAuxWeight $WorldModelActionAuxWeight" in text
     assert "-PrimaryReplayName $PrimaryReplayName" in text
@@ -627,12 +651,14 @@ def test_target_speed_replay_cycle_runner_static_contract() -> None:
     assert "STAGE2_TARGET_SPEED_REPLAY_CYCLE_READY=True" in text
     assert '[string]$CandidateName = "target22"' in text
     assert "[double]$TargetSpeedKmh = 22.0" in text
+    assert "[int]$Seed = 20260524" in text
     assert "[switch]$CollectIfMissing" in text
     assert "TARGET_SPEED_REPLAY_MANIFEST_EXISTS=False" in text
     assert "TARGET_SPEED_REPLAY_MANIFEST_EXISTS=True" in text
     assert '"-TargetSpeedKmh", $TargetSpeedKmh' in text
     assert '"-CandidateName", $CandidateName' in text
     assert '"-PrimaryReplayName", $CandidateName' in text
+    assert '"-Seed", $Seed' in text
     assert '"-Device", $Device' in text
     assert '$CollectArgs += "-SkipCarlaReady"' in text
     assert '$CycleArgs += "-StartIfMissing"' in text

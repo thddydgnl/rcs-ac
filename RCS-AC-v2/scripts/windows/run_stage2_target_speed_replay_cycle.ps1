@@ -6,6 +6,7 @@ param(
     [double]$SteerSign = -1.0,
     [int]$Episodes = 2,
     [int]$MaxSteps = 512,
+    [int]$Seed = 20260524,
     [string]$ReplayOutputDir = "",
     [string]$CheckpointOutputDir = "",
     [string]$CrossProbeOutputDir = "",
@@ -98,6 +99,7 @@ $CycleArgs = @(
     "-TaskName", $TaskName,
     "-CandidateName", $CandidateName,
     "-PrimaryReplayName", $CandidateName,
+    "-Seed", $Seed,
     "-Device", $Device,
     "-SkipGitPull"
 )

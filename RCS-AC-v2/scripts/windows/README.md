@@ -249,6 +249,9 @@ GPU 사용을 보장해야 하는 replay 학습/probe 재개 전에는 `-Require
 `Device=cuda`이며, GPU가 불안정하거나 PyTorch CUDA가 깨진 원인 분석 때만
 명시적으로 `-Device cpu`를 붙여 후퇴한다. CPU 후퇴 run은 clean 성능 확보용
 공식 후보가 아니라 진단용으로 기록한다.
+candidate cycle wrapper는 `-Seed`도 그대로 replay training까지 전달한다.
+가장 가까운 후보가 action gate 근처에서 흔들릴 때는 새 OutputDir/TaskName과
+함께 seed sweep을 먼저 돌려, 이미 실패한 artifact를 덮어쓰지 않고 비교한다.
 base config의 checkpoint path/sha256은 아직 null이므로 그대로 real mode를
 실행하면 model/world_model_checkpoint_missing 실패로 끝나는 것이 정상이다.
 synthetic checkpoint export는 plumbing 증거일 뿐 clean PASS 증거가 아니다.
