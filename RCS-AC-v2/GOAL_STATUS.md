@@ -19,7 +19,7 @@ Stage 2: Privileged policy clean
 Status:
 
 ```text
-STAGE2_CLEAN_FIRST_LATE_RIGHT_RESUME_WRAPPER_READY
+STAGE2_CLEAN_FIRST_BLOCKED_ON_WINDOWS_CONNECTIVITY
 ```
 
 Last completed stage:
@@ -121,20 +121,21 @@ Before Stage 2 checkpoint promotion, Windows privileged-observation validation, 
 Last pulse:
 
 ```text
-2026-05-26 Stage 2 clean-first continuation: Epicurus audited the Windows
-unreachable path and confirmed a single resume wrapper is aligned with the
-clean-first goal as long as it remains offline candidate orchestration only.
-The fix was integrated: resume_stage2_late_right_margin_candidate.ps1 now
-sequences git pull, dependency/CUDA check, late-right PlanOnly, candidate
-check/start/probe, and explicit gate summary without ever calling official 512
-clean eval. Official 512 remains blocked until the offline gate summary reports
-ready_for_clean_eval=true.
+2026-05-26 Stage 2 clean-first blocked audit: James audited the current local
+state read-only and confirmed there is no remaining local implementation work
+that materially advances clean performance before Windows CUDA/CARLA is
+reachable. Local guard/wrapper work is already in place:
+resume_stage2_late_right_margin_candidate.ps1 sequences git pull,
+dependency/CUDA check, late-right PlanOnly, candidate check/start/probe, and
+explicit gate summary without ever calling official 512 clean eval. The next
+material clean-performance step requires Windows connectivity.
 ```
 
 Active agents:
 
 ```text
-No active sub-agents. Epicurus was closed after the 2026-05-26 resume-wrapper
+No active sub-agents. James was closed after the 2026-05-26 blocked audit.
+Epicurus was closed after the 2026-05-26 resume-wrapper
 audit. Turing was closed after the 2026-05-26 late-right resume
 path audit. Confucius was closed after the 2026-05-26 spawn-failure
 documentation audit. Raman and Linnaeus were closed after their 2026-05-26
@@ -248,6 +249,13 @@ Tailscale, LAN SSH, or a fixed tailnet device policy.
 Tailscale service. The clean-first goal remains active; the next meaningful
 remote step is still the late-right `-PlanOnly` dry argument check followed by
 the CUDA candidate wrapper when Windows is reachable.
+2026-05-26 blocked audit reconnect check repeated the same blocker on all known
+paths: Tailscale SSH to 100.87.219.58:22 timed out, LAN SSH to
+192.168.0.13:22 timed out, and `tailscale status` still failed with
+`failed to connect to local Tailscale service; is Tailscale running?`. This is
+the same external-state blocker across repeated goal continuations. Further
+local edits would only polish orchestration and would not materially improve
+clean performance without Windows CUDA/CARLA.
 While remote execution is paused, keep sub-agent pulses for local docs/log/
 script audits; do not let the clean-first goal silently drop sub-agent usage.
 do not treat the 128 PASS as full clean completion
