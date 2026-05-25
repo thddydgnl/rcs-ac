@@ -971,3 +971,39 @@ clear the route `0.6667` collision. The next Stage 2 candidate should keep the
 same hyperparameters and test a stronger/rightward post-`0.64` target action
 or a short action schedule rather than continuing to increase global replay
 weights.
+
+Stronger route-local override retry:
+
+- `8477ec6_corr056w4_override13orig_cuda`:
+  - same original corr056 hyperparameters as
+    `5f77791_corr056w4_override10orig_cuda`.
+  - route-local override: action `13` (`throttle=0.3`, `steer=0.2`), route
+    window `0.64-0.70`, weight `1.0`.
+  - CUDA training/checkpoint validation: pass on `NVIDIA GeForce RTX 3080`.
+  - cross replay gate: `ready_for_clean_eval=true`.
+  - target22 action probe:
+    - action counts `{"13":6,"15":220,"16":22,"19":4,"4":16,"7":254}`.
+    - dominant action fraction `0.4865900383`.
+    - moving steer fraction `0.0919540230`.
+  - steer2 action probe:
+    - action counts `{"13":62,"15":188,"16":1,"4":59,"7":337}`.
+    - dominant action fraction `0.5208655332`.
+    - moving steer fraction `0.1885625966`.
+  - official 512 clean:
+    - run output:
+      `RCS-AC-v2\experiments\02_privileged_policy_clean\windows_512\8477ec6_corr056w4_override13orig_cuda_official_clean512`
+    - status: `FAIL`, clean gate pass: `false`.
+    - done reason: `collision`.
+    - steps: `165` / `512`.
+    - route progress: `0.6153846154`.
+    - collision count: `1`, offroad count: `0`.
+    - final action band: action `13` appeared from route `0.5897`, followed by
+      action `16` at route `0.6154` and collision.
+
+Decision: action `13` is too strong when trained with the same `0.64-0.70`
+override window. It passes offline gates but generalizes into the earlier
+`0.5897-0.6154` band and regresses clean performance. The next candidate should
+avoid simply increasing steering magnitude. A better next test is a later,
+narrower override window, e.g. action `13` or a staged target only from
+`route_progress >= 0.66`, so the policy keeps the known-good approach behavior
+from the action `10` candidate and only changes the final collision band.
