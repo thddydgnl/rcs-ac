@@ -32,6 +32,7 @@ param(
     [double]$MovingSteerNonmovingMargin = 0.25,
     [double]$WorldModelActionAuxWeight = 1.0,
     [int]$HiddenDim = 128,
+    [int[]]$ForbiddenActionIds = @(),
     [string]$Device = "cuda"
 )
 
@@ -150,6 +151,7 @@ if ($CheckExitCode -eq 0) {
             -PrimaryReplayManifestPath $PrimaryReplayManifestPath `
             -SecondaryReplayName $SecondaryReplayName `
             -SecondaryReplayManifestPath $SecondaryReplayManifestPath `
+            -ForbiddenActionIds $ForbiddenActionIds `
             -Device $Device
         exit $LASTEXITCODE
     }

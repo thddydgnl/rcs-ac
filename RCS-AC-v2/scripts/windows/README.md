@@ -263,6 +263,12 @@ Windows 재부팅 뒤에는 별도 확인을 잊어도 wrapper 로그에
 checkpoint action probe가 official clean eval용 config를 생성할 때도 probe
 wrapper의 `-Device` 값을 `device:` 필드에 기록한다. 따라서 현재 표준 경로의
 official clean 후보 config는 `device: cuda`를 명시적으로 포함해야 한다.
+mask 후보는 YAML을 손으로 고치지 않고 `probe_stage2_checkpoint_actions.ps1`,
+`probe_stage2_candidate_cross_replays.ps1`, 또는
+`run_stage2_mixed_candidate_cycle.ps1`의 `-ForbiddenActionIds` 옵션으로
+생성한다. 이렇게 해야 offline gate와 official clean eval에 같은
+`carla.forbidden_action_ids`가 남고, 어떤 action mask를 썼는지 config artifact로
+추적할 수 있다.
 candidate cycle wrapper는 `-Seed`도 그대로 replay training까지 전달한다.
 가장 가까운 후보가 action gate 근처에서 흔들릴 때는 새 OutputDir/TaskName과
 함께 seed sweep을 먼저 돌려, 이미 실패한 artifact를 덮어쓰지 않고 비교한다.

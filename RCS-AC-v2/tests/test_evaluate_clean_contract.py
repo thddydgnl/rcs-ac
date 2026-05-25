@@ -549,6 +549,29 @@ def test_stage2_python_probe_entrypoints_default_to_auto_static_contract() -> No
         assert 'parser.add_argument("--device", default="auto")' in text
 
 
+def test_stage2_cross_probe_wrappers_support_forbidden_action_ids_static_contract() -> None:
+    scripts_dir = Path(__file__).resolve().parents[1] / "scripts" / "windows"
+    action_probe = (scripts_dir / "probe_stage2_checkpoint_actions.ps1").read_text()
+    cross_probe = (scripts_dir / "probe_stage2_candidate_cross_replays.ps1").read_text()
+    mixed_cycle = (scripts_dir / "run_stage2_mixed_candidate_cycle.ps1").read_text()
+    python_probe = (
+        Path(__file__).resolve().parents[1]
+        / "code"
+        / "rcs_ac_v2"
+        / "evaluation"
+        / "checkpoint_action_probe.py"
+    ).read_text()
+
+    assert "[int[]]$ForbiddenActionIds = @()" in action_probe
+    assert '"--forbidden-action-id", $ActionId' in action_probe
+    assert "[int[]]$ForbiddenActionIds = @()" in cross_probe
+    assert "-ForbiddenActionIds $ForbiddenActionIds" in cross_probe
+    assert "[int[]]$ForbiddenActionIds = @()" in mixed_cycle
+    assert "-ForbiddenActionIds $ForbiddenActionIds" in mixed_cycle
+    assert 'parser.add_argument("--forbidden-action-id", action="append", type=int, default=[])' in python_probe
+    assert '"forbidden_action_ids"' in python_probe
+
+
 def test_stage2_replay_training_wrappers_expose_seed_static_contract() -> None:
     scripts_dir = Path(__file__).resolve().parents[1] / "scripts" / "windows"
     train = (scripts_dir / "train_stage2_privileged_from_replay.ps1").read_text()

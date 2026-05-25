@@ -17,6 +17,7 @@ param(
     [int]$LatentProbeTrainSteps = 400,
     [double]$MinLatentAccuracyMargin = 0.15,
     [double]$MinLatentTestAccuracy = 0.80,
+    [int[]]$ForbiddenActionIds = @(),
     [string]$Device = "cuda"
 )
 
@@ -75,6 +76,7 @@ function Invoke-ReplayProbePair {
         -MaxNonzeroSteerFraction $MaxNonzeroSteerFraction `
         -MaxDominantActionFraction $MaxDominantActionFraction `
         -MaxPreviousStuckAction8Fraction $MaxPreviousStuckAction8Fraction `
+        -ForbiddenActionIds $ForbiddenActionIds `
         -Device $Device
     if ($LASTEXITCODE -ne 0) {
         exit $LASTEXITCODE
@@ -100,6 +102,7 @@ Write-Host "STAGE2_CANDIDATE_CROSS_REPLAY_PROBES_READY=True"
 Write-Host "CONFIG_PATH=$ConfigPath"
 Write-Host "CHECKPOINT_MANIFEST_PATH=$CheckpointManifestPath"
 Write-Host "OUTPUT_DIR=$OutputDir"
+Write-Host "FORBIDDEN_ACTION_IDS=$($ForbiddenActionIds -join ',')"
 Invoke-ReplayProbePair `
     -ReplayName $PrimaryReplayName `
     -ReplayManifestPath $PrimaryReplayManifestPath `

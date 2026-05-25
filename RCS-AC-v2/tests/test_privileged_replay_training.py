@@ -383,6 +383,7 @@ def test_replay_training_exports_clean_eval_loadable_checkpoints(tmp_path) -> No
         checkpoint_manifest_path=result.manifest_path,
         output_config_path=promoted_config_path,
         device="cuda",
+        forbidden_action_ids=(16, 19),
     )
     action_probe = probe_checkpoint_actions(
         base_config_path=source_config,
@@ -396,6 +397,7 @@ def test_replay_training_exports_clean_eval_loadable_checkpoints(tmp_path) -> No
     assert promoted_config_path.exists()
     assert promoted["dry_run"]["allow_null_checkpoints"] is False
     assert promoted["device"] == "cuda"
+    assert promoted["carla"]["forbidden_action_ids"] == [16, 19]
     assert action_probe["clean_gate_evidence"] is False
     assert action_probe["probed_actions"] == 4
     assert action_probe["reverse_action_count"] == 0

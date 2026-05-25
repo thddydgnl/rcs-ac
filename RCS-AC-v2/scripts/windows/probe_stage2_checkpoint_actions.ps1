@@ -12,6 +12,7 @@ param(
     [double]$MaxNonzeroSteerFraction = 0.5,
     [double]$MaxDominantActionFraction = 0.85,
     [double]$MaxPreviousStuckAction8Fraction = 0.05,
+    [int[]]$ForbiddenActionIds = @(),
     [string]$Device = "cuda"
 )
 
@@ -57,6 +58,9 @@ $ProbeArgs = @(
     "--max-previous-stuck-action8-fraction", $MaxPreviousStuckAction8Fraction,
     "--device", $Device
 )
+foreach ($ActionId in $ForbiddenActionIds) {
+    $ProbeArgs += @("--forbidden-action-id", $ActionId)
+}
 if ($ReplayManifestPath -ne "") {
     $ProbeArgs += @("--replay-manifest", $ReplayManifestPath)
 }
