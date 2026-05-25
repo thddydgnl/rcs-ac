@@ -1094,6 +1094,200 @@ Route-local action cap support:
   - targeted Stage 2 tests: `61 passed`.
   - full `RCS-AC-v2/tests`: `139 passed`.
 
+Late throttle plus moderate steering overrides:
+
+- `c112325_corr056w4_late_thr020_override10w050_cuda`:
+  - same original corr056 hyperparameters.
+  - kept early route throttle ceiling:
+    - ceiling `0.35`, route `0.56-0.60`, weight `5.0`.
+  - kept late route throttle ceiling:
+    - ceiling `0.20`, route `0.64-0.70`, weight `6.0`.
+  - added route-local override:
+    - action `10` (`throttle=0.3`, `steer=0.1`).
+    - route window `0.66-0.70`.
+    - weight `0.5`.
+  - CUDA training/checkpoint validation: pass on `NVIDIA GeForce RTX 3080`.
+  - cross replay gate: `ready_for_clean_eval=true`.
+  - official 512 clean:
+    - run output:
+      `RCS-AC-v2\experiments\02_privileged_policy_clean\windows_512\c112325_corr056w4_late_thr020_override10w050_cuda_official_clean512`
+    - status: `FAIL`, clean gate pass: `false`.
+    - done reason: `collision`.
+    - steps: `304` / `512`.
+    - route progress: `0.6666666667`.
+    - collision count: `1`, offroad count: `0`.
+    - final action band: action `10` was selected at steps `299-303`, but
+      the turn was still insufficient at about `18 km/h`.
+- `c112325_corr056w4_late_thr020_override13w050_cuda`:
+  - same as above, but route-local override action `13`
+    (`throttle=0.3`, `steer=0.2`) with weight `0.5`.
+  - CUDA training/checkpoint validation: pass on `NVIDIA GeForce RTX 3080`.
+  - cross replay gate: `ready_for_clean_eval=true`.
+  - official 512 clean:
+    - run output:
+      `RCS-AC-v2\experiments\02_privileged_policy_clean\windows_512\c112325_corr056w4_late_thr020_override13w050_cuda_official_clean512`
+    - status: `FAIL`, clean gate pass: `false`.
+    - done reason: `collision`.
+    - steps: `306` / `512`.
+    - route progress: `0.6666666667`.
+    - collision count: `1`, offroad count: `0`.
+    - final action band: action `13` appeared near steps `300` and
+      `303-305`, but speed stayed near `18 km/h` and the collision remained.
+- `c112325_corr056w4_late_thr010_override13w050_cuda`:
+  - same original corr056 hyperparameters.
+  - tightened late route throttle ceiling:
+    - ceiling `0.10`, route `0.64-0.70`, weight `8.0`.
+  - kept route-local override action `13`, route `0.66-0.70`, weight `0.5`.
+  - CUDA training/checkpoint validation: pass on `NVIDIA GeForce RTX 3080`.
+  - cross replay gate: `ready_for_clean_eval=true`.
+  - official 512 clean:
+    - run output:
+      `RCS-AC-v2\experiments\02_privileged_policy_clean\windows_512\c112325_corr056w4_late_thr010_override13w050_cuda_official_clean512`
+    - status: `FAIL`, clean gate pass: `false`.
+    - done reason: `collision`.
+    - steps: `307` / `512`.
+    - route progress: `0.6666666667`.
+    - collision count: `1`, offroad count: `0`.
+    - final action band: action `13` appeared at steps `302` and `304-306`,
+      but actual speed still stayed near `18 km/h`.
+
+Decision: action `10` and `13` can now be made to execute in the final band,
+but they still carry `throttle=0.3`. The Raw2Drive Table 12 action set has no
+brake action, so the next PDF-faithful correction should test zero-throttle
+steering actions rather than adding non-table braking. The primary candidate is
+action `5` (`throttle=0.0`, `steer=0.3`) in the same route `0.66-0.70` window;
+action `8` (`throttle=0.0`, `steer=0.6`) is the stronger follow-up if action
+`5` reaches the collision band but still understeers.
+
+Zero-throttle steering override in progress:
+
+- `c112325_corr056w4_late_thr020_override5w050_cuda`:
+  - first launch failed before training because the SSH/PowerShell invocation
+    passed literal quote characters into `ComponentSampleWeights` and
+    `RouteSpeedActionIds`.
+  - no checkpoint was produced; do not evaluate this failed launch.
+- `c112325_corr056w4_late_thr020_override5w050_retry_cuda`:
+  - same original corr056 hyperparameters.
+  - kept early route throttle ceiling:
+    - ceiling `0.35`, route `0.56-0.60`, weight `5.0`.
+  - kept late route throttle ceiling:
+    - ceiling `0.20`, route `0.64-0.70`, weight `6.0`.
+  - added route-local override:
+    - action `5` (`throttle=0.0`, `steer=0.3`).
+    - route window `0.66-0.70`.
+    - weight `0.5`.
+  - CUDA guard passed on `NVIDIA GeForce RTX 3080`.
+  - detached Windows task:
+    - `RCSV2Stage2LateThr020Override5w050Retry`.
+  - CUDA training/checkpoint validation: pass on `NVIDIA GeForce RTX 3080`.
+  - cross replay gate: `ready_for_clean_eval=true`.
+  - target22 action probe:
+    - action counts `{"15":80,"16":12,"4":20,"5":12,"7":398}`.
+    - dominant action fraction `0.7624521073`.
+    - moving steer fraction `0.0613026820`.
+    - zero-throttle steer fraction `0.0229885057`.
+  - steer2 action probe:
+    - action counts `{"10":6,"15":84,"4":63,"5":25,"7":469}`.
+    - dominant action fraction `0.7248840804`.
+    - moving steer fraction `0.1066460587`.
+    - zero-throttle steer fraction `0.0386398764`.
+  - official 512 clean:
+    - run output:
+      `RCS-AC-v2\experiments\02_privileged_policy_clean\windows_512\c112325_corr056w4_late_thr020_override5w050_retry_cuda_official_clean512`
+    - status: `FAIL`, clean gate pass: `false`.
+    - done reason: `collision`.
+    - steps: `306` / `512`.
+    - route progress: `0.6666666667`.
+    - collision count: `1`, offroad count: `0`.
+    - final action band: action `5` executed at steps `300-301` and
+      `303-305`; speed dropped from about `18 km/h` to `5.67 km/h` at
+      collision, but the turn still arrived too late and/or with insufficient
+      steering authority.
+
+Decision: zero-throttle steering is the right direction because it reduced
+final speed without creating offroad. The next candidate should start earlier
+at route `0.64` and use the stronger zero-throttle action `8`
+(`throttle=0.0`, `steer=0.6`) instead of action `5`.
+
+- `c112325_corr056w4_late_thr020_override8w050_r064_cuda`:
+  - same original corr056 hyperparameters.
+  - kept early route throttle ceiling:
+    - ceiling `0.35`, route `0.56-0.60`, weight `5.0`.
+  - kept late route throttle ceiling:
+    - ceiling `0.20`, route `0.64-0.70`, weight `6.0`.
+  - added route-local override:
+    - action `8` (`throttle=0.0`, `steer=0.6`).
+    - route window `0.64-0.70`.
+    - weight `0.5`.
+  - CUDA guard passed on `NVIDIA GeForce RTX 3080`.
+  - detached Windows task:
+    - `RCSV2Stage2LateThr020Override8w050R064`.
+  - CUDA training/checkpoint validation: pass on `NVIDIA GeForce RTX 3080`.
+  - cross replay gate: `ready_for_clean_eval=false`.
+  - target22 action probe:
+    - action counts `{"10":24,"13":8,"15":80,"16":20,"19":6,"7":384}`.
+    - dominant action fraction `0.7356321839`.
+    - moving steer fraction `0.1111111111`.
+    - zero-throttle steer fraction `0.0`; action `8` did not appear.
+  - steer2 action probe:
+    - action counts `{"10":87,"15":84,"4":29,"7":398,"8":49}`.
+    - dominant action fraction `0.6151468315`.
+    - moving steer fraction `0.1792890263`.
+    - zero-throttle steer fraction `0.0757341577`.
+    - `recommended_for_clean_rerun=false` because the action `8` fraction
+      exceeded the previous-stuck guardrail.
+  - status: rejected by cross replay gate; no official clean eval.
+
+Decision: action `8` is too strong for the steer2 replay and does not reliably
+map to the target22 final band. Continue with action `5`, but move its route
+window start from `0.66` to `0.64` so the zero-throttle steering begins before
+the final route jump.
+
+- `c112325_corr056w4_late_thr020_override5w050_r064_cuda`:
+  - same original corr056 hyperparameters.
+  - kept early route throttle ceiling:
+    - ceiling `0.35`, route `0.56-0.60`, weight `5.0`.
+  - kept late route throttle ceiling:
+    - ceiling `0.20`, route `0.64-0.70`, weight `6.0`.
+  - added route-local override:
+    - action `5` (`throttle=0.0`, `steer=0.3`).
+    - route window `0.64-0.70`.
+    - weight `0.5`.
+  - CUDA guard passed on `NVIDIA GeForce RTX 3080`.
+  - detached Windows task:
+    - `RCSV2Stage2LateThr020Override5w050R064`.
+  - CUDA training/checkpoint validation: pass on `NVIDIA GeForce RTX 3080`.
+  - cross replay gate: `ready_for_clean_eval=true`.
+  - target22 action probe:
+    - action counts `{"10":24,"13":8,"15":80,"16":20,"19":6,"7":384}`.
+    - dominant action fraction `0.7356321839`.
+    - moving steer fraction `0.1111111111`.
+    - zero-throttle steer fraction `0.0`; action `5` did not appear in the
+      target22 probe.
+  - steer2 action probe:
+    - action counts `{"10":86,"15":84,"4":29,"5":50,"7":398}`.
+    - dominant action fraction `0.6151468315`.
+    - moving steer fraction `0.1777434312`.
+    - zero-throttle steer fraction `0.0772797527`.
+  - official 512 clean:
+    - run output:
+      `RCS-AC-v2\experiments\02_privileged_policy_clean\windows_512\c112325_corr056w4_late_thr020_override5w050_r064_cuda_official_clean512`
+    - status: `FAIL`, clean gate pass: `false`.
+    - done reason: `collision`.
+    - steps: `148` / `512`.
+    - route progress: `0.5384615385`.
+    - collision count: `1`, offroad count: `1`.
+    - final action band: action `10/13/16/19` leaked far earlier around route
+      `0.48-0.54` while speed was still about `30-34 km/h`; the official run
+      failed before the intended route `0.64` zero-throttle correction.
+
+Decision: widening the override window to route `0.64` is unsafe because it
+induces early right-steer leakage before the known `0.6667` bottleneck. Keep the
+late start near `0.66`, but add a second guard against action `10/13/16/19`
+leakage before `0.60`, or collect a replay slice closer to the exact collision
+state so zero-throttle action `5` can be learned without changing the earlier
+approach.
+
 Late throttle-only candidate:
 
 - `0308f26_corr056w4_late_throttle020_cuda`:
