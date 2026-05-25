@@ -776,3 +776,79 @@ Stage 2-aligned move is to collect a short post-route `0.56` privileged
 correction replay from the current failure window, or to inspect the replay
 state/action labels around route `0.56-0.60` and add a route-local label
 override. Raw sensor stream and fusion ablation remain blocked.
+
+Correction replay results:
+
+- Route-band inspection after `3c234dd`:
+  - target22 replay has no labels in route `0.54-0.62`.
+  - collision064/offroad070 replays also have no labels in route `0.54-0.62`.
+  - steer2 has labels in this band, mostly action `7` and action `4`.
+  - official `3c234dd` failed while executing action `4/7` in this band, so
+    merely pushing existing labels harder is insufficient.
+- `windows_privileged_3c234dd_route056_collision_window_t12_min5`:
+  - collected with `3c234dd` policy warmup to route `0.56`.
+  - `target_speed_kmh=12`, `record_after_route_progress=0.56`.
+  - initial `min_recorded_steps=8` collection failed 8/8 attempts because every
+    attempt collided after only 5 recorded steps.
+  - rerun with `min_recorded_steps=5` succeeded.
+  - 4 episodes, episode lengths `[5,5,5,5]`, total steps `20`.
+  - labels: action `2` x16 and action `34` x4, both zero-throttle steering.
+- `9be6b2f_corr056_w4_speedcap_cuda`:
+  - mixed replay components:
+    `target22`, `steer2`, `correction056`, `offroad070`.
+  - component weights: `target22=1,steer2=1,correction056=4,offroad070=0.10`.
+  - CUDA training/checkpoint validation: pass.
+  - cross replay gate: `ready_for_clean_eval=true`.
+  - target22 action probe:
+    - action counts `{"10":18,"15":64,"4":22,"7":418}`.
+    - dominant action fraction `0.8007662835`.
+    - moving steer fraction `0.0766283525`.
+  - steer2 action probe:
+    - action counts `{"10":10,"12":3,"15":68,"4":68,"7":498}`.
+    - dominant action fraction `0.7697063369`.
+    - moving steer fraction `0.1251931994`.
+  - official 512 clean:
+    - run output:
+      `RCS-AC-v2\experiments\02_privileged_policy_clean\windows_512\9be6b2f_corr056_w4_speedcap_cuda_official_clean512`
+    - status: `FAIL`, clean gate pass: `false`.
+    - done reason: `collision`.
+    - steps: `305` / `512`.
+    - route progress: `0.6666666667`.
+    - collision count: `1`, offroad count: `0`.
+  - interpretation:
+    - This is meaningful progress: the candidate cleared the previous
+      `route_progress=0.5897` collision band and moved the failure to
+      `route_progress=0.6667`.
+- `windows_privileged_9be6b2f_route064_collision_window_t12_min8`:
+  - collected with `9be6b2f_corr056_w4_speedcap_cuda` policy warmup to route
+    `0.64`.
+  - `target_speed_kmh=12`, `record_after_route_progress=0.64`.
+  - 4 episodes, episode lengths `[67,62,22,68]`, total steps `219`.
+  - labels are mostly low/zero throttle and left correction:
+    action `34` x57, `33` x31, `36` x28, `1` x26, `30` x21, `2` x17,
+    `31` x15, `4` x12, `28` x7, `10` x5.
+- `9be6b2f_corr_combined_w3_speedcap_cuda`:
+  - combined `correction056 + correction064` into one correction component.
+  - component weights: `target22=1,steer2=1,correction=3,offroad070=0.10`.
+  - CUDA training/checkpoint validation: pass.
+  - cross replay gate: `ready_for_clean_eval=false`.
+  - rejection cause:
+    - target22 dominant action `7` fraction `0.9501915709`.
+    - steer2 dominant action `7` fraction `0.9582689335`.
+  - official clean intentionally skipped.
+- `9be6b2f_corr_combined_w1_speedcap_cuda`:
+  - component weights: `target22=1,steer2=1,correction=1,offroad070=0.10`.
+  - CUDA training/checkpoint validation: pass.
+  - cross replay gate: `ready_for_clean_eval=false`.
+  - rejection cause:
+    - target22 dominant action `7` fraction `0.9578544061`.
+    - steer2 dominant action `7` fraction `0.9675425039`.
+  - official clean intentionally skipped.
+
+Decision: route056 positive correction is useful and moved the clean failure
+from route `0.5897` to `0.6667`. Route064 correction with `target_speed_kmh=12`
+is too strong as a generic mixed component and collapses offline action
+diversity toward action `7`. The next Stage 2 step should recollect route064
+with a higher target speed, likely `18 km/h`, so the correction carries
+stronger steering labels without teaching a broad slow/straight bias. Raw sensor
+stream and fusion ablation remain blocked.
