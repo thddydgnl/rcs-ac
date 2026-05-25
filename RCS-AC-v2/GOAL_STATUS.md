@@ -19,7 +19,7 @@ Stage 2: Privileged policy clean
 Status:
 
 ```text
-STAGE2_PDF_STAGE1_STRICT_REJECTED_POLICY_COLLAPSE
+STAGE2_PDF_STAGE1_STRICT_REJECTED_ACTOR_COLLAPSE
 ```
 
 Last completed stage:
@@ -93,6 +93,7 @@ Stage 2 replay path Windows scratch check at commit e1c9c86 passed dependency pr
 PDF Stage I strict replay training was added at commit f9a7f44. The trainer now has `pdf_stage1_strict=true`, default `imitation_weight=0.0`, rejects route-local diagnostic losses/action caps/overrides/component weighting in strict mode, and records the strict flag in checkpoint manifests.
 Two PDF Stage I strict Windows CUDA candidates were run from clean clone `C:\Users\thddy\Documents\code\RCS-AC-first-official-v2-7f87656` on RTX 3080: `f9a7f44_pdf_stage1_strict_actorcritic` with 200/200 steps and `f9a7f44_pdf_stage1_strict_actorcritic_wm2000_pi1000` with 2000/1000 steps. Both are rejected offline and are not clean evidence. The short run collapsed to action 24 on target22/steer2; the long run improved latent separability but collapsed to action 13 on both replays.
 The next PDF-aligned patch exposed behavior actor-critic hyperparameters and removed forced zero bootstrap so the policy can use value bootstrap through `compute_behavior_loss`. This remains inside Algorithm 1 Stage I actor-critic optimization and does not add imitation or route-local correction.
+Entropy strict candidate `22a374f_pdf_stage1_strict_entropy005_wm2000_pi1000` trained on Windows CUDA and was rejected offline: target22 latent margin passed, steer2 latent margin remained below gate, and action probes collapsed to action 7 on both target22 and steer2. Entropy changed the collapsed action but did not produce a state-dependent actor.
 Windows official sync lane now uses SSH GitHub access, not HTTPS. Clean clone path C:\Users\thddy\Documents\code\RCS-AC-first-official-v2-ac11c90 was created at commit ac11c90 after enabling core.longpaths. The v1.1 env config is now copied under RCS-AC-v2 and the adapter owns the minimal shared_core env builder, so the clean clone should only need sibling shared_core as an external runtime dependency.
 Official Windows clean clone was pulled to commit e42dc6a after fixing optional PowerShell dependency arguments. From that clean clone, dependency check, CARLA Town04 readiness, simulator-state privileged observation provenance, BEV/ego shape/finite checks, and neutral-step safety checks all passed with clean_gate_evidence=false.
 First Windows CARLA run must follow docs/03_windows_carla_remote_execution_workflow.md.

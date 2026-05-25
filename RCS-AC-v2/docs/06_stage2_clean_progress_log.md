@@ -75,6 +75,39 @@ clean PASS evidence.
   exploits one high-reward steering action. Next PDF-aligned patch should tune
   actor-critic entropy/bootstrap/objective settings, not add route-local losses.
 
+### PDF Stage I strict actor-critic, entropy 0.05
+
+- Commit: `22a374f`.
+- Training output:
+  - `RCS-AC-v2\experiments\02_privileged_policy_clean\checkpoints\22a374f_pdf_stage1_strict_entropy005_wm2000_pi1000`
+  - `PdfStage1Strict=true`
+  - `WorldModelSteps=2000`
+  - `PolicySteps=1000`
+  - `BehaviorEntropyWeight=0.05`
+  - `ImitationWeight=0.0`
+  - no route override/action cap/throttle ceiling/component sampling diagnostics.
+- Cross replay gate:
+  - target22 latent probe passed:
+    - test accuracy: `0.9809523821`
+    - majority: `0.7931034483`
+    - margin: `0.1878489338`
+  - target22 action probe rejected:
+    - action collapse: `{7: 522}`
+    - dominant action fraction: `1.0`
+    - moving steer fraction: `0.0`
+  - steer2 latent probe still below margin:
+    - test accuracy: `0.8153846264`
+    - majority: `0.6831530139`
+    - margin: `0.1322316125`, gate min `0.15`
+  - steer2 action probe rejected:
+    - action collapse: `{7: 647}`
+    - dominant action fraction: `1.0`
+    - moving steer fraction: `0.0`
+- Decision: reject, do not run official 512 clean eval. Entropy changed the
+  collapsed action from `13` to `7` but did not produce a state-dependent policy.
+  The next strict PDF Stage I intervention should inspect imagined reward/action
+  returns and policy logit calibration, not official clean eval.
+
 ### target24 replay candidate
 
 - Primary target24 action/latent probes passed.
