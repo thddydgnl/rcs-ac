@@ -273,6 +273,12 @@ mask 후보는 YAML을 손으로 고치지 않고 `probe_stage2_checkpoint_actio
 candidate cycle wrapper는 `-Seed`도 그대로 replay training까지 전달한다.
 가장 가까운 후보가 action gate 근처에서 흔들릴 때는 새 OutputDir/TaskName과
 함께 seed sweep을 먼저 돌려, 이미 실패한 artifact를 덮어쓰지 않고 비교한다.
+late replay를 추가한 mixed 후보가 target22 또는 steer2 action distribution을
+무너뜨리면 `-ComponentSampleWeights "target22=1,steer2=1,late068warm1=0.25"`
+처럼 component별 training sample weight를 낮춰서 먼저 offline gate를 확인한다.
+이 값은 checkpoint manifest의 `component_sample_weights`와
+`sampler.episode_sample_probabilities`에 남아야 하며, `ready_for_clean_eval=true`
+전에는 official clean eval로 승격하지 않는다.
 base config의 checkpoint path/sha256은 아직 null이므로 그대로 real mode를
 실행하면 model/world_model_checkpoint_missing 실패로 끝나는 것이 정상이다.
 synthetic checkpoint export는 plumbing 증거일 뿐 clean PASS 증거가 아니다.

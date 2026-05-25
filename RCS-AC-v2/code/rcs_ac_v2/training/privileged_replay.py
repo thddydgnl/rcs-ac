@@ -305,14 +305,32 @@ class PrivilegedReplaySampler:
         device: str | torch.device = "cpu",
         priority_action_ids: Sequence[int] | None = None,
         priority_sample_fraction: float = 0.0,
+        episode_sample_weights: Sequence[float] | None = None,
     ) -> None:
         if sequence_length <= 0:
             raise ValueError("sequence_length must be positive")
         if not 0.0 <= float(priority_sample_fraction) <= 1.0:
             raise ValueError("priority_sample_fraction must be in [0, 1]")
-        self.episodes = [episode for episode in episodes if episode.length >= sequence_length]
+        weighted_episodes = [
+            (episode, float(weight))
+            for episode, weight in zip(
+                episodes,
+                episode_sample_weights or [1.0 for _episode in episodes],
+                strict=True,
+            )
+            if episode.length >= sequence_length
+        ]
+        if any(weight < 0.0 for _episode, weight in weighted_episodes):
+            raise ValueError("episode_sample_weights must be non-negative")
+        self.episodes = [episode for episode, _weight in weighted_episodes]
         if not self.episodes:
             raise ValueError("no replay episodes are long enough for the requested sequence_length")
+        raw_weights = np.asarray([weight for _episode, weight in weighted_episodes], dtype=np.float64)
+        if not np.isfinite(raw_weights).all():
+            raise ValueError("episode_sample_weights must be finite")
+        if float(raw_weights.sum()) <= 0.0:
+            raise ValueError("at least one episode sample weight must be positive")
+        self.episode_sample_probabilities = raw_weights / raw_weights.sum()
         self.sequence_length = int(sequence_length)
         self.rng = np.random.default_rng(seed)
         self.device = torch.device(device)
@@ -360,7 +378,8 @@ class PrivilegedReplaySampler:
     def _sample_episode_start(self) -> tuple[PrivilegedReplayEpisode, int]:
         if self.priority_starts and float(self.rng.random()) < self.priority_sample_fraction:
             return self.priority_starts[int(self.rng.integers(0, len(self.priority_starts)))]
-        episode = self.episodes[int(self.rng.integers(0, len(self.episodes)))]
+        episode_index = int(self.rng.choice(len(self.episodes), p=self.episode_sample_probabilities))
+        episode = self.episodes[episode_index]
         start = int(self.rng.integers(0, episode.length - self.sequence_length + 1))
         return episode, start
 
@@ -378,4 +397,7 @@ class PrivilegedReplaySampler:
             "priority_action_ids": list(self.priority_action_ids),
             "requested_priority_sample_fraction": float(self.priority_sample_fraction),
             "effective_priority_sample_fraction": float(effective_sample_fraction),
+            "episode_sample_probabilities": [
+                float(probability) for probability in self.episode_sample_probabilities.tolist()
+            ],
         }

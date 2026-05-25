@@ -31,6 +31,7 @@ param(
     [double]$MovingSteerNonmovingMarginWeight = 0.0,
     [double]$MovingSteerNonmovingMargin = 0.25,
     [double]$WorldModelActionAuxWeight = 1.0,
+    [string]$ComponentSampleWeights = "",
     [int]$HiddenDim = 128,
     [string]$ForbiddenActionIds = "",
     [string]$Device = "cuda"
@@ -203,6 +204,7 @@ $LatestPointer = [ordered]@{
     moving_steer_binary_weight = $MovingSteerBinaryWeight
     moving_steer_nonmoving_margin_weight = $MovingSteerNonmovingMarginWeight
     moving_steer_nonmoving_margin = $MovingSteerNonmovingMargin
+    component_sample_weights = $ComponentSampleWeights
     updated_at = (Get-Date -Format o)
 }
 $LatestPointer | ConvertTo-Json -Depth 4 | Set-Content -Path $LatestPointerPath
@@ -230,6 +232,7 @@ powershell -ExecutionPolicy Bypass -File $StartScript `
     -MovingSteerNonmovingMarginWeight $MovingSteerNonmovingMarginWeight `
     -MovingSteerNonmovingMargin $MovingSteerNonmovingMargin `
     -WorldModelActionAuxWeight $WorldModelActionAuxWeight `
+    -ComponentSampleWeights $ComponentSampleWeights `
     -HiddenDim $HiddenDim `
     -Device $Device `
     -TaskName $TaskName

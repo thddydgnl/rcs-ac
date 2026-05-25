@@ -383,3 +383,59 @@ masks. The next structural fix is a policy-warmup late replay collector: use the
 current gated clean candidate to drive into the post-0.7 segment, then record
 that segment with teacher/privileged labels so Stage 2 can learn the missing
 late-turn behavior before another official clean run.
+
+Policy-warmup late replay follow-up:
+
+- `a2f5145_policy_warmup_route068_min8` replay:
+  - collected with warmup policy driving until `record_after_route_progress=0.68`.
+  - 4 episodes, 90 recorded steps.
+  - retry/skip support is now in the collector, but this run needed no failed
+    attempts.
+- Full late replay mixed into target22/steer2 caused offline collapse:
+  - `late068warm_msmm125_cuda`: target22 and steer2 action probes both rejected,
+    with dominant action `7` above gate.
+  - `late068warm_msmm10_cuda`: still rejected, target22 moving steer improved
+    but action `7` remained dominant.
+- Single weak late replay mixed into target22/steer2 shifted collapse:
+  - `late068warm1_msmm10_cuda`: steer2 passed, but target22 rejected with
+    dominant action `15`.
+  - seed `20260525` worsened target22 action `15` dominance, so do not run
+    official clean from that seed.
+
+Decision: the late segment is useful but too strong when copied into the mixed
+replay at file-count weight. The next patch adds component sample weights to
+Stage 2 replay training so `target22`, `steer2`, and `late068warm1` can be
+mixed at controlled training probabilities while retaining the same source
+artifacts and cross-replay gate. This is the next CUDA-only offline candidate
+before any new official CARLA clean eval:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File RCS-AC-v2\scripts\windows\run_stage2_mixed_candidate_cycle.ps1 `
+  -ProjectRoot C:\Users\thddy\Documents\code\RCS-AC-first-official-v2-7f87656 `
+  -PrimaryReplayDir RCS-AC-v2\experiments\02_privileged_policy_clean\replay\windows_privileged_7f87656_target22_failure_window `
+  -PrimaryReplayName target22 `
+  -SecondaryReplayDir RCS-AC-v2\experiments\02_privileged_policy_clean\replay\windows_privileged_6e74d9e_long512_t25_steer2_probe `
+  -SecondaryReplayName steer2 `
+  -TertiaryReplayDir RCS-AC-v2\experiments\02_privileged_policy_clean\replay\windows_privileged_8e4c45d_policy_warmup_route068_probe `
+  -TertiaryReplayName late068warm1 `
+  -MixedReplayDir RCS-AC-v2\experiments\02_privileged_policy_clean\replay\windows_privileged_5ae274f_mixed_target22_steer2_late068warm1_weighted `
+  -OutputDir RCS-AC-v2\experiments\02_privileged_policy_clean\checkpoints\windows_replay_5ae274f_mixed_t22_steer2_late068warm1_w025_msmm10_cuda `
+  -CrossProbeOutputDir RCS-AC-v2\experiments\02_privileged_policy_clean\windows_512\5ae274f_mixed_t22_steer2_late068warm1_w025_msmm10_cuda_cross_probe `
+  -TaskName RCSV2Stage2MixedT22Steer2Late068Warm1W025Msmm10 `
+  -Seed 20260524 `
+  -SteerSequenceFraction 0.25 `
+  -ImitationBalancePower 0.25 `
+  -ImitationWeight 5.0 `
+  -MovingSteerFalsePositiveWeight 2.0 `
+  -MovingSteerBinaryWeight 0.0 `
+  -MovingSteerNonmovingMarginWeight 1.0 `
+  -MovingSteerNonmovingMargin 0.25 `
+  -ComponentSampleWeights "target22=1,steer2=1,late068warm1=0.25" `
+  -Device cuda `
+  -MakeReplayIfMissing `
+  -StartIfMissing `
+  -ProbeWhenReady
+```
+
+Promote only if the generated `stage2_candidate_cross_replay_gate.json` says
+`ready_for_clean_eval=true`; otherwise continue offline component-weight tuning.

@@ -39,11 +39,13 @@ from rcs_ac_v2.training.privileged_replay import (
 )
 from rcs_ac_v2.training.train_stage2_privileged_from_replay import (
     _make_imitation_class_weights,
+    _make_episode_sample_weights,
     _moving_steer_action_mask,
     _moving_steer_binary_loss,
     _moving_steer_false_positive_loss,
     _moving_steer_nonmoving_margin_loss,
     _moving_steer_action_ids,
+    _parse_component_sample_weight_args,
     train_stage2_privileged_from_replay,
 )
 
@@ -95,6 +97,37 @@ def test_privileged_replay_sampler_can_prioritize_steering_sequences(tmp_path) -
     assert stats["priority_window_count"] == 4
     assert stats["priority_window_fraction"] == pytest.approx(4 / 17)
     assert stats["effective_priority_sample_fraction"] == 1.0
+
+
+def test_privileged_replay_sampler_supports_episode_sample_weights(tmp_path) -> None:
+    primary_arrays = _replay_arrays(length=20)
+    primary_path = save_privileged_replay_episode(
+        tmp_path / "episode_target22_0000.npz",
+        **primary_arrays,
+    )
+    late_arrays = _replay_arrays(length=20)
+    late_path = save_privileged_replay_episode(
+        tmp_path / "episode_late068warm1_0000.npz",
+        **late_arrays,
+    )
+    primary_episode = load_privileged_replay_episode(primary_path)
+    late_episode = load_privileged_replay_episode(late_path)
+
+    component_weights = _parse_component_sample_weight_args(["target22=1,late068warm1=0.25"])
+    episode_weights = _make_episode_sample_weights(
+        [primary_episode, late_episode],
+        component_sample_weights=component_weights,
+    )
+    sampler = PrivilegedReplaySampler(
+        [primary_episode, late_episode],
+        sequence_length=4,
+        seed=3,
+        episode_sample_weights=episode_weights,
+    )
+    stats = sampler.priority_stats()
+
+    assert episode_weights == [1.0, 0.25]
+    assert stats["episode_sample_probabilities"] == pytest.approx([0.8, 0.2])
 
 
 def test_candidate_cross_replay_gate_requires_action_and_latent_margins(tmp_path) -> None:
@@ -310,7 +343,10 @@ def test_replay_collector_waypoint_distance_does_not_force_zero_throttle() -> No
 
 
 def test_replay_training_exports_clean_eval_loadable_checkpoints(tmp_path) -> None:
-    replay_path = save_privileged_replay_episode(tmp_path / "episode_0000.npz", **_replay_arrays(length=8))
+    replay_path = save_privileged_replay_episode(
+        tmp_path / "episode_target22_0000.npz",
+        **_replay_arrays(length=8),
+    )
     replay_config_path = tmp_path / "clean_128.yaml"
     replay_config_path.write_text("stage: stage2_privileged_policy_clean\n")
     replay_manifest_path = write_privileged_replay_manifest(
@@ -336,6 +372,7 @@ def test_replay_training_exports_clean_eval_loadable_checkpoints(tmp_path) -> No
         moving_steer_nonmoving_margin_weight=0.75,
         moving_steer_nonmoving_margin=0.1,
         world_model_action_aux_weight=0.25,
+        component_sample_weights={"target22": 0.5},
         hidden_dim=32,
         device="cpu",
     )
@@ -368,12 +405,14 @@ def test_replay_training_exports_clean_eval_loadable_checkpoints(tmp_path) -> No
     assert manifest["moving_steer_nonmoving_margin_weight"] == 0.75
     assert manifest["moving_steer_nonmoving_margin"] == 0.1
     assert manifest["world_model_action_aux_weight"] == 0.25
+    assert manifest["component_sample_weights"] == {"target22": 0.5}
     assert manifest["world_model"]["metrics"]["final_action_aux"] >= 0.0
     assert manifest["policy"]["metrics"]["final_moving_steer_false_positive"] >= 0.0
     assert manifest["policy"]["metrics"]["final_moving_steer_binary"] >= 0.0
     assert manifest["policy"]["metrics"]["final_moving_steer_nonmoving_margin"] >= 0.0
     assert manifest["sampler"]["requested_priority_sample_fraction"] == 0.0
     assert "priority_window_count" in manifest["sampler"]
+    assert manifest["sampler"]["episode_sample_probabilities"] == [1.0]
     assert output["logits"].shape == (1, 1, 39)
     assert torch.isfinite(output["logits"]).all()
 

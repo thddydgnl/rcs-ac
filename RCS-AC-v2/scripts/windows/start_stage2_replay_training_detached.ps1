@@ -19,6 +19,7 @@ param(
     [double]$MovingSteerNonmovingMarginWeight = 0.0,
     [double]$MovingSteerNonmovingMargin = 0.25,
     [double]$WorldModelActionAuxWeight = 0.0,
+    [string]$ComponentSampleWeights = "",
     [int]$HiddenDim = 128,
     [string]$Device = "cuda",
     [string]$LogPath = "",
@@ -60,6 +61,7 @@ $QuotedReplayPath = Quote-PowerShellString $ReplayPath
 $QuotedReplayManifestPath = Quote-PowerShellString $ReplayManifestPath
 $QuotedOutputDir = Quote-PowerShellString $ResolvedOutputDir
 $QuotedDevice = Quote-PowerShellString $Device
+$QuotedComponentSampleWeights = Quote-PowerShellString $ComponentSampleWeights
 $QuotedLogPath = Quote-PowerShellString $ResolvedLogPath
 $InnerScriptPath = Join-Path $ResolvedOutputDir "train_stage2_privileged_from_replay.detached.ps1"
 $QuotedInnerScriptPath = Quote-PowerShellString $InnerScriptPath
@@ -74,7 +76,7 @@ $InnerCommand = @"
 "DETACHED_TRAIN_STARTED=`$(Get-Date -Format o)" | Set-Content -Path `$LogPath
 try {
     Set-Location $QuotedProjectRoot
-    powershell -ExecutionPolicy Bypass -File $QuotedTrainingScript -ProjectRoot $QuotedProjectRoot -ReplayPath $QuotedReplayPath -ReplayManifestPath $QuotedReplayManifestPath -OutputDir $QuotedOutputDir -Seed $Seed -SequenceLength $SequenceLength -BatchSize $BatchSize -WorldModelSteps $WorldModelSteps -PolicySteps $PolicySteps -LearningRate $LearningRate -ImitationWeight $ImitationWeight -BehaviorWeight $BehaviorWeight -ImitationBalancePower $ImitationBalancePower -SteerSequenceFraction $SteerSequenceFraction -MovingSteerFalsePositiveWeight $MovingSteerFalsePositiveWeight -MovingSteerBinaryWeight $MovingSteerBinaryWeight -MovingSteerNonmovingMarginWeight $MovingSteerNonmovingMarginWeight -MovingSteerNonmovingMargin $MovingSteerNonmovingMargin -WorldModelActionAuxWeight $WorldModelActionAuxWeight$ImitationClassBalanceArg -HiddenDim $HiddenDim -Device $QuotedDevice *>&1 | Tee-Object -FilePath `$LogPath -Append
+    powershell -ExecutionPolicy Bypass -File $QuotedTrainingScript -ProjectRoot $QuotedProjectRoot -ReplayPath $QuotedReplayPath -ReplayManifestPath $QuotedReplayManifestPath -OutputDir $QuotedOutputDir -Seed $Seed -SequenceLength $SequenceLength -BatchSize $BatchSize -WorldModelSteps $WorldModelSteps -PolicySteps $PolicySteps -LearningRate $LearningRate -ImitationWeight $ImitationWeight -BehaviorWeight $BehaviorWeight -ImitationBalancePower $ImitationBalancePower -SteerSequenceFraction $SteerSequenceFraction -MovingSteerFalsePositiveWeight $MovingSteerFalsePositiveWeight -MovingSteerBinaryWeight $MovingSteerBinaryWeight -MovingSteerNonmovingMarginWeight $MovingSteerNonmovingMarginWeight -MovingSteerNonmovingMargin $MovingSteerNonmovingMargin -WorldModelActionAuxWeight $WorldModelActionAuxWeight -ComponentSampleWeights $QuotedComponentSampleWeights$ImitationClassBalanceArg -HiddenDim $HiddenDim -Device $QuotedDevice *>&1 | Tee-Object -FilePath `$LogPath -Append
     `$Code = `$LASTEXITCODE
 }
 catch {
@@ -121,6 +123,7 @@ $LaunchManifest = [ordered]@{
     moving_steer_nonmoving_margin_weight = $MovingSteerNonmovingMarginWeight
     moving_steer_nonmoving_margin = $MovingSteerNonmovingMargin
     world_model_action_aux_weight = $WorldModelActionAuxWeight
+    component_sample_weights = $ComponentSampleWeights
     hidden_dim = $HiddenDim
     device = $Device
     created_at = (Get-Date -Format o)

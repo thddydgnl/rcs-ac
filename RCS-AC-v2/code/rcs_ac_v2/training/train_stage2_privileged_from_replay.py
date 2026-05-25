@@ -58,6 +58,7 @@ def train_stage2_privileged_from_replay(
     moving_steer_nonmoving_margin_weight: float = 0.0,
     moving_steer_nonmoving_margin: float = 0.25,
     world_model_action_aux_weight: float = 0.0,
+    component_sample_weights: dict[str, float] | None = None,
     hidden_dim: int = 128,
     device: str = "cuda",
 ) -> ReplayTrainingResult:
@@ -80,6 +81,11 @@ def train_stage2_privileged_from_replay(
     replay_manifest = validate_replay_manifest(replay_manifest_path, replay_paths=replay_paths)
     replay_files = replay_manifest["files"]
     episodes = load_replay_episodes(replay_paths)
+    resolved_component_weights = _normalize_component_sample_weights(component_sample_weights)
+    episode_sample_weights = _make_episode_sample_weights(
+        episodes,
+        component_sample_weights=resolved_component_weights,
+    )
     imitation_class_weights = (
         _make_imitation_class_weights(
             episodes,
@@ -97,6 +103,7 @@ def train_stage2_privileged_from_replay(
         device=resolved_device,
         priority_action_ids=_moving_steer_action_ids() if steer_sequence_fraction > 0.0 else None,
         priority_sample_fraction=steer_sequence_fraction,
+        episode_sample_weights=episode_sample_weights,
     )
     sampler_stats = sampler.priority_stats()
 
@@ -238,6 +245,7 @@ def train_stage2_privileged_from_replay(
         "moving_steer_nonmoving_margin_weight": float(moving_steer_nonmoving_margin_weight),
         "moving_steer_nonmoving_margin": float(moving_steer_nonmoving_margin),
         "world_model_action_aux_weight": float(world_model_action_aux_weight),
+        "component_sample_weights": resolved_component_weights,
         "sampler": sampler_stats,
         "replay_manifest": {
             "path": str(replay_manifest_path),
@@ -370,6 +378,7 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--moving-steer-nonmoving-margin-weight", type=float, default=0.0)
     parser.add_argument("--moving-steer-nonmoving-margin", type=float, default=0.25)
     parser.add_argument("--world-model-action-aux-weight", type=float, default=0.0)
+    parser.add_argument("--component-sample-weight", action="append", default=[])
     parser.add_argument("--hidden-dim", type=int, default=128)
     parser.add_argument("--device", default="cuda")
     args = parser.parse_args(argv)
@@ -394,6 +403,7 @@ def main(argv: list[str] | None = None) -> None:
         moving_steer_nonmoving_margin_weight=args.moving_steer_nonmoving_margin_weight,
         moving_steer_nonmoving_margin=args.moving_steer_nonmoving_margin,
         world_model_action_aux_weight=args.world_model_action_aux_weight,
+        component_sample_weights=_parse_component_sample_weight_args(args.component_sample_weight),
         hidden_dim=args.hidden_dim,
         device=args.device,
     )
@@ -427,6 +437,62 @@ def _make_imitation_class_weights(
         present_counts = counts[present]
         weights[present] = (present_counts.mean() / present_counts).pow(float(power))
     return weights.to(device)
+
+
+def _parse_component_sample_weight_args(values: list[str]) -> dict[str, float]:
+    weights: dict[str, float] = {}
+    for raw_value in values:
+        for item in str(raw_value).split(","):
+            text = item.strip()
+            if not text:
+                continue
+            if "=" not in text:
+                raise ValueError("component sample weights must use name=weight")
+            name, raw_weight = text.split("=", 1)
+            component = name.strip()
+            if not component:
+                raise ValueError("component sample weight name must not be empty")
+            weights[component] = float(raw_weight)
+    return _normalize_component_sample_weights(weights)
+
+
+def _normalize_component_sample_weights(weights: dict[str, float] | None) -> dict[str, float]:
+    normalized: dict[str, float] = {}
+    for key, value in (weights or {}).items():
+        component = str(key).strip()
+        if not component:
+            raise ValueError("component sample weight name must not be empty")
+        weight = float(value)
+        if not torch.isfinite(torch.tensor(weight)):
+            raise ValueError("component sample weights must be finite")
+        if weight < 0.0:
+            raise ValueError("component sample weights must be non-negative")
+        normalized[component] = weight
+    return normalized
+
+
+def _make_episode_sample_weights(
+    episodes: list[Any],
+    *,
+    component_sample_weights: dict[str, float],
+) -> list[float]:
+    weights: list[float] = []
+    for episode in episodes:
+        component = _episode_component_name(Path(episode.path))
+        weights.append(float(component_sample_weights.get(component, 1.0)))
+    if weights and sum(weights) <= 0.0:
+        raise ValueError("at least one episode sample weight must be positive")
+    return weights
+
+
+def _episode_component_name(path: Path) -> str:
+    stem = path.stem
+    if stem.startswith("episode_"):
+        suffix = stem.removeprefix("episode_")
+        maybe_name, separator, maybe_index = suffix.rpartition("_")
+        if separator and maybe_name and maybe_index.isdigit():
+            return maybe_name
+    return path.parent.name
 
 
 def _moving_steer_action_ids() -> tuple[int, ...]:
