@@ -19,7 +19,7 @@ Stage 2: Privileged policy clean
 Status:
 
 ```text
-STAGE2_PDF_STAGE1_STRICT_REJECTED_ACTOR_COLLAPSE
+STAGE2_CLEAN_FIRST_RESUMED__PDF_INTERNAL_ACTOR_COLLAPSE_DIAG
 ```
 
 Last completed stage:
@@ -57,9 +57,10 @@ Add Agent B when editing code/config/test/logging/checkpoint wiring.
 Last findings summary:
 
 ```text
-Explorer Darwin recommended persistent Lite workflow, Agent A/C/B role split,
-Full escalation triggers, pre-edit barrier, Implementation Brief, and result template fields.
-Integrated into docs/02_persistent_subagent_goal_protocol.md and runbook.
+2026-05-26 resume: sub-agent spawn failed once with `agent thread limit reached`.
+Root cause was completed legacy sub-agent threads still occupying the thread limit.
+Completed/obsolete agents were closed, a fresh explorer was spawned, and
+docs/02_persistent_subagent_goal_protocol.md now documents close/reuse/retry recovery.
 ```
 
 Pending brief:
@@ -118,7 +119,8 @@ Last pulse:
 Active agents:
 
 ```text
-None active. At Stage 2 checkpoint promotion, Windows privileged-observation validation, or official Windows execution, spawn Agent A + Agent C; add Agent B for adapter/eval/logging/checkpoint wiring.
+Descartes active for Stage 2 strict actor-collapse read-only diagnosis.
+Before spawning more agents, close completed/obsolete agents or reuse existing agents to avoid thread-limit failure.
 ```
 
 Latest integrated findings:

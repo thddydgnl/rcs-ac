@@ -140,6 +140,52 @@ tool_search로 "multi-agent spawn manage sub-agents"를 검색한다.
 문서의 역할 구조를 main agent가 수동으로 수행한다.
 ```
 
+### 1.1 Subagent thread-limit recovery
+
+서브에이전트 도구가 있는데도 spawn이 실패할 수 있다. 2026-05-26 goal
+resume 중 실제로 다음 에러가 발생했다.
+
+```text
+collab spawn failed: agent thread limit reached
+```
+
+원인:
+
+```text
+이전 goal turn에서 생성한 sub-agent thread들이 완료 상태로 남아 있었고,
+새 agent를 추가로 만들 수 있는 thread limit을 초과했다.
+```
+
+이 경우 모델/프롬프트 문제가 아니라 운영 문제다. 처리 순서는 다음과 같다.
+
+```text
+1. GOAL_STATUS.md 또는 environment_context의 subagents 목록을 확인한다.
+2. 이미 completed 상태인 agent는 close_agent로 닫는다.
+3. 아직 필요한 맥락이 있는 agent는 resume_agent 후 send_input으로 재사용한다.
+4. 같은 질문으로 새 agent를 여러 개 만들지 않는다.
+5. close 후 다시 spawn을 시도한다.
+6. 그래도 실패하면 GOAL_STATUS.md에 "subagent thread limit; manual role simulation used"라고 남긴다.
+```
+
+권장 운영:
+
+```text
+goal turn 시작:
+  기존 Active agents 확인
+  completed/obsolete agent close
+  필요한 agent만 1-2개 spawn
+
+major edit 전:
+  새 agent를 만들기보다 기존 explorer/worker 재사용 가능성 먼저 확인
+
+final 전:
+  더 이상 필요 없는 agent close
+  GOAL_STATUS.md Active agents 갱신
+```
+
+에이전트를 계속 쓰기 위한 핵심은 "많이 만들기"가 아니라 "닫고 재사용하기"다.
+Thread limit에 걸리면 새로 만드는 대신 오래된 완료 thread를 정리한다.
+
 ## 2. 반복 사용 트리거
 
 Codex는 아래 조건 중 하나라도 발생하면 서브에이전트를 다시 고려해야 한다.

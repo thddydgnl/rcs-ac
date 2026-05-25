@@ -55,6 +55,8 @@ Work autonomously stage by stage. Do not stop at a plan if implementation is pos
 Sub-agent requirement:
 Use persistent sub-agents throughout the goal, not only at the beginning.
 If multi-agent tools are not loaded, use tool_search for "multi-agent spawn manage sub-agents".
+If spawning fails with `agent thread limit reached`, close completed/obsolete
+sub-agents first, reuse existing agents when possible, then retry spawn.
 At stage entry or work-packet entry, spawn at least:
 - Agent A: Goal/Status Evidence Analyst
 - Agent C: Raw2Drive Contract/Gate Verifier

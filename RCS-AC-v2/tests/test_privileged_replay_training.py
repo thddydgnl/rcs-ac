@@ -14,6 +14,7 @@ from rcs_ac_v2.evaluation.checkpoint_action_probe import (
     build_checkpoint_filled_config,
     probe_checkpoint_actions,
 )
+from rcs_ac_v2.evaluation.strict_actor_collapse_probe import probe_strict_actor_collapse
 from rcs_ac_v2.evaluation.candidate_cross_replay_gate import evaluate_candidate_cross_replay_gate
 from rcs_ac_v2.evaluation.candidate_decision_summary import (
     summarize_candidate_decision,
@@ -566,6 +567,57 @@ def test_pdf_stage1_strict_replay_training_allows_only_actor_critic_path(tmp_pat
     assert manifest["component_sample_weights"] == {}
     assert manifest["route_action_override_weight"] == 0.0
     assert manifest["policy"]["metrics"]["valid_action_ids"] is True
+
+
+def test_strict_actor_collapse_probe_reports_counterfactual_returns(tmp_path) -> None:
+    replay_path = save_privileged_replay_episode(
+        tmp_path / "episode_actorprobe_0000.npz",
+        **_replay_arrays(length=8),
+    )
+    replay_config_path = tmp_path / "clean_128.yaml"
+    replay_config_path.write_text("stage: stage2_privileged_policy_clean\n")
+    replay_manifest_path = write_privileged_replay_manifest(
+        tmp_path / "stage2_privileged_replay_manifest.json",
+        config_path=replay_config_path,
+        episode_paths=[replay_path],
+        extra={"git_commit": "abc1234"},
+    )
+    result = train_stage2_privileged_from_replay(
+        replay_paths=[replay_path],
+        replay_manifest_path=replay_manifest_path,
+        output_dir=tmp_path / "checkpoints",
+        seed=13,
+        sequence_length=4,
+        batch_size=2,
+        world_model_steps=2,
+        policy_steps=2,
+        pdf_stage1_strict=True,
+        hidden_dim=32,
+        device="cpu",
+    )
+    source_config = Path(__file__).resolve().parents[1] / "configs" / "eval" / "clean_128_stage2_privileged.yaml"
+    output_path = tmp_path / "strict_actor_probe.json"
+
+    probe = probe_strict_actor_collapse(
+        base_config_path=source_config,
+        checkpoint_manifest_path=result.manifest_path,
+        replay_manifest_path=replay_manifest_path,
+        project_root=tmp_path,
+        max_steps_per_file=3,
+        rollout_horizon=2,
+        device="cpu",
+        output_path=output_path,
+    )
+
+    assert probe["source"] == "stage2_strict_actor_collapse_probe"
+    assert probe["clean_gate_evidence"] is False
+    assert probe["samples"] == 3
+    assert sum(probe["actor_action_counts"].values()) == 3
+    assert sum(probe["counterfactual_best_action_counts"].values()) == 3
+    assert "actor_equals_counterfactual_best_fraction" in probe
+    assert "actor_return_rank_mean" in probe
+    assert "imagined_lambda_return_mean" in probe
+    assert output_path.exists()
 
 
 def test_pdf_stage1_strict_rejects_non_pdf_diagnostic_policy_settings(tmp_path) -> None:
