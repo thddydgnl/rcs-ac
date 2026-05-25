@@ -647,3 +647,75 @@ weight/cap sweep. Prefer a route-window/speed-aware objective or route064
 failure-window replay inspection that separates lateral correction from
 longitudinal throttle, then rerun CUDA offline gates before any official clean
 eval. Raw sensor stream and fusion ablation remain blocked.
+
+Route/speed action cap results:
+
+- Commit `d79cf4d` added a route/speed-conditioned Stage 2 action mass cap.
+  - The regularizer only applies inside a configured route-progress window and
+    above a configured normalized speed threshold.
+  - This keeps the objective aligned with the observed failure band instead of
+    globally suppressing useful actions.
+  - Optional training arguments:
+    `--route-speed-action-mass-cap-weight`,
+    `--route-speed-action-ids`, `--route-speed-action-mass-cap`,
+    `--route-speed-min-speed-norm`, `--route-speed-min-route-progress`, and
+    `--route-speed-max-route-progress`.
+  - Windows wrappers expose the same knobs.
+  - Local verification:
+    `PYTHONPATH=RCS-AC-v2/code pytest -q RCS-AC-v2/tests/test_privileged_replay_training.py RCS-AC-v2/tests/test_evaluate_clean_contract.py RCS-AC-v2/tests/test_stage2_carla_adapter.py`
+    passed: `81 passed in 3.20s`.
+- Commits `b20d1e8`, `a6cc767`, and `f4c30c2` fixed Windows optional argument
+  handling before the CUDA candidate could run end to end.
+  - `b20d1e8`: mixed-candidate wrapper now uses an argument array and omits
+    empty optional list arguments.
+  - `a6cc767`: detached wrapper string quoting accepts empty strings.
+  - `f4c30c2`: detached train command omits empty optional train arguments
+    rather than passing `-ActionMassCaps ''`.
+  - Local verification after the fixes:
+    `PYTHONPATH=RCS-AC-v2/code pytest -q RCS-AC-v2/tests/test_privileged_replay_training.py RCS-AC-v2/tests/test_evaluate_clean_contract.py RCS-AC-v2/tests/test_stage2_carla_adapter.py`
+    passed: `81 passed in 2.38s`.
+- `d79cf4d_route055075_speed08_straightcap_cuda`:
+  - Windows commit used for the successful run: `f4c30c2`.
+  - CUDA guard: pass on `NVIDIA GeForce RTX 3080`.
+  - active checkpoint output:
+    `RCS-AC-v2\experiments\02_privileged_policy_clean\checkpoints\windows_replay_d79cf4d_route055075_speed08_straightcap_cuda_rerun_20260525T203750`.
+  - component sample weights:
+    `target22=1,steer2=1,collision064=0.10,offroad070=0.10`.
+  - route/speed cap:
+    - action ids: `7,15,37`.
+    - mass cap: `0.35`.
+    - weight: `5.0`.
+    - speed threshold: `0.8`.
+    - route window: `0.55-0.75`.
+  - CUDA training/checkpoint validation: pass.
+  - cross replay gate: `ready_for_clean_eval=true`.
+  - target22 action probe:
+    - action counts `{"12":6,"15":412,"4":22,"7":82}`.
+    - dominant action fraction `0.7892720307`.
+    - moving steer fraction `0.0536398467`.
+    - latent test accuracy `0.9904761910`.
+  - steer2 action probe:
+    - action counts `{"1":3,"15":305,"4":60,"7":279}`.
+    - dominant action fraction `0.4714064915`.
+    - moving steer fraction `0.0973724884`.
+    - latent test accuracy `0.8999999762`.
+  - official 512 clean:
+    - run output:
+      `RCS-AC-v2\experiments\02_privileged_policy_clean\windows_512\d79cf4d_route055075_speed08_straightcap_cuda_official_clean512`
+    - status: `FAIL`, clean gate pass: `false`.
+    - done reason: `collision`.
+    - steps: `135` / `512`.
+    - route progress: `0.5897435897`.
+    - collision count: `1`, offroad count: `0`.
+    - tail changed from high-throttle action `15` to several action `4` and
+      action `7` steps, but still collided at the same route band as the strong
+      global cap candidate.
+
+Decision: the route/speed cap is implemented and runs on the intended GPU path,
+but this exact cap does not recover clean performance. It avoids the earlier
+offroad failure mode of the weak replay mix, while regressing to the collision
+mode around `route_progress=0.5897`. The next Stage 2 move should target the
+collision band directly with a route-window correction replay or a localized
+longitudinal throttle penalty/relabel around route `0.56-0.60`; another broad
+cap sweep is unlikely to solve the oscillation. Stage 3 raw sensor stream and
+fusion ablation remain blocked until privileged clean passes.
