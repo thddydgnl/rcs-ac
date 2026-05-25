@@ -32,7 +32,7 @@ param(
     [double]$MovingSteerNonmovingMargin = 0.25,
     [double]$WorldModelActionAuxWeight = 1.0,
     [int]$HiddenDim = 128,
-    [int[]]$ForbiddenActionIds = @(),
+    [string]$ForbiddenActionIds = "",
     [string]$Device = "cuda"
 )
 

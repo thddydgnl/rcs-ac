@@ -17,7 +17,7 @@ param(
     [int]$LatentProbeTrainSteps = 400,
     [double]$MinLatentAccuracyMargin = 0.15,
     [double]$MinLatentTestAccuracy = 0.80,
-    [int[]]$ForbiddenActionIds = @(),
+    [string]$ForbiddenActionIds = "",
     [string]$Device = "cuda"
 )
 
@@ -40,6 +40,13 @@ if ($OutputDir -eq "") {
     $OutputDir = Join-Path (Split-Path -Parent $CheckpointManifestPath) "cross_replay_probes"
 }
 New-Item -ItemType Directory -Force -Path $OutputDir | Out-Null
+$ResolvedForbiddenActionIds = @()
+if ($ForbiddenActionIds -ne "") {
+    $ResolvedForbiddenActionIds = $ForbiddenActionIds.Split(",") |
+        ForEach-Object { $_.Trim() } |
+        Where-Object { $_ -ne "" } |
+        ForEach-Object { [int]$_ }
+}
 
 $ActionProbeScript = Join-Path $ProjectRoot "RCS-AC-v2\scripts\windows\probe_stage2_checkpoint_actions.ps1"
 $LatentProbeScript = Join-Path $ProjectRoot "RCS-AC-v2\scripts\windows\probe_stage2_replay_latents.ps1"
@@ -76,7 +83,7 @@ function Invoke-ReplayProbePair {
         -MaxNonzeroSteerFraction $MaxNonzeroSteerFraction `
         -MaxDominantActionFraction $MaxDominantActionFraction `
         -MaxPreviousStuckAction8Fraction $MaxPreviousStuckAction8Fraction `
-        -ForbiddenActionIds $ForbiddenActionIds `
+        -ForbiddenActionIds ($ResolvedForbiddenActionIds -join ",") `
         -Device $Device
     if ($LASTEXITCODE -ne 0) {
         exit $LASTEXITCODE
@@ -102,7 +109,7 @@ Write-Host "STAGE2_CANDIDATE_CROSS_REPLAY_PROBES_READY=True"
 Write-Host "CONFIG_PATH=$ConfigPath"
 Write-Host "CHECKPOINT_MANIFEST_PATH=$CheckpointManifestPath"
 Write-Host "OUTPUT_DIR=$OutputDir"
-Write-Host "FORBIDDEN_ACTION_IDS=$($ForbiddenActionIds -join ',')"
+Write-Host "FORBIDDEN_ACTION_IDS=$($ResolvedForbiddenActionIds -join ',')"
 Invoke-ReplayProbePair `
     -ReplayName $PrimaryReplayName `
     -ReplayManifestPath $PrimaryReplayManifestPath `

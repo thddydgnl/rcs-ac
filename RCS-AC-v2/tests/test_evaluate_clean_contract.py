@@ -562,13 +562,16 @@ def test_stage2_cross_probe_wrappers_support_forbidden_action_ids_static_contrac
         / "checkpoint_action_probe.py"
     ).read_text()
 
-    assert "[int[]]$ForbiddenActionIds = @()" in action_probe
+    assert '[string]$ForbiddenActionIds = ""' in action_probe
+    assert "$ResolvedForbiddenActionIds = @()" in action_probe
     assert '"--forbidden-action-id", $ActionId' in action_probe
-    assert "[int[]]$ForbiddenActionIds = @()" in cross_probe
-    assert "-ForbiddenActionIds $ForbiddenActionIds" in cross_probe
-    assert "[int[]]$ForbiddenActionIds = @()" in mixed_cycle
+    assert '[string]$ForbiddenActionIds = ""' in cross_probe
+    assert "$ResolvedForbiddenActionIds = @()" in cross_probe
+    assert '-ForbiddenActionIds ($ResolvedForbiddenActionIds -join ",")' in cross_probe
+    assert '[string]$ForbiddenActionIds = ""' in mixed_cycle
     assert "-ForbiddenActionIds $ForbiddenActionIds" in mixed_cycle
     assert 'parser.add_argument("--forbidden-action-id", action="append", type=int, default=[])' in python_probe
+    assert "forbidden_action_ids=tuple(args.forbidden_action_id)" in python_probe
     assert '"forbidden_action_ids"' in python_probe
 
 

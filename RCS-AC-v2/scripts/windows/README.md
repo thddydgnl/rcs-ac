@@ -268,7 +268,8 @@ mask 후보는 YAML을 손으로 고치지 않고 `probe_stage2_checkpoint_actio
 `run_stage2_mixed_candidate_cycle.ps1`의 `-ForbiddenActionIds` 옵션으로
 생성한다. 이렇게 해야 offline gate와 official clean eval에 같은
 `carla.forbidden_action_ids`가 남고, 어떤 action mask를 썼는지 config artifact로
-추적할 수 있다.
+추적할 수 있다. 원격 SSH 문자열에서는 PowerShell 배열이 뭉칠 수 있으므로
+`-ForbiddenActionIds "10,16,19"`처럼 쉼표 문자열로 넘긴다.
 candidate cycle wrapper는 `-Seed`도 그대로 replay training까지 전달한다.
 가장 가까운 후보가 action gate 근처에서 흔들릴 때는 새 OutputDir/TaskName과
 함께 seed sweep을 먼저 돌려, 이미 실패한 artifact를 덮어쓰지 않고 비교한다.

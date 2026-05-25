@@ -12,7 +12,7 @@ param(
     [double]$MaxNonzeroSteerFraction = 0.5,
     [double]$MaxDominantActionFraction = 0.85,
     [double]$MaxPreviousStuckAction8Fraction = 0.05,
-    [int[]]$ForbiddenActionIds = @(),
+    [string]$ForbiddenActionIds = "",
     [string]$Device = "cuda"
 )
 
@@ -35,12 +35,20 @@ if ($OutputPath -eq "") {
 if ($OutputConfigPath -eq "") {
     $OutputConfigPath = Join-Path (Split-Path -Parent $CheckpointManifestPath) "clean_128_stage2_privileged_with_checkpoints.yaml"
 }
+$ResolvedForbiddenActionIds = @()
+if ($ForbiddenActionIds -ne "") {
+    $ResolvedForbiddenActionIds = $ForbiddenActionIds.Split(",") |
+        ForEach-Object { $_.Trim() } |
+        Where-Object { $_ -ne "" } |
+        ForEach-Object { [int]$_ }
+}
 
 Write-Host "STAGE2_CHECKPOINT_ACTION_PROBE_READY=True"
 Write-Host "CONFIG_PATH=$ConfigPath"
 Write-Host "CHECKPOINT_MANIFEST_PATH=$CheckpointManifestPath"
 Write-Host "OUTPUT_CONFIG_PATH=$OutputConfigPath"
 Write-Host "OUTPUT_PATH=$OutputPath"
+Write-Host "FORBIDDEN_ACTION_IDS=$($ResolvedForbiddenActionIds -join ',')"
 
 $ProbeArgs = @(
     "-3.12", "-B", "-m", "rcs_ac_v2.evaluation.checkpoint_action_probe",
@@ -58,7 +66,7 @@ $ProbeArgs = @(
     "--max-previous-stuck-action8-fraction", $MaxPreviousStuckAction8Fraction,
     "--device", $Device
 )
-foreach ($ActionId in $ForbiddenActionIds) {
+foreach ($ActionId in $ResolvedForbiddenActionIds) {
     $ProbeArgs += @("--forbidden-action-id", $ActionId)
 }
 if ($ReplayManifestPath -ne "") {

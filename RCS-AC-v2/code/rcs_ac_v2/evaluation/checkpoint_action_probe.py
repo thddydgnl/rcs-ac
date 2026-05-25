@@ -67,6 +67,7 @@ def probe_checkpoint_actions(
     max_dominant_action_fraction: float = 0.85,
     max_previous_stuck_action8_fraction: float = 0.05,
     device: str = "auto",
+    forbidden_action_ids: tuple[int, ...] = (),
     output_path: str | Path | None = None,
 ) -> dict[str, Any]:
     if max_steps_per_file <= 0:
@@ -84,8 +85,9 @@ def probe_checkpoint_actions(
     config = build_checkpoint_filled_config(
         base_config_path=base_config_path,
         checkpoint_manifest_path=manifest_path,
+        device=device,
+        forbidden_action_ids=forbidden_action_ids,
     )
-    config["device"] = device
     runner = load_stage2_policy_runner(config)
 
     action_counts: Counter[int] = Counter()
@@ -272,6 +274,7 @@ def main(argv: list[str] | None = None) -> None:
         max_dominant_action_fraction=args.max_dominant_action_fraction,
         max_previous_stuck_action8_fraction=args.max_previous_stuck_action8_fraction,
         device=args.device,
+        forbidden_action_ids=tuple(args.forbidden_action_id),
         output_path=args.output or None,
     )
     print(f"STAGE2_CHECKPOINT_ACTION_PROBE={json.dumps(result, sort_keys=True)}")
