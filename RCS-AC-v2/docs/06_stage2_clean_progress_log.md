@@ -336,3 +336,50 @@ privileged replay from the later/offroad-prone clean segment, mix it with the
 target22 and steer2 replays, then retrain/probe before another official 512
 run. Do not keep masking progressively weaker steering actions without a new
 replay signal.
+
+Late replay + reproducible mask follow-up:
+
+- `5fa68f0_late_route050_min8` replay:
+  - collected with `record_after_route_progress=0.50`, `min_recorded_steps=8`.
+  - 4 episodes, 44 total recorded steps.
+  - Attempts at `record_after_route_progress=0.65` produced 0 recorded steps;
+    `0.50` produced only 11 recorded steps per episode. This means the current
+    hand-coded replay collector does not reliably reach the post-0.7 failure
+    segment on its own.
+- `5fa68f0_mixed_t22_steer2_late050_msmm10_cuda`:
+  - CUDA training passed checkpoint validation.
+  - target22 action/latent: pass.
+  - steer2 latent: pass.
+  - steer2 action rejected by one action bucket, moving steer fraction
+    `0.2009273570`, gate max `0.20`.
+- `2113360_mixed_t22_steer2_late050_msmm125_cuda`:
+  - CUDA training passed checkpoint validation.
+  - Increasing `moving_steer_nonmoving_margin_weight` from `1.0` to `1.25`
+    did not change the argmax action distribution enough.
+  - steer2 action rejected again at moving steer fraction `0.2009273570`.
+- `mask10_16_19` cross-probe on the late050 mixed checkpoint:
+  - `probe_stage2_candidate_cross_replays.ps1` now supports reproducible
+    `-ForbiddenActionIds "10,16,19"` mask configs rather than hand-edited YAML.
+  - target22 action/latent: pass.
+  - steer2 action/latent: pass.
+  - cross replay gate: `ready_for_clean_eval=true`.
+- official 512 clean eval for `mask10_16_19`:
+  - run output:
+    `RCS-AC-v2\experiments\02_privileged_policy_clean\windows_512\80af7bc_mixed_t22_steer2_late050_msmm125_mask10_16_19_official_clean512`
+  - source: `windows_carla`
+  - status: `FAIL`
+  - done reason: `offroad`
+  - steps: `351` / `512`
+  - collision count: `0`
+  - offroad count: `1`
+  - route progress: `0.7179487179`
+  - tail actions: repeated action `7` (`throttle=0.3`, `steer=0.0`) through
+    the final offroad step.
+
+Decision: the late replay and action mask moved the policy away from high
+right-steer/offroad, but the clean failure remains at the same post-0.7 route
+progress and is now a straight-line offroad. Do not keep adding more steering
+masks. The next structural fix is a policy-warmup late replay collector: use the
+current gated clean candidate to drive into the post-0.7 segment, then record
+that segment with teacher/privileged labels so Stage 2 can learn the missing
+late-turn behavior before another official clean run.
