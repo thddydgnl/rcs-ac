@@ -852,3 +852,40 @@ diversity toward action `7`. The next Stage 2 step should recollect route064
 with a higher target speed, likely `18 km/h`, so the correction carries
 stronger steering labels without teaching a broad slow/straight bias. Raw sensor
 stream and fusion ablation remain blocked.
+
+Higher-speed route064 correction retry:
+
+- `windows_privileged_9be6b2f_route064_collision_window_t18_min8`:
+  - collected with `9be6b2f_corr056_w4_speedcap_cuda` policy warmup to route
+    `0.64`.
+  - `target_speed_kmh=18`, `record_after_route_progress=0.64`.
+  - 4 episodes, episode lengths `[20,20,19,19]`, total steps `78`.
+  - labels: action `7` x64, action `10` x13, action `13` x1.
+  - interpretation:
+    - Compared with the `target_speed_kmh=12` collection, this replay avoids the
+      heavy zero-throttle steering bias.
+    - It is still mostly action `7`, so it is not a strong standalone steering
+      correction source.
+- `6cdb5ca_corr056w4_corr064t18w1_cuda`:
+  - mixed replay components:
+    `target22`, `steer2`, `correction056`, `correction064_t18`.
+  - component weights:
+    `target22=1,steer2=1,correction056=4,correction064_t18=1`.
+  - mixed replay:
+    `RCS-AC-v2\experiments\02_privileged_policy_clean\replay\windows_privileged_6cdb5ca_mixed_t22_steer2_corr056_corr064t18_weighted`.
+  - 12 episodes, total steps `1267`.
+  - CUDA training/checkpoint validation: pass on `NVIDIA GeForce RTX 3080`.
+  - cross replay gate: `ready_for_clean_eval=false`.
+  - rejection cause:
+    - target22 dominant action `7` fraction `0.9310344828`;
+      moving steer fraction `0.0689655172`.
+    - steer2 dominant action `7` fraction `0.9041731066`;
+      moving steer fraction `0.0958268934`.
+  - official clean intentionally skipped because the offline gate did not pass.
+
+Decision: simply mixing the route064 correction replay, even at
+`target_speed_kmh=18`, does not solve the Stage 2 collapse. The next Stage 2
+move should stop treating route064 as another global replay-weight component and
+instead implement a route-local corrective target or label override for the
+post-`0.64` collision window. Fusion ablation remains blocked until a privileged
+clean pass exists.
