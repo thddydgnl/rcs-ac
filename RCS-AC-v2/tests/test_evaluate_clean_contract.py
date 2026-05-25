@@ -654,10 +654,13 @@ def test_mixed_replay_manifest_runner_static_contract() -> None:
     assert "windows_privileged_7f87656_mixed_target22_steer2" in text
     assert "PrimaryReplayDir" in text
     assert "SecondaryReplayDir" in text
+    assert "TertiaryReplayDir" in text
+    assert "TertiaryName" in text
     assert "stage2_privileged_replay_manifest.json" in text
     assert "write_privileged_replay_manifest" in text
     assert "validate_replay_manifest" in text
     assert "mixed_replay_manifest_from_existing_windows_replays" in text
+    assert "TERTIARY_COMPONENT" in text
     assert '"git", "rev-parse", "HEAD"' in text
     assert "MIXED_REPLAY_EPISODES=" in text
     assert "MIXED_REPLAY_TOTAL_STEPS=" in text
@@ -669,6 +672,8 @@ def test_mixed_candidate_cycle_runner_static_contract() -> None:
     text = script.read_text()
     assert '[string]$Device = "cuda"' in text
     assert "make_stage2_mixed_replay_manifest.ps1" in text
+    assert "TertiaryReplayDir" in text
+    assert "TERTIARY_REPLAY_MANIFEST_PATH" in text
     assert "check_stage2_replay_training_detached.ps1" in text
     assert "start_stage2_replay_training_detached.ps1" in text
     assert "probe_stage2_candidate_cross_replays.ps1" in text

@@ -4,6 +4,8 @@ param(
     [string]$PrimaryName = "target22",
     [string]$SecondaryReplayDir = "RCS-AC-v2\experiments\02_privileged_policy_clean\replay\windows_privileged_6e74d9e_long512_t25_steer2_probe",
     [string]$SecondaryName = "steer2",
+    [string]$TertiaryReplayDir = "",
+    [string]$TertiaryName = "late",
     [string]$OutputDir = "RCS-AC-v2\experiments\02_privileged_policy_clean\replay\windows_privileged_7f87656_mixed_target22_steer2",
     [string]$ConfigPath = "RCS-AC-v2\experiments\02_privileged_policy_clean\windows_512\7f87656_steer2_seq010_aux1_balpow05_iw5\clean_512_stage2_privileged_7f87656_steer2_seq010_aux1_balpow05_iw5_with_checkpoints.yaml",
     [switch]$Force
@@ -14,7 +16,16 @@ $ErrorActionPreference = "Stop"
 Set-Location $ProjectRoot
 $env:PYTHONPATH = "$ProjectRoot\RCS-AC-v2\code;$env:PYTHONPATH"
 
-foreach ($ReplayDir in @($PrimaryReplayDir, $SecondaryReplayDir)) {
+$ReplayComponents = @(
+    @{ Name = $PrimaryName; Dir = $PrimaryReplayDir },
+    @{ Name = $SecondaryName; Dir = $SecondaryReplayDir }
+)
+if ($TertiaryReplayDir -ne "") {
+    $ReplayComponents += @{ Name = $TertiaryName; Dir = $TertiaryReplayDir }
+}
+
+foreach ($ReplayComponent in $ReplayComponents) {
+    $ReplayDir = [string]$ReplayComponent.Dir
     if (-not (Test-Path $ReplayDir)) {
         throw "Replay directory missing: $ReplayDir"
     }
@@ -50,8 +61,9 @@ function Copy-ReplayEpisodes {
     }
 }
 
-Copy-ReplayEpisodes -SourceDir $PrimaryReplayDir -Prefix $PrimaryName
-Copy-ReplayEpisodes -SourceDir $SecondaryReplayDir -Prefix $SecondaryName
+foreach ($ReplayComponent in $ReplayComponents) {
+    Copy-ReplayEpisodes -SourceDir ([string]$ReplayComponent.Dir) -Prefix ([string]$ReplayComponent.Name)
+}
 
 $PythonSource = @'
 from pathlib import Path
@@ -78,7 +90,7 @@ write_privileged_replay_manifest(
         "run_kind": "mixed_replay_manifest_from_existing_windows_replays",
         "components": [
             {"name": r"{PRIMARY_NAME}", "source_dir": r"{PRIMARY_REPLAY_DIR}"},
-            {"name": r"{SECONDARY_NAME}", "source_dir": r"{SECONDARY_REPLAY_DIR}"},
+            {"name": r"{SECONDARY_NAME}", "source_dir": r"{SECONDARY_REPLAY_DIR}"}{TERTIARY_COMPONENT}
         ],
     },
 )
@@ -96,6 +108,12 @@ $PythonSource = $PythonSource.Replace("{PRIMARY_NAME}", $PrimaryName)
 $PythonSource = $PythonSource.Replace("{PRIMARY_REPLAY_DIR}", $PrimaryReplayDir)
 $PythonSource = $PythonSource.Replace("{SECONDARY_NAME}", $SecondaryName)
 $PythonSource = $PythonSource.Replace("{SECONDARY_REPLAY_DIR}", $SecondaryReplayDir)
+if ($TertiaryReplayDir -ne "") {
+    $PythonSource = $PythonSource.Replace("{TERTIARY_COMPONENT}", ("," + [Environment]::NewLine + "            {""name"": r""" + $TertiaryName + """, ""source_dir"": r""" + $TertiaryReplayDir + """}"))
+}
+else {
+    $PythonSource = $PythonSource.Replace("{TERTIARY_COMPONENT}", "")
+}
 
 $TempPython = New-TemporaryFile
 try {
