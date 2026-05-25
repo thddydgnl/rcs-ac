@@ -486,3 +486,99 @@ but still not clean PASS. Do not start raw/fusion. The next aligned step is to
 collect another policy-warmup replay from the current collision062 candidate at
 `record_after_route_progress=0.70`, because the remaining failure is again the
 post-0.7 offroad segment.
+
+Route070/offroad and route064/collision balancing results:
+
+- `338d8d5_policy_warmup_route070_offroad_min8` replay:
+  - collected with the current best collision062 candidate as warmup policy.
+  - `record_after_route_progress=0.70`, `min_recorded_steps=8`.
+  - 4 episodes, episode lengths `[10,11,18,12]`, total steps `51`.
+  - failed attempts: `0`.
+- `338d8d5_mixed_t22_steer2_offroad070_w025_msmm10_cuda`:
+  - component sample weights: `target22=1,steer2=1,offroad070=0.25`.
+  - CUDA training/checkpoint validation: pass.
+  - cross replay gate: `ready_for_clean_eval=true`.
+  - official 512 clean:
+    - status: `FAIL`, clean gate pass: `false`.
+    - done reason: `collision`.
+    - steps: `183` / `512`.
+    - route progress: `0.6666666667`.
+    - collision count: `1`, offroad count: `0`.
+- `338d8d5_mixed_t22_steer2_offroad070_w010_msmm10_cuda`:
+  - component sample weights: `target22=1,steer2=1,offroad070=0.10`.
+  - CUDA training/checkpoint validation: pass.
+  - cross replay gate: `ready_for_clean_eval=true`.
+  - official 512 clean:
+    - status: `FAIL`, clean gate pass: `false`.
+    - done reason: `collision`.
+    - steps: `305` / `512`.
+    - route progress: `0.6666666667`.
+    - collision count: `1`, offroad count: `0`.
+- `71b3e51_mixed_t22_steer2_collision062_w025_offroad070_w010_msmm10_cuda`:
+  - four-component replay support was added so target22, steer2,
+    collision062, and offroad070 can be mixed without rebuilding source
+    replays.
+  - mixed replay:
+    `RCS-AC-v2\experiments\02_privileged_policy_clean\replay\windows_privileged_71b3e51_mixed_t22_steer2_collision062_offroad070_weighted`
+  - mixed replay has 12 episodes and 1296 total steps.
+  - component sample weights:
+    `target22=1,steer2=1,collision062=0.25,offroad070=0.10`.
+  - CUDA training/checkpoint validation: pass.
+  - cross replay gate: `ready_for_clean_eval=true`.
+  - official 512 clean:
+    - run output:
+      `RCS-AC-v2\experiments\02_privileged_policy_clean\windows_512\71b3e51_mixed_t22_steer2_collision062_w025_offroad070_w010_msmm10_cuda_official_clean512`
+    - status: `FAIL`, clean gate pass: `false`.
+    - done reason: `collision`.
+    - steps: `307` / `512`.
+    - route progress: `0.6666666667`.
+    - collision count: `1`, offroad count: `0`.
+    - tail was mostly action `7` at throttle `0.3`.
+- `71b3e51_policy_warmup_route064_collision_min8` replay:
+  - collected from the four-component collision failure with the same policy as
+    warmup.
+  - `record_after_route_progress=0.64`, `min_recorded_steps=8`.
+  - 4 episodes, episode lengths `[20,20,20,20]`, total steps `80`.
+  - failed attempts: `0`.
+- `71b3e51_mixed_t22_steer2_collision064_w025_offroad070_w010_msmm10_cuda`:
+  - component sample weights:
+    `target22=1,steer2=1,collision064=0.25,offroad070=0.10`.
+  - CUDA training/checkpoint validation: pass.
+  - cross replay gate: `ready_for_clean_eval=false`.
+  - rejection cause:
+    - target22 dominant action `7` fraction `0.9348659004`.
+    - steer2 dominant action `7` fraction `0.9134466770`.
+  - official clean was intentionally skipped because the offline gate rejected
+    the candidate.
+- `71b3e51_mixed_t22_steer2_collision064_w010_offroad070_w010_msmm10_cuda`:
+  - component sample weights:
+    `target22=1,steer2=1,collision064=0.10,offroad070=0.10`.
+  - CUDA training/checkpoint validation: pass.
+  - cross replay gate: `ready_for_clean_eval=true`.
+  - target22 action probe:
+    - action counts `{"12":6,"15":412,"4":22,"7":82}`.
+    - dominant action fraction `0.7892720307`.
+    - moving steer fraction `0.0536398467`.
+  - steer2 action probe:
+    - action counts `{"1":3,"15":305,"4":60,"7":279}`.
+    - dominant action fraction `0.4714064915`.
+    - moving steer fraction `0.0973724884`.
+  - official 512 clean:
+    - run output:
+      `RCS-AC-v2\experiments\02_privileged_policy_clean\windows_512\71b3e51_mixed_t22_steer2_collision064_w010_offroad070_w010_msmm10_cuda_official_clean512`
+    - status: `FAIL`, clean gate pass: `false`.
+    - done reason: `offroad`.
+    - steps: `148` / `512`.
+    - route progress: `0.6410256410`.
+    - collision count: `0`, offroad count: `1`.
+    - tail was action `7` at throttle `0.3`.
+
+Decision: route070 replay helped expose that the current Stage 2 policy is
+balanced on a narrow failure band rather than clean behavior. A strong
+collision064 weight collapses back to action `7`; a weak collision064/offroad070
+mix passes offline but shifts official failure to earlier offroad at
+`route_progress=0.6410`. Keep Stage 2 active and do not start raw/fusion. The
+next aligned move is to collect/inspect a route064 offroad correction replay
+from the weak candidate or add a smaller low-throttle/steer regularizer before
+another CUDA candidate, because pure replay weighting is oscillating between
+collision at `0.6667` and offroad at `0.6410-0.7179`.
