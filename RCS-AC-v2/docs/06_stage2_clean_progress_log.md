@@ -1969,3 +1969,113 @@ When `TRAIN_READY_FOR_PROBE=True`, rerun
 `run_stage2_mixed_candidate_cycle.ps1` with the same output/probe dirs and
 `-ProbeWhenReady`. Promote to official 512 clean eval only if
 `stage2_candidate_cross_replay_gate.json` reports `ready_for_clean_eval=true`.
+
+## 2026-05-26 BF7 Offline Gate Pass And Official Mask Diagnostics
+
+The active CUDA candidate completed on the Windows clean clone:
+
+- checkpoint/output dir:
+  `bf7f201_mixed_t22_steer2_latecap045_msfpa20_msmm10`.
+- objective additions:
+  - late action-mass cap at route `0.666-0.70`.
+  - `MovingSteerFalsePositiveWeight=2.0`.
+  - `MovingSteerNonmovingMarginWeight=1.0`.
+  - `MovingSteerNonmovingMargin=0.25`.
+- target22 replay gate passed:
+  - action counts `{10:26,13:8,15:88,16:20,19:6,7:374}`.
+  - moving steer fraction `0.1149425287`.
+  - latent test accuracy `0.9904761910`.
+- steer2 replay gate passed:
+  - action counts `{1:5,10:71,12:7,15:93,21:19,4:26,7:426}`.
+  - moving steer fraction `0.1978361669`.
+  - dominant action 7 fraction `0.6584234930`.
+  - latent test accuracy `0.9230769277`.
+- cross replay gate result: `ready_for_clean_eval=true`.
+
+Official 512 clean eval then ran after the CARLA readiness guard:
+
+- output:
+  `RCS-AC-v2\experiments\02_privileged_policy_clean\windows_512\bf7f201_mixed_t22_steer2_latecap045_msfpa20_msmm10_official_clean512`.
+- result:
+  - `source=windows_carla`.
+  - `status=FAIL`.
+  - `done_reason=collision`.
+  - `steps=147/512`.
+  - `route_progress=0.5384615385`.
+  - `collision_count=1`.
+  - `offroad_count=1`.
+- tail diagnosis:
+  - final sequence used actions `10 -> 13 -> 16 -> 19`.
+  - final action 19 was `throttle=0.3`, `steer=0.5`.
+  - speed was already high, about `24 km/h`.
+
+Three forbidden-action probes were then used as diagnostics only. They are not
+new trained policies and should not become the main optimization path:
+
+- `ForbiddenActionIds=19`:
+  - cross replay gate still passed.
+  - official 512 failed at the same route progress `0.5384615385`.
+  - final repeated action 16 caused collision/offroad at about `27.6 km/h`.
+- `ForbiddenActionIds=16,19`:
+  - cross replay gate still passed.
+  - official 512 failed at the same route progress `0.5384615385`.
+  - failure changed to offroad without collision.
+  - final action 21 was `throttle=0.7`, `steer=0.2`, speed about `34.4 km/h`.
+- `ForbiddenActionIds=16,19,21`:
+  - cross replay gate still passed.
+  - official 512 failed by offroad at `148/512`.
+  - route progress stayed `0.5384615385`.
+  - final tail used action 15 straight at `throttle=0.7`, then action 13
+    at `throttle=0.3`, `steer=0.2`; speed was about `32.8 km/h`.
+
+Decision:
+
+- The offline gate is now capable of promoting a candidate, but official clean
+  still fails in the route `0.49-0.54` band.
+- Masking high-right actions shifts the failure from collision to offroad but
+  does not improve route progress, so do not continue by only adding more
+  forbidden actions.
+- The immediate bottleneck is speed/longitudinal control before and during the
+  right-correction band. The next smallest trained candidate should add a
+  route-window throttle ceiling around route `0.48-0.56` while preserving the
+  BF7 false-positive/non-moving margin objective.
+- Continue to use CUDA for all replay training/probes and run the cross replay
+  gate before any new official CARLA clean eval.
+
+Next candidate command:
+
+```powershell
+Set-Location C:\Users\thddy\Documents\code\RCS-AC-first-official-v2-7f87656
+
+powershell -ExecutionPolicy Bypass -File RCS-AC-v2\scripts\windows\run_stage2_mixed_candidate_cycle.ps1 `
+  -ProjectRoot C:\Users\thddy\Documents\code\RCS-AC-first-official-v2-7f87656 `
+  -OutputDir RCS-AC-v2\experiments\02_privileged_policy_clean\checkpoints\5455ac1_mixed_t22_steer2_latecap045_msfpa20_msmm10_thr030_r048056 `
+  -CrossProbeOutputDir RCS-AC-v2\experiments\02_privileged_policy_clean\windows_512\5455ac1_mixed_t22_steer2_latecap045_msfpa20_msmm10_thr030_r048056_cross_probe `
+  -TaskName RCSV2Stage2Throttle030R048056 `
+  -MakeReplayIfMissing `
+  -StartIfMissing `
+  -ProbeWhenReady `
+  -WorldModelSteps 1500 `
+  -PolicySteps 1500 `
+  -ImitationWeight 5.0 `
+  -ImitationBalancePower 0.5 `
+  -SteerSequenceFraction 0.15 `
+  -WorldModelActionAuxWeight 1.0 `
+  -RouteActionMassCapWeight 5.0 `
+  -RouteActionMassCapIds "1,4,10,12,13,16,18,19,21" `
+  -RouteActionMassCap 0.45 `
+  -RouteActionMassCapMinRouteProgress 0.666 `
+  -RouteActionMassCapMaxRouteProgress 0.70 `
+  -MovingSteerFalsePositiveWeight 2.0 `
+  -MovingSteerNonmovingMarginWeight 1.0 `
+  -MovingSteerNonmovingMargin 0.25 `
+  -RouteThrottleCeilingWeight 4.0 `
+  -RouteThrottleCeiling 0.30 `
+  -RouteThrottleMinRouteProgress 0.48 `
+  -RouteThrottleMaxRouteProgress 0.56 `
+  -Device cuda
+```
+
+If that candidate passes the cross replay gate, run CARLA readiness first and
+then a single official 512 eval. If it fails offline, reject it without CARLA
+and inspect route-bin action diagnostics before choosing another candidate.

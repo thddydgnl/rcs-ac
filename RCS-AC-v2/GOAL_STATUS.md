@@ -19,7 +19,7 @@ Stage 2: Privileged policy clean
 Status:
 
 ```text
-STAGE2_CLEAN_FIRST_WINDOWS_CUDA_OFFLINE_GATE_IN_PROGRESS
+STAGE2_CLEAN_FIRST_WINDOWS_CUDA_THROTTLE_CEILING_CANDIDATE_IN_PROGRESS
 ```
 
 Last completed stage:
@@ -65,11 +65,13 @@ late-right candidate and target22 fallback were rejected offline. Two all-steer
 route cap candidates improved steer2 moving-steer fraction to 0.2194744977 and
 then 0.2117465224, but still failed the 0.20 action gate. A late-window-only
 cap also stayed at 0.2117465224, proving the remaining excess is mid-route
-false-positive steering. The current detached CUDA task is
-RCSV2Stage2BF7LateCap045Msfpa20Msmm10, which combines the late cap with
-false-positive and non-moving margin losses. No official 512 clean eval should
-run until the cross-replay gate reports ready_for_clean_eval=true. Raw/fusion
-remain blocked.
+false-positive steering. BF7 combined the late cap with false-positive and
+non-moving margin losses and passed the target22/steer2 cross-replay gate, but
+official 512 clean failed at route_progress=0.5384615385. Diagnostic forbidden
+action runs for 19, then 16/19, then 16/19/21 shifted collision to offroad but
+did not improve route progress. The current next candidate should preserve BF7
+and add a route-window throttle ceiling around route 0.48-0.56. No raw/fusion
+work should start before privileged 512 clean is stable.
 ```
 
 Pending brief:
@@ -265,6 +267,15 @@ training status; when TRAIN_READY_FOR_PROBE=True, rerun the same mixed candidate
 cycle with -ProbeWhenReady. If ready_for_clean_eval=false, reject and continue
 offline. If ready_for_clean_eval=true, run CARLA readiness guard before any
 official 512 clean eval.
+2026-05-26 BF7 passed target22/steer2 offline cross replay gates, but official
+512 clean failed at route_progress=0.5384615385. Mask diagnostics forbidding
+19, 16/19, and 16/19/21 did not improve route progress and converted the
+failure into high-speed offroad. Do not continue with mask-only search. Next
+run the CUDA mixed candidate
+5455ac1_mixed_t22_steer2_latecap045_msfpa20_msmm10_thr030_r048056 using
+RouteThrottleCeilingWeight=4.0, RouteThrottleCeiling=0.30, and route window
+0.48-0.56. Run cross replay probes first; official 512 clean is allowed only
+if the gate reports ready_for_clean_eval=true.
 do not treat the 128 PASS as full clean completion
 use SSH remote on Windows; HTTPS prompts for credentials
 use the v2-local minimal shared_core env builder by default; pass explicit dependency overrides only for local experiments
