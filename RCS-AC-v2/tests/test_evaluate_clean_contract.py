@@ -856,6 +856,9 @@ def test_checkpoint_action_probe_records_replay_label_diagnostics_static_contrac
     assert "label_moving_steer_fraction" in text
     assert "predicted_moving_on_label_nonmoving_fraction" in text
     assert "predicted_nonmoving_on_label_moving_fraction" in text
+    assert "label_to_predicted_action_counts" in text
+    assert "route_progress_bins" in text
+    assert "_route_progress_bin" in text
 
 
 def test_target24_candidate_cycle_runner_static_contract() -> None:

@@ -103,6 +103,11 @@ def probe_checkpoint_actions(
     right_moving_steer_count = 0
     zero_throttle_steer_count = 0
     zero_throttle_count = 0
+    confusion_counts: Counter[str] = Counter()
+    route_bin_counts: Counter[str] = Counter()
+    route_bin_predicted_moving_counts: Counter[str] = Counter()
+    route_bin_label_moving_counts: Counter[str] = Counter()
+    route_bin_predicted_moving_on_label_nonmoving_counts: Counter[str] = Counter()
     probed_files: list[dict[str, Any]] = []
     for file_entry in replay_manifest["files"]:
         replay_path = _resolve_path(file_entry["path"], root=root, fallback_dir=replay_manifest_resolved.parent)
@@ -127,8 +132,16 @@ def probe_checkpoint_actions(
             label_action = get_discrete_action(label_action_id)
             action_is_moving_steer = _is_forward_steer_action(action)
             label_is_moving_steer = _is_forward_steer_action(label_action)
+            route_bin = _route_progress_bin(float(ego[index, 1]))
             action_counts[action_id] += 1
             label_action_counts[label_action_id] += 1
+            confusion_counts[f"{label_action_id}->{action_id}"] += 1
+            route_bin_counts[route_bin] += 1
+            route_bin_predicted_moving_counts[route_bin] += int(action_is_moving_steer)
+            route_bin_label_moving_counts[route_bin] += int(label_is_moving_steer)
+            route_bin_predicted_moving_on_label_nonmoving_counts[route_bin] += int(
+                action_is_moving_steer and not label_is_moving_steer
+            )
             action_match_count += int(action_id == label_action_id)
             reverse_count += int(action.reverse)
             nonzero_throttle_count += int(float(action.throttle) > 0.0 and not action.reverse)
@@ -190,6 +203,27 @@ def probe_checkpoint_actions(
         "probed_files": probed_files,
         "action_counts": {str(key): int(action_counts[key]) for key in unique_action_ids},
         "label_action_counts": {str(key): int(label_action_counts[key]) for key in sorted(label_action_counts)},
+        "label_to_predicted_action_counts": {
+            key: int(value) for key, value in sorted(confusion_counts.items(), key=lambda item: (-item[1], item[0]))
+        },
+        "route_progress_bins": {
+            key: {
+                "count": int(route_bin_counts[key]),
+                "predicted_moving_steer_count": int(route_bin_predicted_moving_counts[key]),
+                "predicted_moving_steer_fraction": float(route_bin_predicted_moving_counts[key])
+                / float(route_bin_counts[key]),
+                "label_moving_steer_count": int(route_bin_label_moving_counts[key]),
+                "label_moving_steer_fraction": float(route_bin_label_moving_counts[key]) / float(route_bin_counts[key]),
+                "predicted_moving_on_label_nonmoving_count": int(
+                    route_bin_predicted_moving_on_label_nonmoving_counts[key]
+                ),
+                "predicted_moving_on_label_nonmoving_fraction": float(
+                    route_bin_predicted_moving_on_label_nonmoving_counts[key]
+                )
+                / float(route_bin_counts[key]),
+            }
+            for key in sorted(route_bin_counts)
+        },
         "unique_action_ids": unique_action_ids,
         "action_match_count": int(action_match_count),
         "action_match_fraction": action_match_fraction,
@@ -289,6 +323,16 @@ def _load_checkpoint_manifest(path: Path) -> dict[str, Any]:
 
 def _is_forward_steer_action(action: Any) -> bool:
     return bool(abs(float(action.steer)) > 0.0 and float(action.throttle) > 0.0 and not action.reverse)
+
+
+def _route_progress_bin(route_progress: float) -> str:
+    edges = (0.50, 0.55, 0.60, 0.64, 0.66, 0.70)
+    lower = 0.0
+    for upper in edges:
+        if route_progress < upper:
+            return f"{lower:.2f}-{upper:.2f}"
+        lower = upper
+    return "0.70-1.00"
 
 
 def _resolve_path(raw: str | Path, *, root: Path, fallback_dir: Path) -> Path:
