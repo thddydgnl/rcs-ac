@@ -1906,9 +1906,9 @@ All-steer wider route action cap candidate:
   `0.9117647059`.
 - Decision: close but reject, do not run official 512 clean eval.
 
-Current active CUDA offline candidate:
+Late-window cap candidate:
 
-- checkpoint/output dir:
+- checkpoint:
   `fdf50ab_mixed_t22_steer2_latecap045_r066070`.
 - task:
   `RCSV2Stage2FDFLateCap045R066070`.
@@ -1921,6 +1921,34 @@ Current active CUDA offline candidate:
   remaining false positives were concentrated in the late route window. This
   candidate leaves the earlier `0.50-0.66` window less constrained and caps only
   the final late-turn band.
+- training completed on Windows CUDA with valid checkpoint manifest.
+- target22 cross replay passed:
+  - moving steer fraction: `0.1187739464`.
+  - latent test accuracy: `0.9904761910`.
+- steer2 cross replay:
+  - latent probe passed.
+  - action probe rejected.
+  - moving steer fraction: `0.2117465224`, gate max `0.20`.
+  - late route `0.66-0.70` predicted moving-steer fraction improved to
+    `0.5294117647`.
+- Decision: reject, do not run official 512 clean eval. The late cap fixed the
+  final route-bin excess but left the mid-route `0.50-0.60` false positives
+  high enough that the total moving-steer gate still failed.
+
+Current active CUDA offline candidate:
+
+- checkpoint/output dir:
+  `bf7f201_mixed_t22_steer2_latecap045_msfpa20_msmm10`.
+- task:
+  `RCSV2Stage2BF7LateCap045Msfpa20Msmm10`.
+- objective additions over the late-window cap:
+  - `MovingSteerFalsePositiveWeight=2.0`.
+  - `MovingSteerNonmovingMarginWeight=1.0`.
+  - `MovingSteerNonmovingMargin=0.25`.
+- rationale: the late cap handled route `0.66-0.70`; the remaining gate failure
+  is mid-route predicted moving steer on non-moving labels, so reuse the
+  previous false-positive/non-moving margin levers that had already produced an
+  offline-promotable candidate in an earlier sweep.
 - latest check:
   - detached task started.
   - manifest exists: `False`.
@@ -1933,8 +1961,8 @@ Set-Location C:\Users\thddy\Documents\code\RCS-AC-first-official-v2-7f87656
 
 powershell -ExecutionPolicy Bypass -File RCS-AC-v2\scripts\windows\check_stage2_replay_training_detached.ps1 `
   -ProjectRoot C:\Users\thddy\Documents\code\RCS-AC-first-official-v2-7f87656 `
-  -OutputDir RCS-AC-v2\experiments\02_privileged_policy_clean\checkpoints\fdf50ab_mixed_t22_steer2_latecap045_r066070 `
-  -TaskName RCSV2Stage2FDFLateCap045R066070
+  -OutputDir RCS-AC-v2\experiments\02_privileged_policy_clean\checkpoints\bf7f201_mixed_t22_steer2_latecap045_msfpa20_msmm10 `
+  -TaskName RCSV2Stage2BF7LateCap045Msfpa20Msmm10
 ```
 
 When `TRAIN_READY_FOR_PROBE=True`, rerun

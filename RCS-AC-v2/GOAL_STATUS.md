@@ -63,11 +63,13 @@ passed. Commits 2ee1b4c, 5b7ee99, and b462386 fixed mixed-candidate argument
 handling, rejected-gate summarization, and route-bin action diagnostics. The
 late-right candidate and target22 fallback were rejected offline. Two all-steer
 route cap candidates improved steer2 moving-steer fraction to 0.2194744977 and
-then 0.2117465224, but both still failed the 0.20 action gate. A late-window
-cap candidate focused on route 0.666-0.70 is currently running as detached CUDA
-task RCSV2Stage2FDFLateCap045R066070. No official 512 clean eval should run
-until the cross-replay gate reports ready_for_clean_eval=true. Raw/fusion remain
-blocked.
+then 0.2117465224, but still failed the 0.20 action gate. A late-window-only
+cap also stayed at 0.2117465224, proving the remaining excess is mid-route
+false-positive steering. The current detached CUDA task is
+RCSV2Stage2BF7LateCap045Msfpa20Msmm10, which combines the late cap with
+false-positive and non-moving margin losses. No official 512 clean eval should
+run until the cross-replay gate reports ready_for_clean_eval=true. Raw/fusion
+remain blocked.
 ```
 
 Pending brief:
@@ -258,7 +260,7 @@ local edits would only polish orchestration and would not materially improve
 clean performance without Windows CUDA/CARLA.
 2026-05-26 remote execution is no longer paused. Userspace Tailscale SOCKS SSH
 to Windows is working, and Windows CUDA training/probing is active. Current
-active task is RCSV2Stage2FDFLateCap045R066070. First poll its detached
+active task is RCSV2Stage2BF7LateCap045Msfpa20Msmm10. First poll its detached
 training status; when TRAIN_READY_FOR_PROBE=True, rerun the same mixed candidate
 cycle with -ProbeWhenReady. If ready_for_clean_eval=false, reject and continue
 offline. If ready_for_clean_eval=true, run CARLA readiness guard before any
