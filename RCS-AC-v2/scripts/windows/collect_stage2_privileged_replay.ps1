@@ -9,6 +9,8 @@ param(
     [double]$RecordAfterRouteProgress = 0.0,
     [int]$MinRecordedSteps = 1,
     [string]$WarmupPolicyConfig = "",
+    [int]$MaxAttempts = 0,
+    [switch]$SkipFailedEpisodes,
     [string]$EnsureCarlaScript = "",
     [string]$StartCarlaScript = "",
     [string]$EnvConfigPathOverride = "",
@@ -104,11 +106,16 @@ $CollectArgs = @(
     "--target-speed-kmh", $TargetSpeedKmh,
     "--steer-sign", $SteerSign,
     "--record-after-route-progress", $RecordAfterRouteProgress,
-    "--min-recorded-steps", $MinRecordedSteps
+    "--min-recorded-steps", $MinRecordedSteps,
+    "--max-attempts", $MaxAttempts
 )
 if ($WarmupPolicyConfig -ne "") {
     $CollectArgs += @("--warmup-policy-config", $WarmupPolicyConfig)
     Write-Host "WARMUP_POLICY_CONFIG=$WarmupPolicyConfig"
+}
+if ($SkipFailedEpisodes) {
+    $CollectArgs += "--skip-failed-episodes"
+    Write-Host "SKIP_FAILED_EPISODES=True"
 }
 & py @CollectArgs
 exit $LASTEXITCODE

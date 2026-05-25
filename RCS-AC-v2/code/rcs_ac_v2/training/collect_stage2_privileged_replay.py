@@ -169,7 +169,14 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--record-after-route-progress", type=float, default=0.0)
     parser.add_argument("--min-recorded-steps", type=int, default=1)
     parser.add_argument("--warmup-policy-config", default="")
+    parser.add_argument("--max-attempts", type=int, default=0)
+    parser.add_argument("--skip-failed-episodes", action="store_true")
     args = parser.parse_args(argv)
+    if int(args.episodes) <= 0:
+        raise ValueError("episodes must be positive")
+    max_attempts = int(args.max_attempts) if int(args.max_attempts) > 0 else int(args.episodes)
+    if max_attempts < int(args.episodes):
+        raise ValueError("max_attempts must be >= episodes")
 
     config_path = Path(args.config)
     config = yaml.safe_load(config_path.read_text())
@@ -182,25 +189,37 @@ def main(argv: list[str] | None = None) -> None:
         warmup_policy_config = yaml.safe_load(Path(args.warmup_policy_config).read_text())
         warmup_policy_runner = load_stage2_policy_runner(warmup_policy_config)
     episode_paths: list[Path] = []
+    failed_attempts: list[dict[str, Any]] = []
     try:
-        for episode_index in range(int(args.episodes)):
+        attempt_index = 0
+        while len(episode_paths) < int(args.episodes) and attempt_index < max_attempts:
             if warmup_policy_runner is not None:
                 warmup_policy_runner.reset()
-            episode = collect_episode(
-                env,
-                max_steps=int(args.max_steps),
-                target_speed_kmh=float(args.target_speed_kmh),
-                steer_sign=float(args.steer_sign),
-                record_after_route_progress=float(args.record_after_route_progress),
-                min_recorded_steps=int(args.min_recorded_steps),
-                warmup_policy_runner=warmup_policy_runner,
-            )
+            try:
+                episode = collect_episode(
+                    env,
+                    max_steps=int(args.max_steps),
+                    target_speed_kmh=float(args.target_speed_kmh),
+                    steer_sign=float(args.steer_sign),
+                    record_after_route_progress=float(args.record_after_route_progress),
+                    min_recorded_steps=int(args.min_recorded_steps),
+                    warmup_policy_runner=warmup_policy_runner,
+                )
+            except Exception as exc:
+                failed_attempts.append({"attempt_index": attempt_index, "error": str(exc)})
+                print(f"STAGE2_PRIVILEGED_REPLAY_ATTEMPT_FAILED={attempt_index}:{exc}")
+                attempt_index += 1
+                if args.skip_failed_episodes:
+                    continue
+                raise
+            episode_index = len(episode_paths)
             path = output_dir / f"episode_{episode_index:04d}.npz"
             metadata = default_replay_metadata(
                 extra={
                     **episode["metadata"],
                     "config": str(config_path),
                     "episode_index": episode_index,
+                    "attempt_index": attempt_index,
                 }
             )
             episode_paths.append(
@@ -214,8 +233,14 @@ def main(argv: list[str] | None = None) -> None:
                     metadata=metadata,
                 )
             )
+            attempt_index += 1
     finally:
         env.close()
+    if len(episode_paths) < int(args.episodes):
+        raise RuntimeError(
+            f"collector saved {len(episode_paths)} successful episodes, "
+            f"needed {int(args.episodes)} within max_attempts={max_attempts}"
+        )
 
     manifest_path = output_dir / "stage2_privileged_replay_manifest.json"
     write_privileged_replay_manifest(
@@ -231,6 +256,10 @@ def main(argv: list[str] | None = None) -> None:
             "record_after_route_progress": float(args.record_after_route_progress),
             "min_recorded_steps": int(args.min_recorded_steps),
             "warmup_policy_config": str(args.warmup_policy_config or ""),
+            "max_attempts": max_attempts,
+            "failed_attempt_count": len(failed_attempts),
+            "failed_attempts": failed_attempts,
+            "skip_failed_episodes": bool(args.skip_failed_episodes),
         },
     )
     print(f"STAGE2_PRIVILEGED_REPLAY_MANIFEST={manifest_path}")

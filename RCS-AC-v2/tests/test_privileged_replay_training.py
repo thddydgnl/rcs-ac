@@ -486,10 +486,17 @@ def test_late_replay_collector_supports_policy_warmup_static_contract() -> None:
     assert "load_stage2_policy_runner" in collector
     assert "warmup_policy_config" in collector
     assert "max_route_progress" in collector
+    assert "failed_attempts" in collector
+    assert "--skip-failed-episodes" in collector
+    assert "--max-attempts" in collector
     assert "_select_warmup_policy_action" in collector
     assert "warmup_policy_runner.observe_action(action_id)" in collector
     assert '[string]$WarmupPolicyConfig = ""' in wrapper
+    assert "[int]$MaxAttempts = 0" in wrapper
+    assert "[switch]$SkipFailedEpisodes" in wrapper
     assert '"--warmup-policy-config", $WarmupPolicyConfig' in wrapper
+    assert '"--max-attempts", $MaxAttempts' in wrapper
+    assert '"--skip-failed-episodes"' in wrapper
 
 
 def _simulator_privileged_info() -> dict:
