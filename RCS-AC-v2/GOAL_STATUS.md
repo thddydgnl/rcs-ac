@@ -19,7 +19,7 @@ Stage 2: Privileged policy clean
 Status:
 
 ```text
-STAGE2_CLEAN_FIRST_CORR050_BRANCH_REJECTED_OFFLINE
+STAGE2_CLEAN_FIRST_COMPONENT_SAMPLER_GUARD_ADDED
 ```
 
 Last completed stage:
@@ -73,7 +73,11 @@ did not improve route progress. The subsequent throttle-ceiling, high-throttle
 mass-cap, action15-mask, and route-window action-logit-cap candidates were all
 rejected offline before official clean eval; their common failure mode is
 steer2 moving-steer fraction just above the 0.20 gate. No raw/fusion work should
-start before privileged 512 clean is stable.
+start before privileged 512 clean is stable. The corr050 replay branch then
+showed identical steer2 distributions across target-speed/weight variants. A
+component-sampler guard was added so replay training now records included and
+dropped short episodes per component and fails fast when a positive-weight
+component has no episodes long enough for the configured sequence_length.
 ```
 
 Pending brief:
@@ -139,6 +143,12 @@ material clean-performance step requires Windows connectivity.
 Active agents:
 
 ```text
+Ohm completed the 2026-05-26 Stage 2 component-sampler audit and found that
+component weights are episode-level, priority sampling can dilute their effect,
+unmatched component names silently default to 1.0, and the trainer lacked
+realized per-component visibility. The integrated patch adds component
+sampler stats and a positive-weight dropped-component guard before more blind
+Windows sweeps.
 Feynman completed the 2026-05-26 late-right resume/candidate/probe audit.
 James was closed after the 2026-05-26 blocked audit.
 Epicurus was closed after the 2026-05-26 resume-wrapper

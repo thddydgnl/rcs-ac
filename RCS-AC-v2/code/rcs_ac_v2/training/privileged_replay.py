@@ -311,17 +311,26 @@ class PrivilegedReplaySampler:
             raise ValueError("sequence_length must be positive")
         if not 0.0 <= float(priority_sample_fraction) <= 1.0:
             raise ValueError("priority_sample_fraction must be in [0, 1]")
-        weighted_episodes = [
+        episode_weights = [
             (episode, float(weight))
             for episode, weight in zip(
                 episodes,
                 episode_sample_weights or [1.0 for _episode in episodes],
                 strict=True,
             )
+        ]
+        if any(weight < 0.0 for _episode, weight in episode_weights):
+            raise ValueError("episode_sample_weights must be non-negative")
+        weighted_episodes = [
+            (episode, weight)
+            for episode, weight in episode_weights
             if episode.length >= sequence_length
         ]
-        if any(weight < 0.0 for _episode, weight in weighted_episodes):
-            raise ValueError("episode_sample_weights must be non-negative")
+        self.dropped_short_episodes = [
+            (episode, weight)
+            for episode, weight in episode_weights
+            if episode.length < sequence_length
+        ]
         self.episodes = [episode for episode, _weight in weighted_episodes]
         if not self.episodes:
             raise ValueError("no replay episodes are long enough for the requested sequence_length")
@@ -383,7 +392,7 @@ class PrivilegedReplaySampler:
         start = int(self.rng.integers(0, episode.length - self.sequence_length + 1))
         return episode, start
 
-    def priority_stats(self) -> dict[str, float | int | list[int]]:
+    def priority_stats(self) -> dict[str, Any]:
         priority_count = len(self.priority_starts)
         priority_fraction = (
             float(priority_count) / float(self.total_window_count) if self.total_window_count else 0.0
@@ -391,6 +400,9 @@ class PrivilegedReplaySampler:
         effective_sample_fraction = self.priority_sample_fraction if priority_count > 0 else 0.0
         return {
             "sequence_length": int(self.sequence_length),
+            "episode_count": int(len(self.episodes) + len(self.dropped_short_episodes)),
+            "included_episode_count": int(len(self.episodes)),
+            "dropped_short_episode_count": int(len(self.dropped_short_episodes)),
             "total_window_count": int(self.total_window_count),
             "priority_window_count": int(priority_count),
             "priority_window_fraction": priority_fraction,
@@ -399,5 +411,25 @@ class PrivilegedReplaySampler:
             "effective_priority_sample_fraction": float(effective_sample_fraction),
             "episode_sample_probabilities": [
                 float(probability) for probability in self.episode_sample_probabilities.tolist()
+            ],
+            "included_episodes": [
+                {
+                    "path": str(episode.path),
+                    "length": int(episode.length),
+                    "sample_probability": float(probability),
+                }
+                for episode, probability in zip(
+                    self.episodes,
+                    self.episode_sample_probabilities.tolist(),
+                    strict=True,
+                )
+            ],
+            "dropped_short_episodes": [
+                {
+                    "path": str(episode.path),
+                    "length": int(episode.length),
+                    "weight": float(weight),
+                }
+                for episode, weight in self.dropped_short_episodes
             ],
         }

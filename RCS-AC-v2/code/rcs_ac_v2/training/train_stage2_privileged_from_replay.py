@@ -307,6 +307,11 @@ def train_stage2_privileged_from_replay(
         episodes,
         component_sample_weights=resolved_component_weights,
     )
+    component_sampler_stats = _make_component_sampler_stats(
+        episodes,
+        sequence_length=sequence_length,
+        component_sample_weights=resolved_component_weights,
+    )
     imitation_class_weights = (
         _make_imitation_class_weights(
             episodes,
@@ -602,6 +607,7 @@ def train_stage2_privileged_from_replay(
         ),
         "world_model_action_aux_weight": float(world_model_action_aux_weight),
         "component_sample_weights": resolved_component_weights,
+        "component_sampler_stats": component_sampler_stats,
         "action_mass_cap_weight": float(action_mass_cap_weight),
         "action_mass_caps": {str(key): value for key, value in resolved_action_mass_caps.items()},
         "route_speed_action_mass_cap_weight": float(route_speed_action_mass_cap_weight),
@@ -1162,6 +1168,84 @@ def _make_episode_sample_weights(
     if weights and sum(weights) <= 0.0:
         raise ValueError("at least one episode sample weight must be positive")
     return weights
+
+
+def _make_component_sampler_stats(
+    episodes: list[Any],
+    *,
+    sequence_length: int,
+    component_sample_weights: dict[str, float],
+) -> dict[str, Any]:
+    if sequence_length <= 0:
+        raise ValueError("sequence_length must be positive")
+
+    components: dict[str, dict[str, Any]] = {}
+    episode_entries: list[dict[str, Any]] = []
+    for episode in episodes:
+        component = _episode_component_name(Path(episode.path))
+        length = int(episode.length)
+        weight = float(component_sample_weights.get(component, 1.0))
+        included = length >= int(sequence_length)
+        window_count = max(0, length - int(sequence_length) + 1)
+        stats = components.setdefault(
+            component,
+            {
+                "episodes": 0,
+                "included_episodes": 0,
+                "dropped_short_episodes": 0,
+                "total_steps": 0,
+                "included_steps": 0,
+                "window_count": 0,
+                "raw_weight_sum": 0.0,
+                "included_weight_sum": 0.0,
+                "requested_weight": weight,
+            },
+        )
+        stats["episodes"] += 1
+        stats["total_steps"] += length
+        stats["raw_weight_sum"] += weight
+        if included:
+            stats["included_episodes"] += 1
+            stats["included_steps"] += length
+            stats["window_count"] += window_count
+            stats["included_weight_sum"] += weight
+        else:
+            stats["dropped_short_episodes"] += 1
+        episode_entries.append(
+            {
+                "path": str(episode.path),
+                "component": component,
+                "length": length,
+                "included": bool(included),
+                "window_count": int(window_count),
+                "requested_weight": weight,
+            }
+        )
+
+    for component, weight in component_sample_weights.items():
+        component_stats = components.get(component)
+        included_count = int(component_stats["included_episodes"]) if component_stats else 0
+        if float(weight) > 0.0 and included_count == 0:
+            raise ValueError(
+                f"component {component!r} has positive sample weight but no episodes "
+                f"long enough for sequence_length={int(sequence_length)}"
+            )
+
+    total_included_weight = sum(float(stats["included_weight_sum"]) for stats in components.values())
+    configured_probabilities = {
+        component: (
+            float(stats["included_weight_sum"]) / float(total_included_weight)
+            if total_included_weight > 0.0
+            else 0.0
+        )
+        for component, stats in components.items()
+    }
+    return {
+        "sequence_length": int(sequence_length),
+        "components": components,
+        "configured_episode_sample_prob_by_component": configured_probabilities,
+        "episodes": episode_entries,
+    }
 
 
 def _episode_component_name(path: Path) -> str:

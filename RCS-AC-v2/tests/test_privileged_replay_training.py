@@ -40,6 +40,7 @@ from rcs_ac_v2.training.privileged_replay import (
 )
 from rcs_ac_v2.training.train_stage2_privileged_from_replay import (
     _action_mass_cap_loss,
+    _make_component_sampler_stats,
     _make_imitation_class_weights,
     _make_episode_sample_weights,
     _moving_steer_action_mask,
@@ -137,6 +138,36 @@ def test_privileged_replay_sampler_supports_episode_sample_weights(tmp_path) -> 
 
     assert episode_weights == [1.0, 0.25]
     assert stats["episode_sample_probabilities"] == pytest.approx([0.8, 0.2])
+    assert stats["included_episode_count"] == 2
+    assert stats["dropped_short_episode_count"] == 0
+
+
+def test_component_sampler_stats_rejects_positive_weight_for_dropped_component(tmp_path) -> None:
+    target_path = save_privileged_replay_episode(
+        tmp_path / "episode_target22_0000.npz",
+        **_replay_arrays(length=6),
+    )
+    corr_path = save_privileged_replay_episode(
+        tmp_path / "episode_corr050_0000.npz",
+        **_replay_arrays(length=3),
+    )
+    episodes = [load_privileged_replay_episode(target_path), load_privileged_replay_episode(corr_path)]
+
+    stats = _make_component_sampler_stats(
+        episodes,
+        sequence_length=4,
+        component_sample_weights={"corr050": 0.0},
+    )
+    assert stats["components"]["target22"]["included_episodes"] == 1
+    assert stats["components"]["corr050"]["dropped_short_episodes"] == 1
+    assert stats["configured_episode_sample_prob_by_component"]["corr050"] == 0.0
+
+    with pytest.raises(ValueError, match="corr050.*sequence_length=4"):
+        _make_component_sampler_stats(
+            episodes,
+            sequence_length=4,
+            component_sample_weights={"corr050": 0.25},
+        )
 
 
 def test_candidate_cross_replay_gate_requires_action_and_latent_margins(tmp_path) -> None:
@@ -479,6 +510,10 @@ def test_replay_training_exports_clean_eval_loadable_checkpoints(tmp_path) -> No
     assert manifest["moving_steer_nonmoving_margin"] == 0.1
     assert manifest["world_model_action_aux_weight"] == 0.25
     assert manifest["component_sample_weights"] == {"target22": 0.5}
+    assert manifest["component_sampler_stats"]["components"]["target22"]["included_episodes"] == 1
+    assert manifest["component_sampler_stats"]["configured_episode_sample_prob_by_component"] == {
+        "target22": 1.0
+    }
     assert manifest["action_mass_cap_weight"] == 0.2
     assert manifest["action_mass_caps"] == {"7": 0.7, "15": 0.55}
     assert manifest["route_speed_action_mass_cap_weight"] == 0.3

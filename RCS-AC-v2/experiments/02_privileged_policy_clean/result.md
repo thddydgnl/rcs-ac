@@ -413,6 +413,7 @@ fast35 checkpoint action probe: b4c8e58/37a0875 checkpoint passed pre-clean gate
 fast35 128 clean eval: commit 37a0875, source=windows_carla, status=PASS, clean_gate_pass=true, done_reason=horizon_reached, steps=128/128, collision/offroad/stuck counts all zero, route_progress=0.1794871794871795, episode_return=13.545934572121052, metrics_rows=128, adapter_errors=0, runtime_errors=0
 fast35 512 primary eval: commit 0b10ff5, source=windows_carla, status=FAIL, failure_class=driving, done_reason=collision, steps=311/512, collision_count=1, offroad_count=0, stuck_count=0, route_progress=0.5641025641025641, episode_return=19.066852226147766, metrics_rows=311, adapter_errors=0, runtime_errors=0, action_counts={7:308,15:3}
 offline steer2 replay sweep: commit d4c5b70 added sampler priority-window stats, imitation_balance_power, and dominant-action probe gating. Four steer2 candidates were rejected before CARLA: balpow05 {7:647}, balpow0625 {7:647}, balpow075 {4:639,7:8}, and no-balance {7:647}. The replay has priority_window_count=212/617, so the failures point to policy collapse rather than missing steering windows.
+corr050 component guard: after BF7 failed the 512 clean gate and corr050 t12/t16 variants produced identical steer2 distributions, the trainer now records component_sampler_stats plus sampler included/dropped episode lists and fails fast if an explicit positive component weight has no sequence_length-eligible episodes. Local test: PYTHONPATH=RCS-AC-v2/code pytest -q RCS-AC-v2/tests/test_privileged_replay_training.py -> 29 passed.
 ```
 
 ## Blockers / Next Gate
@@ -442,12 +443,11 @@ source in this round.
 
 ## Next Action
 
-Patch the 512 collision by collecting a longer or failure-window privileged
-replay that covers the collision/turn segment with steering labels, retrain
-replay-source checkpoints, rerun the checkpoint action probe, and then rerun the
-512 clean gate. Do not start raw/fusion work until the 512-step result is PASS
-or explicitly blocked after classified retry attempts. The latest offline sweep
-shows that simple replay imitation class weighting and steering-window
-oversampling are not enough; the next fix should change the policy-training
-objective or representation so straight/steer decisions remain state-dependent
-instead of collapsing to one dominant action.
+Patch the 512 collision by first verifying that any new failure-window
+component actually contributes sequence_length-eligible replay windows. If the
+existing corr050 component was dropped as too short, recollect it with
+MinRecordedSteps at least sequence_length before retraining. Then retrain
+replay-source checkpoints, rerun the checkpoint action/latent probes, and only
+rerun the 512 clean gate if the offline cross-replay gate passes. Do not start
+raw/fusion work until the 512-step result is PASS or explicitly blocked after
+classified retry attempts.
