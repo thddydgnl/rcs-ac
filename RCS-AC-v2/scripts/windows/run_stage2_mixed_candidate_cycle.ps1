@@ -7,6 +7,8 @@ param(
     [string]$SecondaryReplayName = "steer2",
     [string]$TertiaryReplayDir = "",
     [string]$TertiaryReplayName = "late",
+    [string]$QuaternaryReplayDir = "",
+    [string]$QuaternaryReplayName = "late2",
     [string]$MixedReplayDir = "RCS-AC-v2\experiments\02_privileged_policy_clean\replay\windows_privileged_7f87656_mixed_target22_steer2",
     [string]$OutputDir = "RCS-AC-v2\experiments\02_privileged_policy_clean\checkpoints\windows_replay_7f87656_mixed_target22_steer2_aux1_balpow05_iw5_ssf015",
     [string]$CrossProbeOutputDir = "RCS-AC-v2\experiments\02_privileged_policy_clean\windows_512\7f87656_mixed_target22_steer2_aux1_balpow05_iw5_ssf015_cross_probe",
@@ -53,6 +55,7 @@ $MixedManifestPath = Join-Path $MixedReplayDir "stage2_privileged_replay_manifes
 $PrimaryReplayManifestPath = Join-Path $PrimaryReplayDir "stage2_privileged_replay_manifest.json"
 $SecondaryReplayManifestPath = Join-Path $SecondaryReplayDir "stage2_privileged_replay_manifest.json"
 $TertiaryReplayManifestPath = if ($TertiaryReplayDir -ne "") { Join-Path $TertiaryReplayDir "stage2_privileged_replay_manifest.json" } else { "" }
+$QuaternaryReplayManifestPath = if ($QuaternaryReplayDir -ne "") { Join-Path $QuaternaryReplayDir "stage2_privileged_replay_manifest.json" } else { "" }
 $MakeScript = Join-Path $ProjectRoot "RCS-AC-v2\scripts\windows\make_stage2_mixed_replay_manifest.ps1"
 $CheckScript = Join-Path $ProjectRoot "RCS-AC-v2\scripts\windows\check_stage2_replay_training_detached.ps1"
 $StartScript = Join-Path $ProjectRoot "RCS-AC-v2\scripts\windows\start_stage2_replay_training_detached.ps1"
@@ -65,6 +68,9 @@ Write-Host "PRIMARY_REPLAY_MANIFEST_PATH=$PrimaryReplayManifestPath"
 Write-Host "SECONDARY_REPLAY_MANIFEST_PATH=$SecondaryReplayManifestPath"
 if ($TertiaryReplayManifestPath -ne "") {
     Write-Host "TERTIARY_REPLAY_MANIFEST_PATH=$TertiaryReplayManifestPath"
+}
+if ($QuaternaryReplayManifestPath -ne "") {
+    Write-Host "QUATERNARY_REPLAY_MANIFEST_PATH=$QuaternaryReplayManifestPath"
 }
 Write-Host "OUTPUT_DIR=$OutputDir"
 Write-Host "CROSS_PROBE_OUTPUT_DIR=$CrossProbeOutputDir"
@@ -93,6 +99,12 @@ if ((-not (Test-Path $MixedManifestPath)) -or $ForceMixedReplay) {
             "-TertiaryName", $TertiaryReplayName
         )
     }
+    if ($QuaternaryReplayDir -ne "") {
+        $MakeArgs += @(
+            "-QuaternaryReplayDir", $QuaternaryReplayDir,
+            "-QuaternaryName", $QuaternaryReplayName
+        )
+    }
     if ($ForceMixedReplay) {
         $MakeArgs += "-Force"
     }
@@ -105,6 +117,9 @@ if ((-not (Test-Path $MixedManifestPath)) -or $ForceMixedReplay) {
 $RequiredManifests = @($MixedManifestPath, $PrimaryReplayManifestPath, $SecondaryReplayManifestPath)
 if ($TertiaryReplayManifestPath -ne "") {
     $RequiredManifests += $TertiaryReplayManifestPath
+}
+if ($QuaternaryReplayManifestPath -ne "") {
+    $RequiredManifests += $QuaternaryReplayManifestPath
 }
 foreach ($RequiredManifest in $RequiredManifests) {
     if (-not (Test-Path $RequiredManifest)) {
@@ -191,12 +206,14 @@ $LatestPointer = [ordered]@{
     primary_replay_name = $PrimaryReplayName
     secondary_replay_name = $SecondaryReplayName
     tertiary_replay_name = $TertiaryReplayName
+    quaternary_replay_name = $QuaternaryReplayName
     requested_output_dir = $RequestedOutputDir
     active_output_dir = $RerunOutputDir
     mixed_replay_manifest_path = $MixedManifestPath
     primary_replay_manifest_path = $PrimaryReplayManifestPath
     secondary_replay_manifest_path = $SecondaryReplayManifestPath
     tertiary_replay_manifest_path = $TertiaryReplayManifestPath
+    quaternary_replay_manifest_path = $QuaternaryReplayManifestPath
     task_name = $TaskName
     seed = $Seed
     steer_sequence_fraction = $SteerSequenceFraction

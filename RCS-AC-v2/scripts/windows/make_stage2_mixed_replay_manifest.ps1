@@ -6,6 +6,8 @@ param(
     [string]$SecondaryName = "steer2",
     [string]$TertiaryReplayDir = "",
     [string]$TertiaryName = "late",
+    [string]$QuaternaryReplayDir = "",
+    [string]$QuaternaryName = "late2",
     [string]$OutputDir = "RCS-AC-v2\experiments\02_privileged_policy_clean\replay\windows_privileged_7f87656_mixed_target22_steer2",
     [string]$ConfigPath = "RCS-AC-v2\experiments\02_privileged_policy_clean\windows_512\7f87656_steer2_seq010_aux1_balpow05_iw5\clean_512_stage2_privileged_7f87656_steer2_seq010_aux1_balpow05_iw5_with_checkpoints.yaml",
     [switch]$Force
@@ -22,6 +24,9 @@ $ReplayComponents = @(
 )
 if ($TertiaryReplayDir -ne "") {
     $ReplayComponents += @{ Name = $TertiaryName; Dir = $TertiaryReplayDir }
+}
+if ($QuaternaryReplayDir -ne "") {
+    $ReplayComponents += @{ Name = $QuaternaryName; Dir = $QuaternaryReplayDir }
 }
 
 foreach ($ReplayComponent in $ReplayComponents) {
@@ -90,7 +95,7 @@ write_privileged_replay_manifest(
         "run_kind": "mixed_replay_manifest_from_existing_windows_replays",
         "components": [
             {"name": r"{PRIMARY_NAME}", "source_dir": r"{PRIMARY_REPLAY_DIR}"},
-            {"name": r"{SECONDARY_NAME}", "source_dir": r"{SECONDARY_REPLAY_DIR}"}{TERTIARY_COMPONENT}
+            {"name": r"{SECONDARY_NAME}", "source_dir": r"{SECONDARY_REPLAY_DIR}"}{TERTIARY_COMPONENT}{QUATERNARY_COMPONENT}
         ],
     },
 )
@@ -113,6 +118,12 @@ if ($TertiaryReplayDir -ne "") {
 }
 else {
     $PythonSource = $PythonSource.Replace("{TERTIARY_COMPONENT}", "")
+}
+if ($QuaternaryReplayDir -ne "") {
+    $PythonSource = $PythonSource.Replace("{QUATERNARY_COMPONENT}", ("," + [Environment]::NewLine + "            {""name"": r""" + $QuaternaryName + """, ""source_dir"": r""" + $QuaternaryReplayDir + """}"))
+}
+else {
+    $PythonSource = $PythonSource.Replace("{QUATERNARY_COMPONENT}", "")
 }
 
 $TempPython = New-TemporaryFile
