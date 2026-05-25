@@ -59,10 +59,15 @@ If spawning fails with `agent thread limit reached`, close completed/obsolete
 sub-agents first, reuse existing agents when possible, then retry spawn.
 If spawning fails with invalid spawn arguments during a full-history fork,
 retry with `fork_context=true` only and omit agent_type/model/reasoning overrides.
+The safe full-history pattern is only
+`spawn_agent(fork_context=true, message="<bounded audit task>")`; do not combine
+that call with agent_type/model/reasoning overrides.
 If spawning still fails after cleanup/reuse, record the exact error in
 GOAL_STATUS.md and continue with manual role simulation: Agent A evidence audit,
 Agent C contract/gate audit, and Agent B wiring audit when code/config/test
 files are edited.
+If Windows/Tailscale/CARLA is unreachable, keep sub-agent use alive for local
+docs/log/script audits while remote execution is paused.
 At stage entry or work-packet entry, spawn at least:
 - Agent A: Goal/Status Evidence Analyst
 - Agent C: Raw2Drive Contract/Gate Verifier

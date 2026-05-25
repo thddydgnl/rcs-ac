@@ -210,6 +210,16 @@ overbroad delegation:
     Implementation Brief -> edit -> validate 순서로 계속 진행한다.
 ```
 
+Full-history fork 예시:
+
+```text
+OK:
+  spawn_agent(fork_context=true, message="<bounded audit task>")
+
+Avoid:
+  spawn_agent(fork_context=true, agent_type="explorer", model="...", reasoning_effort="...", message="...")
+```
+
 권장 운영:
 
 ```text
@@ -220,6 +230,9 @@ goal turn 시작:
 
 major edit 전:
   새 agent를 만들기보다 기존 explorer/worker 재사용 가능성 먼저 확인
+
+Windows/Tailscale/CARLA 연결 장애 중:
+  remote 실행은 보류하되, 로컬 문서/로그/스크립트 audit용 subagent pulse는 계속 수행
 
 final 전:
   더 이상 필요 없는 agent close

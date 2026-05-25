@@ -121,13 +121,20 @@ Before Stage 2 checkpoint promotion, Windows privileged-observation validation, 
 Last pulse:
 
 ```text
-2026-05-24 Stage 2 privileged obs Windows validation: Agents A/B/C audited false-PASS risk, raw-derived privileged leakage risk, simulator-state provenance requirements, clean-gate eligibility, and v2-only adapter scope.
+2026-05-26 Stage 2 clean-first resume: Confucius audited sub-agent spawn
+failure documentation and confirmed docs/02 + docs/05 cover thread limit,
+tool unavailable, state mismatch, over-spawn, invalid full-history fork args,
+close/reuse/retry, and manual Agent A/B/C simulation. Recommended additions
+were integrated: explicit fork_context=true-only spawn example and a reminder
+to keep local docs/log/script subagent audits alive while Windows/Tailscale/
+CARLA is unreachable.
 ```
 
 Active agents:
 
 ```text
-No active sub-agents. Raman and Linnaeus were closed after their 2026-05-26
+No active sub-agents. Confucius was closed after the 2026-05-26 spawn-failure
+documentation audit. Raman and Linnaeus were closed after their 2026-05-26
 audits. Helmholtz and Fermat completed earlier Stage 2 route-late steering and
 false-PASS sidecar audits. Close completed/obsolete agents before spawning more.
 ```
@@ -223,6 +230,12 @@ if target-24 training needs to be restarted, prefer run_stage2_target24_candidat
 target-24 cross replay probes were unsafe; target22 replay was collected and target22 detached training was started, so next check target22 training/probe status before starting any new candidate
 use summarize_stage2_candidate_gate.ps1 on stage2_candidate_cross_replay_gate.json before deciding between 512 clean eval and target22 fallback; its output is an offline decision summary, not clean evidence
 rerun probe_stage2_candidate_cross_replays.ps1 before any new 512 clean gate; require action probes to pass on target-24 and steer2, and latent probes to remain materially stronger than majority baseline
+2026-05-26 reconnect check: LAN SSH probe to 192.168.0.13:22 timed out from
+the Mac, and earlier userspace Tailscale failed under the tailnet hardware
+attestation policy. Remote Windows/CUDA execution is paused until Windows is
+reachable through system Tailscale, LAN SSH, or a fixed tailnet device policy.
+While remote execution is paused, keep sub-agent pulses for local docs/log/
+script audits; do not let the clean-first goal silently drop sub-agent usage.
 do not treat the 128 PASS as full clean completion
 use SSH remote on Windows; HTTPS prompts for credentials
 use the v2-local minimal shared_core env builder by default; pass explicit dependency overrides only for local experiments
