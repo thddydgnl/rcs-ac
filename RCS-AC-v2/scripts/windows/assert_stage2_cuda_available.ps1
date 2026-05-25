@@ -16,7 +16,7 @@ if ($ResolvedDevice -ne "cuda" -and $ResolvedDevice -ne "auto") {
 }
 
 Set-Location $ProjectRoot
-$CudaProbeCode = @"
+$CudaProbeCode = @'
 import sys
 import torch
 available = torch.cuda.is_available()
@@ -32,7 +32,14 @@ if available:
 else:
     print("STAGE2_CUDA_GUARD_ERROR=CUDA is required for this Stage 2 run")
     sys.exit(10)
-"@
+'@
 
-& py -3.12 -B -c $CudaProbeCode
-exit $LASTEXITCODE
+$ProbePath = Join-Path ([System.IO.Path]::GetTempPath()) "rcs_ac_v2_stage2_cuda_guard.py"
+$CudaProbeCode | Set-Content -Path $ProbePath -Encoding UTF8
+try {
+    & py -3.12 -B $ProbePath
+    exit $LASTEXITCODE
+}
+finally {
+    Remove-Item -Force -ErrorAction SilentlyContinue $ProbePath
+}

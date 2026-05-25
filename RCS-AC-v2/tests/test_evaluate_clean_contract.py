@@ -534,6 +534,8 @@ def test_stage2_cuda_guard_fails_when_cuda_is_requested_but_missing_static_contr
     assert "STAGE2_CUDA_GUARD_DEVICE_NAME" in text
     assert "STAGE2_CUDA_GUARD_ERROR=CUDA is required for this Stage 2 run" in text
     assert "sys.exit(10)" in text
+    assert "rcs_ac_v2_stage2_cuda_guard.py" in text
+    assert "Remove-Item -Force -ErrorAction SilentlyContinue $ProbePath" in text
 
 
 def test_stage2_python_probe_entrypoints_default_to_auto_static_contract() -> None:
