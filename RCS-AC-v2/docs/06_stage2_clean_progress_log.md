@@ -1133,6 +1133,54 @@ target, preferably action `13` or `10` only from route `0.66-0.70`, because
 throttle-only returns to the straight-line route `0.6667` collision while
 stronger steering without enough speed control regressed earlier.
 
+Late throttle plus weak action13:
+
+- `0308f26_corr056w4_late_thr020_override13w025_cuda`:
+  - same original corr056 hyperparameters.
+  - kept early route throttle ceiling:
+    - ceiling `0.35`, route `0.56-0.60`.
+  - kept late route throttle ceiling:
+    - ceiling `0.20`, route `0.64-0.70`.
+    - weight `6.0`.
+  - added weak route-local override:
+    - action `13`.
+    - route window `0.66-0.70`.
+    - weight `0.25`.
+  - CUDA training/checkpoint validation: pass on `NVIDIA GeForce RTX 3080`.
+  - cross replay gate: `ready_for_clean_eval=true`.
+  - target22 action probe:
+    - action counts `{"10":18,"15":80,"4":22,"7":402}`.
+    - dominant action fraction `0.7701149425`.
+    - moving steer fraction `0.0766283525`.
+  - steer2 action probe:
+    - action counts `{"10":10,"13":4,"15":84,"4":68,"7":481}`.
+    - dominant action fraction `0.7434312210`.
+    - moving steer fraction `0.1267387944`.
+  - official 512 clean:
+    - run output:
+      `RCS-AC-v2\experiments\02_privileged_policy_clean\windows_512\0308f26_corr056w4_late_thr020_override13w025_cuda_official_clean512`
+    - status: `FAIL`, clean gate pass: `false`.
+    - done reason: `collision`.
+    - steps: `304` / `512`.
+    - route progress: `0.6666666667`.
+    - collision count: `1`, offroad count: `0`.
+    - final action band: action `7` dominated through the final route band;
+      no action `13` was selected in the final metrics tail.
+
+Decision: weak action `13` is too weak even with late throttle; it does not
+change the final executed action sequence. The useful bracket is now:
+
+- action `13` weight `0.25`: no effect in official final band.
+- action `13` weight `0.5-1.0` without enough masking/scheduling: leaks too
+  early and regresses to route `0.6410` or `0.6154` collisions.
+- late throttle ceiling: reduces speed from about `25 km/h` to `18 km/h`, but
+  still needs a reliable final turn.
+
+Next Stage 2 move should test either action `10` with late throttle, or add a
+route-phase schedule that changes the target action only after route progress
+has actually crossed `0.666`, because the current route-local CE target still
+does not reliably alter the executed action in the exact final collision band.
+
 Decision: this is the next Stage 2 direction because the last two official
 clean runs bracketed action `13` strength but did not solve the route `0.64+`
 collision. The cap lets the candidate learn a late correction without leaking
