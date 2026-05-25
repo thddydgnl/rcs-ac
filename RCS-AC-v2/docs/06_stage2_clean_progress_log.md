@@ -582,3 +582,68 @@ next aligned move is to collect/inspect a route064 offroad correction replay
 from the weak candidate or add a smaller low-throttle/steer regularizer before
 another CUDA candidate, because pure replay weighting is oscillating between
 collision at `0.6667` and offroad at `0.6410-0.7179`.
+
+Action mass cap regularizer results:
+
+- Commit `403e927` added a Stage 2 replay-training action mass cap regularizer.
+  - This does not change the Raw2Drive action table, CARLA adapter, or clean
+    gate contract.
+  - It adds optional training arguments:
+    `--action-mass-cap-weight` and repeatable `--action-mass-cap`.
+  - Windows wrappers expose `-ActionMassCapWeight` and `-ActionMassCaps`.
+  - Local verification:
+    `PYTHONPATH=RCS-AC-v2/code pytest -q RCS-AC-v2/tests/test_privileged_replay_training.py RCS-AC-v2/tests/test_evaluate_clean_contract.py RCS-AC-v2/tests/test_stage2_carla_adapter.py`
+    passed: `80 passed in 2.82s`.
+- `403e927_mixed_t22_steer2_collision064_w010_offroad070_w010_cap7_70_cap15_55_cuda`:
+  - component sample weights:
+    `target22=1,steer2=1,collision064=0.10,offroad070=0.10`.
+  - action mass caps: `7=0.70,15=0.55`.
+  - action mass cap weight: `0.5`.
+  - CUDA training/checkpoint validation: pass.
+  - cross replay gate: `ready_for_clean_eval=true`.
+  - offline action probes were effectively identical to the uncapped weak
+    candidate:
+    - target22 action counts `{"12":6,"15":412,"4":22,"7":82}`.
+    - steer2 action counts `{"1":3,"15":305,"4":60,"7":279}`.
+  - official 512 clean:
+    - run output:
+      `RCS-AC-v2\experiments\02_privileged_policy_clean\windows_512\403e927_mixed_t22_steer2_collision064_w010_offroad070_w010_cap7_70_cap15_55_cuda_official_clean512`
+    - status: `FAIL`, clean gate pass: `false`.
+    - done reason: `offroad`.
+    - steps: `148` / `512`.
+    - route progress: `0.6410256410`.
+    - collision count: `0`, offroad count: `1`.
+- `403e927_mixed_t22_steer2_collision064_w010_offroad070_w010_cap7_60_cap15_35_w5_cuda`:
+  - component sample weights:
+    `target22=1,steer2=1,collision064=0.10,offroad070=0.10`.
+  - action mass caps: `7=0.60,15=0.35`.
+  - action mass cap weight: `5.0`.
+  - CUDA training/checkpoint validation: pass.
+  - cross replay gate: `ready_for_clean_eval=true`.
+  - target22 action probe:
+    - action counts `{"12":6,"15":436,"4":22,"7":58}`.
+    - dominant action fraction `0.8352490421`.
+    - moving steer fraction `0.0536398467`.
+  - steer2 action probe:
+    - action counts `{"1":3,"15":401,"4":60,"7":183}`.
+    - dominant action fraction `0.6197836167`.
+    - moving steer fraction `0.0973724884`.
+  - official 512 clean:
+    - run output:
+      `RCS-AC-v2\experiments\02_privileged_policy_clean\windows_512\403e927_mixed_t22_steer2_collision064_w010_offroad070_w010_cap7_60_cap15_35_w5_cuda_official_clean512`
+    - status: `FAIL`, clean gate pass: `false`.
+    - done reason: `collision`.
+    - steps: `134` / `512`.
+    - route progress: `0.5897435897`.
+    - collision count: `1`, offroad count: `0`.
+    - tail shows action `15` high-throttle straight dominance before recovery
+      attempts and final collision.
+
+Decision: action mass caps are technically wired and verified, but they are not
+the right clean-performance lever by themselves. A weak cap does not move the
+policy; a stronger cap mostly shifts action `7` mass into action `15`, causing
+earlier collision. The next Stage 2 step should not be another plain replay
+weight/cap sweep. Prefer a route-window/speed-aware objective or route064
+failure-window replay inspection that separates lateral correction from
+longitudinal throttle, then rerun CUDA offline gates before any official clean
+eval. Raw sensor stream and fusion ablation remain blocked.
