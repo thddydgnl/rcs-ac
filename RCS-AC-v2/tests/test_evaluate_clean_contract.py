@@ -598,7 +598,7 @@ def test_stage2_replay_training_wrappers_expose_seed_static_contract() -> None:
     assert "-Seed $Seed" in start
     assert "seed = $Seed" in start
     assert "[int]$Seed = 20260524" in mixed
-    assert "-Seed $Seed" in mixed
+    assert '"-Seed", $Seed' in mixed
     assert "seed = $Seed" in mixed
     assert "[int]$Seed = 20260524" in target
     assert "-Seed $Seed" in target
@@ -629,7 +629,7 @@ def test_stage2_replay_training_wrappers_expose_moving_steer_false_positive_stat
     assert "-MovingSteerFalsePositiveWeight $MovingSteerFalsePositiveWeight" in start
     assert "moving_steer_false_positive_weight = $MovingSteerFalsePositiveWeight" in start
     assert "[double]$MovingSteerFalsePositiveWeight = 0.0" in mixed
-    assert "-MovingSteerFalsePositiveWeight $MovingSteerFalsePositiveWeight" in mixed
+    assert '"-MovingSteerFalsePositiveWeight", $MovingSteerFalsePositiveWeight' in mixed
     assert "[double]$MovingSteerFalsePositiveWeight = 0.0" in target
     assert "-MovingSteerFalsePositiveWeight $MovingSteerFalsePositiveWeight" in target
     assert "[double]$MovingSteerFalsePositiveWeight = 0.0" in target_speed
@@ -650,9 +650,9 @@ def test_stage2_replay_training_wrappers_expose_moving_steer_false_positive_stat
     assert "-MovingSteerNonmovingMarginWeight $MovingSteerNonmovingMarginWeight" in start
     assert "moving_steer_nonmoving_margin_weight = $MovingSteerNonmovingMarginWeight" in start
     assert "[double]$MovingSteerBinaryWeight = 0.0" in mixed
-    assert "-MovingSteerBinaryWeight $MovingSteerBinaryWeight" in mixed
+    assert '"-MovingSteerBinaryWeight", $MovingSteerBinaryWeight' in mixed
     assert "[double]$MovingSteerNonmovingMarginWeight = 0.0" in mixed
-    assert "-MovingSteerNonmovingMarginWeight $MovingSteerNonmovingMarginWeight" in mixed
+    assert '"-MovingSteerNonmovingMarginWeight", $MovingSteerNonmovingMarginWeight' in mixed
     assert "[double]$MovingSteerBinaryWeight = 0.0" in target
     assert "-MovingSteerBinaryWeight $MovingSteerBinaryWeight" in target
     assert "[double]$MovingSteerNonmovingMarginWeight = 0.0" in target
@@ -676,8 +676,8 @@ def test_stage2_replay_training_wrappers_expose_moving_steer_false_positive_stat
     assert "action_mass_caps = $ActionMassCaps" in start
     assert "[double]$ActionMassCapWeight = 0.0" in mixed
     assert "[string]$ActionMassCaps = \"\"" in mixed
-    assert "-ActionMassCapWeight $ActionMassCapWeight" in mixed
-    assert "-ActionMassCaps $ActionMassCaps" in mixed
+    assert '"-ActionMassCapWeight", $ActionMassCapWeight' in mixed
+    assert '$StartArgs += @("-ActionMassCaps", $ActionMassCaps)' in mixed
 
     assert "--route-speed-action-mass-cap-weight" in module
     assert "--route-speed-action-ids" in module
@@ -693,8 +693,8 @@ def test_stage2_replay_training_wrappers_expose_moving_steer_false_positive_stat
     assert "route_speed_action_ids = $RouteSpeedActionIds" in start
     assert "[double]$RouteSpeedActionMassCapWeight = 0.0" in mixed
     assert "[string]$RouteSpeedActionIds = \"\"" in mixed
-    assert "-RouteSpeedActionMassCapWeight $RouteSpeedActionMassCapWeight" in mixed
-    assert "-RouteSpeedActionIds $RouteSpeedActionIds" in mixed
+    assert '"-RouteSpeedActionMassCapWeight", $RouteSpeedActionMassCapWeight' in mixed
+    assert '$StartArgs += @("-RouteSpeedActionIds", $RouteSpeedActionIds)' in mixed
 
 
 def test_cross_replay_candidate_probe_runner_static_contract() -> None:
@@ -763,7 +763,7 @@ def test_mixed_candidate_cycle_runner_static_contract() -> None:
     assert "MIXED_CANDIDATE_LATEST_POINTER_UPDATED=True" in text
     assert "MIXED_CANDIDATE_TRAIN_RUNNING=True" in text
     assert "MIXED_CANDIDATE_TRAIN_READY_FOR_PROBE=True" in text
-    assert "-ReplayPath $MixedReplayDir" in text
+    assert '"-ReplayPath", $MixedReplayDir' in text
     assert '"-PrimaryReplayManifestPath", $PrimaryReplayManifestPath' in text
     assert '"-SecondaryReplayManifestPath", $SecondaryReplayManifestPath' in text
     assert "[double]$SteerSequenceFraction = 0.15" in text

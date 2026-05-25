@@ -244,37 +244,45 @@ $LatestPointer | ConvertTo-Json -Depth 4 | Set-Content -Path $LatestPointerPath
 Write-Host "MIXED_CANDIDATE_LATEST_POINTER_UPDATED=True"
 Write-Host "MIXED_CANDIDATE_LATEST_POINTER_ACTIVE_OUTPUT_DIR=$RerunOutputDir"
 
-powershell -ExecutionPolicy Bypass -File $StartScript `
-    -ProjectRoot $ProjectRoot `
-    -ReplayPath $MixedReplayDir `
-    -ReplayManifestPath $MixedManifestPath `
-    -OutputDir $RerunOutputDir `
-    -Seed $Seed `
-    -SequenceLength $SequenceLength `
-    -BatchSize $BatchSize `
-    -WorldModelSteps $WorldModelSteps `
-    -PolicySteps $PolicySteps `
-    -LearningRate $LearningRate `
-    -ImitationWeight $ImitationWeight `
-    -BehaviorWeight $BehaviorWeight `
-    -ImitationClassBalance `
-    -ImitationBalancePower $ImitationBalancePower `
-    -SteerSequenceFraction $SteerSequenceFraction `
-    -MovingSteerFalsePositiveWeight $MovingSteerFalsePositiveWeight `
-    -MovingSteerBinaryWeight $MovingSteerBinaryWeight `
-    -MovingSteerNonmovingMarginWeight $MovingSteerNonmovingMarginWeight `
-    -MovingSteerNonmovingMargin $MovingSteerNonmovingMargin `
-    -WorldModelActionAuxWeight $WorldModelActionAuxWeight `
-    -ComponentSampleWeights $ComponentSampleWeights `
-    -ActionMassCapWeight $ActionMassCapWeight `
-    -ActionMassCaps $ActionMassCaps `
-    -RouteSpeedActionMassCapWeight $RouteSpeedActionMassCapWeight `
-    -RouteSpeedActionIds $RouteSpeedActionIds `
-    -RouteSpeedActionMassCap $RouteSpeedActionMassCap `
-    -RouteSpeedMinSpeedNorm $RouteSpeedMinSpeedNorm `
-    -RouteSpeedMinRouteProgress $RouteSpeedMinRouteProgress `
-    -RouteSpeedMaxRouteProgress $RouteSpeedMaxRouteProgress `
-    -HiddenDim $HiddenDim `
-    -Device $Device `
-    -TaskName $TaskName
+$StartArgs = @(
+    "-ExecutionPolicy", "Bypass",
+    "-File", $StartScript,
+    "-ProjectRoot", $ProjectRoot,
+    "-ReplayPath", $MixedReplayDir,
+    "-ReplayManifestPath", $MixedManifestPath,
+    "-OutputDir", $RerunOutputDir,
+    "-Seed", $Seed,
+    "-SequenceLength", $SequenceLength,
+    "-BatchSize", $BatchSize,
+    "-WorldModelSteps", $WorldModelSteps,
+    "-PolicySteps", $PolicySteps,
+    "-LearningRate", $LearningRate,
+    "-ImitationWeight", $ImitationWeight,
+    "-BehaviorWeight", $BehaviorWeight,
+    "-ImitationClassBalance",
+    "-ImitationBalancePower", $ImitationBalancePower,
+    "-SteerSequenceFraction", $SteerSequenceFraction,
+    "-MovingSteerFalsePositiveWeight", $MovingSteerFalsePositiveWeight,
+    "-MovingSteerBinaryWeight", $MovingSteerBinaryWeight,
+    "-MovingSteerNonmovingMarginWeight", $MovingSteerNonmovingMarginWeight,
+    "-MovingSteerNonmovingMargin", $MovingSteerNonmovingMargin,
+    "-WorldModelActionAuxWeight", $WorldModelActionAuxWeight,
+    "-ComponentSampleWeights", $ComponentSampleWeights,
+    "-ActionMassCapWeight", $ActionMassCapWeight,
+    "-RouteSpeedActionMassCapWeight", $RouteSpeedActionMassCapWeight,
+    "-RouteSpeedActionMassCap", $RouteSpeedActionMassCap,
+    "-RouteSpeedMinSpeedNorm", $RouteSpeedMinSpeedNorm,
+    "-RouteSpeedMinRouteProgress", $RouteSpeedMinRouteProgress,
+    "-RouteSpeedMaxRouteProgress", $RouteSpeedMaxRouteProgress,
+    "-HiddenDim", $HiddenDim,
+    "-Device", $Device,
+    "-TaskName", $TaskName
+)
+if ($ActionMassCaps -ne "") {
+    $StartArgs += @("-ActionMassCaps", $ActionMassCaps)
+}
+if ($RouteSpeedActionIds -ne "") {
+    $StartArgs += @("-RouteSpeedActionIds", $RouteSpeedActionIds)
+}
+powershell @StartArgs
 exit $LASTEXITCODE
