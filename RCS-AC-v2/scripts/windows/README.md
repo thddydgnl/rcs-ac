@@ -21,6 +21,19 @@ action `4` 왼쪽 조향으로 끝났다. action `10` route-local override 후�
 offline gate를 통과했지만 official 512가 route_progress=0.7179487179로
 regressed했다. 다음 clean-first 작업은 `corrmix045060064_w00067` 레시피를
 보존하면서 post-0.72 correction replay/component를 만들거나 붙이는 방향이다.
+post-0.72 min16 수집은 너무 sparse해서 실패했고, post-0.70 positive-steer
+min8 component는 수집됐지만 seq8 mixed training에서 steer2 moving-steer
+gate를 깨뜨렸다. `post070p=0.01`은 steer2 moving_steer_fraction
+0.2395672334, `post070p=0.003`은 0.2472952087로 rejected였으므로 official
+CARLA 512는 실행하지 않았다. 다음 후보는 global component weight sweep이
+아니라 route-conditioned correction 또는 더 엄격한 post-0.72 replay
+filtering을 우선한다.
+그 직후 `cap10pre072` 후보는 offline cross-replay gate를 통과했지만 official
+512에서 route_progress=0.6666666667 collision으로 회귀했다. 이 run의 tail은
+route 0.6154-0.6410에서 action `10`이 반복되고 마지막 action `13`에서
+충돌했다. 따라서 weak action10 pre-0.72 cap은 더 이상 official로 바로 보내지
+말고, mid-route 0.60-0.67과 post-0.70/0.72 tail을 분리하는 offline-only
+후보나 코드 레벨 route-conditioned filtering/loss를 먼저 쓴다.
 raw/fusion은 아직 시작하지 않는다.
 ```
 

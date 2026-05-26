@@ -3596,3 +3596,181 @@ returned to the older `0.7179` offroad bracket. Current best official behavior
 remains `latecap47w010_r066076` at route `0.7435897436`; next work should
 collect or build a post-`0.72` correction component instead of adding another
 small replay-only override to the same mixed replay.
+
+## 2026-05-26 Post-0.72 Correction Replay Attempt
+
+The next clean-first attempt kept the current best
+`latecap47w010_r066076` checkpoint/config as the warmup policy and tried to
+collect a narrow post-tail correction component before any raw/fusion work.
+This work was run from the Windows clean clone with CUDA guard enabled; CARLA
+was stopped after collection/eval attempts.
+
+Post-`0.72` collection with `MinRecordedSteps=16` did not produce usable data:
+
+- `RecordAfterRouteProgress=0.72`, `SteerSign=-1`,
+  `TargetSpeedKmh=14`, `MinRecordedThrottle=0.3`.
+- result: `0` saved episodes.
+- one attempt reached route `0.7435897436`, but only `2` eligible recorded
+  steps, so it failed the min-step guard.
+- decision: do not train from this; it is too sparse to define the tail
+  correction.
+
+Relaxing the window to post-`0.70` showed why the tail is still hard:
+
+- `SteerSign=-1`, `RecordAfterRouteProgress=0.70`,
+  `MinRecordedSteps=16` saved `1` episode with `18` steps, but labels were
+  mostly left/straight: action_counts `{1:5,4:12,7:1}`.
+- decision: reject as a correction source because it reinforces the same
+  action `4/7` tail that caused the current best offroad failure.
+
+A short positive-steer post-`0.70` component was then collected:
+
+- replay dir:
+  `RCS-AC-v2\experiments\02_privileged_policy_clean\replay\windows_privileged_3ed89eb_latecap47_post070_t14_signp_minthr03_min8`.
+- `SteerSign=+1`, `RecordAfterRouteProgress=0.70`,
+  `MinRecordedSteps=8`, `TargetSpeedKmh=14`,
+  `MinRecordedThrottle=0.3`.
+- saved episodes: `4`.
+- total steps: `37`.
+- episode lengths: `[10,9,9,9]`.
+- action_counts `{10:28,4:8,7:1}`.
+- route window: stuck at `0.7179487179`.
+- decision: usable only as a very weak short-sequence correction component;
+  it cannot support `SequenceLength=16`.
+
+Two sequence-8 mixed candidates were trained on Windows CUDA by adding this
+`post070p` component to target22 + steer2 + corrmix045060064:
+
+- shared mixed replay:
+  `RCS-AC-v2\experiments\02_privileged_policy_clean\replay\windows_privileged_3ed89eb_mixed_t22_steer2_corrmix045060064_post070p`.
+- shared base recipe:
+  `target22=1,steer2=1,corrmix=0.0067`, plus the current latecap47
+  route-local caps and throttle ceiling.
+- `SequenceLength=8`, `SteerSequenceFraction=0.10`,
+  `ImitationWeight=5.0`, `ImitationBalancePower=0.25`,
+  `WorldModelActionAuxWeight=1.0`, `Device=cuda`.
+
+`3ed89eb_t22_steer2_corrmix045060064_post070p_w001_seq8` was rejected
+offline:
+
+- `post070p=0.01`.
+- target22 action probe passed:
+  - action_counts `{1:2,4:34,7:382,15:90,16:10,19:4}`.
+  - moving_steer_fraction about `0.0958`.
+- steer2 action probe failed:
+  - action_counts included action `10` at `121/647`.
+  - moving_steer_fraction `0.2395672334`, gate max `0.20`.
+  - `recommended_for_clean_rerun=false`.
+- decision: no official 512 clean eval. The correction signal leaked into
+  steer2 and caused excess moving steer.
+
+`3ed89eb_t22_steer2_corrmix045060064_post070p_w0003_seq8` lowered the
+component weight but was also rejected offline:
+
+- `post070p=0.003`.
+- target22 action probe passed:
+  - action_counts `{1:2,4:32,7:382,15:94,16:8,19:4}`.
+  - moving_steer_fraction `0.0881226054`.
+  - latent test accuracy `0.9904761910`, majority `0.7931034483`.
+- steer2 action probe failed:
+  - action_counts `{1:5,4:20,7:407,10:133,13:2,15:80}`.
+  - moving_steer_fraction `0.2472952087`, gate max `0.20`.
+  - predicted moving on label-nonmoving fraction `0.1406491499`.
+  - route bins `0.55-0.70` showed predicted moving steer near or at `1.0`
+    despite lower component weight.
+  - latent test accuracy `0.9153845906`, majority `0.6831530139`.
+- gate:
+  `ready_for_clean_eval=false`,
+  failure `steer2: action probe recommended_for_clean_rerun is not true`.
+- decision: no official 512 clean eval. Lower global component weight did not
+  localize the correction; it still made the policy over-apply action `10`
+  through mid/late steer2 states.
+
+Current clean performance after this attempt:
+
+- best official 512 remains `latecap47w010_r066076`.
+- status: FAIL, offroad.
+- steps: `344/512`.
+- route_progress: `0.7435897436`.
+- remaining gap: roughly the final quarter of the route, especially the
+  post-`0.72` left/straight tail. The system is not failing from the start;
+  it is failing in a narrow late closed-loop correction region.
+
+Next clean-first direction:
+
+- stop plain global post070p weight sweeps.
+- do not run official CARLA for seq8 post070p candidates unless steer2
+  moving_steer_fraction falls below `0.20`.
+- prefer a route-conditioned correction mechanism or stricter replay filtering
+  that applies the action `10`/rightward correction only near the true
+  post-`0.72` tail, rather than globally through steer2 route bins.
+- if no route-conditioned loss is implemented yet, collect a cleaner
+  post-`0.72` replay with more eligible steps before training another
+  correction component.
+
+## 2026-05-26 Route-Conditioned Action10 Cap Probe
+
+A subagent review recommended one low-cost offline candidate before code
+changes: keep `post070p=0.003` but add a route-conditioned logit cap for action
+`10` before route `0.72`, to reduce the action10 false positives seen in
+steer2 while retaining the post-tail correction idea.
+
+`3ed89eb_t22_steer2_corrmix045060064_post070p_w0003_seq8_cap10pre072`
+trained on Windows CUDA:
+
+- `SequenceLength=8`.
+- component weights:
+  `target22=1,steer2=1,corrmix=0.0067,post070p=0.003`.
+- `RouteActionLogitCapIds=10`.
+- `RouteActionLogitCapWeight=0.25`.
+- `RouteActionLogitCapMinRouteProgress=0.0`.
+- `RouteActionLogitCapMaxRouteProgress=0.72`.
+- retained latecap47 controls:
+  `RouteLateActionLogitCapIds=4,7`, route `0.66-0.76`,
+  `RouteLateActionLogitCapWeight=0.10`, and throttle ceiling `0.3` over
+  route `0.64-0.70`.
+
+Offline cross replay gate passed:
+
+- target22 action probe:
+  - action_counts `{1:2,4:30,7:382,15:96,16:8,19:4}`.
+  - moving_steer_fraction `0.0842911877`.
+  - dominant_action_fraction `0.7318007663`.
+  - latent test accuracy `0.9904761910`, majority `0.7931034483`.
+- steer2 action probe:
+  - action_counts `{1:3,4:37,7:455,10:63,12:2,15:87}`.
+  - moving_steer_fraction `0.1622874807`, improved from the previous
+    rejected `0.2472952087`.
+  - dominant_action_fraction `0.7032457496`.
+  - latent test accuracy `0.9153845906`, majority `0.6831530139`.
+- cross replay gate: `ready_for_clean_eval=true`.
+
+Official Windows CARLA 512 was run once and failed:
+
+- run output:
+  `RCS-AC-v2\experiments\02_privileged_policy_clean\windows_512\3ed89eb_t22_steer2_corrmix045060064_post070p_w0003_seq8_cap10pre072_official512`.
+- done_reason `collision`.
+- steps `300/512`.
+- route_progress `0.6666666667`.
+- collision/offroad/stuck `1/0/0`.
+- action_counts `{1:2,4:27,7:206,10:22,13:1,15:42}`.
+- tail: action `10` repeated through route `0.6154-0.6410`, reached route
+  `0.6667` on action `10`, then collided on one action `13`.
+- CARLA was stopped after the run; RTX 3080 was idle at `58 C`, `0 %`
+  utilization, `562 MiB` memory.
+
+Decision: reject as an official regression relative to `latecap47w010_r066076`.
+The route-conditioned cap fixed the offline steer2 leak, but it was still too
+weak in closed-loop and allowed action `10` to dominate the mid-route
+`0.61-0.66` bracket. Current best official 512 remains the latecap47 offroad
+run at route `0.7435897436`.
+
+Next clean-first direction:
+
+- do not run more official CARLA from weak action10 pre-0.72 caps.
+- if staying code-free, test only offline with a stronger/narrower pre-tail
+  action10 suppression before route `0.67-0.70`; official promotion requires
+  target22/steer2 gate true and a much lower mid-route action10 count.
+- more robust next step is a route-conditioned replay/filtering or loss that
+  separates mid-route `0.60-0.67` from the true post-`0.70/0.72` correction
+  band, rather than relying on one global `post070p` component.

@@ -19,7 +19,7 @@ Stage 2: Privileged policy clean
 Status:
 
 ```text
-STAGE2_CLEAN_FIRST_LATECAP_SSF010_OFFICIAL512_FAIL_PROGRESS056
+STAGE2_CLEAN_FIRST_CAP10PRE072_OFFICIAL512_FAIL_COLLISION_ROUTE0667
 ```
 
 Last completed stage:
@@ -629,6 +629,12 @@ C6B03E7_CORRMIX045060066_W0008_512_FAIL_COLLISION_ROUTE0666
 8859F1D_LATECAP47_R066076_512_FAIL_OFFROAD_ROUTE0744
 8859F1D_LATECAP47_O10W025_R0720755_OFFLINE_GATE_PASS
 8859F1D_LATECAP47_O10W025_R0720755_512_FAIL_OFFROAD_ROUTE0718
+3ED89EB_POST072_MIN16_REPLAY_COLLECTION_FAIL_TOO_SPARSE
+3ED89EB_POST070P_MIN8_REPLAY_COLLECTION_PASS
+3ED89EB_POST070P_W001_SEQ8_OFFLINE_GATE_REJECT_STEER2
+3ED89EB_POST070P_W0003_SEQ8_OFFLINE_GATE_REJECT_STEER2
+3ED89EB_POST070P_W0003_CAP10PRE072_OFFLINE_GATE_PASS
+3ED89EB_POST070P_W0003_CAP10PRE072_512_FAIL_COLLISION_ROUTE0667
 ```
 
 Current Stage 2 position:
@@ -641,7 +647,29 @@ Latest successful full replay collections: windows_privileged_9398470_corr045_mi
 Latest partial replay: windows_privileged_c6b03e7_corr066_late2_t14_minthr03_min16, 2 saved episodes, route 0.6667-0.7179.
 Latest offline candidates passed target22/steer2; latecap47 reached route 0.7436, but the action10 override regressed to route 0.7179.
 Do not start raw/fusion.
-Next direction: preserve the c6b03e7_t22_steer2_corrmix045060064_w00067 recipe and collect/build a post-0.72 correction component instead of another weak same-replay override.
+Post-0.72 correction work using the latecap47 warmup policy found that a strict
+post-0.72 min16 replay is too sparse: one run reached route_progress 0.7436 but
+only yielded 2 eligible steps, so no usable episode was saved. A post-0.70
+positive-steer min8 component was collected with 4 episodes, 37 total steps, and
+action_counts {10:28,4:8,7:1}. Two CUDA seq8 candidates mixed that component
+with target22, steer2, and corrmix045060064. Both were rejected before official
+CARLA eval: w0.01 failed steer2 with moving_steer_fraction 0.2395672334, and
+w0.003 failed steer2 with moving_steer_fraction 0.2472952087 plus action10
+over-application through route bins 0.55-0.70. Best official 512 remains
+latecap47 route_progress 0.7435897436, 344/512, offroad FAIL. The remaining
+gap is a narrow late closed-loop tail, not an early-route or whole-system
+failure. Next direction: stop global post070p weight sweeps and use a
+route-conditioned correction mechanism or stricter replay filtering that
+localizes the action10/rightward correction to the true post-0.72 tail.
+Follow-up cap10pre072 then added a route-conditioned action10 logit cap before
+route 0.72. This fixed the offline steer2 leak and passed the cross-replay gate
+(steer2 moving_steer_fraction 0.1622874807), but official 512 regressed to
+collision at route_progress 0.6666666667 after action10 repeated through
+route 0.6154-0.6410 and one action13 at the terminal step. Best official 512
+therefore remains latecap47 route_progress 0.7435897436. Next direction: do not
+run more official CARLA from weak action10 pre-0.72 caps; use stronger/narrower
+offline-only suppression or implement route-conditioned filtering/loss that
+separates mid-route 0.60-0.67 from the true post-0.70/0.72 tail.
 Avoid zero-throttle-only correction components unless filtered or strongly gated offline.
 ```
 
