@@ -613,17 +613,29 @@ LATE_RIGHT_STEER_MARGIN_LOCAL_TEST_PASS
 9398470_CORR060_T14_REPLAY_COLLECTION_PASS
 9398470_CORR045_CORR060_T14_W001_OFFLINE_GATE_PASS
 9398470_CORR045_CORR060_T14_W001_512_FAIL_OFFROAD_ROUTE0718
+C6B03E7_CORR069_T14_PARTIAL_REPLAY_ONLY
+C6B03E7_CORR064_T14_REPLAY_COLLECTION_PASS
+C6B03E7_CORR060_CORR064_OFFLINE_GATE_PASS
+C6B03E7_CORR060_CORR064_512_FAIL_COLLISION_ROUTE0590
+C6B03E7_CORRMIX045060064_W002_OFFLINE_GATE_REJECT_ACTION7
+C6B03E7_CORRMIX045060064_W00067_OFFLINE_GATE_PASS
+C6B03E7_CORRMIX045060064_W00067_512_FAIL_OFFROAD_ROUTE0718
+C6B03E7_CORR066_T14_PARTIAL_REPLAY_ONLY
+C6B03E7_CORRMIX045060066_W0008_OFFLINE_GATE_PASS
+C6B03E7_CORRMIX045060066_W0008_512_FAIL_COLLISION_ROUTE0666
 ```
 
 Current Stage 2 position:
 
 ```text
 Privileged clean is not solved yet.
-Latest official 512: FAIL offroad at route_progress 0.7179487179, 339/512 steps.
-Latest successful replay collections: windows_privileged_9398470_corr045_midroute_t14_minthr03_min16 and windows_privileged_9398470_corr060_late_t14_minthr03_min16.
-Latest offline candidate passed target22/steer2 but official 512 still failed.
+Latest official 512: FAIL collision at route_progress 0.6666666667, 311/512 steps.
+Best recent official 512 remains FAIL offroad at route_progress 0.7179487179, 339/512 steps.
+Latest successful full replay collections: windows_privileged_9398470_corr045_midroute_t14_minthr03_min16, windows_privileged_9398470_corr060_late_t14_minthr03_min16, and windows_privileged_c6b03e7_corr064_late_t14_minthr03_min16.
+Latest partial replay: windows_privileged_c6b03e7_corr066_late2_t14_minthr03_min16, 2 saved episodes, route 0.6667-0.7179.
+Latest offline candidate passed target22/steer2 but official 512 regressed to route 0.6667 collision.
 Do not start raw/fusion.
-Next direction: PDF Stage I privileged replay/BC around route 0.69-0.72 or a route-local high-throttle/straight correction that preserves target22/steer2 gates.
+Next direction: return to c6b03e7_t22_steer2_corrmix045060064_w00067_ssf010_msfpa2 and target route 0.66-0.72 action7 straight-hold/offroad directly.
 Avoid zero-throttle-only correction components unless filtered or strongly gated offline.
 ```
 

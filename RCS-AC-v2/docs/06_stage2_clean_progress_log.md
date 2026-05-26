@@ -3317,3 +3317,151 @@ Decision:
   route-local high-throttle/straight-hold regularizer that specifically reduces
   action12/action15 and excessive action7 straight holding in this later window
   while preserving target22/steer2 gates.
+
+## 2026-05-26: route `0.64-0.72` correction mix attempts
+
+`windows_privileged_c6b03e7_corr069_late_t14_minthr03_min16` was attempted
+from the `corr045+corr060` candidate:
+
+- target_speed_kmh `14`.
+- min_recorded_throttle `0.3`.
+- record_after_route_progress `0.69`.
+- result: only `1/4` successful episodes within `12` attempts.
+- saved episode length `[17]`.
+- action_counts `{4:1,7:16}`.
+- route window `0.6923-0.7179`.
+- decision: keep as diagnostic only; too few episodes for the main mix.
+
+`windows_privileged_c6b03e7_corr064_late_t14_minthr03_min16` was then
+collected from the same warmup:
+
+- target_speed_kmh `14`.
+- min_recorded_throttle `0.3`.
+- record_after_route_progress `0.64`.
+- episodes `4`.
+- episode_lengths `[19,19,19,19]`.
+- action_counts `{7:24,10:52}`.
+- route window `0.6410-0.6667`.
+- clean_gate_evidence `false`.
+
+`c6b03e7_t22_steer2_corr060_corr064_w001_ssf010_msfpa2` passed the target22
+and steer2 offline gate after replacing `corr045` with `corr064`:
+
+- component weights:
+  `target22=1,steer2=1,corr060t14mth03=0.01,corr064t14mth03=0.01`.
+- target22 action probe:
+  - action_counts `{1:4,4:20,7:78,10:4,13:8,15:404,16:4}`.
+  - dominant_action_fraction `0.7739463602`.
+  - moving_steer_fraction `0.0766283525`.
+- steer2 action probe:
+  - action_counts `{1:3,4:56,7:193,15:395}`.
+  - dominant_action_fraction `0.6105100464`.
+  - moving_steer_fraction `0.0911901082`.
+- gate: `ready_for_clean_eval=true`.
+
+Official Windows CARLA 512 failed:
+
+- done_reason `collision`.
+- steps `144/512`.
+- route_progress `0.5897435897`.
+- collision/offroad/stuck `1/0/0`.
+- action_counts `{4:20,7:124}` in the clean run tail region.
+- decision: reject as a real regression. Dropping `corr045` reopened the
+  earlier mid-route geometry.
+
+To keep `corr045` while adding late correction, a nested correction mix was
+created:
+
+- `windows_privileged_c6b03e7_corrmix_045_060_064`.
+- components: `corr045`, `corr060`, `corr064`.
+- episodes `12`.
+- total_steps `241`.
+
+`c6b03e7_t22_steer2_corrmix045060064_w002_ssf010_msfpa2` used
+`corrmix=0.02` and was rejected offline:
+
+- target22 dominant_action_fraction `0.9272030651`.
+- steer2 dominant_action_fraction `0.8995363215`.
+- failure: action7 dominance. The component weight applies per episode, so
+  `0.02` over-weighted the 12-episode correction mix.
+- decision: do not run official CARLA.
+
+`c6b03e7_t22_steer2_corrmix045060064_w00067_ssf010_msfpa2` corrected the
+episode-level weight:
+
+- component weights: `target22=1,steer2=1,corrmix=0.0067`.
+- target22 action probe:
+  - action_counts `{4:30,7:412,15:72,16:4,19:4}`.
+  - dominant_action_fraction `0.7892720307`.
+  - moving_steer_fraction `0.0727969349`.
+- steer2 action probe:
+  - action_counts `{4:81,7:488,15:78}`.
+  - dominant_action_fraction `0.7542503864`.
+  - moving_steer_fraction `0.1251931994`.
+- gate: `ready_for_clean_eval=true`.
+
+Official Windows CARLA 512 failed:
+
+- done_reason `offroad`.
+- steps `339/512`.
+- route_progress `0.7179487179`.
+- collision/offroad/stuck `0/1/0`.
+- action_counts `{4:46,7:254,15:39}`.
+- tail: route `0.6667-0.7179`, speed around `18 km/h`, mostly action7 with
+  short action4 runs. action12/high-throttle failure did not reappear.
+- decision: this recovered the previous best route but did not solve the
+  late straight-hold/offroad bottleneck.
+
+`windows_privileged_c6b03e7_corr066_late2_t14_minthr03_min16` was collected
+from the `corrmix045060064_w00067` candidate:
+
+- target_speed_kmh `14`.
+- min_recorded_throttle `0.3`.
+- record_after_route_progress `0.66`.
+- result: only `2/4` successful episodes within `12` attempts.
+- saved episode_lengths `[32,32]`.
+- action_counts `{4:7,7:57}`.
+- route window `0.6667-0.7179`.
+- clean_gate_evidence `false`.
+
+`c6b03e7_t22_steer2_corrmix045060066_w0008_ssf010_msfpa2` replaced `corr064`
+with the direct late `corr066` component and passed offline:
+
+- correction mix:
+  - `windows_privileged_c6b03e7_corrmix_045_060_066`.
+  - components: `corr045`, `corr060`, `corr066`.
+  - episodes `10`.
+  - total_steps `229`.
+- component weights: `target22=1,steer2=1,corrmix=0.008`.
+- target22 action probe:
+  - action_counts `{4:30,7:414,15:72,16:2,19:4}`.
+  - dominant_action_fraction `0.7931034483`.
+  - moving_steer_fraction `0.0689655172`.
+- steer2 action probe:
+  - action_counts `{1:2,4:66,7:501,15:78}`.
+  - dominant_action_fraction `0.7743431221`.
+  - moving_steer_fraction `0.1051004637`.
+- gate: `ready_for_clean_eval=true`.
+
+Official Windows CARLA 512 failed:
+
+- done_reason `collision`.
+- steps `311/512`.
+- route_progress `0.6666666667`.
+- collision/offroad/stuck `1/0/0`.
+- action_counts `{1:1,4:29,7:242,15:39}`.
+- tail: route `0.6154-0.6667`, mostly action7 straight at about `18 km/h`,
+  collision on action7 at route `0.6667`.
+- decision: reject as a regression relative to `corrmix045060064_w00067`.
+  The direct `corr066` tail component shifts the failure back to the `0.6667`
+  collision bracket.
+
+Current best restart point:
+
+- Best recent official behavior is
+  `c6b03e7_t22_steer2_corrmix045060064_w00067_ssf010_msfpa2`.
+- It reaches route `0.7179` and fails by offroad, with high-throttle action12
+  removed.
+- Next clean-first candidate should preserve that checkpoint recipe and target
+  the route `0.66-0.72` action7 straight-hold/offroad issue directly, without
+  replacing `corr064` by `corr066` or dropping `corr045`.
