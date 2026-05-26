@@ -183,6 +183,11 @@ uncertain.
 If LAN is available and stable, the same workflow can use `song@192.168.0.13`
 without the SOCKS `ProxyCommand`.
 
+After Windows reboot, thermal shutdown, router changes, or Tailscale reconnect,
+do not treat the documented LAN IP as authoritative. First verify the current
+address with Windows `ipconfig` or Tailscale status, then run the post-reboot
+`ControlMaster=no` SSH probe before any CUDA/CARLA work.
+
 Hardware-attestation policy failure:
 
 ```text
@@ -684,3 +689,9 @@ This keeps the official v2 source tied to the GitHub branch while making the
 temporary runtime dependency explicit. It is still a temporary bridge; replace
 sibling shared_core with v2-local env code before final reproducibility claims
 if possible.
+
+If a candidate wrapper exits nonzero after creating
+`stage2_candidate_cross_replay_gate.json`, treat it as a possible gate reject
+before assuming an infrastructure failure. Run the corresponding summary-only
+path, or `summarize_stage2_candidate_gate.ps1` with the gate path, so the reject
+reason and pullback targets are recorded before starting another candidate.

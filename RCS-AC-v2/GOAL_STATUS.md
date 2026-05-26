@@ -19,7 +19,7 @@ Stage 2: Privileged policy clean
 Status:
 
 ```text
-STAGE2_CLEAN_FIRST_LATE045_MINTHR_MASK081619_OFFICIAL512_FAIL_PROGRESS079
+STAGE2_CLEAN_FIRST_LATECAP_SSF010_OFFICIAL512_FAIL_PROGRESS056
 ```
 
 Last completed stage:
@@ -205,6 +205,40 @@ falling into zero-throttle sharp-steer alternatives in the late route window.
 Stop extending broad masks as the main strategy. The next implementation should
 add a late-window correction/training constraint that suppresses zero-throttle
 sharp-steer fallback actions while preserving moving mild steering.
+Commit 620a897 added a route-local late action logit cap for diagnostic
+clean-first training. Late-cap weights 0.5 and 0.25 with
+SteerSequenceFraction=0.15 were rejected offline because steer2 moving-steer
+fraction stayed at 0.2132921175, slightly above the 0.20 gate. A corrected
+SteerSequenceFraction=0.10 run on the proper
+mixed_t22_steer2_corr048_late045t24mth03_w002 replay passed target22/steer2
+cross replay but official Windows CARLA 512 regressed to
+route_progress=0.5641025641 and failed by collision after action10 -> action16
+-> action19. The next clean-first action is an offline-only midpoint
+SteerSequenceFraction=0.125 candidate; do not run another official 512 unless
+the cross-replay gate is true.
+The midpoint SteerSequenceFraction=0.125 candidate was rejected offline:
+target22 dominant_action_fraction=0.8773946360 and steer2
+moving_steer_fraction=0.2751159196. The active next candidate is
+`620a897_late045_logit15_midcap1619_w025_ssf010`, which keeps the offline-passing
+ssf010 setting but moves the second route-local logit cap to actions 16 and 19
+over route_progress 0.50-0.57. This is still offline-only until the gate passes.
+That midcap1619 candidate passed cross replay but official 512 again failed at
+route_progress=0.5641025641; action16 disappeared and the tail became action10
+-> action13 -> action19. The active next candidate is
+`620a897_late045_logit15_midcap1319_w025_ssf010`, offline-only until its gate
+passes.
+The midcap1319 candidate also passed cross replay but official 512 returned to
+the same action10 -> action16 -> action19 collision at route_progress
+0.5641025641. The active next candidate is
+`620a897_late045_logit15_midcap131619_w1_ssf010`, a stronger route 0.50-0.57
+cap over actions 13,16,19. It is offline-only until its cross-replay gate
+passes.
+The stronger midcap131619 candidate passed cross replay, but official 512
+failed as offroad at route_progress=0.5384615385 with no collision; the tail was
+repeated action10 mild-right. Stop cap-only escalation for this bracket. Next
+work should collect or build a route 0.50-0.57 correction replay/label window
+that teaches the required moving turn trajectory, then gate it offline before
+another official clean run.
 ```
 
 Pending brief:

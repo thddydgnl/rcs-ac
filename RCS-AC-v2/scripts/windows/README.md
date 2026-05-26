@@ -317,6 +317,10 @@ late replay를 추가한 mixed 후보가 target22 또는 steer2 action distribut
 이 값은 checkpoint manifest의 `component_sample_weights`와
 `sampler.episode_sample_probabilities`에 남아야 하며, `ready_for_clean_eval=true`
 전에는 official clean eval로 승격하지 않는다.
+component별 weight를 지정할 때는 `-MixedReplayDir`도 해당 component를 실제로
+포함하는 manifest로 명시한다. 예를 들어 `corr048` 또는 `late045t24mth03`에
+양수 weight를 주면서 기본 target22+steer2 mixed replay를 쓰면 guard가 실패해야
+정상이다. 이런 실패는 모델/CUDA 문제가 아니라 run-argument mismatch로 기록한다.
 late correction replay를 수집할 때 teacher action이 zero-throttle steering으로
 무너지면 `collect_stage2_privileged_replay.ps1 -MinRecordedThrottle 0.3`을
 사용한다. 기본값은 `0.0`이라 기존 동작은 보존된다. 2026-05-26 실험에서

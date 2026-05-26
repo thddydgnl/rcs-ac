@@ -2879,3 +2879,220 @@ Decision:
 - Stop broad mask escalation as the main path. The next patch should train or
   constrain the late window so it keeps moving mild steering instead of
   falling to zero-throttle sharp steering.
+
+### 2026-05-26 - late action logit cap and ssf010 official regression
+
+Commit `620a897` added an optional route-local late action logit cap to the
+Stage 2 replay trainer and Windows wrappers. The hook is disabled by default
+and is rejected by `pdf_stage1_strict`; it is a diagnostic clean-first control,
+not a PDF Stage I strict setting.
+
+The first two late-cap candidates used the late045 mixed replay with
+`ComponentSampleWeights=target22=1,steer2=1,corr048=0.05,late045t24mth03=0.02`,
+full-route `RouteActionLogitCapIds=15`, late-window
+`RouteLateActionLogitCapIds=8,25` for route `0.74-0.80`, and the existing
+route `0.64-0.70` throttle ceiling.
+
+- `620a897_late045_logit15_latecap0825_w05`:
+  - target22 action gate passed, but steer2 failed.
+  - steer2 moving_steer_fraction was `0.2132921175`, just above the `0.20`
+    gate.
+  - no official CARLA eval was run.
+- `620a897_late045_logit15_latecap0825_w025`:
+  - target22 action gate passed, but steer2 failed with the same
+    moving_steer_fraction `0.2132921175`.
+  - no official CARLA eval was run.
+
+A follow-up `SteerSequenceFraction=0.10` run was first launched with the wrong
+mixed replay directory. The command used component weights for `corr048` and
+`late045t24mth03` while leaving `-MixedReplayDir` at the default target22+steer2
+manifest, so training exited before checkpoint creation. This is classified as
+run-argument mismatch, not model/CUDA failure. The fixed run was:
+
+```text
+candidate: 620a897_late045_logit15_latecap0825_w025_ssf010_fixed
+mixed replay: mixed_t22_steer2_corr048_late045t24mth03_w002
+SteerSequenceFraction: 0.10
+RouteLateActionLogitCapWeight: 0.25
+```
+
+Cross-replay gate passed:
+
+- target22:
+  - `recommended_for_clean_rerun=true`.
+  - action_counts `{7:240,15:222,10:48,16:6,19:6}`.
+  - moving_steer_fraction `0.1149425287`.
+  - dominant_action_fraction `0.4597701149`.
+  - latent test accuracy `0.9904761910`.
+- steer2:
+  - `recommended_for_clean_rerun=true`.
+  - action_counts `{7:326,15:215,4:52,10:50,1:4}`.
+  - moving_steer_fraction `0.1638330757`.
+  - dominant_action_fraction `0.5038639876`.
+  - latent test accuracy `0.8846153617`.
+- gate: `ready_for_clean_eval=true`.
+
+Official Windows CARLA 512 eval was then run once from the clean clone and
+failed:
+
+- source: `windows_carla`.
+- status: `FAIL`.
+- failure_class: `driving`.
+- done_reason: `collision`.
+- steps: `131/512`.
+- route_progress: `0.5641025641`.
+- collision/offroad/stuck: `1/0/0`.
+- action_counts `{7:4,10:12,15:112,16:2,19:1}`.
+- failure tail: action10 mild-right through route `0.5385`, then action16 at
+  steps 128-129, then action19 at step 130 with collision.
+
+Decision:
+
+- `SteerSequenceFraction=0.10` fixed the offline steer2 gate but regressed the
+  real clean route from the previous `0.7692/0.7949` bracket back to `0.5641`.
+- The useful region is likely between `0.10` and `0.15`, or requires a more
+  route-local right-steer cap around route `0.50-0.57` without destroying the
+  late `0.74-0.80` behavior.
+- Next candidate is an offline-only midpoint
+  `620a897_late045_logit15_latecap0825_w025_ssf0125`; official 512 should be
+  run only if its cross-replay gate passes.
+
+The midpoint `620a897_late045_logit15_latecap0825_w025_ssf0125` was rejected
+offline:
+
+- target22:
+  - `recommended_for_clean_rerun=false`.
+  - action_counts `{15:458,10:28,16:22,13:8,19:6}`.
+  - dominant_action_fraction `0.8773946360`, above the `0.85` gate.
+  - moving_steer_fraction `0.1226053640`.
+  - latent test accuracy `0.9904761910`.
+- steer2:
+  - `recommended_for_clean_rerun=false`.
+  - action_counts `{15:431,10:148,7:38,4:21,12:9}`.
+  - moving_steer_fraction `0.2751159196`, above the `0.20` gate.
+  - dominant_action_fraction `0.6661514683`.
+  - latent test accuracy `0.8999999762`.
+- gate: `ready_for_clean_eval=false`.
+
+Decision:
+
+- Do not run CARLA for `ssf0125`.
+- The midpoint overshoots both action15 dominance and steer2 moving-steer
+  false positives, while `ssf010` passes offline but collides early in real
+  CARLA at route `0.5641` after action16/action19.
+- The next offline-only candidate is
+  `620a897_late045_logit15_midcap1619_w025_ssf010`, reusing `ssf010` but
+  moving the second route-local logit cap to actions `16,19` over route
+  `0.50-0.57`.
+
+`620a897_late045_logit15_midcap1619_w025_ssf010` passed the cross-replay gate:
+
+- target22:
+  - `recommended_for_clean_rerun=true`.
+  - action_counts `{7:240,15:222,10:48,19:6,13:4,16:2}`.
+  - moving_steer_fraction `0.1149425287`.
+  - dominant_action_fraction `0.4597701149`.
+  - latent test accuracy `0.9904761910`.
+- steer2:
+  - `recommended_for_clean_rerun=true`.
+  - action_counts `{7:321,15:228,4:53,10:42,1:3}`.
+  - moving_steer_fraction `0.1514683153`.
+  - dominant_action_fraction `0.4961360124`.
+  - latent test accuracy `0.8846153617`.
+- gate: `ready_for_clean_eval=true`.
+
+Official Windows CARLA 512 was run once and failed:
+
+- source: `windows_carla`.
+- status: `FAIL`.
+- failure_class: `driving`.
+- done_reason: `collision`.
+- steps: `131/512`.
+- route_progress: `0.5641025641`.
+- collision/offroad/stuck: `1/0/0`.
+- action_counts `{15:112,10:12,7:4,13:2,19:1}`.
+- failure tail: action10 through route `0.5385`, then action13 at steps
+  128-129, then action19 at step 130 with collision.
+
+Decision:
+
+- The midcap removed action16 from the official failure tail, but the policy
+  still escalated to action19 at the same route bracket.
+- Next offline-only candidate is
+  `620a897_late045_logit15_midcap1319_w025_ssf010`, replacing the mid-route cap
+  ids with `13,19` over route `0.50-0.57`.
+
+`620a897_late045_logit15_midcap1319_w025_ssf010` also passed cross replay:
+
+- target22:
+  - `recommended_for_clean_rerun=true`.
+  - action_counts `{7:240,15:222,10:48,16:8,19:4}`.
+  - moving_steer_fraction `0.1149425287`.
+  - dominant_action_fraction `0.4597701149`.
+  - latent test accuracy `0.9904761910`.
+- steer2:
+  - `recommended_for_clean_rerun=true`.
+  - action_counts `{7:321,15:228,4:54,10:41,1:3}`.
+  - moving_steer_fraction `0.1514683153`.
+  - dominant_action_fraction `0.4961360124`.
+  - latent test accuracy `0.8846153617`.
+- gate: `ready_for_clean_eval=true`.
+
+Official Windows CARLA 512 was run once and failed:
+
+- source: `windows_carla`.
+- status: `FAIL`.
+- failure_class: `driving`.
+- done_reason: `collision`.
+- steps: `131/512`.
+- route_progress: `0.5641025641`.
+- collision/offroad/stuck: `1/0/0`.
+- action_counts `{15:112,10:12,7:4,16:2,19:1}`.
+- failure tail: action10 through route `0.5385`, then action16 at steps
+  128-129, then action19 at step 130 with collision.
+
+Decision:
+
+- Swapping mid-route cap ids among `13,16,19` at weight `0.25` does not change
+  the real CARLA failure bracket enough.
+- The next offline-only candidate is
+  `620a897_late045_logit15_midcap131619_w1_ssf010`, a stronger route
+  `0.50-0.57` cap over `13,16,19`.
+
+`620a897_late045_logit15_midcap131619_w1_ssf010` passed cross replay:
+
+- target22:
+  - `recommended_for_clean_rerun=true`.
+  - action_counts `{7:242,15:222,10:54,19:4}`.
+  - moving_steer_fraction `0.1111111111`.
+  - dominant_action_fraction `0.4636015326`.
+  - latent test accuracy `0.9904761910`.
+- steer2:
+  - `recommended_for_clean_rerun=true`.
+  - action_counts `{7:336,15:224,4:62,10:19,1:6}`.
+  - moving_steer_fraction `0.1344667697`.
+  - dominant_action_fraction `0.5193199382`.
+  - latent test accuracy `0.8846153617`.
+- gate: `ready_for_clean_eval=true`.
+
+Official Windows CARLA 512 was run once and failed:
+
+- source: `windows_carla`.
+- status: `FAIL`.
+- failure_class: `driving`.
+- done_reason: `offroad`.
+- steps: `149/512`.
+- route_progress: `0.5384615385`.
+- collision/offroad/stuck: `0/1/0`.
+- action_counts `{15:80,7:47,10:22}`.
+- failure tail: action10 repeated through route `0.5385`, then offroad at
+  step 148 without collision.
+
+Decision:
+
+- Stronger mid-route cap removed the action16/action19 collision tail, but
+  converted the bracket into a slow mild-right offroad at route `0.5385`.
+- Stop route-local cap-only escalation for this bracket. The next useful work
+  is to collect or synthesize a route `0.50-0.57` correction replay/label window
+  that teaches the policy the needed moving turn trajectory, then run the same
+  cross-replay gate before another official 512.
