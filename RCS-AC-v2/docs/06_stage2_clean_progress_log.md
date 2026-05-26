@@ -2747,3 +2747,90 @@ Decision:
   the correction component is not dominated by zero-throttle steering labels, or
   use a different local correction mechanism. Keep the cross-replay gate as the
   hard pre-CARLA filter.
+
+### 2026-05-26 - min-throttle late045 replay and progress 0.769 failure
+
+The replay collector was patched at commit `5bbca2a` with
+`min_recorded_throttle`. This keeps late correction labels moving when the
+target speed says the vehicle should still progress, while preserving the
+default behavior at `0.0`.
+
+Collection attempts:
+
+- `record_after_route_progress=0.56`, `target_speed_kmh=24`,
+  `min_recorded_throttle=0.3`, `min_recorded_steps=16`:
+  rejected for low volume. Only 1 eligible episode was produced across 12
+  attempts.
+- `record_after_route_progress=0.50`, same target/min settings:
+  rejected for low volume. The collector produced 0 eligible episodes.
+- `record_after_route_progress=0.45`, same target/min settings:
+  accepted as a correction replay with 4 episodes, 64 total steps,
+  `episode_lengths=[16,16,16,16]`, and
+  `action_counts={7:8,10:12,13:16,16:16,19:12}`.
+
+Mixed candidate:
+
+```text
+candidate: 5bbca2a_corr048_w005_late045t24mth03_w002_logit15_lateceil
+mixed replay: target22 + steer2 + corr048 + late045t24mth03
+ComponentSampleWeights: target22=1, steer2=1, corr048=0.05, late045t24mth03=0.02
+RouteActionLogitCapWeight: 0.5
+RouteActionLogitCapIds: 15
+RouteThrottleCeilingWeight: 4.0
+RouteThrottleCeiling: 0.3
+RouteThrottle window: 0.64-0.70
+```
+
+Cross-replay gate passed:
+
+- target22:
+  - `recommended_for_clean_rerun=true`.
+  - action_counts `{7:354,15:110,4:50,19:4,13:2,1:2}`.
+  - moving_steer_fraction `0.1111111111`.
+  - dominant_action_fraction `0.6781609195`.
+  - latent test accuracy `0.9904761910`.
+- steer2:
+  - `recommended_for_clean_rerun=true`.
+  - action_counts `{7:457,15:84,4:75,10:18,1:9,12:4}`.
+  - moving_steer_fraction `0.1638330757`.
+  - dominant_action_fraction `0.7063369397`.
+  - latent test accuracy `0.9230769277`.
+- gate: `ready_for_clean_eval=true`.
+
+Official 512 clean eval without action mask:
+
+- source: `windows_carla`.
+- status: `FAIL`.
+- failure_class: `driving`.
+- done_reason: `collision`.
+- steps: `361/512`.
+- route_progress: `0.7692307692`.
+- collision/offroad/stuck: `1/0/0`.
+- action_counts `{7:249,4:52,15:41,1:7,10:6,19:3,13:2,16:1}`.
+- failure tail: action10 mild-right, then action13/action16, then action19
+  strong-right at route_progress `0.7692307692`.
+
+The same checkpoint was then probed with `ForbiddenActionIds=19`.
+The offline gate still passed, but official 512 clean eval failed again:
+
+- source: `windows_carla`.
+- status: `FAIL`.
+- failure_class: `driving`.
+- done_reason: `collision`.
+- steps: `350/512`.
+- route_progress: `0.7692307692`.
+- collision/offroad/stuck: `1/0/0`.
+- action_counts `{1:7,4:42,7:248,10:7,13:3,15:41,16:2}`.
+- failure tail: action10 mild-right, then action13, then action16; collision
+  occurred on action16 after action19 was masked.
+
+Decision:
+
+- `min_recorded_throttle` fixed the zero-throttle correction-label problem.
+- The late045 replay improved official clean progress from the previous
+  route_progress `0.6667` collision to `0.7692`.
+- A simple action19 mask is not enough; it changes the last collision action
+  to action16.
+- Next work should target the route_progress `0.74-0.77` transition with a
+  more precise late right-steer correction before another official 512 clean
+  run.

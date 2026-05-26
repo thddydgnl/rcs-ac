@@ -587,6 +587,37 @@ candidate to "ready for 512 clean eval"; it is not a clean PASS.
   cross_replay_gate: ready_for_clean_eval=false, failures=[target22 action probe recommended_for_clean_rerun is not true]
   clean_gate_evidence: false
   next_action: do not run official 512; late056 teacher replay is dominated by zero-throttle steering labels and worsens target22 action15 dominance, so change the late labeling/action-selection heuristic or use a different local correction before retrying offline
+
+2026-05-26:
+  state: late045_min_recorded_throttle_official512_fail_progress077
+  commit: 5bbca2a
+  code_change: privileged replay collector supports min_recorded_throttle so recorded correction labels keep at least throttle=0.3 when requested
+  failed_collection_late056: record_after_route_progress=0.56, target_speed_kmh=24, min_recorded_throttle=0.3, min_recorded_steps=16, result=1 eligible episode after 12 attempts, rejected_for_training_volume
+  failed_collection_late050: record_after_route_progress=0.50, target_speed_kmh=24, min_recorded_throttle=0.3, min_recorded_steps=16, result=0 eligible episodes, rejected_for_training_volume
+  replay_late045: RCS-AC-v2\experiments\02_privileged_policy_clean\replay\windows_privileged_5bbca2a_late045_t24_minthr03_min16
+  replay_late045_summary: episodes=4, total_steps=64, episode_lengths=[16,16,16,16], action_counts={7:8,10:12,13:16,16:16,19:12}, target_speed_kmh=24, min_recorded_throttle=0.3, record_after_route_progress=0.45, min_recorded_steps=16
+  candidate: 5bbca2a_corr048_w005_late045t24mth03_w002_logit15_lateceil
+  mixed_replay_dir: RCS-AC-v2\experiments\02_privileged_policy_clean\replay\mixed_t22_steer2_corr048_late045t24mth03_w002
+  checkpoint_output_dir: RCS-AC-v2\experiments\02_privileged_policy_clean\checkpoints\5bbca2a_corr048_w005_late045t24mth03_w002_logit15_lateceil
+  cross_probe_output_dir: RCS-AC-v2\experiments\02_privileged_policy_clean\windows_512\5bbca2a_corr048_w005_late045t24mth03_w002_logit15_lateceil_cross_probe
+  control_change: ComponentSampleWeights=target22=1,steer2=1,corr048=0.05,late045t24mth03=0.02, RouteActionLogitCapWeight=0.5, RouteActionLogitCapIds=15, RouteThrottleCeilingWeight=4.0, RouteThrottleCeiling=0.3, RouteThrottle window=0.64-0.70
+  target22_action_probe: recommended_for_clean_rerun=true, action_counts={7:354,15:110,4:50,19:4,13:2,1:2}, moving_steer_fraction=0.1111111111, dominant_action_fraction=0.6781609195
+  target22_latent_probe: linear_probe_test_accuracy=0.9904761910
+  steer2_action_probe: recommended_for_clean_rerun=true, action_counts={7:457,15:84,4:75,10:18,1:9,12:4}, moving_steer_fraction=0.1638330757, dominant_action_fraction=0.7063369397
+  steer2_latent_probe: linear_probe_test_accuracy=0.9230769277
+  cross_replay_gate: ready_for_clean_eval=true, failures=[]
+  official_run_output_dir: RCS-AC-v2\experiments\02_privileged_policy_clean\windows_512\5bbca2a_corr048_w005_late045t24mth03_w002_logit15_lateceil_official_clean512
+  official_512_summary: source=windows_carla, status=FAIL, failure_class=driving, done_reason=collision, steps=361/512, route_progress=0.7692307692, collision_count=1, offroad_count=0, stuck_count=0, clean_gate_pass=false
+  official_512_action_counts: {7:249,4:52,15:41,1:7,10:6,19:3,13:2,16:1}
+  official_512_failure_tail: route_progress=0.7692307692; steps349-354 action10 throttle=0.3 steer=0.1; steps355-356 action13 steer=0.2; step357 action16 steer=0.3; steps358-360 action19 steer=0.5; collision at step360
+  mask19_cross_probe_output_dir: RCS-AC-v2\experiments\02_privileged_policy_clean\windows_512\5bbca2a_corr048_w005_late045t24mth03_w002_logit15_lateceil_mask19_cross_probe
+  mask19_cross_replay_gate: ready_for_clean_eval=true, ForbiddenActionIds=19
+  mask19_official_run_output_dir: RCS-AC-v2\experiments\02_privileged_policy_clean\windows_512\5bbca2a_corr048_w005_late045t24mth03_w002_logit15_lateceil_mask19_official_clean512
+  mask19_official_512_summary: source=windows_carla, status=FAIL, failure_class=driving, done_reason=collision, steps=350/512, route_progress=0.7692307692, collision_count=1, offroad_count=0, stuck_count=0, clean_gate_pass=false
+  mask19_official_512_action_counts: {1:7,4:42,7:248,10:7,13:3,15:41,16:2}
+  mask19_official_512_failure_tail: steps338-344 action10 throttle=0.3 steer=0.1 at route_progress=0.7435897436; steps345-347 action13 steer=0.2; steps348-349 action16 steer=0.3; collision at step349
+  clean_gate_evidence: false
+  decision_summary: progress improved from 0.6667 to 0.7692, but masking action19 only shifts the collision to action16; next patch must target the 0.74-0.77 late right-steer transition before another official 512 eval
 ```
 
 Decision rules:

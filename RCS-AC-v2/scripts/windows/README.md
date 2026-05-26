@@ -12,6 +12,9 @@ CARLA readiness/start는 v2-local script를 사용한다.
 Stage 2 privileged replay collection/training runner도 있다.
 Stage 2 replay 학습, offline probe, official clean eval은 기본 Device=cuda로
 실행한다.
+2026-05-26 기준 최신 official 512 clean은 route_progress=0.7692307692에서
+collision FAIL이다. action19 mask도 같은 progress에서 action16 collision으로
+실패했으므로 다음 clean-first 작업은 0.74-0.77 route window를 겨냥한다.
 ```
 
 공용 script:
@@ -313,6 +316,13 @@ late replay를 추가한 mixed 후보가 target22 또는 steer2 action distribut
 이 값은 checkpoint manifest의 `component_sample_weights`와
 `sampler.episode_sample_probabilities`에 남아야 하며, `ready_for_clean_eval=true`
 전에는 official clean eval로 승격하지 않는다.
+late correction replay를 수집할 때 teacher action이 zero-throttle steering으로
+무너지면 `collect_stage2_privileged_replay.ps1 -MinRecordedThrottle 0.3`을
+사용한다. 기본값은 `0.0`이라 기존 동작은 보존된다. 2026-05-26 실험에서
+`RecordAfterRouteProgress=0.45`, `TargetSpeedKmh=24`, `MinRecordedThrottle=0.3`,
+`MinRecordedSteps=16` 조합은 4x16 step eligible replay를 만들었고, official
+512 progress를 0.769까지 늘렸다. `0.56`과 `0.50`은 eligible episode 수가
+부족했으므로 같은 조건을 반복하지 않는다.
 base config의 checkpoint path/sha256은 아직 null이므로 그대로 real mode를
 실행하면 model/world_model_checkpoint_missing 실패로 끝나는 것이 정상이다.
 synthetic checkpoint export는 plumbing 증거일 뿐 clean PASS 증거가 아니다.

@@ -88,6 +88,12 @@ C:\Users\thddy\Documents\code\RCS-AC-first\RCS-AC-v2
 C:\Users\thddy\Documents\code\shared_core
 ```
 
+Current official v2 clean clone:
+
+```text
+C:\Users\thddy\Documents\code\RCS-AC-first-official-v2-7f87656
+```
+
 Remote identity:
 
 ```text
@@ -156,6 +162,23 @@ Connectivity check:
 ```bash
 rcswinssh song@100.87.219.58 'hostname'
 ```
+
+If a previous SSH control socket becomes stale after Windows reboot or thermal
+shutdown, bypass multiplexing for the next recovery command:
+
+```bash
+ssh \
+  -o ConnectTimeout=20 \
+  -o ServerAliveInterval=30 \
+  -o ServerAliveCountMax=6 \
+  -o ControlMaster=no \
+  -o 'ProxyCommand=nc -x localhost:1055 %h %p' \
+  song@100.87.219.58 'hostname'
+```
+
+Use the same `ControlMaster=no` form for immediate post-reboot `git pull`,
+CUDA guard, CARLA stop, and result-read commands when the socket state is
+uncertain.
 
 If LAN is available and stable, the same workflow can use `song@192.168.0.13`
 without the SOCKS `ProxyCommand`.

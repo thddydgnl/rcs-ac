@@ -19,7 +19,7 @@ Stage 2: Privileged policy clean
 Status:
 
 ```text
-STAGE2_CLEAN_FIRST_LATE056_REPLAY_OFFLINE_REJECT
+STAGE2_CLEAN_FIRST_LATE045_MINTHR_MASK19_OFFICIAL512_FAIL_PROGRESS077
 ```
 
 Last completed stage:
@@ -170,6 +170,28 @@ rejects the current late056 teacher-label route; next work should either change
 the late replay labeling heuristic to avoid zero-throttle steering labels or
 use a different local action-selection correction, then pass cross replay before
 CARLA.
+
+Commit 5bbca2a added `min_recorded_throttle` to the privileged replay
+collector so late correction windows do not record zero-throttle steering labels
+when the chosen target-speed action family should remain moving. Windows
+collection attempts at `record_after_route_progress=0.56` and `0.50` with
+`target_speed_kmh=24`, `min_recorded_throttle=0.3`, and `min_recorded_steps=16`
+failed to produce enough successful episodes before collision, but
+`record_after_route_progress=0.45` succeeded with 4 episodes, 64 total steps,
+episode_lengths=[16,16,16,16], and action_counts={7:8,10:12,13:16,16:16,19:12}.
+The mixed candidate
+`5bbca2a_corr048_w005_late045t24mth03_w002_logit15_lateceil` passed the
+target22/steer2 cross-replay gate. Official Windows CARLA 512 without an action
+mask improved the clean route progress to `0.7692307692` but failed by
+collision at step 360 after a right-steer tail ending in action19. A follow-up
+offline mask19 probe also passed cross replay; its official 512 run again
+failed at `route_progress=0.7692307692`, steps=350/512, collision_count=1,
+offroad_count=0, stuck_count=0, with final actions action10 -> action13 ->
+action16. CARLA was stopped after the run and RTX 3080 was idle at 65C.
+This is progress over the previous 0.6667 collision but does not close Stage 2.
+The next clean-first patch should target the later `0.74-0.77` route window,
+especially the transition from mild right steer to action16/right-steer, before
+another official 512 run.
 ```
 
 Pending brief:
