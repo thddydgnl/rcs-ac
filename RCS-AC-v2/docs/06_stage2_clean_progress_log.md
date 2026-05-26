@@ -3774,3 +3774,99 @@ Next clean-first direction:
 - more robust next step is a route-conditioned replay/filtering or loss that
   separates mid-route `0.60-0.67` from the true post-`0.70/0.72` correction
   band, rather than relying on one global `post070p` component.
+
+## 2026-05-26 Strong/Narrow Action10 Suppression Follow-up
+
+A second subagent review agreed that the existing wrapper can express one more
+code-free candidate, but warned that the action10 override is a training loss,
+not a runtime override. The stricter official promotion rule for this branch is
+now:
+
+- target22/steer2 cross replay gate must be true.
+- steer2 moving_steer_fraction should be `<= 0.16`, not merely below `0.20`.
+- route `0.55-0.67` action10 leakage should be nearly gone.
+- no official CARLA run should be launched only because the generic offline
+  gate is true.
+
+`5b12b8f_t22_steer2_corrmix045060064_post070p_w0003_seq8_cap10pre070w1_o10tailw02`
+tested a stronger cap and stronger tail override:
+
+- `RouteActionLogitCapIds=10`.
+- `RouteActionLogitCapWeight=1.0`.
+- `RouteActionLogitCapMaxRouteProgress=0.70`.
+- `RouteActionOverrideId=10`.
+- `RouteActionOverrideWeight=0.20`.
+- `RouteActionOverrideMinRouteProgress=0.72`.
+- `RouteActionOverrideMaxRouteProgress=0.755`.
+
+Offline gate passed:
+
+- target22 action probe:
+  - action_counts `{1:2,4:30,7:382,15:96,16:8,19:4}`.
+  - moving_steer_fraction `0.0842911877`.
+- steer2 action probe:
+  - action_counts `{1:4,4:59,7:495,12:2,15:87}`.
+  - action10 count `0`.
+  - moving_steer_fraction `0.1004636785`.
+  - cross replay gate `ready_for_clean_eval=true`.
+
+Official Windows CARLA 512 was run once and failed:
+
+- run output:
+  `RCS-AC-v2\experiments\02_privileged_policy_clean\windows_512\5b12b8f_t22_steer2_corrmix045060064_post070p_w0003_seq8_cap10pre070w1_o10tailw02_official512`.
+- done_reason `collision`.
+- steps `280/512`.
+- route_progress `0.6153846154`.
+- collision/offroad/stuck `1/0/0`.
+- action_counts `{1:1,4:18,7:195,10:24,13:2,15:40}`.
+- tail: despite offline suppression, action `10` repeated through route
+  `0.5641-0.6154`; the terminal collision occurred after two action `13`
+  steps at route `0.6154`.
+- CARLA was stopped after the run; RTX 3080 was idle at `58 C`, `0 %`
+  utilization, `562 MiB` memory.
+
+Decision: reject as an official regression. Stronger global training losses
+can make the offline replay distribution look safer while still leaking
+action10 in closed-loop states outside the replay support. Do not use this
+branch for another official run without stronger route-bin evidence.
+
+`5b12b8f_t22_steer2_corrmix045060064_post070p_w0003_seq8_cap10pre067w05_o10tailw002`
+then tested the subagent-recommended conservative variant:
+
+- `RouteActionLogitCapWeight=0.5`.
+- `RouteActionLogitCapMaxRouteProgress=0.67`.
+- `RouteActionOverrideWeight=0.02`.
+- `RouteActionOverrideMinRouteProgress=0.70`.
+- `RouteActionOverrideMaxRouteProgress=0.755`.
+
+Offline cross replay gate technically passed, but stricter promotion failed:
+
+- target22 action probe matched the same no-action10 distribution as the
+  stronger candidate:
+  `{1:2,4:30,7:382,15:96,16:8,19:4}`.
+- steer2 action probe:
+  - action_counts `{1:3,4:37,7:455,10:63,12:2,15:87}`.
+  - moving_steer_fraction `0.1622874807`.
+  - generic gate `ready_for_clean_eval=true`.
+  - stricter branch threshold `<= 0.16` not met.
+  - action10 count remained `63`, same as the earlier cap10pre072 offline
+    distribution.
+- decision: do not run official CARLA for this candidate.
+
+Implementation follow-up:
+
+- `checkpoint_action_probe.py` now records per-route-bin predicted
+  `action_counts` and `label_action_counts` in `route_progress_bins`.
+- This is diagnostic evidence only; it is not clean PASS evidence.
+- Next candidate decisions should inspect route-bin action10/action13 leakage
+  directly before any official 512 clean eval.
+
+Current conclusion:
+
+- Current best official 512 remains `latecap47w010_r066076`:
+  route `0.7435897436`, `344/512`, offroad FAIL.
+- The post070p/action10 branch has not improved official clean.
+- The next meaningful clean-first step should stop global action10 cap/override
+  sweeps and move to route-conditioned replay filtering/loss or closed-loop
+  failure-window collection that explicitly separates route `0.56-0.67` from
+  the true post-`0.70/0.72` tail.

@@ -19,7 +19,7 @@ Stage 2: Privileged policy clean
 Status:
 
 ```text
-STAGE2_CLEAN_FIRST_CAP10PRE072_OFFICIAL512_FAIL_COLLISION_ROUTE0667
+STAGE2_CLEAN_FIRST_ACTION10_BRANCH_REJECTED_ROUTE0615
 ```
 
 Last completed stage:
@@ -635,6 +635,9 @@ C6B03E7_CORRMIX045060066_W0008_512_FAIL_COLLISION_ROUTE0666
 3ED89EB_POST070P_W0003_SEQ8_OFFLINE_GATE_REJECT_STEER2
 3ED89EB_POST070P_W0003_CAP10PRE072_OFFLINE_GATE_PASS
 3ED89EB_POST070P_W0003_CAP10PRE072_512_FAIL_COLLISION_ROUTE0667
+5B12B8F_POST070P_CAP10PRE070W1_O10TAILW02_OFFLINE_GATE_PASS
+5B12B8F_POST070P_CAP10PRE070W1_O10TAILW02_512_FAIL_COLLISION_ROUTE0615
+5B12B8F_POST070P_CAP10PRE067W05_O10TAILW002_OFFLINE_GATE_PASS_STRICT_REJECT
 ```
 
 Current Stage 2 position:
@@ -670,6 +673,17 @@ therefore remains latecap47 route_progress 0.7435897436. Next direction: do not
 run more official CARLA from weak action10 pre-0.72 caps; use stronger/narrower
 offline-only suppression or implement route-conditioned filtering/loss that
 separates mid-route 0.60-0.67 from the true post-0.70/0.72 tail.
+The stronger cap10pre070w1 + o10tailw02 branch passed the generic offline gate
+and removed action10 from steer2 replay, but official 512 regressed further to
+route_progress 0.6153846154 collision after action10 repeated through
+route 0.5641-0.6154 and terminal action13. The subagent-recommended conservative
+cap10pre067w05 + o10tailw002 branch also passed the generic gate but failed the
+stricter promotion rule: steer2 moving_steer_fraction was 0.1622874807 and
+action10 count remained 63, so no official run was launched. `checkpoint_action_probe.py`
+now records route-bin action_counts and label_action_counts so future promotion
+checks can directly reject mid-route action10/action13 leakage. Next meaningful
+work should stop global action10 cap/override sweeps and move to route-conditioned
+replay filtering/loss or closed-loop failure-window collection.
 Avoid zero-throttle-only correction components unless filtered or strongly gated offline.
 ```
 

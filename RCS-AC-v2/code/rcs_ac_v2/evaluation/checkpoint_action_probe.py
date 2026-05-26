@@ -108,6 +108,8 @@ def probe_checkpoint_actions(
     route_bin_predicted_moving_counts: Counter[str] = Counter()
     route_bin_label_moving_counts: Counter[str] = Counter()
     route_bin_predicted_moving_on_label_nonmoving_counts: Counter[str] = Counter()
+    route_bin_action_counts: dict[str, Counter[int]] = {}
+    route_bin_label_action_counts: dict[str, Counter[int]] = {}
     probed_files: list[dict[str, Any]] = []
     for file_entry in replay_manifest["files"]:
         replay_path = _resolve_path(file_entry["path"], root=root, fallback_dir=replay_manifest_resolved.parent)
@@ -137,6 +139,8 @@ def probe_checkpoint_actions(
             label_action_counts[label_action_id] += 1
             confusion_counts[f"{label_action_id}->{action_id}"] += 1
             route_bin_counts[route_bin] += 1
+            route_bin_action_counts.setdefault(route_bin, Counter())[action_id] += 1
+            route_bin_label_action_counts.setdefault(route_bin, Counter())[label_action_id] += 1
             route_bin_predicted_moving_counts[route_bin] += int(action_is_moving_steer)
             route_bin_label_moving_counts[route_bin] += int(label_is_moving_steer)
             route_bin_predicted_moving_on_label_nonmoving_counts[route_bin] += int(
@@ -209,6 +213,14 @@ def probe_checkpoint_actions(
         "route_progress_bins": {
             key: {
                 "count": int(route_bin_counts[key]),
+                "action_counts": {
+                    str(action_id): int(count)
+                    for action_id, count in sorted(route_bin_action_counts.get(key, Counter()).items())
+                },
+                "label_action_counts": {
+                    str(action_id): int(count)
+                    for action_id, count in sorted(route_bin_label_action_counts.get(key, Counter()).items())
+                },
                 "predicted_moving_steer_count": int(route_bin_predicted_moving_counts[key]),
                 "predicted_moving_steer_fraction": float(route_bin_predicted_moving_counts[key])
                 / float(route_bin_counts[key]),

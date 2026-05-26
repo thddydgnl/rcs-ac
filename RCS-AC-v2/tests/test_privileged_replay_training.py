@@ -631,6 +631,9 @@ def test_replay_training_exports_clean_eval_loadable_checkpoints(tmp_path) -> No
     assert "zero_throttle_steer_fraction" in action_probe
     assert "label_to_predicted_action_counts" in action_probe
     assert "route_progress_bins" in action_probe
+    first_route_bin = next(iter(action_probe["route_progress_bins"].values()))
+    assert "action_counts" in first_route_bin
+    assert "label_action_counts" in first_route_bin
     assert action_probe["minimum_nonzero_steer_fraction"] == 0.02
     assert action_probe["minimum_nonzero_steer_count"] == 12
     assert action_probe["maximum_nonzero_steer_fraction"] == 0.5

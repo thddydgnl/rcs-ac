@@ -871,6 +871,8 @@ def test_checkpoint_action_probe_records_replay_label_diagnostics_static_contrac
     assert "predicted_nonmoving_on_label_moving_fraction" in text
     assert "label_to_predicted_action_counts" in text
     assert "route_progress_bins" in text
+    assert "route_bin_action_counts" in text
+    assert "route_bin_label_action_counts" in text
     assert "_route_progress_bin" in text
 
 

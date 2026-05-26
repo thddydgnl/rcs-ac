@@ -34,6 +34,14 @@ route 0.6154-0.6410에서 action `10`이 반복되고 마지막 action `13`에�
 충돌했다. 따라서 weak action10 pre-0.72 cap은 더 이상 official로 바로 보내지
 말고, mid-route 0.60-0.67과 post-0.70/0.72 tail을 분리하는 offline-only
 후보나 코드 레벨 route-conditioned filtering/loss를 먼저 쓴다.
+추가 확인에서 `cap10pre070w1_o10tailw02`는 generic offline gate를 통과했지만
+official 512가 route_progress=0.6153846154 collision으로 더 회귀했다. 더
+보수적인 `cap10pre067w05_o10tailw002`도 generic gate는 통과했으나 stricter
+promotion 기준에서 steer2 moving_steer_fraction=0.1622874807, action10 count=63
+으로 rejected였고 official은 실행하지 않았다. 이제 weak/global action10
+cap/override sweep은 중단하고, route-bin action_counts를 확인한 뒤
+route-conditioned filtering/loss 또는 closed-loop failure-window collection으로
+넘어간다.
 raw/fusion은 아직 시작하지 않는다.
 ```
 
@@ -151,6 +159,10 @@ nonzero-throttle fraction 0.5 이상, moving/nonzero steer fraction 0.02 이상,
 moving/nonzero steer count 12 이상, moving/nonzero steer fraction 0.5 이하,
 dominant action fraction 0.85 이하, action_id=8 fraction 0.05 이하일 때만
 나온다.
+2026-05-26 이후 action probe의 `route_progress_bins`에는 bin별 predicted
+`action_counts`와 replay `label_action_counts`도 포함된다. post070p/action10
+계열 후보는 generic `recommended_for_clean_rerun=true`만 보지 말고 route
+`0.55-0.67`의 action10/action13 누수를 확인한 뒤 official 512로 승격한다.
 probe_stage2_candidate_cross_replays.ps1는 후보 checkpoint를 primary replay와
 secondary replay 양쪽에서 action probe + latent probe로 교차 검증한다.
 target-24 후보는 target-24 replay만 통과했다고 512 clean으로 보내지 말고,
