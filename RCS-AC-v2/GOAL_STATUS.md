@@ -19,7 +19,7 @@ Stage 2: Privileged policy clean
 Status:
 
 ```text
-STAGE2_CLEAN_FIRST_ROUTE_PRIORITY_HOOK_READY
+STAGE2_CLEAN_FIRST_ROUTE_PRIORITY_CANDIDATE_REJECTED_TARGET22_DOM15
 ```
 
 Last completed stage:
@@ -689,10 +689,15 @@ Route-priority replay sampling is now implemented for the next clean-first
 candidate: `route_priority_sample_fraction`, optional
 `route_priority_action_ids`, and min/max route-progress bounds are wired through
 the Python trainer plus Windows train/detached/mixed candidate wrappers. The
-next candidate should use this hook to localize post-0.70 correction windows
-without another global action10 cap/override sweep, and should only promote to
-official 512 clean if the target22/steer2 cross-replay gate and route-bin
-action10/action13 leakage checks both pass.
+first route-priority candidate
+`6a0cc43_t22_steer2_corrmix_post070p_routeprio10_0700755_w0003_seq8`
+trained successfully on Windows CUDA with sampler priority_window_count=14 and
+effective_priority_sample_fraction=0.25. Offline cross replay rejected it:
+steer2 passed, but target22 collapsed too strongly to action15
+(dominant_action_fraction=0.9157088123, recommended_for_clean_rerun=false).
+Do not run official CARLA for this candidate. The next candidate should keep
+the route-priority mechanism available but reduce target22 action15 dominance
+before another official clean attempt.
 ```
 
 Do not start Stage 3 raw sensor work or any fusion ablation until:

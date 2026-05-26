@@ -3892,3 +3892,62 @@ instead of another global action10 cap/override sweep. Promotion remains
 offline-first: require target22 and steer2 cross-replay gate success plus
 route-bin evidence showing action10/action13 are not leaking into route
 `0.55-0.67` before any official 512 clean eval.
+
+## Route-priority action10 tail candidate
+
+Candidate:
+`6a0cc43_t22_steer2_corrmix_post070p_routeprio10_0700755_w0003_seq8`.
+
+Configuration:
+
+- mixed replay:
+  `windows_privileged_3ed89eb_mixed_t22_steer2_corrmix045060064_post070p`.
+- `SequenceLength=8`.
+- component weights:
+  `target22=1,steer2=1,corrmix=0.0067,post070p=0.003`.
+- route-priority sampler:
+  - `RoutePrioritySampleFraction=0.25`.
+  - `RoutePriorityActionIds=10`.
+  - route window `0.70-0.755`.
+  - checkpoint manifest sampler stats:
+    `priority_window_count=14`,
+    `priority_window_fraction=0.0107115532`,
+    `effective_priority_sample_fraction=0.25`.
+- retained latecap47 controls:
+  `RouteLateActionLogitCapIds=4,7`, route `0.66-0.76`,
+  `RouteLateActionLogitCapWeight=0.10`, and throttle ceiling `0.3` over route
+  `0.64-0.70`.
+
+Windows CUDA training completed:
+
+- output:
+  `RCS-AC-v2\experiments\02_privileged_policy_clean\checkpoints\6a0cc43_t22_steer2_corrmix_post070p_routeprio10_0700755_w0003_seq8`.
+- `TRAIN_EXIT_CODE=0`.
+- checkpoint manifest sha256:
+  `be8d90603de6443eff1baad5ccadded40c0dea15bd6f83a41c528e38c93973b1`.
+
+Cross replay gate rejected the candidate:
+
+- target22 action probe:
+  - action_counts `{10:12,15:478,19:10,4:14,7:8}`.
+  - dominant_action_fraction `0.9157088123`.
+  - moving_steer_fraction `0.0689655172`.
+  - `recommended_for_clean_rerun=false`.
+  - latent margin over majority `0.1973727428`.
+- steer2 action probe:
+  - action_counts `{10:25,15:522,4:52,7:48}`.
+  - dominant_action_fraction `0.8068006182`.
+  - moving_steer_fraction `0.1190108192`.
+  - `recommended_for_clean_rerun=true`.
+  - latent margin over majority `0.2091546848`.
+- cross replay gate:
+  `ready_for_clean_eval=false`.
+  failure: `target22: action probe recommended_for_clean_rerun is not true`.
+
+Decision: reject, do not run official CARLA. The route-priority hook worked
+mechanically and preserved the steer2 gate, but the target22 replay collapsed
+too strongly to action `15`. Next candidate should reduce the action15
+dominance before official clean, for example by lowering/removing the retained
+latecap47 action4/7 cap while keeping route-priority, or by adding a targeted
+target22 action15 dominance control that does not reintroduce steer2
+false-positive steering.
