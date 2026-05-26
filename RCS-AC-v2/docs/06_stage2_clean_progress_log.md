@@ -3465,3 +3465,134 @@ Current best restart point:
 - Next clean-first candidate should preserve that checkpoint recipe and target
   the route `0.66-0.72` action7 straight-hold/offroad issue directly, without
   replacing `corr064` by `corr066` or dropping `corr045`.
+
+## 2026-05-26 Late Action7/4 Cap Resume
+
+Windows remote execution resumed through the documented Mac -> userspace
+Tailscale SOCKS -> Windows SSH path, using the official clean clone:
+
+- Windows node: `100.87.219.58`.
+- Windows clean clone:
+  `C:\Users\thddy\Documents\code\RCS-AC-first-official-v2-7f87656`.
+- CUDA guard passed on `NVIDIA GeForce RTX 3080`, torch `2.11.0+cu126`.
+- CARLA was stopped immediately after each official eval; final GPU status
+  after cleanup was `57-58 C`, `0 %` utilization, `562 MiB` memory.
+
+`8859f1d_t22_steer2_corrmix045060064_w00067_ssf010_msfpa2_latecap7w010_r066072`
+preserved the current best `corrmix045060064_w00067` recipe and added a narrow
+route-window action-logit cap on action `7`:
+
+- `RouteLateActionLogitCapWeight=0.10`.
+- `RouteLateActionLogitCapIds=7`.
+- `RouteLateActionLogitCapMinRouteProgress=0.66`.
+- `RouteLateActionLogitCapMaxRouteProgress=0.72`.
+- `RouteThrottleCeilingWeight=4.0`, `RouteThrottleCeiling=0.3`,
+  route window `0.64-0.72`.
+- target22/steer2 cross replay gate: `ready_for_clean_eval=true`.
+
+Official Windows CARLA 512 failed:
+
+- run output:
+  `RCS-AC-v2\experiments\02_privileged_policy_clean\windows_512\8859f1d_t22_steer2_corrmix045060064_w00067_ssf010_msfpa2_latecap7w010_r066072_official512`.
+- done_reason `offroad`.
+- steps `342/512`.
+- route_progress `0.7435897436`.
+- collision/offroad/stuck `0/1/0`.
+- action_counts `{4:46,7:258,15:38}`.
+- tail: speed stayed around `18 km/h`; route `0.6667-0.7436` was still mostly
+  action `7` with intermittent action `4`; final offroad happened on action
+  `7`.
+
+Decision: this improved over the prior `0.7179` offroad, but did not solve the
+late straight-hold/offroad failure. A broader right-steer-margin variant was
+briefly launched, then stopped before completion after subagent review because
+it was a less conservative next move.
+
+`8859f1d_t22_steer2_corrmix045060064_w00067_ssf010_msfpa2_latecap47w010_r066076`
+then kept the same replay/checkpoint recipe and changed only the local late cap:
+
+- `RouteLateActionLogitCapWeight=0.10`.
+- `RouteLateActionLogitCapIds=4,7`.
+- `RouteLateActionLogitCapMinRouteProgress=0.66`.
+- `RouteLateActionLogitCapMaxRouteProgress=0.76`.
+- `RouteThrottleCeilingWeight=4.0`, `RouteThrottleCeiling=0.3`,
+  route window `0.64-0.70`.
+
+Offline gate passed:
+
+- target22 action probe:
+  - action_counts `{4:26,7:412,10:4,13:4,15:70,19:6}`.
+  - dominant_action_fraction `0.7892720307`.
+  - moving_steer_fraction `0.0766283525`.
+  - latent test accuracy `0.9904761910`, majority `0.7931034483`.
+- steer2 action probe:
+  - action_counts `{4:81,7:490,15:76}`.
+  - dominant_action_fraction `0.7573415765`.
+  - moving_steer_fraction `0.1251931994`.
+  - latent test accuracy `0.9153845906`, majority `0.6831530139`.
+- cross replay gate: `ready_for_clean_eval=true`.
+
+Official Windows CARLA 512 failed:
+
+- run output:
+  `RCS-AC-v2\experiments\02_privileged_policy_clean\windows_512\8859f1d_t22_steer2_corrmix045060064_w00067_ssf010_msfpa2_latecap47w010_r066076_official512`.
+- done_reason `offroad`.
+- steps `344/512`.
+- route_progress `0.7435897436`.
+- collision/offroad/stuck `0/1/0`.
+- action_counts `{4:47,7:259,15:38}`.
+- tail: final band still alternated action `7` straight and action `4` left;
+  the terminal offroad was on action `4` at route `0.7435897436`.
+
+Decision: reject as not materially better than `latecap7w010_r066072`. The
+failure has now moved from a generic route `0.66-0.72` straight-hold issue to a
+more specific post-`0.72` left/straight tail. The next clean-first CUDA
+candidate should be a narrow post-`0.72` correction and should reject any
+official result that fails at or below route `0.7436` with the same action
+`4/7` tail.
+
+Subagent review recommended one final narrow post-`0.72` probe before moving to
+new replay collection: keep `latecap47w010_r066076` and add a weak route-local
+action override toward action `10` only in route `0.72-0.755`. Action `10` is
+the mild forward-right action (`throttle=0.3`, `steer=+0.1`), so it was less
+risky than broad right-steer margin or strong-right actions `13/16/19`.
+
+`8859f1d_t22_steer2_corrmix045060064_w00067_ssf010_msfpa2_latecap47w010_r066076_o10w025_r0720755`
+trained on Windows CUDA and passed the cross replay gate:
+
+- action override:
+  - `RouteActionOverrideWeight=0.25`.
+  - `RouteActionOverrideId=10`.
+  - `RouteActionOverrideMinRouteProgress=0.72`.
+  - `RouteActionOverrideMaxRouteProgress=0.755`.
+- target22 action probe:
+  - action_counts `{4:26,7:412,10:4,13:4,15:70,19:6}`.
+  - dominant_action_fraction `0.7892720307`.
+  - moving_steer_fraction `0.0766283525`.
+  - latent test accuracy `0.9904761910`, majority `0.7931034483`.
+- steer2 action probe:
+  - action_counts `{4:81,7:490,15:76}`.
+  - dominant_action_fraction `0.7573415765`.
+  - moving_steer_fraction `0.1251931994`.
+  - latent test accuracy `0.9153845906`, majority `0.6831530139`.
+- cross replay gate: `ready_for_clean_eval=true`.
+
+Official Windows CARLA 512 failed:
+
+- run output:
+  `RCS-AC-v2\experiments\02_privileged_policy_clean\windows_512\8859f1d_t22_steer2_corrmix045060064_w00067_ssf010_msfpa2_latecap47w010_r066076_o10w025_r0720755_official512`.
+- done_reason `offroad`.
+- steps `339/512`.
+- route_progress `0.7179487179`.
+- collision/offroad/stuck `0/1/0`.
+- action_counts `{4:46,7:255,15:38}`.
+- tail: action `10` did not appear in closed-loop; route `0.6923-0.7179`
+  remained action `7` plus action `4`, and terminal offroad happened on action
+  `7`.
+
+Decision: reject as a regression relative to `latecap47w010_r066076`. The
+route-local override was too weak to change the closed-loop action sequence and
+returned to the older `0.7179` offroad bracket. Current best official behavior
+remains `latecap47w010_r066076` at route `0.7435897436`; next work should
+collect or build a post-`0.72` correction component instead of adding another
+small replay-only override to the same mixed replay.

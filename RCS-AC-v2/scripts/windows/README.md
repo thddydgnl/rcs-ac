@@ -12,14 +12,16 @@ CARLA readiness/start는 v2-local script를 사용한다.
 Stage 2 privileged replay collection/training runner도 있다.
 Stage 2 replay 학습, offline probe, official clean eval은 기본 Device=cuda로
 실행한다.
-2026-05-26 기준 현재 Stage 2 clean은 아직 미해결이다. 최신 official 512는
-`c6b03e7_t22_steer2_corrmix045060066_w0008_ssf010_msfpa2`에서
-route_progress=0.6666666667 collision FAIL이고, 최근 가장 나은 official 512는
-`c6b03e7_t22_steer2_corrmix045060064_w00067_ssf010_msfpa2`에서
-route_progress=0.7179487179 offroad FAIL이다. 다음 clean-first 작업은
-`corrmix045060064_w00067` 레시피를 보존하면서 route 0.66-0.72의 action7
-straight-hold/offroad 문제를 직접 줄이는 방향이다. raw/fusion은 아직 시작하지
-않는다.
+2026-05-26 기준 현재 Stage 2 clean은 아직 미해결이다. 최신 best official
+512는
+`8859f1d_t22_steer2_corrmix045060064_w00067_ssf010_msfpa2_latecap47w010_r066076`
+에서 route_progress=0.7435897436 offroad FAIL이다. 이 후보는 offline
+target22/steer2 gate를 통과했지만 official tail이 여전히 action `7` 직진과
+action `4` 왼쪽 조향으로 끝났다. action `10` route-local override 후보는
+offline gate를 통과했지만 official 512가 route_progress=0.7179487179로
+regressed했다. 다음 clean-first 작업은 `corrmix045060064_w00067` 레시피를
+보존하면서 post-0.72 correction replay/component를 만들거나 붙이는 방향이다.
+raw/fusion은 아직 시작하지 않는다.
 ```
 
 공용 script:

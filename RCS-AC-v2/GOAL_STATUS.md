@@ -623,19 +623,25 @@ C6B03E7_CORRMIX045060064_W00067_512_FAIL_OFFROAD_ROUTE0718
 C6B03E7_CORR066_T14_PARTIAL_REPLAY_ONLY
 C6B03E7_CORRMIX045060066_W0008_OFFLINE_GATE_PASS
 C6B03E7_CORRMIX045060066_W0008_512_FAIL_COLLISION_ROUTE0666
+8859F1D_LATECAP7_R066072_OFFLINE_GATE_PASS
+8859F1D_LATECAP7_R066072_512_FAIL_OFFROAD_ROUTE0744
+8859F1D_LATECAP47_R066076_OFFLINE_GATE_PASS
+8859F1D_LATECAP47_R066076_512_FAIL_OFFROAD_ROUTE0744
+8859F1D_LATECAP47_O10W025_R0720755_OFFLINE_GATE_PASS
+8859F1D_LATECAP47_O10W025_R0720755_512_FAIL_OFFROAD_ROUTE0718
 ```
 
 Current Stage 2 position:
 
 ```text
 Privileged clean is not solved yet.
-Latest official 512: FAIL collision at route_progress 0.6666666667, 311/512 steps.
-Best recent official 512 remains FAIL offroad at route_progress 0.7179487179, 339/512 steps.
+Latest official 512: FAIL offroad at route_progress 0.7435897436, 344/512 steps.
+Best recent official 512 is now FAIL offroad at route_progress 0.7435897436.
 Latest successful full replay collections: windows_privileged_9398470_corr045_midroute_t14_minthr03_min16, windows_privileged_9398470_corr060_late_t14_minthr03_min16, and windows_privileged_c6b03e7_corr064_late_t14_minthr03_min16.
 Latest partial replay: windows_privileged_c6b03e7_corr066_late2_t14_minthr03_min16, 2 saved episodes, route 0.6667-0.7179.
-Latest offline candidate passed target22/steer2 but official 512 regressed to route 0.6667 collision.
+Latest offline candidates passed target22/steer2; latecap47 reached route 0.7436, but the action10 override regressed to route 0.7179.
 Do not start raw/fusion.
-Next direction: return to c6b03e7_t22_steer2_corrmix045060064_w00067_ssf010_msfpa2 and target route 0.66-0.72 action7 straight-hold/offroad directly.
+Next direction: preserve the c6b03e7_t22_steer2_corrmix045060064_w00067 recipe and collect/build a post-0.72 correction component instead of another weak same-replay override.
 Avoid zero-throttle-only correction components unless filtered or strongly gated offline.
 ```
 
