@@ -2834,3 +2834,48 @@ Decision:
 - Next work should target the route_progress `0.74-0.77` transition with a
   more precise late right-steer correction before another official 512 clean
   run.
+
+### 2026-05-26 - mask16/19 and mask8/16/19 diagnostics
+
+Two additional mask-only diagnostics were run on the same checkpoint. These are
+not considered the final algorithmic fix; they were used to identify whether a
+single bad action id was responsible for the late collision.
+
+`ForbiddenActionIds=16,19`:
+
+- Cross-replay gate: `ready_for_clean_eval=true`.
+- target22 action_counts `{7:354,15:110,4:50,13:4,1:2,8:2}`.
+- steer2 action_counts `{7:457,15:84,4:75,10:18,1:9,12:4}`.
+- A mistaken 128-step smoke run passed with `source=windows_carla`,
+  `horizon=128`, `steps=128`, and zero collision/offroad/stuck. This is useful
+  smoke evidence only, not the 512 clean gate.
+- The real 512 run failed:
+  - status `FAIL`, failure_class `driving`, done_reason `collision`.
+  - steps `361/512`.
+  - route_progress `0.7692307692`.
+  - collision/offroad/stuck `1/0/0`.
+  - action_counts `{7:244,4:53,15:41,10:8,1:8,13:4,8:3}`.
+  - failure tail ended in action8, `throttle=0.0`, `steer=0.6`.
+
+`ForbiddenActionIds=8,16,19`:
+
+- Cross-replay gate: `ready_for_clean_eval=true`.
+- target22 action_counts `{7:354,15:110,4:50,13:4,1:2,25:2}`.
+- steer2 action_counts `{7:457,15:84,4:75,10:18,1:9,12:4}`.
+- The real 512 run failed:
+  - status `FAIL`, failure_class `driving`, done_reason `collision`.
+  - steps `361/512`.
+  - route_progress `0.7948717949`.
+  - collision/offroad/stuck `1/0/0`.
+  - action_counts `{7:244,4:53,15:41,10:8,1:8,13:6,25:1}`.
+  - failure tail ended in action25, `throttle=0.0`, `steer=-1.0`.
+
+Decision:
+
+- Masking individual sharp-right actions exposes other zero-throttle
+  sharp-steer alternatives.
+- The 0.77-0.79 failure is now classified as a late-window zero-throttle
+  sharp-steer fallback problem, not a single action-id problem.
+- Stop broad mask escalation as the main path. The next patch should train or
+  constrain the late window so it keeps moving mild steering instead of
+  falling to zero-throttle sharp steering.

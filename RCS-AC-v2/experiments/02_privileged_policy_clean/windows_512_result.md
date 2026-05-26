@@ -618,6 +618,30 @@ candidate to "ready for 512 clean eval"; it is not a clean PASS.
   mask19_official_512_failure_tail: steps338-344 action10 throttle=0.3 steer=0.1 at route_progress=0.7435897436; steps345-347 action13 steer=0.2; steps348-349 action16 steer=0.3; collision at step349
   clean_gate_evidence: false
   decision_summary: progress improved from 0.6667 to 0.7692, but masking action19 only shifts the collision to action16; next patch must target the 0.74-0.77 late right-steer transition before another official 512 eval
+
+2026-05-26:
+  state: late045_minthr_mask1619_and_mask081619_official512_fail
+  commit: c2a7767
+  base_candidate: 5bbca2a_corr048_w005_late045t24mth03_w002_logit15_lateceil
+  mask1619_cross_probe_output_dir: RCS-AC-v2\experiments\02_privileged_policy_clean\windows_512\5bbca2a_corr048_w005_late045t24mth03_w002_logit15_lateceil_mask1619_cross_probe
+  mask1619_cross_replay_gate: ready_for_clean_eval=true, ForbiddenActionIds=16,19
+  mask1619_target22_action_probe: recommended_for_clean_rerun=true, action_counts={7:354,15:110,4:50,13:4,1:2,8:2}, moving_steer_fraction=0.1072796935, dominant_action_fraction=0.6781609195
+  mask1619_steer2_action_probe: recommended_for_clean_rerun=true, action_counts={7:457,15:84,4:75,10:18,1:9,12:4}, moving_steer_fraction=0.1638330757, dominant_action_fraction=0.7063369397
+  mask1619_smoke128: source=windows_carla, status=PASS, horizon=128, steps=128, collision_count=0, offroad_count=0, stuck_count=0, clean_gate_evidence=false_for_512_gate
+  mask1619_official_run_output_dir: RCS-AC-v2\experiments\02_privileged_policy_clean\windows_512\5bbca2a_corr048_w005_late045t24mth03_w002_logit15_lateceil_mask1619_official_clean512_real
+  mask1619_official_512_summary: source=windows_carla, status=FAIL, failure_class=driving, done_reason=collision, steps=361/512, route_progress=0.7692307692, collision_count=1, offroad_count=0, stuck_count=0, clean_gate_pass=false
+  mask1619_official_512_action_counts: {1:8,4:53,7:244,8:3,10:8,13:4,15:41}
+  mask1619_official_512_failure_tail: steps346-353 action10 throttle=0.3 steer=0.1; steps354-357 action13 throttle=0.3 steer=0.2; steps358-360 action8 throttle=0.0 steer=0.6; collision at step360
+  mask081619_cross_probe_output_dir: RCS-AC-v2\experiments\02_privileged_policy_clean\windows_512\5bbca2a_corr048_w005_late045t24mth03_w002_logit15_lateceil_mask081619_cross_probe
+  mask081619_cross_replay_gate: ready_for_clean_eval=true, ForbiddenActionIds=8,16,19
+  mask081619_target22_action_probe: recommended_for_clean_rerun=true, action_counts={7:354,15:110,4:50,13:4,1:2,25:2}, moving_steer_fraction=0.1072796935, dominant_action_fraction=0.6781609195
+  mask081619_steer2_action_probe: recommended_for_clean_rerun=true, action_counts={7:457,15:84,4:75,10:18,1:9,12:4}, moving_steer_fraction=0.1638330757, dominant_action_fraction=0.7063369397
+  mask081619_official_run_output_dir: RCS-AC-v2\experiments\02_privileged_policy_clean\windows_512\5bbca2a_corr048_w005_late045t24mth03_w002_logit15_lateceil_mask081619_official_clean512_real
+  mask081619_official_512_summary: source=windows_carla, status=FAIL, failure_class=driving, done_reason=collision, steps=361/512, route_progress=0.7948717949, collision_count=1, offroad_count=0, stuck_count=0, clean_gate_pass=false
+  mask081619_official_512_action_counts: {1:8,4:53,7:244,10:8,13:6,15:41,25:1}
+  mask081619_official_512_failure_tail: steps346-353 action10 throttle=0.3 steer=0.1; steps354-359 action13 throttle=0.3 steer=0.2; step360 action25 throttle=0.0 steer=-1.0 collision=true
+  clean_gate_evidence: false
+  decision_summary: broad action masking is diagnostic only; the policy falls into zero-throttle sharp-steer alternatives, so the next fix should suppress that late-window action family through training/constraint rather than keep adding forbidden ids
 ```
 
 Decision rules:

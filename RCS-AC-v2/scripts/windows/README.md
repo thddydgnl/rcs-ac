@@ -12,9 +12,10 @@ CARLA readiness/start는 v2-local script를 사용한다.
 Stage 2 privileged replay collection/training runner도 있다.
 Stage 2 replay 학습, offline probe, official clean eval은 기본 Device=cuda로
 실행한다.
-2026-05-26 기준 최신 official 512 clean은 route_progress=0.7692307692에서
-collision FAIL이다. action19 mask도 같은 progress에서 action16 collision으로
-실패했으므로 다음 clean-first 작업은 0.74-0.77 route window를 겨냥한다.
+2026-05-26 기준 최신 official 512 clean은 route_progress=0.7948717949에서
+collision FAIL이다. action19/16/8 masks는 progress를 조금 늘렸지만 최종
+실패가 zero-throttle sharp-steer action으로 이동했으므로 다음 clean-first
+작업은 0.74-0.79 route window의 zero-throttle sharp-steer fallback을 겨냥한다.
 ```
 
 공용 script:

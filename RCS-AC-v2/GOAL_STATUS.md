@@ -19,7 +19,7 @@ Stage 2: Privileged policy clean
 Status:
 
 ```text
-STAGE2_CLEAN_FIRST_LATE045_MINTHR_MASK19_OFFICIAL512_FAIL_PROGRESS077
+STAGE2_CLEAN_FIRST_LATE045_MINTHR_MASK081619_OFFICIAL512_FAIL_PROGRESS079
 ```
 
 Last completed stage:
@@ -192,6 +192,19 @@ This is progress over the previous 0.6667 collision but does not close Stage 2.
 The next clean-first patch should target the later `0.74-0.77` route window,
 especially the transition from mild right steer to action16/right-steer, before
 another official 512 run.
+
+Follow-up action-mask probes showed that broad forbidden-action masking is only
+a diagnostic, not yet the fix. Masking actions `16,19` passed cross replay and
+also passed a 128-step smoke run, but the real 512 run still failed at
+`route_progress=0.7692307692`, steps=361/512, with the final collision on
+action8 (`throttle=0.0`, `steer=0.6`). Masking `8,16,19` again passed cross
+replay and improved the official 512 failure to `route_progress=0.7948717949`,
+but it failed at step 360 on action25 (`throttle=0.0`, `steer=-1.0`). This
+confirms the remaining issue is not one specific action id; the policy is
+falling into zero-throttle sharp-steer alternatives in the late route window.
+Stop extending broad masks as the main strategy. The next implementation should
+add a late-window correction/training constraint that suppresses zero-throttle
+sharp-steer fallback actions while preserving moving mild steering.
 ```
 
 Pending brief:
