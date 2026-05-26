@@ -19,7 +19,7 @@ Stage 2: Privileged policy clean
 Status:
 
 ```text
-STAGE2_CLEAN_FIRST_ROUTE_PRIORITY_CANDIDATE_REJECTED_TARGET22_DOM15
+STAGE2_CLEAN_FIRST_ROUTE_PRIORITY_BRANCH_REJECTED_TARGET22_DOM15
 ```
 
 Last completed stage:
@@ -698,6 +698,13 @@ steer2 passed, but target22 collapsed too strongly to action15
 Do not run official CARLA for this candidate. The next candidate should keep
 the route-priority mechanism available but reduce target22 action15 dominance
 before another official clean attempt.
+The no-latecap follow-up
+`9bd3f7f_t22_steer2_corrmix_post070p_routeprio10_0700755_nolatecap_seq8`
+produced effectively the same offline rejection: target22
+dominant_action_fraction=0.9157088123 with action15 dominance, while steer2
+remained gate-passing. This rules out the retained latecap controls as the
+primary cause. Next work should reduce post070p/route-priority strength or add
+a target22 action15 dominance guard before any official CARLA run.
 ```
 
 Do not start Stage 3 raw sensor work or any fusion ablation until:

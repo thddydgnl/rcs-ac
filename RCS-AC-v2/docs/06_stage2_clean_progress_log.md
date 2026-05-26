@@ -3951,3 +3951,31 @@ dominance before official clean, for example by lowering/removing the retained
 latecap47 action4/7 cap while keeping route-priority, or by adding a targeted
 target22 action15 dominance control that does not reintroduce steer2
 false-positive steering.
+
+Follow-up candidate:
+`9bd3f7f_t22_steer2_corrmix_post070p_routeprio10_0700755_nolatecap_seq8`
+removed the retained latecap47 action4/7 cap and throttle ceiling while keeping
+the same route-priority sampler and component weights.
+
+Windows CUDA training completed, but cross replay rejected it with effectively
+the same failure:
+
+- target22 action probe:
+  - action_counts `{10:12,15:478,19:10,4:14,7:8}`.
+  - dominant_action_fraction `0.9157088123`.
+  - `recommended_for_clean_rerun=false`.
+- steer2 action probe:
+  - action_counts `{10:25,15:522,4:53,7:47}`.
+  - dominant_action_fraction `0.8068006182`.
+  - moving_steer_fraction `0.1205564142`.
+  - `recommended_for_clean_rerun=true`.
+- cross replay gate:
+  `ready_for_clean_eval=false`.
+
+Decision: reject, do not run official CARLA. Removing latecap controls did not
+change the target22 collapse, so the next intervention should not be another
+latecap toggle. The likely issue is that the route-priority/post070p branch,
+under the current imitation/class-balance recipe, pulls the target22 replay
+toward action `15`. Next options should reduce post070p/route-priority strength
+or add a target22 dominance guard while preserving steer2 moving-steer below
+`0.20`.
