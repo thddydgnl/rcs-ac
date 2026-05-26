@@ -602,6 +602,23 @@ B5A12E1_LATE10_512_FAIL_COLLISION_ROUTE0666
 BBEA3A5_LATEMOVE_512_FAIL_COLLISION_ROUTE0666
 CC8AC46_LATEMOVE_ACTION13_512_FAIL_COLLISION_ROUTE0641
 LATE_RIGHT_STEER_MARGIN_LOCAL_TEST_PASS
+354C0B6_MID048_W001_OFFLINE_GATE_PASS
+354C0B6_MID048_W001_512_FAIL_COLLISION_ROUTE0538
+354C0B6_CORR045_T10_REPLAY_COLLECTION_PASS
+354C0B6_CORR045_T10_W003_OFFLINE_GATE_REJECT_TARGET22
+354C0B6_CORR045_T10_W001_OFFLINE_GATE_REJECT_STEER2
+```
+
+Current Stage 2 position:
+
+```text
+Privileged clean is not solved yet.
+Latest official 512: FAIL collision at route_progress 0.5384615385, 130/512 steps.
+Latest successful replay collection: windows_privileged_354c0b6_corr045_midroute_t10_minthr00_min12.
+Latest offline candidates using that replay were rejected before CARLA.
+Do not start raw/fusion.
+Next direction: PDF Stage I privileged replay/BC with a less brittle 0.45-0.56 correction target.
+Avoid zero-throttle-only correction components unless filtered or strongly gated offline.
 ```
 
 Do not start Stage 3 raw sensor work or any fusion ablation until:
@@ -623,6 +640,7 @@ Do not expose privileged BEV/GT data to raw policy inference.
 Do not train raw reward/continue heads.
 Do not run fusion ablation before clean gates.
 Use persistent subagent pulse at stage entry, major edits, repeated failures, and gate reviews.
+If subagent spawn fails with "agent thread limit reached", close completed old agents before spawning new sidecars.
 Use Mac-Codex / Windows-CARLA split for all real CARLA runs.
 Run CARLA readiness guard before every Windows CARLA command.
 Do not delete root .git during goal execution; use git maintenance/gc only.

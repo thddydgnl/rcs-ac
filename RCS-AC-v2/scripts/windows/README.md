@@ -354,3 +354,12 @@ artifact auto-copy는 Windows clean-clone 실행 결과를 run-id 폴더로 운�
 용도로만 사용하고, 공식 판정은 항상 source=windows_carla summary.json과
 metrics.csv validation으로 한다.
 ```
+
+Sub-agent 운영 메모:
+
+```text
+Windows가 켜져 있어도 sub-agent 생성은 Codex thread slot 제한 때문에 실패할 수 있다.
+"agent thread limit reached"가 나오면 Windows 문제가 아니라 열린 agent가 너무 많은 상태다.
+완료된 agent를 close한 뒤, 실패 분석/코드 확인처럼 서로 겹치지 않는 sidecar만 다시 띄운다.
+CARLA official run 여부는 sub-agent 판단이 아니라 cross replay gate와 windows_carla summary로 결정한다.
+```

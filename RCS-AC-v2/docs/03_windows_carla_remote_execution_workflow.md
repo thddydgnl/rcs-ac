@@ -257,6 +257,17 @@ action/reward/schema/leakage uncertainty
 clean baseline failure that could be implementation-related
 ```
 
+If a spawn attempt fails with:
+
+```text
+collab spawn failed: agent thread limit reached
+```
+
+then the problem is not Windows connectivity. It means the Codex sub-agent
+thread slots are full. Close completed old agents first, then spawn only the
+next bounded sidecars needed for the current critical path. Keep the main
+rollout moving locally while sidecars analyze non-blocking questions.
+
 ## 5. Syncing Code To Windows
 
 Preferred sync path:

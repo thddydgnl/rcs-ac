@@ -3096,3 +3096,108 @@ Decision:
   is to collect or synthesize a route `0.50-0.57` correction replay/label window
   that teaches the policy the needed moving turn trajectory, then run the same
   cross-replay gate before another official 512.
+
+## 2026-05-26: route `0.45-0.56` privileged correction replay attempts
+
+`354c0b6_t22_steer2_late045_mid048_w002_ssf010` was rejected offline:
+
+- mixed replay: `mixed_t22_steer2_late045_mid048_w002`.
+- component weights:
+  `target22=1,steer2=1,late045t24mth03=0.02,mid048t24mth03=0.02`.
+- target22 passed, but steer2 failed:
+  - moving_steer_fraction `0.227202473`, above the `0.20` gate.
+  - gate: `ready_for_clean_eval=false`.
+
+`354c0b6_t22_steer2_late045_mid048_w001_ssf010` passed offline:
+
+- component weights:
+  `target22=1,steer2=1,late045t24mth03=0.02,mid048t24mth03=0.01`.
+- target22:
+  - action_counts `{1:2,4:22,7:58,10:8,12:2,15:420,16:4,19:6}`.
+  - dominant_action_fraction `0.8045977011`.
+  - moving_steer_fraction `0.0842911877`.
+  - latent test accuracy `0.9904761910`.
+- steer2:
+  - action_counts `{1:9,4:73,7:227,10:13,12:1,15:322,16:2}`.
+  - dominant_action_fraction `0.4976816074`.
+  - moving_steer_fraction `0.1514683153`.
+  - latent test accuracy `0.8923076987`.
+- gate: `ready_for_clean_eval=true`.
+
+Official Windows CARLA 512 was run once and failed:
+
+- source: `windows_carla`.
+- status: `FAIL`.
+- failure_class: `driving`.
+- done_reason: `collision`.
+- steps: `130/512`.
+- route_progress: `0.5384615385`.
+- collision/offroad/stuck: `1/0/0`.
+- failure tail: high speed `58-61 km/h` approach, action15/action7 straight
+  throttle through route `0.46`, then action10/action13/action16/action19.
+  Collision occurred on action19 at step 129.
+
+Decision:
+
+- The weak `mid048` replay kept the offline gate healthy but did not fix the
+  real bottleneck; the car still reached the route `0.5385` bracket too fast.
+- Do not continue cap-only changes for this bracket.
+- Collect PDF Stage I style privileged replay earlier in the approach and
+  verify offline before another official 512.
+
+Replay collection attempts:
+
+- `windows_privileged_354c0b6_corr048_midroute_t18_minthr00_min16` failed:
+  - all 12 attempts ended with collision.
+  - each attempt produced only 14 recorded steps after route `0.48`, below
+    `MinRecordedSteps=16`.
+  - max_route_progress `0.5641025641`.
+- `windows_privileged_354c0b6_corr045_midroute_t10_minthr00_min12` succeeded:
+  - episodes `4`.
+  - episode_lengths `[15,15,15,15]`.
+  - total_steps `60`.
+  - action_counts `{2:24,5:29,8:7}`.
+  - route window `0.4615-0.5385`.
+  - clean_gate_evidence `false`.
+
+`354c0b6_t22_steer2_late045_corr045t10_w003_seq12_ssf010` was rejected
+offline:
+
+- component weights:
+  `target22=1,steer2=1,late045t24mth03=0.02,corr045t10mth00=0.03`.
+- sequence_length `12`, because the new correction episodes are 15 steps long.
+- target22 failed:
+  - action_counts `{2:16,5:38,8:4,15:464}`.
+  - dominant_action_fraction `0.8888888889`, above the `0.85` gate.
+  - moving_steer_fraction `0.0`, below the gate.
+  - zero_throttle_fraction `0.1111111111`.
+- steer2 passed action probe but showed aggressive late moving steer.
+- gate: `ready_for_clean_eval=false`.
+
+`354c0b6_t22_steer2_late045_corr045t10_w001_seq12_ssf010` was also rejected
+offline:
+
+- component weights:
+  `target22=1,steer2=1,late045t24mth03=0.02,corr045t10mth00=0.01`.
+- target22 passed:
+  - action_counts `{7:34,10:26,13:8,15:428,16:20,19:6}`.
+  - dominant_action_fraction `0.8199233716`.
+  - moving_steer_fraction `0.1149425287`.
+  - zero_throttle_fraction `0.0`.
+- steer2 failed:
+  - action_counts `{1:3,4:35,7:78,10:103,12:11,15:416,16:1}`.
+  - moving_steer_fraction `0.2364760433`, above the `0.20` gate.
+  - latent test accuracy `0.9230769277`.
+- gate: `ready_for_clean_eval=false`.
+
+Decision:
+
+- The zero-throttle `t10/min0` correction replay is useful diagnostically but
+  too sharp for the current mixed BC recipe: at weight `0.03` it collapses
+  target22 moving steer; at weight `0.01` it preserves target22 but creates
+  steer2 false-positive moving steer.
+- Do not run official CARLA for either `corr045t10` candidate.
+- Next clean-first direction should keep the PDF Stage I privileged replay path
+  but avoid all-zero-throttle labels: either collect a longer earlier window
+  with a moving throttle floor, or add an offline label/window filter before
+  mixing, then re-run target22/steer2 cross replay gate.
