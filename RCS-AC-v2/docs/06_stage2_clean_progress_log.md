@@ -3979,3 +3979,54 @@ under the current imitation/class-balance recipe, pulls the target22 replay
 toward action `15`. Next options should reduce post070p/route-priority strength
 or add a target22 dominance guard while preserving steer2 moving-steer below
 `0.20`.
+
+Follow-up candidate:
+`96cbb9f_t22_steer2_corrmix_post070p_routeprio10_0700755_f005_seq8`
+reduced `RoutePrioritySampleFraction` from `0.25` to `0.05` while keeping
+`post070p=0.003`, route-priority action `10`, and no latecap controls.
+
+Windows CUDA training completed, but cross replay rejected it:
+
+- target22 action probe:
+  - action_counts `{10:6,12:2,13:2,15:480,19:8,4:16,7:8}`.
+  - dominant_action_fraction `0.9195402299`.
+  - `recommended_for_clean_rerun=false`.
+- steer2 action probe:
+  - action_counts `{1:3,10:11,12:4,15:512,16:3,4:56,7:58}`.
+  - dominant_action_fraction `0.7913446677`.
+  - moving_steer_fraction `0.1190108192`.
+  - `recommended_for_clean_rerun=true`.
+
+Decision: reject, do not run official CARLA. Lowering route-priority strength
+helped steer2 distribution but made the target22 action15 collapse slightly
+worse. This argues against another simple route-priority-fraction sweep.
+
+Follow-up candidate:
+`96cbb9f_t22_steer2_corrmix_post070p_routeprio10_f005_logit15w05_seq8`
+kept the `0.05` route-priority setup and added a full-route action15 logit cap:
+
+- `RouteActionLogitCapWeight=0.5`.
+- `RouteActionLogitCapIds=15`.
+- `RouteActionLogitCapMargin=0.0`.
+
+The checkpoint manifest confirmed those parameters were applied, but the
+offline distribution was effectively unchanged:
+
+- target22 action probe:
+  - action_counts `{10:6,12:2,13:2,15:480,19:8,4:16,7:8}`.
+  - dominant_action_fraction `0.9195402299`.
+  - `recommended_for_clean_rerun=false`.
+- steer2 action probe:
+  - action_counts `{1:2,10:14,12:4,15:517,4:53,7:57}`.
+  - dominant_action_fraction `0.7990726430`.
+  - moving_steer_fraction `0.1128284389`.
+  - `recommended_for_clean_rerun=true`.
+
+Decision: reject, do not run official CARLA. The action15 logit cap that helped
+the earlier corr048 branch does not move this post070p/route-priority branch.
+Next meaningful clean-first work should either:
+
+- change the sampler/loss so route-priority windows do not dominate target22
+  early-route action15 logits, or
+- collect a cleaner closed-loop tail component whose labels do not force this
+  target22 action15 collapse.

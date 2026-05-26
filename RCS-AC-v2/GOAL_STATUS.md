@@ -19,7 +19,7 @@ Stage 2: Privileged policy clean
 Status:
 
 ```text
-STAGE2_CLEAN_FIRST_ROUTE_PRIORITY_BRANCH_REJECTED_TARGET22_DOM15
+STAGE2_CLEAN_FIRST_ROUTE_PRIORITY_BRANCH_REJECTED_TARGET22_ACTION15_COLLAPSE
 ```
 
 Last completed stage:
@@ -705,6 +705,14 @@ dominant_action_fraction=0.9157088123 with action15 dominance, while steer2
 remained gate-passing. This rules out the retained latecap controls as the
 primary cause. Next work should reduce post070p/route-priority strength or add
 a target22 action15 dominance guard before any official CARLA run.
+The route-priority fraction `0.05` candidate and the same candidate plus
+`RouteActionLogitCapWeight=0.5, RouteActionLogitCapIds=15` were also rejected
+offline. Both kept target22 action15 dominance around 0.9195, while steer2
+remained gate-passing. The action15 cap was recorded in the checkpoint manifest
+but did not move this branch. Do not run official CARLA from this branch. Next
+meaningful Stage 2 work should either make route-priority sampling/loss
+component-aware enough not to dominate target22 early-route logits, or collect
+a cleaner closed-loop tail component.
 ```
 
 Do not start Stage 3 raw sensor work or any fusion ablation until:
