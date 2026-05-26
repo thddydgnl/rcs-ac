@@ -59,6 +59,12 @@ param(
     [double]$RouteActionLogitCapMinSpeedNorm = 0.0,
     [double]$RouteActionLogitCapMinRouteProgress = 0.0,
     [double]$RouteActionLogitCapMaxRouteProgress = 1.0,
+    [double]$RouteLateActionLogitCapWeight = 0.0,
+    [string]$RouteLateActionLogitCapIds = "",
+    [double]$RouteLateActionLogitCapMargin = 0.0,
+    [double]$RouteLateActionLogitCapMinSpeedNorm = 0.0,
+    [double]$RouteLateActionLogitCapMinRouteProgress = 0.0,
+    [double]$RouteLateActionLogitCapMaxRouteProgress = 1.0,
     [double]$RouteThrottleCeilingWeight = 0.0,
     [double]$RouteThrottleCeiling = 1.0,
     [double]$RouteThrottleMinSpeedNorm = 0.0,
@@ -287,6 +293,12 @@ $LatestPointer = [ordered]@{
     route_action_logit_cap_min_speed_norm = $RouteActionLogitCapMinSpeedNorm
     route_action_logit_cap_min_route_progress = $RouteActionLogitCapMinRouteProgress
     route_action_logit_cap_max_route_progress = $RouteActionLogitCapMaxRouteProgress
+    route_late_action_logit_cap_weight = $RouteLateActionLogitCapWeight
+    route_late_action_logit_cap_ids = $RouteLateActionLogitCapIds
+    route_late_action_logit_cap_margin = $RouteLateActionLogitCapMargin
+    route_late_action_logit_cap_min_speed_norm = $RouteLateActionLogitCapMinSpeedNorm
+    route_late_action_logit_cap_min_route_progress = $RouteLateActionLogitCapMinRouteProgress
+    route_late_action_logit_cap_max_route_progress = $RouteLateActionLogitCapMaxRouteProgress
     route_throttle_ceiling_weight = $RouteThrottleCeilingWeight
     route_throttle_ceiling = $RouteThrottleCeiling
     route_throttle_min_speed_norm = $RouteThrottleMinSpeedNorm
@@ -352,6 +364,11 @@ $StartArgs = @(
     "-RouteActionLogitCapMinSpeedNorm", $RouteActionLogitCapMinSpeedNorm,
     "-RouteActionLogitCapMinRouteProgress", $RouteActionLogitCapMinRouteProgress,
     "-RouteActionLogitCapMaxRouteProgress", $RouteActionLogitCapMaxRouteProgress,
+    "-RouteLateActionLogitCapWeight", $RouteLateActionLogitCapWeight,
+    "-RouteLateActionLogitCapMargin", $RouteLateActionLogitCapMargin,
+    "-RouteLateActionLogitCapMinSpeedNorm", $RouteLateActionLogitCapMinSpeedNorm,
+    "-RouteLateActionLogitCapMinRouteProgress", $RouteLateActionLogitCapMinRouteProgress,
+    "-RouteLateActionLogitCapMaxRouteProgress", $RouteLateActionLogitCapMaxRouteProgress,
     "-RouteThrottleCeilingWeight", $RouteThrottleCeilingWeight,
     "-RouteThrottleCeiling", $RouteThrottleCeiling,
     "-RouteThrottleMinSpeedNorm", $RouteThrottleMinSpeedNorm,
@@ -385,6 +402,9 @@ if ($RouteActionMassCapIds -ne "") {
 }
 if ($RouteActionLogitCapIds -ne "") {
     $StartArgs += @("-RouteActionLogitCapIds", $RouteActionLogitCapIds)
+}
+if ($RouteLateActionLogitCapIds -ne "") {
+    $StartArgs += @("-RouteLateActionLogitCapIds", $RouteLateActionLogitCapIds)
 }
 powershell @StartArgs
 exit $LASTEXITCODE

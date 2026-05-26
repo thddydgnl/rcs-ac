@@ -490,6 +490,12 @@ def test_replay_training_exports_clean_eval_loadable_checkpoints(tmp_path) -> No
         route_action_mass_cap_min_speed_norm=0.5,
         route_action_mass_cap_min_route_progress=0.55,
         route_action_mass_cap_max_route_progress=0.66,
+        route_late_action_logit_cap_weight=0.44,
+        route_late_action_logit_cap_ids=(8, 25),
+        route_late_action_logit_cap_margin=0.05,
+        route_late_action_logit_cap_min_speed_norm=0.0,
+        route_late_action_logit_cap_min_route_progress=0.74,
+        route_late_action_logit_cap_max_route_progress=0.80,
         route_throttle_ceiling_weight=0.4,
         route_throttle_ceiling=0.35,
         route_throttle_min_speed_norm=0.7,
@@ -556,6 +562,12 @@ def test_replay_training_exports_clean_eval_loadable_checkpoints(tmp_path) -> No
     assert manifest["route_action_mass_cap_min_speed_norm"] == 0.5
     assert manifest["route_action_mass_cap_min_route_progress"] == 0.55
     assert manifest["route_action_mass_cap_max_route_progress"] == 0.66
+    assert manifest["route_late_action_logit_cap_weight"] == 0.44
+    assert manifest["route_late_action_logit_cap_ids"] == [8, 25]
+    assert manifest["route_late_action_logit_cap_margin"] == 0.05
+    assert manifest["route_late_action_logit_cap_min_speed_norm"] == 0.0
+    assert manifest["route_late_action_logit_cap_min_route_progress"] == 0.74
+    assert manifest["route_late_action_logit_cap_max_route_progress"] == 0.8
     assert manifest["route_throttle_ceiling_weight"] == 0.4
     assert manifest["route_throttle_ceiling"] == 0.35
     assert manifest["route_throttle_min_speed_norm"] == 0.7
@@ -578,6 +590,7 @@ def test_replay_training_exports_clean_eval_loadable_checkpoints(tmp_path) -> No
     assert manifest["policy"]["metrics"]["final_action_mass_cap"] >= 0.0
     assert manifest["policy"]["metrics"]["final_route_speed_action_mass_cap"] >= 0.0
     assert manifest["policy"]["metrics"]["final_route_action_mass_cap"] >= 0.0
+    assert manifest["policy"]["metrics"]["final_route_late_action_logit_cap"] >= 0.0
     assert manifest["policy"]["metrics"]["final_route_throttle_ceiling"] >= 0.0
     assert manifest["policy"]["metrics"]["final_route_late_throttle_ceiling"] >= 0.0
     assert manifest["policy"]["metrics"]["final_route_action_override"] >= 0.0

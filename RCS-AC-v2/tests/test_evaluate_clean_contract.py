@@ -738,6 +738,19 @@ def test_stage2_replay_training_wrappers_expose_moving_steer_false_positive_stat
     assert '"-RouteLateThrottleCeilingWeight", $RouteLateThrottleCeilingWeight' in mixed
     assert '"-RouteLateThrottleMaxRouteProgress", $RouteLateThrottleMaxRouteProgress' in mixed
 
+    assert "--route-late-action-logit-cap-weight" in module
+    assert "--route-late-action-logit-cap-ids" in module
+    assert "[double]$RouteLateActionLogitCapWeight = 0.0" in train
+    assert "[string]$RouteLateActionLogitCapIds = \"\"" in train
+    assert '"--route-late-action-logit-cap-weight", $RouteLateActionLogitCapWeight' in train
+    assert '$TrainArgs += @("--route-late-action-logit-cap-ids", $RouteLateActionLogitCapIds)' in train
+    assert "[double]$RouteLateActionLogitCapWeight = 0.0" in start
+    assert "-RouteLateActionLogitCapWeight $RouteLateActionLogitCapWeight" in start
+    assert "route_late_action_logit_cap_weight = $RouteLateActionLogitCapWeight" in start
+    assert "[double]$RouteLateActionLogitCapWeight = 0.0" in mixed
+    assert '"-RouteLateActionLogitCapWeight", $RouteLateActionLogitCapWeight' in mixed
+    assert '$StartArgs += @("-RouteLateActionLogitCapIds", $RouteLateActionLogitCapIds)' in mixed
+
     assert "--route-action-override-weight" in module
     assert "--route-action-override-id" in module
     assert "[double]$RouteActionOverrideWeight = 0.0" in train
