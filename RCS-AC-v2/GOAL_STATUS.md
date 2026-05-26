@@ -607,17 +607,23 @@ LATE_RIGHT_STEER_MARGIN_LOCAL_TEST_PASS
 354C0B6_CORR045_T10_REPLAY_COLLECTION_PASS
 354C0B6_CORR045_T10_W003_OFFLINE_GATE_REJECT_TARGET22
 354C0B6_CORR045_T10_W001_OFFLINE_GATE_REJECT_STEER2
+9398470_CORR045_T14_REPLAY_COLLECTION_PASS
+9398470_CORR045_T14_W001_OFFLINE_GATE_PASS
+9398470_CORR045_T14_W001_512_FAIL_COLLISION_ROUTE0666
+9398470_CORR060_T14_REPLAY_COLLECTION_PASS
+9398470_CORR045_CORR060_T14_W001_OFFLINE_GATE_PASS
+9398470_CORR045_CORR060_T14_W001_512_FAIL_OFFROAD_ROUTE0718
 ```
 
 Current Stage 2 position:
 
 ```text
 Privileged clean is not solved yet.
-Latest official 512: FAIL collision at route_progress 0.5384615385, 130/512 steps.
-Latest successful replay collection: windows_privileged_354c0b6_corr045_midroute_t10_minthr00_min12.
-Latest offline candidates using that replay were rejected before CARLA.
+Latest official 512: FAIL offroad at route_progress 0.7179487179, 339/512 steps.
+Latest successful replay collections: windows_privileged_9398470_corr045_midroute_t14_minthr03_min16 and windows_privileged_9398470_corr060_late_t14_minthr03_min16.
+Latest offline candidate passed target22/steer2 but official 512 still failed.
 Do not start raw/fusion.
-Next direction: PDF Stage I privileged replay/BC with a less brittle 0.45-0.56 correction target.
+Next direction: PDF Stage I privileged replay/BC around route 0.69-0.72 or a route-local high-throttle/straight correction that preserves target22/steer2 gates.
 Avoid zero-throttle-only correction components unless filtered or strongly gated offline.
 ```
 

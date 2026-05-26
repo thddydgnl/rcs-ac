@@ -3201,3 +3201,119 @@ Decision:
   but avoid all-zero-throttle labels: either collect a longer earlier window
   with a moving throttle floor, or add an offline label/window filter before
   mixing, then re-run target22/steer2 cross replay gate.
+
+## 2026-05-26: moving-throttle route `0.45-0.72` correction replay attempts
+
+`windows_privileged_9398470_corr045_midroute_t14_minthr03_min16` was collected
+from the latest `mid048_w001` checkpoint:
+
+- target_speed_kmh `14`.
+- min_recorded_throttle `0.3`.
+- record_after_route_progress `0.45`.
+- episodes `4`.
+- episode_lengths `[16,16,16,16]`.
+- action_counts `{7:8,10:16,13:16,16:16,19:8}`.
+- route window `0.4615-0.5385`.
+- clean_gate_evidence `false`.
+
+`9398470_t22_steer2_late045_corr045t14_w001_ssf010_msfpa2` passed the
+target22/steer2 offline gate:
+
+- component weights:
+  `target22=1,steer2=1,late045t24mth03=0.02,corr045t14mth03=0.01`.
+- sequence_length `16`.
+- imitation_balance_power `0.25`.
+- moving_steer_false_positive_weight `2.0`.
+- moving_steer_nonmoving_margin_weight `1.0`.
+- target22:
+  - action_counts `{1:2,4:20,7:394,10:8,12:2,13:2,15:86,19:8}`.
+  - dominant_action_fraction `0.7547892720`.
+  - moving_steer_fraction `0.0804597701`.
+  - zero_throttle_fraction `0.0`.
+  - latent test accuracy `0.9904761910`.
+- steer2:
+  - action_counts `{1:5,4:59,7:491,10:8,15:82,16:2}`.
+  - dominant_action_fraction `0.7588871716`.
+  - moving_steer_fraction `0.1143740340`.
+  - zero_throttle_fraction `0.0`.
+  - latent test accuracy `0.9076923132`.
+- gate: `ready_for_clean_eval=true`.
+
+Official Windows CARLA 512 was run once and failed:
+
+- source: `windows_carla`.
+- status: `FAIL`.
+- failure_class: `driving`.
+- done_reason: `collision`.
+- steps: `307/512`.
+- route_progress: `0.6666666667`.
+- collision/offroad/stuck: `1/0/0`.
+- episode_return `17.9571528668`.
+- failure tail: route `0.59-0.6667`, speed around `18 km/h`, mostly action7
+  straight throttle with occasional action4, then collision on action7.
+
+Decision:
+
+- This was a real improvement over the previous route `0.5385` failure: the
+  policy reached route `0.6667` while keeping speed near `18 km/h`.
+- The next bottleneck moved to the later straight-hold region. Collect a
+  moving-throttle correction replay starting around route `0.60`.
+
+`windows_privileged_9398470_corr060_late_t14_minthr03_min16` was then
+collected from the `corr045t14` candidate:
+
+- target_speed_kmh `14`.
+- min_recorded_throttle `0.3`.
+- record_after_route_progress `0.60`.
+- episodes `4`.
+- episode_lengths `[29,24,24,24]`.
+- action_counts `{7:24,10:51,13:20,16:6}`.
+- route window `0.6154-0.6667`.
+- clean_gate_evidence `false`.
+
+`9398470_t22_steer2_corr045t14_corr060t14_w001_ssf010_msfpa2` also passed
+the target22/steer2 offline gate:
+
+- component weights:
+  `target22=1,steer2=1,corr045t14mth03=0.01,corr060t14mth03=0.01`.
+- sequence_length `16`.
+- imitation_balance_power `0.25`.
+- moving_steer_false_positive_weight `2.0`.
+- moving_steer_nonmoving_margin_weight `1.0`.
+- target22:
+  - action_counts `{4:26,7:422,12:2,15:64,16:6,19:2}`.
+  - dominant_action_fraction `0.8084291188`.
+  - moving_steer_fraction `0.0689655172`.
+  - zero_throttle_fraction `0.0`.
+  - latent test accuracy `0.9904761910`.
+- steer2:
+  - action_counts `{1:1,4:66,7:512,12:2,15:66}`.
+  - dominant_action_fraction `0.7913446677`.
+  - moving_steer_fraction `0.1066460587`.
+  - zero_throttle_fraction `0.0`.
+  - latent test accuracy `0.9153845906`.
+- gate: `ready_for_clean_eval=true`.
+
+Official Windows CARLA 512 was run once and failed:
+
+- source: `windows_carla`.
+- status: `FAIL`.
+- failure_class: `driving`.
+- done_reason: `offroad`.
+- steps: `339/512`.
+- route_progress: `0.7179487179`.
+- collision/offroad/stuck: `0/1/0`.
+- episode_return `25.0445291091`.
+- failure tail: route `0.6667-0.7179`, speed around `18-19.5 km/h`, long
+  action7 straight holds with action4 corrections, then action12/action15 high
+  throttle reappeared near route `0.692-0.718`; offroad occurred on action7.
+
+Decision:
+
+- The `corr060` replay moved the failure again, from route `0.6667` collision
+  to route `0.7179` offroad. This is progress but not clean pass.
+- Do not start raw/fusion.
+- Next clean-first direction is route `0.69-0.72` privileged correction or a
+  route-local high-throttle/straight-hold regularizer that specifically reduces
+  action12/action15 and excessive action7 straight holding in this later window
+  while preserving target22/steer2 gates.
