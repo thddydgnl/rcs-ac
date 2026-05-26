@@ -305,12 +305,24 @@ class PrivilegedReplaySampler:
         device: str | torch.device = "cpu",
         priority_action_ids: Sequence[int] | None = None,
         priority_sample_fraction: float = 0.0,
+        priority_min_route_progress: float | None = None,
+        priority_max_route_progress: float | None = None,
         episode_sample_weights: Sequence[float] | None = None,
     ) -> None:
         if sequence_length <= 0:
             raise ValueError("sequence_length must be positive")
         if not 0.0 <= float(priority_sample_fraction) <= 1.0:
             raise ValueError("priority_sample_fraction must be in [0, 1]")
+        if priority_min_route_progress is not None and not 0.0 <= float(priority_min_route_progress) <= 1.0:
+            raise ValueError("priority_min_route_progress must be in [0, 1]")
+        if priority_max_route_progress is not None and not 0.0 <= float(priority_max_route_progress) <= 1.0:
+            raise ValueError("priority_max_route_progress must be in [0, 1]")
+        if (
+            priority_min_route_progress is not None
+            and priority_max_route_progress is not None
+            and float(priority_min_route_progress) > float(priority_max_route_progress)
+        ):
+            raise ValueError("priority_min_route_progress must be <= priority_max_route_progress")
         episode_weights = [
             (episode, float(weight))
             for episode, weight in zip(
@@ -346,15 +358,25 @@ class PrivilegedReplaySampler:
         self.priority_sample_fraction = float(priority_sample_fraction)
         priority_ids = {int(action_id) for action_id in priority_action_ids or ()}
         self.priority_action_ids = tuple(sorted(priority_ids))
+        self.priority_min_route_progress = (
+            None if priority_min_route_progress is None else float(priority_min_route_progress)
+        )
+        self.priority_max_route_progress = (
+            None if priority_max_route_progress is None else float(priority_max_route_progress)
+        )
         self.priority_starts: list[tuple[PrivilegedReplayEpisode, int]] = []
         self.total_window_count = sum(
             max(0, episode.length - self.sequence_length + 1) for episode in self.episodes
         )
-        if priority_ids and self.priority_sample_fraction > 0.0:
+        priority_route_enabled = (
+            self.priority_min_route_progress is not None
+            or self.priority_max_route_progress is not None
+        )
+        if self.priority_sample_fraction > 0.0 and (priority_ids or priority_route_enabled):
             for episode in self.episodes:
                 for start in range(0, episode.length - self.sequence_length + 1):
                     end = start + self.sequence_length
-                    if any(int(action_id) in priority_ids for action_id in episode.action[start:end]):
+                    if self._is_priority_window(episode, start, end):
                         self.priority_starts.append((episode, start))
 
     def sample(self, batch_size: int) -> PrivilegedSequenceBatch:
@@ -392,6 +414,33 @@ class PrivilegedReplaySampler:
         start = int(self.rng.integers(0, episode.length - self.sequence_length + 1))
         return episode, start
 
+    def _is_priority_window(self, episode: PrivilegedReplayEpisode, start: int, end: int) -> bool:
+        if self.priority_action_ids and not any(
+            int(action_id) in self.priority_action_ids for action_id in episode.action[start:end]
+        ):
+            return False
+        route_progress = episode.privileged_ego[start:end, 1]
+        if self.priority_min_route_progress is not None and not bool(
+            (route_progress >= self.priority_min_route_progress).any()
+        ):
+            return False
+        if self.priority_max_route_progress is not None and not bool(
+            (route_progress <= self.priority_max_route_progress).any()
+        ):
+            return False
+        if (
+            self.priority_min_route_progress is not None
+            and self.priority_max_route_progress is not None
+            and not bool(
+                (
+                    (route_progress >= self.priority_min_route_progress)
+                    & (route_progress <= self.priority_max_route_progress)
+                ).any()
+            )
+        ):
+            return False
+        return True
+
     def priority_stats(self) -> dict[str, Any]:
         priority_count = len(self.priority_starts)
         priority_fraction = (
@@ -407,6 +456,8 @@ class PrivilegedReplaySampler:
             "priority_window_count": int(priority_count),
             "priority_window_fraction": priority_fraction,
             "priority_action_ids": list(self.priority_action_ids),
+            "priority_min_route_progress": self.priority_min_route_progress,
+            "priority_max_route_progress": self.priority_max_route_progress,
             "requested_priority_sample_fraction": float(self.priority_sample_fraction),
             "effective_priority_sample_fraction": float(effective_sample_fraction),
             "episode_sample_probabilities": [

@@ -3870,3 +3870,25 @@ Current conclusion:
   sweeps and move to route-conditioned replay filtering/loss or closed-loop
   failure-window collection that explicitly separates route `0.56-0.67` from
   the true post-`0.70/0.72` tail.
+
+## Route-priority sampler hook
+
+Implemented next clean-first infrastructure:
+
+- `PrivilegedReplaySampler` can now build priority windows by route progress
+  bounds, with optional action-id intersection.
+- `train_stage2_privileged_from_replay.py` exposes:
+  - `route_priority_sample_fraction`
+  - `route_priority_action_ids`
+  - `route_priority_min_route_progress`
+  - `route_priority_max_route_progress`
+- Windows training, detached training, and mixed-candidate cycle wrappers pass
+  these knobs through and record them in launch/checkpoint manifests.
+- The hook is disabled by default, so existing candidates are unchanged unless
+  the route-priority arguments are set.
+
+Decision: next Stage 2 candidate should use this route-window priority hook
+instead of another global action10 cap/override sweep. Promotion remains
+offline-first: require target22 and steer2 cross-replay gate success plus
+route-bin evidence showing action10/action13 are not leaking into route
+`0.55-0.67` before any official 512 clean eval.

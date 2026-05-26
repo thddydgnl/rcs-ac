@@ -109,6 +109,31 @@ def test_privileged_replay_sampler_can_prioritize_steering_sequences(tmp_path) -
     assert stats["effective_priority_sample_fraction"] == 1.0
 
 
+def test_privileged_replay_sampler_can_prioritize_route_windows(tmp_path) -> None:
+    arrays = _replay_arrays(length=20)
+    arrays["privileged_ego"][:, 1] = np.linspace(0.0, 0.95, 20, dtype=np.float32)
+    path = save_privileged_replay_episode(tmp_path / "episode_0000.npz", **arrays)
+    episode = load_privileged_replay_episode(path)
+    sampler = PrivilegedReplaySampler(
+        [episode],
+        sequence_length=4,
+        seed=3,
+        priority_sample_fraction=1.0,
+        priority_min_route_progress=0.65,
+        priority_max_route_progress=0.75,
+    )
+    batch = sampler.sample(batch_size=12)
+    stats = sampler.priority_stats()
+    route = batch.privileged_ego[:, :, 1]
+
+    assert (((route >= 0.65) & (route <= 0.75)).any(dim=1)).all()
+    assert stats["priority_window_count"] == 6
+    assert stats["priority_window_fraction"] == pytest.approx(6 / 17)
+    assert stats["priority_action_ids"] == []
+    assert stats["priority_min_route_progress"] == 0.65
+    assert stats["priority_max_route_progress"] == 0.75
+
+
 def test_privileged_replay_sampler_supports_episode_sample_weights(tmp_path) -> None:
     primary_arrays = _replay_arrays(length=20)
     primary_path = save_privileged_replay_episode(
@@ -446,9 +471,11 @@ def test_collect_episode_records_minimum_throttle_metadata() -> None:
 
 
 def test_replay_training_exports_clean_eval_loadable_checkpoints(tmp_path) -> None:
+    replay_arrays = _replay_arrays(length=8)
+    replay_arrays["privileged_ego"][:, 1] = np.linspace(0.0, 0.875, 8, dtype=np.float32)
     replay_path = save_privileged_replay_episode(
         tmp_path / "episode_target22_0000.npz",
-        **_replay_arrays(length=8),
+        **replay_arrays,
     )
     replay_config_path = tmp_path / "clean_128.yaml"
     replay_config_path.write_text("stage: stage2_privileged_policy_clean\n")
@@ -470,6 +497,10 @@ def test_replay_training_exports_clean_eval_loadable_checkpoints(tmp_path) -> No
         imitation_weight=1.5,
         behavior_weight=0.5,
         imitation_class_balance=True,
+        route_priority_sample_fraction=0.25,
+        route_priority_action_ids=(10,),
+        route_priority_min_route_progress=0.25,
+        route_priority_max_route_progress=0.75,
         moving_steer_false_positive_weight=0.25,
         moving_steer_binary_weight=0.5,
         moving_steer_nonmoving_margin_weight=0.75,
@@ -538,6 +569,10 @@ def test_replay_training_exports_clean_eval_loadable_checkpoints(tmp_path) -> No
     assert manifest["imitation_class_balance"] is True
     assert manifest["imitation_balance_power"] == 1.0
     assert manifest["steer_sequence_fraction"] == 0.0
+    assert manifest["route_priority_sample_fraction"] == 0.25
+    assert manifest["route_priority_action_ids"] == [10]
+    assert manifest["route_priority_min_route_progress"] == 0.25
+    assert manifest["route_priority_max_route_progress"] == 0.75
     assert manifest["moving_steer_false_positive_weight"] == 0.25
     assert manifest["moving_steer_binary_weight"] == 0.5
     assert manifest["moving_steer_nonmoving_margin_weight"] == 0.75
@@ -594,8 +629,11 @@ def test_replay_training_exports_clean_eval_loadable_checkpoints(tmp_path) -> No
     assert manifest["policy"]["metrics"]["final_route_throttle_ceiling"] >= 0.0
     assert manifest["policy"]["metrics"]["final_route_late_throttle_ceiling"] >= 0.0
     assert manifest["policy"]["metrics"]["final_route_action_override"] >= 0.0
-    assert manifest["sampler"]["requested_priority_sample_fraction"] == 0.0
+    assert manifest["sampler"]["requested_priority_sample_fraction"] == 0.25
     assert "priority_window_count" in manifest["sampler"]
+    assert manifest["sampler"]["priority_action_ids"] == [10]
+    assert manifest["sampler"]["priority_min_route_progress"] == 0.25
+    assert manifest["sampler"]["priority_max_route_progress"] == 0.75
     assert manifest["sampler"]["episode_sample_probabilities"] == [1.0]
     assert output["logits"].shape == (1, 1, 39)
     assert torch.isfinite(output["logits"]).all()

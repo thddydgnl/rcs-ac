@@ -20,6 +20,10 @@ param(
     [switch]$ImitationClassBalance,
     [double]$ImitationBalancePower = 1.0,
     [double]$SteerSequenceFraction = 0.0,
+    [double]$RoutePrioritySampleFraction = 0.0,
+    [string]$RoutePriorityActionIds = "",
+    [double]$RoutePriorityMinRouteProgress = 0.0,
+    [double]$RoutePriorityMaxRouteProgress = 1.0,
     [double]$MovingSteerFalsePositiveWeight = 0.0,
     [double]$MovingSteerBinaryWeight = 0.0,
     [double]$MovingSteerNonmovingMarginWeight = 0.0,
@@ -118,6 +122,9 @@ $TrainArgs = @(
     "--behavior-entropy-weight", $BehaviorEntropyWeight,
     "--imitation-balance-power", $ImitationBalancePower,
     "--steer-sequence-fraction", $SteerSequenceFraction,
+    "--route-priority-sample-fraction", $RoutePrioritySampleFraction,
+    "--route-priority-min-route-progress", $RoutePriorityMinRouteProgress,
+    "--route-priority-max-route-progress", $RoutePriorityMaxRouteProgress,
     "--moving-steer-false-positive-weight", $MovingSteerFalsePositiveWeight,
     "--moving-steer-binary-weight", $MovingSteerBinaryWeight,
     "--moving-steer-nonmoving-margin-weight", $MovingSteerNonmovingMarginWeight,
@@ -180,6 +187,9 @@ if ($ActionMassCaps -ne "") {
 }
 if ($RouteSpeedActionIds -ne "") {
     $TrainArgs += @("--route-speed-action-ids", $RouteSpeedActionIds)
+}
+if ($RoutePriorityActionIds -ne "") {
+    $TrainArgs += @("--route-priority-action-ids", $RoutePriorityActionIds)
 }
 if ($RouteActionMassCapIds -ne "") {
     $TrainArgs += @("--route-action-mass-cap-ids", $RouteActionMassCapIds)

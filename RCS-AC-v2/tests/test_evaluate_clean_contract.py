@@ -635,6 +635,23 @@ def test_stage2_replay_training_wrappers_expose_moving_steer_false_positive_stat
     assert "[double]$MovingSteerFalsePositiveWeight = 0.0" in target_speed
     assert '"-MovingSteerFalsePositiveWeight", $MovingSteerFalsePositiveWeight' in target_speed
 
+    assert "--route-priority-sample-fraction" in module
+    assert "--route-priority-action-ids" in module
+    assert "[double]$RoutePrioritySampleFraction = 0.0" in train
+    assert "[string]$RoutePriorityActionIds = \"\"" in train
+    assert '"--route-priority-sample-fraction", $RoutePrioritySampleFraction' in train
+    assert '$TrainArgs += @("--route-priority-action-ids", $RoutePriorityActionIds)' in train
+    assert "[double]$RoutePrioritySampleFraction = 0.0" in start
+    assert "[string]$RoutePriorityActionIds = \"\"" in start
+    assert "-RoutePrioritySampleFraction $RoutePrioritySampleFraction" in start
+    assert "-RoutePriorityActionIds $QuotedRoutePriorityActionIds" in start
+    assert "route_priority_sample_fraction = $RoutePrioritySampleFraction" in start
+    assert "route_priority_action_ids = $RoutePriorityActionIds" in start
+    assert "[double]$RoutePrioritySampleFraction = 0.0" in mixed
+    assert "[string]$RoutePriorityActionIds = \"\"" in mixed
+    assert '"-RoutePrioritySampleFraction", $RoutePrioritySampleFraction' in mixed
+    assert '$StartArgs += @("-RoutePriorityActionIds", $RoutePriorityActionIds)' in mixed
+
     assert "--moving-steer-binary-weight" in module
     assert "moving_steer_binary_weight" in module
     assert "--moving-steer-nonmoving-margin-weight" in module

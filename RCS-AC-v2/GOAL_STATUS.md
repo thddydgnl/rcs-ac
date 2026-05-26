@@ -19,7 +19,7 @@ Stage 2: Privileged policy clean
 Status:
 
 ```text
-STAGE2_CLEAN_FIRST_ACTION10_BRANCH_REJECTED_ROUTE0615
+STAGE2_CLEAN_FIRST_ROUTE_PRIORITY_HOOK_READY
 ```
 
 Last completed stage:
@@ -685,6 +685,14 @@ checks can directly reject mid-route action10/action13 leakage. Next meaningful
 work should stop global action10 cap/override sweeps and move to route-conditioned
 replay filtering/loss or closed-loop failure-window collection.
 Avoid zero-throttle-only correction components unless filtered or strongly gated offline.
+Route-priority replay sampling is now implemented for the next clean-first
+candidate: `route_priority_sample_fraction`, optional
+`route_priority_action_ids`, and min/max route-progress bounds are wired through
+the Python trainer plus Windows train/detached/mixed candidate wrappers. The
+next candidate should use this hook to localize post-0.70 correction windows
+without another global action10 cap/override sweep, and should only promote to
+official 512 clean if the target22/steer2 cross-replay gate and route-bin
+action10/action13 leakage checks both pass.
 ```
 
 Do not start Stage 3 raw sensor work or any fusion ablation until:

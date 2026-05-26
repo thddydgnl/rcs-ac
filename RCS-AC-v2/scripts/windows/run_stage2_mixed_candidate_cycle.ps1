@@ -28,6 +28,10 @@ param(
     [double]$BehaviorWeight = 0.0,
     [double]$ImitationBalancePower = 0.5,
     [double]$SteerSequenceFraction = 0.15,
+    [double]$RoutePrioritySampleFraction = 0.0,
+    [string]$RoutePriorityActionIds = "",
+    [double]$RoutePriorityMinRouteProgress = 0.0,
+    [double]$RoutePriorityMaxRouteProgress = 1.0,
     [double]$MovingSteerFalsePositiveWeight = 0.0,
     [double]$MovingSteerBinaryWeight = 0.0,
     [double]$MovingSteerNonmovingMarginWeight = 0.0,
@@ -263,6 +267,10 @@ $LatestPointer = [ordered]@{
     task_name = $TaskName
     seed = $Seed
     steer_sequence_fraction = $SteerSequenceFraction
+    route_priority_sample_fraction = $RoutePrioritySampleFraction
+    route_priority_action_ids = $RoutePriorityActionIds
+    route_priority_min_route_progress = $RoutePriorityMinRouteProgress
+    route_priority_max_route_progress = $RoutePriorityMaxRouteProgress
     moving_steer_false_positive_weight = $MovingSteerFalsePositiveWeight
     moving_steer_binary_weight = $MovingSteerBinaryWeight
     moving_steer_nonmoving_margin_weight = $MovingSteerNonmovingMarginWeight
@@ -338,6 +346,9 @@ $StartArgs = @(
     "-ImitationClassBalance",
     "-ImitationBalancePower", $ImitationBalancePower,
     "-SteerSequenceFraction", $SteerSequenceFraction,
+    "-RoutePrioritySampleFraction", $RoutePrioritySampleFraction,
+    "-RoutePriorityMinRouteProgress", $RoutePriorityMinRouteProgress,
+    "-RoutePriorityMaxRouteProgress", $RoutePriorityMaxRouteProgress,
     "-MovingSteerFalsePositiveWeight", $MovingSteerFalsePositiveWeight,
     "-MovingSteerBinaryWeight", $MovingSteerBinaryWeight,
     "-MovingSteerNonmovingMarginWeight", $MovingSteerNonmovingMarginWeight,
@@ -396,6 +407,9 @@ if ($ActionMassCaps -ne "") {
 }
 if ($RouteSpeedActionIds -ne "") {
     $StartArgs += @("-RouteSpeedActionIds", $RouteSpeedActionIds)
+}
+if ($RoutePriorityActionIds -ne "") {
+    $StartArgs += @("-RoutePriorityActionIds", $RoutePriorityActionIds)
 }
 if ($RouteActionMassCapIds -ne "") {
     $StartArgs += @("-RouteActionMassCapIds", $RouteActionMassCapIds)

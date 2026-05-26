@@ -59,6 +59,10 @@ def train_stage2_privileged_from_replay(
     imitation_class_balance: bool = False,
     imitation_balance_power: float = 1.0,
     steer_sequence_fraction: float = 0.0,
+    route_priority_sample_fraction: float = 0.0,
+    route_priority_action_ids: tuple[int, ...] = (),
+    route_priority_min_route_progress: float = 0.0,
+    route_priority_max_route_progress: float = 1.0,
     moving_steer_false_positive_weight: float = 0.0,
     moving_steer_binary_weight: float = 0.0,
     moving_steer_nonmoving_margin_weight: float = 0.0,
@@ -132,6 +136,8 @@ def train_stage2_privileged_from_replay(
             behavior_entropy_weight=behavior_entropy_weight,
             imitation_class_balance=imitation_class_balance,
             steer_sequence_fraction=steer_sequence_fraction,
+            route_priority_sample_fraction=route_priority_sample_fraction,
+            route_priority_action_ids=route_priority_action_ids,
             moving_steer_false_positive_weight=moving_steer_false_positive_weight,
             moving_steer_binary_weight=moving_steer_binary_weight,
             moving_steer_nonmoving_margin_weight=moving_steer_nonmoving_margin_weight,
@@ -168,6 +174,15 @@ def train_stage2_privileged_from_replay(
         raise ValueError("behavior_entropy_weight must be non-negative")
     if moving_steer_false_positive_weight < 0.0:
         raise ValueError("moving_steer_false_positive_weight must be non-negative")
+    if not 0.0 <= float(route_priority_sample_fraction) <= 1.0:
+        raise ValueError("route_priority_sample_fraction must be in [0, 1]")
+    resolved_route_priority_action_ids = _normalize_action_id_tuple(route_priority_action_ids)
+    if not 0.0 <= float(route_priority_min_route_progress) <= 1.0:
+        raise ValueError("route_priority_min_route_progress must be in [0, 1]")
+    if not 0.0 <= float(route_priority_max_route_progress) <= 1.0:
+        raise ValueError("route_priority_max_route_progress must be in [0, 1]")
+    if float(route_priority_min_route_progress) > float(route_priority_max_route_progress):
+        raise ValueError("route_priority_min_route_progress must be <= route_priority_max_route_progress")
     if moving_steer_binary_weight < 0.0:
         raise ValueError("moving_steer_binary_weight must be non-negative")
     if moving_steer_nonmoving_margin_weight < 0.0:
@@ -350,13 +365,28 @@ def train_stage2_privileged_from_replay(
         if imitation_class_balance
         else None
     )
+    priority_sample_fraction = float(steer_sequence_fraction)
+    priority_action_ids: tuple[int, ...] | None = (
+        _moving_steer_action_ids() if steer_sequence_fraction > 0.0 else None
+    )
+    priority_min_route_progress: float | None = None
+    priority_max_route_progress: float | None = None
+    if route_priority_sample_fraction > 0.0:
+        priority_sample_fraction = float(route_priority_sample_fraction)
+        priority_action_ids = (
+            resolved_route_priority_action_ids if resolved_route_priority_action_ids else None
+        )
+        priority_min_route_progress = float(route_priority_min_route_progress)
+        priority_max_route_progress = float(route_priority_max_route_progress)
     sampler = PrivilegedReplaySampler(
         episodes,
         sequence_length=sequence_length,
         seed=seed,
         device=resolved_device,
-        priority_action_ids=_moving_steer_action_ids() if steer_sequence_fraction > 0.0 else None,
-        priority_sample_fraction=steer_sequence_fraction,
+        priority_action_ids=priority_action_ids,
+        priority_sample_fraction=priority_sample_fraction,
+        priority_min_route_progress=priority_min_route_progress,
+        priority_max_route_progress=priority_max_route_progress,
         episode_sample_weights=episode_sample_weights,
     )
     sampler_stats = sampler.priority_stats()
@@ -624,6 +654,10 @@ def train_stage2_privileged_from_replay(
         "imitation_class_balance": bool(imitation_class_balance),
         "imitation_balance_power": float(imitation_balance_power),
         "steer_sequence_fraction": float(steer_sequence_fraction),
+        "route_priority_sample_fraction": float(route_priority_sample_fraction),
+        "route_priority_action_ids": list(resolved_route_priority_action_ids),
+        "route_priority_min_route_progress": float(route_priority_min_route_progress),
+        "route_priority_max_route_progress": float(route_priority_max_route_progress),
         "moving_steer_false_positive_weight": float(moving_steer_false_positive_weight),
         "moving_steer_binary_weight": float(moving_steer_binary_weight),
         "moving_steer_nonmoving_margin_weight": float(moving_steer_nonmoving_margin_weight),
@@ -885,6 +919,10 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--imitation-class-balance", action="store_true")
     parser.add_argument("--imitation-balance-power", type=float, default=1.0)
     parser.add_argument("--steer-sequence-fraction", type=float, default=0.0)
+    parser.add_argument("--route-priority-sample-fraction", type=float, default=0.0)
+    parser.add_argument("--route-priority-action-ids", default="")
+    parser.add_argument("--route-priority-min-route-progress", type=float, default=0.0)
+    parser.add_argument("--route-priority-max-route-progress", type=float, default=1.0)
     parser.add_argument("--moving-steer-false-positive-weight", type=float, default=0.0)
     parser.add_argument("--moving-steer-binary-weight", type=float, default=0.0)
     parser.add_argument("--moving-steer-nonmoving-margin-weight", type=float, default=0.0)
@@ -967,6 +1005,10 @@ def main(argv: list[str] | None = None) -> None:
         imitation_class_balance=args.imitation_class_balance,
         imitation_balance_power=args.imitation_balance_power,
         steer_sequence_fraction=args.steer_sequence_fraction,
+        route_priority_sample_fraction=args.route_priority_sample_fraction,
+        route_priority_action_ids=_parse_action_id_list(args.route_priority_action_ids),
+        route_priority_min_route_progress=args.route_priority_min_route_progress,
+        route_priority_max_route_progress=args.route_priority_max_route_progress,
         moving_steer_false_positive_weight=args.moving_steer_false_positive_weight,
         moving_steer_binary_weight=args.moving_steer_binary_weight,
         moving_steer_nonmoving_margin_weight=args.moving_steer_nonmoving_margin_weight,
@@ -1053,6 +1095,8 @@ def _validate_pdf_stage1_strict_config(
     behavior_entropy_weight: float,
     imitation_class_balance: bool,
     steer_sequence_fraction: float,
+    route_priority_sample_fraction: float,
+    route_priority_action_ids: tuple[int, ...],
     moving_steer_false_positive_weight: float,
     moving_steer_binary_weight: float,
     moving_steer_nonmoving_margin_weight: float,
@@ -1096,6 +1140,8 @@ def _validate_pdf_stage1_strict_config(
         violations.append("imitation_class_balance must be disabled")
     if float(steer_sequence_fraction) != 0.0:
         violations.append("steer_sequence_fraction must be 0")
+    if float(route_priority_sample_fraction) != 0.0:
+        violations.append("route_priority_sample_fraction must be 0")
     for name, value in {
         "moving_steer_false_positive_weight": moving_steer_false_positive_weight,
         "moving_steer_binary_weight": moving_steer_binary_weight,
@@ -1120,6 +1166,8 @@ def _validate_pdf_stage1_strict_config(
         violations.append("action_mass_caps must be empty")
     if route_speed_action_ids:
         violations.append("route_speed_action_ids must be empty")
+    if route_priority_action_ids:
+        violations.append("route_priority_action_ids must be empty")
     if route_action_mass_cap_ids:
         violations.append("route_action_mass_cap_ids must be empty")
     if route_action_logit_cap_ids:
