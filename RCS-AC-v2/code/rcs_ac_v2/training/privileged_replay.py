@@ -73,14 +73,21 @@ def save_privileged_replay_episode(
 ) -> Path:
     target = Path(path)
     target.parent.mkdir(parents=True, exist_ok=True)
+    bev_array = np.asarray(privileged_bev, dtype=np.float32)
+    ego_array = np.asarray(privileged_ego, dtype=np.float32)
+    metadata_payload = {
+        "privileged_bev_shape": [int(item) for item in bev_array.shape],
+        "privileged_ego_shape": [int(item) for item in ego_array.shape],
+        **(metadata or {}),
+    }
     episode = PrivilegedReplayEpisode(
         path=target,
-        privileged_bev=np.asarray(privileged_bev, dtype=np.float32),
-        privileged_ego=np.asarray(privileged_ego, dtype=np.float32),
+        privileged_bev=bev_array,
+        privileged_ego=ego_array,
         action=np.asarray(action, dtype=np.int64),
         reward=np.asarray(reward, dtype=np.float32),
         cont=np.asarray(cont, dtype=np.float32),
-        metadata=default_replay_metadata(extra=metadata or {}),
+        metadata=default_replay_metadata(extra=metadata_payload),
     )
     validate_replay_episode(episode)
     np.savez_compressed(
@@ -148,6 +155,10 @@ def validate_replay_episode(episode: PrivilegedReplayEpisode) -> None:
         raise ValueError("privileged replay semantic schema mismatch")
     if metadata.get("privileged_bev_channel_names_sha256") != SEMANTIC43_CHANNEL_NAMES_SHA256:
         raise ValueError("privileged replay semantic channel hash mismatch")
+    if "privileged_bev_shape" in metadata and list(metadata["privileged_bev_shape"]) != list(bev.shape):
+        raise ValueError("privileged replay metadata BEV shape mismatch")
+    if "privileged_ego_shape" in metadata and list(metadata["privileged_ego_shape"]) != list(ego.shape):
+        raise ValueError("privileged replay metadata ego shape mismatch")
 
 
 def find_replay_files(paths: Iterable[str | Path]) -> list[Path]:
@@ -198,6 +209,18 @@ def write_privileged_replay_manifest(
         "privileged_observation_schema": SEMANTIC43_SCHEMA_VERSION,
         "privileged_bev_channel_names_sha256": SEMANTIC43_CHANNEL_NAMES_SHA256,
         "privileged_ego_schema": EGO8_SCHEMA_VERSION,
+        "privileged_bev_shapes": [
+            list(shape)
+            for shape in sorted(
+                {tuple(int(item) for item in episode.privileged_bev.shape) for episode in episodes}
+            )
+        ],
+        "privileged_ego_shapes": [
+            list(shape)
+            for shape in sorted(
+                {tuple(int(item) for item in episode.privileged_ego.shape) for episode in episodes}
+            )
+        ],
         "config": str(config_path),
         "config_sha256": sha256_file(Path(config_path)),
         "episodes": len(episodes),
@@ -254,6 +277,24 @@ def validate_replay_manifest_payload(payload: dict[str, Any], *, manifest_dir: P
         raise ValueError("privileged replay manifest semantic channel hash mismatch")
     if payload.get("privileged_ego_schema") != EGO8_SCHEMA_VERSION:
         raise ValueError("privileged replay manifest ego schema mismatch")
+    bev_shapes = payload.get("privileged_bev_shapes")
+    if not isinstance(bev_shapes, list) or not bev_shapes:
+        raise ValueError("privileged replay manifest must include privileged_bev_shapes")
+    for shape in bev_shapes:
+        if (
+            not isinstance(shape, list)
+            or len(shape) != 4
+            or int(shape[1]) != 43
+            or int(shape[2]) <= 0
+            or int(shape[3]) <= 0
+        ):
+            raise ValueError("privileged replay manifest BEV shapes must be [T,43,H,W]")
+    ego_shapes = payload.get("privileged_ego_shapes")
+    if not isinstance(ego_shapes, list) or not ego_shapes:
+        raise ValueError("privileged replay manifest must include privileged_ego_shapes")
+    for shape in ego_shapes:
+        if not isinstance(shape, list) or len(shape) != 2 or int(shape[1]) != 8:
+            raise ValueError("privileged replay manifest ego shapes must be [T,8]")
     files = payload.get("files")
     if not isinstance(files, list) or not files:
         raise ValueError("privileged replay manifest must list replay files")
@@ -307,6 +348,7 @@ class PrivilegedReplaySampler:
         priority_sample_fraction: float = 0.0,
         priority_min_route_progress: float | None = None,
         priority_max_route_progress: float | None = None,
+        priority_episode_mask: Sequence[bool] | None = None,
         episode_sample_weights: Sequence[float] | None = None,
     ) -> None:
         if sequence_length <= 0:
@@ -323,30 +365,45 @@ class PrivilegedReplaySampler:
             and float(priority_min_route_progress) > float(priority_max_route_progress)
         ):
             raise ValueError("priority_min_route_progress must be <= priority_max_route_progress")
+        if priority_episode_mask is not None and len(priority_episode_mask) != len(episodes):
+            raise ValueError("priority_episode_mask length must match episodes")
+        episode_priority_mask = (
+            [True for _episode in episodes]
+            if priority_episode_mask is None
+            else [bool(item) for item in priority_episode_mask]
+        )
+        raw_episode_weights = episode_sample_weights or [1.0 for _episode in episodes]
         episode_weights = [
-            (episode, float(weight))
-            for episode, weight in zip(
+            (episode, float(weight), bool(priority_allowed))
+            for episode, weight, priority_allowed in zip(
                 episodes,
-                episode_sample_weights or [1.0 for _episode in episodes],
+                raw_episode_weights,
+                episode_priority_mask,
                 strict=True,
             )
         ]
-        if any(weight < 0.0 for _episode, weight in episode_weights):
+        if any(weight < 0.0 for _episode, weight, _priority_allowed in episode_weights):
             raise ValueError("episode_sample_weights must be non-negative")
         weighted_episodes = [
-            (episode, weight)
-            for episode, weight in episode_weights
+            (episode, weight, priority_allowed)
+            for episode, weight, priority_allowed in episode_weights
             if episode.length >= sequence_length
         ]
         self.dropped_short_episodes = [
             (episode, weight)
-            for episode, weight in episode_weights
+            for episode, weight, _priority_allowed in episode_weights
             if episode.length < sequence_length
         ]
-        self.episodes = [episode for episode, _weight in weighted_episodes]
+        self.episodes = [episode for episode, _weight, _priority_allowed in weighted_episodes]
+        self.priority_episode_mask = [
+            bool(priority_allowed) for _episode, _weight, priority_allowed in weighted_episodes
+        ]
         if not self.episodes:
             raise ValueError("no replay episodes are long enough for the requested sequence_length")
-        raw_weights = np.asarray([weight for _episode, weight in weighted_episodes], dtype=np.float64)
+        raw_weights = np.asarray(
+            [weight for _episode, weight, _priority_allowed in weighted_episodes],
+            dtype=np.float64,
+        )
         if not np.isfinite(raw_weights).all():
             raise ValueError("episode_sample_weights must be finite")
         if float(raw_weights.sum()) <= 0.0:
@@ -373,7 +430,13 @@ class PrivilegedReplaySampler:
             or self.priority_max_route_progress is not None
         )
         if self.priority_sample_fraction > 0.0 and (priority_ids or priority_route_enabled):
-            for episode in self.episodes:
+            for episode, priority_allowed in zip(
+                self.episodes,
+                self.priority_episode_mask,
+                strict=True,
+            ):
+                if not priority_allowed:
+                    continue
                 for start in range(0, episode.length - self.sequence_length + 1):
                     end = start + self.sequence_length
                     if self._is_priority_window(episode, start, end):
@@ -452,6 +515,7 @@ class PrivilegedReplaySampler:
             "episode_count": int(len(self.episodes) + len(self.dropped_short_episodes)),
             "included_episode_count": int(len(self.episodes)),
             "dropped_short_episode_count": int(len(self.dropped_short_episodes)),
+            "priority_episode_count": int(sum(self.priority_episode_mask)),
             "total_window_count": int(self.total_window_count),
             "priority_window_count": int(priority_count),
             "priority_window_fraction": priority_fraction,
@@ -468,10 +532,12 @@ class PrivilegedReplaySampler:
                     "path": str(episode.path),
                     "length": int(episode.length),
                     "sample_probability": float(probability),
+                    "priority_allowed": bool(priority_allowed),
                 }
-                for episode, probability in zip(
+                for episode, probability, priority_allowed in zip(
                     self.episodes,
                     self.episode_sample_probabilities.tolist(),
+                    self.priority_episode_mask,
                     strict=True,
                 )
             ],

@@ -56,6 +56,7 @@ from rcs_ac_v2.training.train_stage2_privileged_from_replay import (
     _right_moving_steer_action_mask,
     _route_speed_action_mass_cap_loss,
     _route_throttle_ceiling_loss,
+    _single_replay_bev_hw,
     train_stage2_privileged_from_replay,
 )
 
@@ -69,6 +70,75 @@ def _replay_arrays(length: int = 6) -> dict[str, np.ndarray]:
         "reward": np.linspace(0.0, 0.5, length, dtype=np.float32),
         "cont": np.ones(length, dtype=np.float32),
     }
+
+
+def test_privileged_replay_roundtrip_accepts_32x32_bev_and_records_shapes(tmp_path) -> None:
+    arrays = _replay_arrays(length=5)
+    arrays["privileged_bev"] = np.zeros((5, 43, 32, 32), dtype=np.float32)
+    path = save_privileged_replay_episode(tmp_path / "episode_32_0000.npz", **arrays)
+
+    episode = load_privileged_replay_episode(path)
+
+    assert episode.privileged_bev.shape == (5, 43, 32, 32)
+    assert episode.metadata["privileged_bev_shape"] == [5, 43, 32, 32]
+    assert episode.metadata["privileged_ego_shape"] == [5, 8]
+
+
+def test_replay_training_uses_32x32_replay_shape_for_world_model(tmp_path) -> None:
+    replay_arrays = _replay_arrays(length=8)
+    replay_arrays["privileged_bev"] = np.zeros((8, 43, 32, 32), dtype=np.float32)
+    replay_path = save_privileged_replay_episode(
+        tmp_path / "episode_32wm_0000.npz",
+        **replay_arrays,
+    )
+    replay_config_path = tmp_path / "clean_128_32.yaml"
+    replay_config_path.write_text("stage: stage2_privileged_policy_clean\n")
+    replay_manifest_path = write_privileged_replay_manifest(
+        tmp_path / "stage2_privileged_replay_manifest.json",
+        config_path=replay_config_path,
+        episode_paths=[replay_path],
+        extra={"git_commit": "abc1234"},
+    )
+
+    result = train_stage2_privileged_from_replay(
+        replay_paths=[replay_path],
+        replay_manifest_path=replay_manifest_path,
+        output_dir=tmp_path / "checkpoints",
+        seed=31,
+        sequence_length=4,
+        batch_size=2,
+        world_model_steps=1,
+        policy_steps=1,
+        imitation_weight=1.0,
+        behavior_weight=0.0,
+        hidden_dim=32,
+        device="cpu",
+    )
+    manifest = json.loads(result.manifest_path.read_text())
+
+    assert manifest["world_model"]["config"]["bev_height"] == 32
+    assert manifest["world_model"]["config"]["bev_width"] == 32
+    assert manifest["replay_manifest"]["privileged_bev_shapes"] == [[8, 43, 32, 32]]
+
+
+def test_replay_training_rejects_mixed_bev_hw_shapes(tmp_path) -> None:
+    replay16 = load_privileged_replay_episode(
+        save_privileged_replay_episode(
+            tmp_path / "episode_16_0000.npz",
+            **_replay_arrays(length=4),
+        )
+    )
+    replay_arrays32 = _replay_arrays(length=4)
+    replay_arrays32["privileged_bev"] = np.zeros((4, 43, 32, 32), dtype=np.float32)
+    replay32 = load_privileged_replay_episode(
+        save_privileged_replay_episode(
+            tmp_path / "episode_32_0000.npz",
+            **replay_arrays32,
+        )
+    )
+
+    with pytest.raises(ValueError, match="one BEV H/W shape"):
+        _single_replay_bev_hw([replay16, replay32])
 
 
 def test_privileged_replay_roundtrip_and_sampler(tmp_path) -> None:
@@ -132,6 +202,42 @@ def test_privileged_replay_sampler_can_prioritize_route_windows(tmp_path) -> Non
     assert stats["priority_action_ids"] == []
     assert stats["priority_min_route_progress"] == 0.65
     assert stats["priority_max_route_progress"] == 0.75
+
+
+def test_privileged_replay_sampler_limits_priority_to_allowed_episodes(tmp_path) -> None:
+    primary_arrays = _replay_arrays(length=20)
+    primary_arrays["privileged_ego"][:, 1] = np.linspace(0.0, 0.95, 20, dtype=np.float32)
+    primary_path = save_privileged_replay_episode(
+        tmp_path / "episode_target22_0000.npz",
+        **primary_arrays,
+    )
+    late_arrays = _replay_arrays(length=20)
+    late_arrays["privileged_ego"][:, 1] = np.linspace(0.0, 0.95, 20, dtype=np.float32)
+    late_path = save_privileged_replay_episode(
+        tmp_path / "episode_corr048_0000.npz",
+        **late_arrays,
+    )
+    primary_episode = load_privileged_replay_episode(primary_path)
+    late_episode = load_privileged_replay_episode(late_path)
+
+    sampler = PrivilegedReplaySampler(
+        [primary_episode, late_episode],
+        sequence_length=4,
+        seed=3,
+        priority_sample_fraction=1.0,
+        priority_min_route_progress=0.65,
+        priority_max_route_progress=0.75,
+        priority_episode_mask=[False, True],
+    )
+    batch = sampler.sample(batch_size=12)
+    stats = sampler.priority_stats()
+    route = batch.privileged_ego[:, :, 1]
+
+    assert (((route >= 0.65) & (route <= 0.75)).any(dim=1)).all()
+    assert stats["included_episode_count"] == 2
+    assert stats["priority_episode_count"] == 1
+    assert stats["priority_window_count"] == 6
+    assert [entry["priority_allowed"] for entry in stats["included_episodes"]] == [False, True]
 
 
 def test_privileged_replay_sampler_supports_episode_sample_weights(tmp_path) -> None:
@@ -499,6 +605,7 @@ def test_replay_training_exports_clean_eval_loadable_checkpoints(tmp_path) -> No
         imitation_class_balance=True,
         route_priority_sample_fraction=0.25,
         route_priority_action_ids=(10,),
+        route_priority_components=("target22",),
         route_priority_min_route_progress=0.25,
         route_priority_max_route_progress=0.75,
         moving_steer_false_positive_weight=0.25,
@@ -563,6 +670,8 @@ def test_replay_training_exports_clean_eval_loadable_checkpoints(tmp_path) -> No
 
     assert manifest["source"] == REPLAY_SOURCE
     assert manifest["replay_manifest"]["sha256"]
+    assert manifest["replay_manifest"]["privileged_bev_shapes"] == [[8, 43, 16, 16]]
+    assert manifest["replay_manifest"]["privileged_ego_shapes"] == [[8, 8]]
     assert manifest["policy"]["metrics"]["final_imitation"] >= 0.0
     assert manifest["imitation_weight"] == 1.5
     assert manifest["behavior_weight"] == 0.5
@@ -571,6 +680,7 @@ def test_replay_training_exports_clean_eval_loadable_checkpoints(tmp_path) -> No
     assert manifest["steer_sequence_fraction"] == 0.0
     assert manifest["route_priority_sample_fraction"] == 0.25
     assert manifest["route_priority_action_ids"] == [10]
+    assert manifest["route_priority_components"] == ["target22"]
     assert manifest["route_priority_min_route_progress"] == 0.25
     assert manifest["route_priority_max_route_progress"] == 0.75
     assert manifest["moving_steer_false_positive_weight"] == 0.25
@@ -632,6 +742,7 @@ def test_replay_training_exports_clean_eval_loadable_checkpoints(tmp_path) -> No
     assert manifest["sampler"]["requested_priority_sample_fraction"] == 0.25
     assert "priority_window_count" in manifest["sampler"]
     assert manifest["sampler"]["priority_action_ids"] == [10]
+    assert manifest["sampler"]["priority_episode_count"] == 1
     assert manifest["sampler"]["priority_min_route_progress"] == 0.25
     assert manifest["sampler"]["priority_max_route_progress"] == 0.75
     assert manifest["sampler"]["episode_sample_probabilities"] == [1.0]
@@ -785,6 +896,8 @@ def test_pdf_stage1_strict_rejects_non_pdf_diagnostic_policy_settings(tmp_path) 
             output_dir=tmp_path / "checkpoints",
             pdf_stage1_strict=True,
             imitation_weight=1.0,
+            route_priority_sample_fraction=0.5,
+            route_priority_components=("target22",),
             route_action_override_weight=0.5,
             route_action_override_id=10,
             device="cpu",

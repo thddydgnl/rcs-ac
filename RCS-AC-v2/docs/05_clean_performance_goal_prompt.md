@@ -9,6 +9,52 @@ Codex goal mode에서 RCS-AC-v2를 Raw2Drive PDF 기준으로 끝까지 구현�
 fusion ablation 이전에 clean 성능을 먼저 잡도록 지시하는 복붙용 프롬프트를 제공한다.
 ```
 
+2026-05-27 업데이트:
+
+```text
+현재 goal 진행 기준은 docs/08_raw2drive_pdf_core_clean_first_master_plan.md다.
+아래 기존 PDF-only prompt는 역사적 기준으로 남기며, 새 goal/resume에는
+이 문서의 "New PDF-Core Clean-First Copy-Paste Prompt"를 우선 사용한다.
+```
+
+## New PDF-Core Clean-First Copy-Paste Prompt
+
+```text
+goal 기능을 사용해서 RCS-AC-v2 clean-first 목표를 이어서 진행해줘.
+
+Primary document:
+/Users/song-yonghwi/code/RCS-AC-first/RCS-AC-v2/docs/08_raw2drive_pdf_core_clean_first_master_plan.md
+
+Objective:
+RCS-AC-v2를 Raw2Drive PDF 기반으로 구현하되, PDF에 확실히 명시된
+input/action/model/guidance 계약은 그대로 따른다. PDF가 명시하지 않은
+해상도, coverage probe, route/lane diagnostic, 보조 loss 실험, Windows CARLA
+운영 방식만 clean-first 관점에서 채운다. PDF-explicit core baseline과
+clean-stability fill variant의 결과와 claim을 분리한다.
+Privileged/raw clean gates 통과 전 fusion ablation은 시작하지 않는다.
+
+Fixed PDF-explicit contracts:
+- Use Raw2Drive 39 discrete actions as the final control policy contract.
+- Do not use waypoint/target-speed or pure pursuit as the final v2 control output.
+- Privileged input starts from 43-channel semantic BEV masks + ego vehicle info.
+- Raw baseline input starts from multi-view RGB images + IMU with BEV-shaped encoder features.
+- Do not expose privileged BEV/GT tensors to raw policy inference.
+- Do not train raw reward/continue heads directly; use privileged head guidance.
+
+Required first reads:
+1. RCS-AC-v2/docs/08_raw2drive_pdf_core_clean_first_master_plan.md
+2. RCS-AC-v2/GOAL_STATUS.md
+3. RCS-AC-v2/docs/02_persistent_subagent_goal_protocol.md
+4. RCS-AC-v2/docs/03_windows_carla_remote_execution_workflow.md
+5. RCS-AC-v2/docs/04_git_sync_artifact_cleanup_policy.md
+
+Execution:
+현재 stage를 판정하고 sub-agent protocol을 적용한 뒤
+Implementation Brief -> edit -> validate -> docs/status update 순서로 진행해줘.
+Windows CARLA official run은 commit/push된 코드에서만 실행하고,
+heavy artifact는 git에 올리지 마. root .git은 삭제하지 마.
+```
+
 사용법:
 
 ```text
@@ -17,7 +63,15 @@ fusion ablation 이전에 clean 성능을 먼저 잡도록 지시하는 복붙�
 active goal이 없으면 "goal 기능을 사용해서 아래 objective를 생성하고 진행해줘"라고 붙인다.
 ```
 
-## Copy-Paste Prompt
+## Legacy PDF-Only Copy-Paste Prompt
+
+주의:
+
+```text
+아래 프롬프트는 과거 PDF-only 진행 기록으로 보존한다.
+새 goal/resume에는 사용하지 않는다.
+현재 기준은 위의 "New PDF-Core Clean-First Copy-Paste Prompt"다.
+```
 
 ```text
 goal 기능을 사용해서 RCS-AC-v2 clean 성능을 잡는 방향으로 끝까지 진행해줘.

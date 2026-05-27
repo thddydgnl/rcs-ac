@@ -148,6 +148,25 @@ def build_carla_simulator_semantic43_observation(
         raise ValueError("simulator-state privileged observation contains non-finite values")
 
     nonzero_channels = [int(index) for index in range(bev.shape[0]) if bool(np.any(bev[index] > 1.0e-6))]
+    channel_nonzero_counts = {
+        SEMANTIC43_CHANNEL_NAMES[index]: int(np.count_nonzero(bev[index] > 1.0e-6))
+        for index in range(bev.shape[0])
+    }
+    critical_channel_names = (
+        "drivable_road",
+        "lane_marking",
+        "route_path",
+        "route_target",
+        "ego_vehicle",
+        "vehicle",
+        "pedestrian",
+        "static_obstacle",
+        "dynamic_vehicle",
+        "actor_near_field",
+    )
+    empty_critical_channel_names = [
+        name for name in critical_channel_names if channel_nonzero_counts.get(name, 0) == 0
+    ]
     if not np.any(bev[0] > 0.0):
         raise ValueError("simulator-state privileged BEV has empty drivable_road channel")
     if not np.any(bev[4] > 0.0):
@@ -156,13 +175,33 @@ def build_carla_simulator_semantic43_observation(
         "privileged_observation_schema": SEMANTIC43_SCHEMA_VERSION,
         "privileged_observation_source": PRIVILEGED_OBSERVATION_SOURCE,
         "privileged_observation_clean_gate_eligible": True,
+        "privileged_bev_shape": list(bev_tensor.shape),
+        "privileged_ego_shape": list(ego_tensor.shape),
+        "privileged_bev_height": int(spec.height),
+        "privileged_bev_width": int(spec.width),
+        "privileged_bev_grid_spec": {
+            "height": int(spec.height),
+            "width": int(spec.width),
+            "front_m": float(spec.front_m),
+            "rear_m": float(spec.rear_m),
+            "left_m": float(spec.left_m),
+            "right_m": float(spec.right_m),
+            "x_resolution_m": float(spec.x_resolution_m),
+            "y_resolution_m": float(spec.y_resolution_m),
+        },
         "privileged_bev_channel_names_sha256": SEMANTIC43_CHANNEL_NAMES_SHA256,
         "privileged_ego_schema": EGO8_SCHEMA_VERSION,
         "privileged_ego_fields": list(EGO8_FIELD_NAMES),
         "semantic_nonzero_channels": nonzero_channels,
         "semantic_nonzero_channel_names": [SEMANTIC43_CHANNEL_NAMES[index] for index in nonzero_channels],
+        "semantic_channel_nonzero_counts": channel_nonzero_counts,
+        "semantic_empty_critical_channel_names": empty_critical_channel_names,
         "semantic_route_available": bool(np.any(bev[2] > 0.0)),
         "semantic_actor_available": bool(np.any(bev[5:10] > 0.0) or np.any(bev[31:35] > 0.0)),
+        "semantic_lane_available": bool(np.any(bev[1] > 0.0)),
+        "semantic_obstacle_available": bool(
+            np.any(bev[5:10] > 0.0) or np.any(bev[31:35] > 0.0) or np.any(bev[40:42] > 0.0)
+        ),
     }
     return SimulatorStatePrivilegedObservation(
         privileged_bev=bev_tensor,

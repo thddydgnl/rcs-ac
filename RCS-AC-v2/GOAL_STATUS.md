@@ -1,25 +1,38 @@
 # RCS-AC v2 Goal Status
 
-Updated: 2026-05-26
+Updated: 2026-05-27
 
 ## Active Objective
 
-Implement RCS-AC-v2 from scratch following the Raw2Drive PDF:
+Implement RCS-AC-v2 as a clean-first Raw2Drive PDF-core system:
 
 ```text
+Primary goal document:
+docs/08_raw2drive_pdf_core_clean_first_master_plan.md
+
+Base paper:
 docs/reference/2505.16394v2.pdf
 ```
+
+The active direction fixes the Raw2Drive contracts that are explicit in the PDF:
+43-channel privileged semantic BEV plus ego info, 39 discrete actions, raw
+multi-view RGB plus IMU baseline input, rollout guidance, head guidance, no raw
+reward/continue direct heads, and no privileged leakage at raw inference.
+Unspecified engineering details such as BEV resolution, coverage probes,
+route/lane diagnostics, auxiliary-only supervision, and Windows CARLA probe/gate
+workflow may be filled for clean-first progress. PDF-explicit core results and
+clean-stability fill results must be recorded separately.
 
 ## Current Stage
 
 ```text
-Stage 2: Privileged policy clean
+Stage H0/H1: PDF-core clean-first rebase and privileged observation upgrade
 ```
 
 Status:
 
 ```text
-STAGE2_CLEAN_FIRST_ROUTE_PRIORITY_BRANCH_REJECTED_TARGET22_ACTION15_COLLAPSE
+H1_LOCAL_32X32_PRIVILEGED_OBS_PATH_PASS__WINDOWS_PROBE_PENDING
 ```
 
 Last completed stage:
@@ -31,13 +44,14 @@ Stage 1: Privileged world model PASS
 
 ## Required Reading Before Coding
 
-1. `docs/01_goal_driven_implementation_runbook.md`
+1. `docs/08_raw2drive_pdf_core_clean_first_master_plan.md`
 2. `docs/02_persistent_subagent_goal_protocol.md`
 3. `docs/03_windows_carla_remote_execution_workflow.md`
 4. `docs/04_git_sync_artifact_cleanup_policy.md`
 5. `docs/05_clean_performance_goal_prompt.md`
-6. `docs/00_raw2drive_exact_implementation_plan.md`
-7. `docs/reference/2505.16394v2.pdf`
+6. `docs/01_goal_driven_implementation_runbook.md`
+7. `docs/00_raw2drive_exact_implementation_plan.md`
+8. `docs/reference/2505.16394v2.pdf`
 
 ## Sub-Agent Protocol State
 
@@ -713,6 +727,30 @@ but did not move this branch. Do not run official CARLA from this branch. Next
 meaningful Stage 2 work should either make route-priority sampling/loss
 component-aware enough not to dominate target22 early-route logits, or collect
 a cleaner closed-loop tail component.
+PDF-core H0 rebase then classified `route_priority_components` and
+`priority_episode_mask` as clean-stability fill/diagnostic sampler controls,
+not PDF-explicit core. Subagent Agent A and Agent C agreed with this
+classification. The WIP is now guarded and tested: Python trainer, Windows
+foreground trainer, detached trainer, and mixed-candidate cycle wrapper all
+accept `route_priority_components`; `--pdf-stage1-strict` rejects it; manifests
+record whether component priority masks are effective. Local validation on
+2026-05-27 KST: `python -m pytest RCS-AC-v2/tests/test_privileged_replay_training.py -q`
+-> 33 passed, and `python -m pytest RCS-AC-v2/tests -q` -> 151 passed. This is
+not clean performance evidence. Next work is H1 privileged observation upgrade:
+config-driven BEVGridSpec, 32x32+ smoke, route/lane/obstacle coverage report,
+and replay manifest BEV shape/schema/hash recording before another official
+Windows run. The H1 implementation brief is recorded at
+`RCS-AC-v2/experiments/02_privileged_policy_clean/h1_privileged_observation_upgrade_brief.md`.
+H1 local implementation then made the simulator-state BEV path shape-aware:
+diagnostics now record BEV shape/grid spec and route/lane/obstacle coverage,
+replay collection accepts `[43,H,W]`, replay episode metadata and replay/checkpoint
+manifests record BEV/ego shapes plus schema/hash, and replay training derives
+world-model H/W from replay shape while rejecting mixed H/W replay sets. Local
+validation on 2026-05-27 KST: `python -m pytest RCS-AC-v2/tests/test_stage2_carla_adapter.py RCS-AC-v2/tests/test_privileged_replay_training.py -q`
+-> 61 passed, and `python -m pytest RCS-AC-v2/tests -q` -> 157 passed. This is
+not Windows clean performance evidence. Next required evidence is a committed
+Windows 32x32 privileged observation probe and tiny 32x32 replay collection
+from the clean clone.
 ```
 
 Do not start Stage 3 raw sensor work or any fusion ablation until:

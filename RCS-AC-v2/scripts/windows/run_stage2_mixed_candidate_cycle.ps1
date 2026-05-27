@@ -30,6 +30,7 @@ param(
     [double]$SteerSequenceFraction = 0.15,
     [double]$RoutePrioritySampleFraction = 0.0,
     [string]$RoutePriorityActionIds = "",
+    [string]$RoutePriorityComponents = "",
     [double]$RoutePriorityMinRouteProgress = 0.0,
     [double]$RoutePriorityMaxRouteProgress = 1.0,
     [double]$MovingSteerFalsePositiveWeight = 0.0,
@@ -269,6 +270,7 @@ $LatestPointer = [ordered]@{
     steer_sequence_fraction = $SteerSequenceFraction
     route_priority_sample_fraction = $RoutePrioritySampleFraction
     route_priority_action_ids = $RoutePriorityActionIds
+    route_priority_components = $RoutePriorityComponents
     route_priority_min_route_progress = $RoutePriorityMinRouteProgress
     route_priority_max_route_progress = $RoutePriorityMaxRouteProgress
     moving_steer_false_positive_weight = $MovingSteerFalsePositiveWeight
@@ -410,6 +412,9 @@ if ($RouteSpeedActionIds -ne "") {
 }
 if ($RoutePriorityActionIds -ne "") {
     $StartArgs += @("-RoutePriorityActionIds", $RoutePriorityActionIds)
+}
+if ($RoutePriorityComponents -ne "") {
+    $StartArgs += @("-RoutePriorityComponents", $RoutePriorityComponents)
 }
 if ($RouteActionMassCapIds -ne "") {
     $StartArgs += @("-RouteActionMassCapIds", $RouteActionMassCapIds)

@@ -18,7 +18,18 @@ Only after clean driving is established, run fusion-only ablations under the
 same input/action/reward/eval contract.
 ```
 
-Main document:
+Current master plan:
+
+```text
+docs/08_raw2drive_pdf_core_clean_first_master_plan.md
+```
+
+This is now the goal-driving document. It fixes the contracts that are explicit
+in the Raw2Drive PDF, then fills unspecified engineering details only for
+clean-first progress. PDF-explicit core results and clean-stability fill results
+must be recorded separately.
+
+Original exact-PDF design reference:
 
 ```text
 docs/00_raw2drive_exact_implementation_plan.md

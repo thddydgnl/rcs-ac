@@ -22,6 +22,7 @@ param(
     [double]$SteerSequenceFraction = 0.0,
     [double]$RoutePrioritySampleFraction = 0.0,
     [string]$RoutePriorityActionIds = "",
+    [string]$RoutePriorityComponents = "",
     [double]$RoutePriorityMinRouteProgress = 0.0,
     [double]$RoutePriorityMaxRouteProgress = 1.0,
     [double]$MovingSteerFalsePositiveWeight = 0.0,
@@ -190,6 +191,9 @@ if ($RouteSpeedActionIds -ne "") {
 }
 if ($RoutePriorityActionIds -ne "") {
     $TrainArgs += @("--route-priority-action-ids", $RoutePriorityActionIds)
+}
+if ($RoutePriorityComponents -ne "") {
+    $TrainArgs += @("--route-priority-components", $RoutePriorityComponents)
 }
 if ($RouteActionMassCapIds -ne "") {
     $TrainArgs += @("--route-action-mass-cap-ids", $RouteActionMassCapIds)

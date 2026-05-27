@@ -61,6 +61,7 @@ def train_stage2_privileged_from_replay(
     steer_sequence_fraction: float = 0.0,
     route_priority_sample_fraction: float = 0.0,
     route_priority_action_ids: tuple[int, ...] = (),
+    route_priority_components: tuple[str, ...] = (),
     route_priority_min_route_progress: float = 0.0,
     route_priority_max_route_progress: float = 1.0,
     moving_steer_false_positive_weight: float = 0.0,
@@ -138,6 +139,7 @@ def train_stage2_privileged_from_replay(
             steer_sequence_fraction=steer_sequence_fraction,
             route_priority_sample_fraction=route_priority_sample_fraction,
             route_priority_action_ids=route_priority_action_ids,
+            route_priority_components=route_priority_components,
             moving_steer_false_positive_weight=moving_steer_false_positive_weight,
             moving_steer_binary_weight=moving_steer_binary_weight,
             moving_steer_nonmoving_margin_weight=moving_steer_nonmoving_margin_weight,
@@ -177,6 +179,7 @@ def train_stage2_privileged_from_replay(
     if not 0.0 <= float(route_priority_sample_fraction) <= 1.0:
         raise ValueError("route_priority_sample_fraction must be in [0, 1]")
     resolved_route_priority_action_ids = _normalize_action_id_tuple(route_priority_action_ids)
+    resolved_route_priority_components = _normalize_component_name_tuple(route_priority_components)
     if not 0.0 <= float(route_priority_min_route_progress) <= 1.0:
         raise ValueError("route_priority_min_route_progress must be in [0, 1]")
     if not 0.0 <= float(route_priority_max_route_progress) <= 1.0:
@@ -355,6 +358,10 @@ def train_stage2_privileged_from_replay(
         sequence_length=sequence_length,
         component_sample_weights=resolved_component_weights,
     )
+    route_priority_episode_mask = _make_route_priority_episode_mask(
+        episodes,
+        route_priority_components=resolved_route_priority_components,
+    )
     imitation_class_weights = (
         _make_imitation_class_weights(
             episodes,
@@ -387,11 +394,18 @@ def train_stage2_privileged_from_replay(
         priority_sample_fraction=priority_sample_fraction,
         priority_min_route_progress=priority_min_route_progress,
         priority_max_route_progress=priority_max_route_progress,
+        priority_episode_mask=route_priority_episode_mask,
         episode_sample_weights=episode_sample_weights,
     )
     sampler_stats = sampler.priority_stats()
 
-    wm_cfg = PrivilegedWorldModelConfig(bev_height=16, bev_width=16, ego_dim=8, hidden_dim=hidden_dim)
+    bev_height, bev_width = _single_replay_bev_hw(episodes)
+    wm_cfg = PrivilegedWorldModelConfig(
+        bev_height=bev_height,
+        bev_width=bev_width,
+        ego_dim=8,
+        hidden_dim=hidden_dim,
+    )
     world_model = PrivilegedWorldModel(wm_cfg).to(resolved_device)
     action_aux_head = torch.nn.Linear(world_model.rssm.latent_dim, wm_cfg.action_dim).to(resolved_device)
     wm_train_parameters = list(world_model.parameters())
@@ -656,6 +670,15 @@ def train_stage2_privileged_from_replay(
         "steer_sequence_fraction": float(steer_sequence_fraction),
         "route_priority_sample_fraction": float(route_priority_sample_fraction),
         "route_priority_action_ids": list(resolved_route_priority_action_ids),
+        "route_priority_components": list(resolved_route_priority_components),
+        "route_priority_components_effective": bool(
+            resolved_route_priority_components and float(route_priority_sample_fraction) > 0.0
+        ),
+        "route_priority_components_note": (
+            "fill-only priority mask; inactive because route_priority_sample_fraction=0"
+            if resolved_route_priority_components and float(route_priority_sample_fraction) <= 0.0
+            else ""
+        ),
         "route_priority_min_route_progress": float(route_priority_min_route_progress),
         "route_priority_max_route_progress": float(route_priority_max_route_progress),
         "moving_steer_false_positive_weight": float(moving_steer_false_positive_weight),
@@ -746,6 +769,14 @@ def train_stage2_privileged_from_replay(
         "replay_manifest": {
             "path": str(replay_manifest_path),
             "sha256": sha256_file(Path(replay_manifest_path)),
+            "privileged_bev_shapes": replay_manifest.get("privileged_bev_shapes", []),
+            "privileged_ego_shapes": replay_manifest.get("privileged_ego_shapes", []),
+            "privileged_observation_schema": replay_manifest.get("privileged_observation_schema", ""),
+            "privileged_bev_channel_names_sha256": replay_manifest.get(
+                "privileged_bev_channel_names_sha256",
+                "",
+            ),
+            "privileged_ego_schema": replay_manifest.get("privileged_ego_schema", ""),
         },
         "data_files": replay_files,
     }
@@ -921,6 +952,7 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--steer-sequence-fraction", type=float, default=0.0)
     parser.add_argument("--route-priority-sample-fraction", type=float, default=0.0)
     parser.add_argument("--route-priority-action-ids", default="")
+    parser.add_argument("--route-priority-components", default="")
     parser.add_argument("--route-priority-min-route-progress", type=float, default=0.0)
     parser.add_argument("--route-priority-max-route-progress", type=float, default=1.0)
     parser.add_argument("--moving-steer-false-positive-weight", type=float, default=0.0)
@@ -1007,6 +1039,7 @@ def main(argv: list[str] | None = None) -> None:
         steer_sequence_fraction=args.steer_sequence_fraction,
         route_priority_sample_fraction=args.route_priority_sample_fraction,
         route_priority_action_ids=_parse_action_id_list(args.route_priority_action_ids),
+        route_priority_components=_parse_component_name_list(args.route_priority_components),
         route_priority_min_route_progress=args.route_priority_min_route_progress,
         route_priority_max_route_progress=args.route_priority_max_route_progress,
         moving_steer_false_positive_weight=args.moving_steer_false_positive_weight,
@@ -1097,6 +1130,7 @@ def _validate_pdf_stage1_strict_config(
     steer_sequence_fraction: float,
     route_priority_sample_fraction: float,
     route_priority_action_ids: tuple[int, ...],
+    route_priority_components: tuple[str, ...],
     moving_steer_false_positive_weight: float,
     moving_steer_binary_weight: float,
     moving_steer_nonmoving_margin_weight: float,
@@ -1168,6 +1202,8 @@ def _validate_pdf_stage1_strict_config(
         violations.append("route_speed_action_ids must be empty")
     if route_priority_action_ids:
         violations.append("route_priority_action_ids must be empty")
+    if route_priority_components:
+        violations.append("route_priority_components must be empty")
     if route_action_mass_cap_ids:
         violations.append("route_action_mass_cap_ids must be empty")
     if route_action_logit_cap_ids:
@@ -1273,6 +1309,27 @@ def _parse_action_id_list(value: str) -> tuple[int, ...]:
     return _normalize_action_id_tuple(tuple(int(item.strip()) for item in str(value).split(",") if item.strip()))
 
 
+def _parse_component_name_list(value: str) -> tuple[str, ...]:
+    if str(value).strip() == "":
+        return ()
+    return _normalize_component_name_tuple(
+        tuple(item.strip() for item in str(value).split(",") if item.strip())
+    )
+
+
+def _normalize_component_name_tuple(component_names: tuple[str, ...]) -> tuple[str, ...]:
+    normalized: list[str] = []
+    for raw_name in component_names:
+        name = str(raw_name).strip()
+        if not name:
+            continue
+        if any(char.isspace() for char in name):
+            raise ValueError("component names must not contain whitespace")
+        if name not in normalized:
+            normalized.append(name)
+    return tuple(normalized)
+
+
 def _normalize_action_id_tuple(action_ids: tuple[int, ...]) -> tuple[int, ...]:
     normalized: list[int] = []
     for raw_action_id in action_ids:
@@ -1296,6 +1353,34 @@ def _make_episode_sample_weights(
     if weights and sum(weights) <= 0.0:
         raise ValueError("at least one episode sample weight must be positive")
     return weights
+
+
+def _make_route_priority_episode_mask(
+    episodes: list[Any],
+    *,
+    route_priority_components: tuple[str, ...],
+) -> list[bool] | None:
+    if not route_priority_components:
+        return None
+    component_set = set(route_priority_components)
+    mask = [_episode_component_name(Path(episode.path)) in component_set for episode in episodes]
+    if not any(mask):
+        joined = ",".join(route_priority_components)
+        raise ValueError(f"route_priority_components did not match any replay episodes: {joined}")
+    return mask
+
+
+def _single_replay_bev_hw(episodes: list[Any]) -> tuple[int, int]:
+    shapes = {
+        tuple(int(item) for item in episode.privileged_bev.shape[-2:])
+        for episode in episodes
+    }
+    if len(shapes) != 1:
+        raise ValueError(f"all replay episodes must use one BEV H/W shape, got {sorted(shapes)}")
+    height, width = next(iter(shapes))
+    if height <= 0 or width <= 0:
+        raise ValueError("replay BEV H/W must be positive")
+    return int(height), int(width)
 
 
 def _make_component_sampler_stats(

@@ -50,7 +50,13 @@ def _sha256(path: Path) -> str:
 
 
 def _write_stage2_checkpoints(tmp_path: Path, config: dict) -> None:
-    wm_cfg = PrivilegedWorldModelConfig(bev_height=16, bev_width=16, ego_dim=8, hidden_dim=32)
+    bev_shape = config.get("observation_contract", {}).get("privileged_bev_shape", [1, 1, 43, 16, 16])
+    wm_cfg = PrivilegedWorldModelConfig(
+        bev_height=int(bev_shape[3]),
+        bev_width=int(bev_shape[4]),
+        ego_dim=8,
+        hidden_dim=32,
+    )
     world_model = PrivilegedWorldModel(wm_cfg)
     policy = PrivilegedPolicy(PrivilegedPolicyConfig(latent_dim=world_model.rssm.latent_dim, hidden_dim=32))
     replay_manifest_path = tmp_path / "stage2_privileged_replay_manifest.json"
@@ -509,6 +515,38 @@ def test_policy_runner_rejects_world_model_dim_mismatch(tmp_path) -> None:
     assert excinfo.value.done_reason == "world_model_config_mismatch"
 
 
+def test_policy_runner_accepts_matching_32x32_world_model_config(tmp_path) -> None:
+    config = _base_config(tmp_path)
+    config["observation_contract"]["privileged_bev_shape"] = [1, 1, 43, 32, 32]
+    _write_stage2_checkpoints(tmp_path, config)
+    config["checkpoint_contract"]["require_trained_provenance_for_clean_gate"] = False
+
+    runner = load_stage2_policy_runner(config)
+    output = runner.act(
+        {
+            "privileged_bev": torch.zeros(1, 1, 43, 32, 32),
+            "privileged_ego": torch.zeros(1, 1, 8),
+        },
+        {},
+    )
+
+    assert output["logits"].shape == (1, 1, 39)
+    assert torch.isfinite(output["logits"]).all()
+
+
+def test_policy_runner_rejects_16x16_checkpoint_for_32x32_contract(tmp_path) -> None:
+    config = _base_config(tmp_path)
+    _write_stage2_checkpoints(tmp_path, config)
+    config["observation_contract"]["privileged_bev_shape"] = [1, 1, 43, 32, 32]
+    config["checkpoint_contract"]["require_trained_provenance_for_clean_gate"] = False
+
+    with pytest.raises(CleanEvalRuntimeFailure) as excinfo:
+        load_stage2_policy_runner(config)
+
+    assert excinfo.value.failure_class == "model"
+    assert excinfo.value.done_reason == "world_model_config_mismatch"
+
+
 def test_stage2_adapter_bundle_runs_fake_raw_env_through_clean_loop(tmp_path) -> None:
     config = _base_config(tmp_path, horizon=2)
     config["carla"]["env_action_format"] = "raw2drive_control_dict"
@@ -579,6 +617,25 @@ def test_stage2_simulator_state_builder_supplies_semantic43_when_privileged_keys
     assert result["info"]["privileged_observation_clean_gate_eligible"] is True
     assert "drivable_road" in result["info"]["semantic_nonzero_channel_names"]
     assert "ego_vehicle" in result["info"]["semantic_nonzero_channel_names"]
+    assert result["info"]["privileged_bev_shape"] == [1, 1, 43, 16, 16]
+    assert result["info"]["semantic_channel_nonzero_counts"]["drivable_road"] > 0
+
+
+def test_stage2_simulator_state_builder_supports_configured_32x32_bev(tmp_path) -> None:
+    config = _base_config(tmp_path)
+    config["observation_contract"]["privileged_bev_shape"] = [1, 1, 43, 32, 32]
+    config["carla"]["privileged_observation"]["mode"] = "simulator_state_semantic43"
+    adapter = SharedCoreCarlaEnvAdapter(FakeSimulatorRawEnvWithoutPrivilegedObs(), config)
+
+    result = adapter.reset()
+
+    assert tuple(result["obs"]["privileged_bev"].shape) == (1, 1, 43, 32, 32)
+    assert tuple(result["obs"]["privileged_ego"].shape) == (1, 1, 8)
+    assert result["info"]["privileged_bev_shape"] == [1, 1, 43, 32, 32]
+    assert result["info"]["privileged_bev_grid_spec"]["height"] == 32
+    assert result["info"]["privileged_bev_grid_spec"]["width"] == 32
+    assert result["info"]["semantic_route_available"] is True
+    assert result["info"]["semantic_obstacle_available"] is True
 
 
 def test_observation_adapter_strict_rejects_windows_raw_obs_without_privileged(tmp_path) -> None:

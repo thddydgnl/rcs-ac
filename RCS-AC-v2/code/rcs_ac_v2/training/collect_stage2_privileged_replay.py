@@ -279,8 +279,8 @@ def _stage2_bev_to_numpy(value: Any) -> np.ndarray:
     tensor = torch.as_tensor(value, dtype=torch.float32).detach().cpu()
     if tuple(tensor.shape[:2]) == (1, 1):
         tensor = tensor[0, 0]
-    if tuple(tensor.shape) != (43, 16, 16):
-        raise ValueError(f"expected privileged_bev [1,1,43,16,16] or [43,16,16], got {tuple(tensor.shape)}")
+    if tensor.ndim != 3 or int(tensor.shape[0]) != 43:
+        raise ValueError(f"expected privileged_bev [1,1,43,H,W] or [43,H,W], got {tuple(tensor.shape)}")
     return tensor.numpy()
 
 
