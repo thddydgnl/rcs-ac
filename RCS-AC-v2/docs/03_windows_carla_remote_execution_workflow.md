@@ -94,6 +94,12 @@ Current official v2 clean clone:
 C:\Users\thddy\Documents\code\RCS-AC-first-official-v2-7f87656
 ```
 
+If a newer clean clone path is used, keep the same rule: the Windows run must
+come from a committed/pushed checkout of branch `codex/rcs-ac-v2-raw2drive`,
+after `git pull --ff-only`, with `git status --short RCS-AC-v2` empty. Record
+`git rev-parse --short HEAD` with every probe, replay, training, and clean eval
+result.
+
 Remote identity:
 
 ```text
@@ -602,32 +608,38 @@ RCS-AC-v1.1\code
 This is required because the v2 Stage 2 adapter factory reuses the v1.1-style
 shared-core CARLA env builder for the first clean gate.
 
-Before the first clean eval, run the shape-only probe:
+Before the first clean eval, run the shape-only probe. For the H1 observation
+upgrade lane, use the committed 32x32 probe config so the evidence does not
+overwrite or mix with the older 16x16 lane:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File RCS-AC-v2\scripts\windows\run_stage2_privileged_obs_probe.ps1 `
-  -ConfigPath RCS-AC-v2\configs\eval\clean_128_stage2_privileged.yaml `
+  -ConfigPath RCS-AC-v2\configs\eval\clean_128_stage2_privileged_32x32.yaml `
   -StepNeutral
 ```
 
 This writes `privileged_obs_probe.json`, not `summary.json`. It must record
-`clean_gate_evidence=false`, exact `privileged_bev [1,1,43,16,16]`,
-`privileged_ego [1,1,8]`, finite tensors, raw obs/info keys, and optional
-neutral-step info. It cannot be used as clean PASS evidence.
+`clean_gate_evidence=false`, exact `privileged_bev [1,1,43,32,32]`,
+`privileged_ego [1,1,8]`, finite tensors, raw obs/info keys, coverage
+diagnostics, and optional neutral-step info. It cannot be used as clean PASS
+evidence.
 
 After the probe passes and before official clean eval, collect privileged replay
 and train replay-source checkpoints:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File RCS-AC-v2\scripts\windows\collect_stage2_privileged_replay.ps1 `
-  -ConfigPath RCS-AC-v2\configs\eval\clean_128_stage2_privileged.yaml `
-  -OutputDir RCS-AC-v2\experiments\02_privileged_policy_clean\replay\windows_privileged `
-  -Episodes 4 `
-  -MaxSteps 256
+  -ConfigPath RCS-AC-v2\configs\eval\clean_128_stage2_privileged_32x32.yaml `
+  -OutputDir RCS-AC-v2\experiments\02_privileged_policy_clean\replay\windows_privileged_h1_32x32_tiny `
+  -Episodes 1 `
+  -MaxSteps 8 `
+  -TargetSpeedKmh 18 `
+  -MinRecordedSteps 1 `
+  -SkipFailedEpisodes
 
 powershell -ExecutionPolicy Bypass -File RCS-AC-v2\scripts\windows\train_stage2_privileged_from_replay.ps1 `
-  -ReplayPath RCS-AC-v2\experiments\02_privileged_policy_clean\replay\windows_privileged `
-  -OutputDir RCS-AC-v2\experiments\02_privileged_policy_clean\checkpoints\windows_replay
+  -ReplayPath RCS-AC-v2\experiments\02_privileged_policy_clean\replay\windows_privileged_h1_32x32_tiny `
+  -OutputDir RCS-AC-v2\experiments\02_privileged_policy_clean\checkpoints\windows_replay_h1_32x32_tiny
 ```
 
 For longer replays where steering labels are sparse, add

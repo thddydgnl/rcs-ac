@@ -274,6 +274,7 @@ Gate:
 
 ```text
 privileged_obs_probe가 nonzero 채널, route availability, actor availability를 기록한다.
+committed Windows probe config는 configs/eval/clean_128_stage2_privileged_32x32.yaml를 사용한다.
 replay manifest가 BEV shape/schema/hash를 기록한다.
 BEV channel coverage report가 result.md에 남는다.
 ```

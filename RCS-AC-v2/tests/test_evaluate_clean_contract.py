@@ -226,6 +226,32 @@ def test_clean_128_config_loads_and_pins_contracts() -> None:
     assert "reward_total" in config["per_step_log_fields"]
 
 
+def test_clean_128_h1_32x32_config_loads_as_probe_only_variant() -> None:
+    config_path = (
+        Path(__file__).resolve().parents[1] / "configs" / "eval" / "clean_128_stage2_privileged_32x32.yaml"
+    )
+    config = load_clean_eval_config(config_path)
+
+    assert config["stage"] == "stage2_privileged_policy_clean"
+    assert config["mode"] == "windows_carla_clean_128"
+    assert config["horizon"] == 128
+    assert config["action_space"] == "raw2drive_discrete_39"
+    assert config["action_table_version"] == "raw2drive_table12_row_major_v1"
+    assert config["carla"]["run_name"] == "rcs_ac_v2_stage2_clean_128_h1_32x32"
+    assert config["carla"]["privileged_observation"]["mode"] == "simulator_state_semantic43"
+    assert config["observation_contract"]["require_true_privileged_for_clean_gate"] is True
+    assert config["observation_contract"]["privileged_observation_source"] == PRIVILEGED_OBSERVATION_SOURCE
+    assert config["observation_contract"]["privileged_bev_schema_version"] == SEMANTIC43_SCHEMA_VERSION
+    assert config["observation_contract"]["privileged_bev_channel_names_sha256"] == SEMANTIC43_CHANNEL_NAMES_SHA256
+    assert config["observation_contract"]["privileged_bev_shape"] == [1, 1, 43, 32, 32]
+    assert config["observation_contract"]["privileged_ego_shape"] == [1, 1, 8]
+    assert config["checkpoint_contract"]["allowed_sources"] == ["windows_carla_privileged_replay"]
+    assert "windows_128_32x32" in config["output_dir"]
+    assert "32x32 privileged observation probe config" in config["notes"]
+    assert "fusion" not in yaml.safe_dump(config).lower()
+    assert "raw_clean" not in yaml.safe_dump(config).lower()
+
+
 def test_dry_run_writes_local_smoke_only_summary(tmp_path) -> None:
     source_config = Path(__file__).resolve().parents[1] / "configs" / "eval" / "clean_128_stage2_privileged.yaml"
     config = yaml.safe_load(source_config.read_text())
@@ -1063,6 +1089,9 @@ def test_stage2_privileged_obs_probe_runner_is_not_clean_eval_static() -> None:
     assert "ensure_carla_ready.ps1" in text
     assert "rcs_ac_v2.evaluation.probe_stage2_windows_env" in text
     assert "privileged_obs_probe.json" in text
+    assert '[string]$OutputPath = ""' in text
+    assert '$ConfigPath -like "*32x32*"' in text
+    assert "windows_128_32x32" in text
     assert "evaluate_clean" not in text
     assert "summary.json" not in text
     assert "clean PASS" not in text

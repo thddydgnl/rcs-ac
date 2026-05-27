@@ -7,6 +7,7 @@ param(
     [string]$SupportCodePath = "",
     [string]$V11CodePath = "",
     [string]$SharedCorePath = "",
+    [string]$OutputPath = "",
     [switch]$StepNeutral,
     [switch]$SkipGitPull,
     [switch]$SkipCarlaReady
@@ -85,7 +86,13 @@ if (-not $SkipCarlaReady) {
         -StartScript $StartCarlaScript
 }
 
-$OutputPath = "RCS-AC-v2\experiments\02_privileged_policy_clean\windows_128\privileged_obs_probe.json"
+if ($OutputPath -eq "") {
+    $OutputSubdir = "windows_128"
+    if ($ConfigPath -like "*32x32*") {
+        $OutputSubdir = "windows_128_32x32"
+    }
+    $OutputPath = "RCS-AC-v2\experiments\02_privileged_policy_clean\$OutputSubdir\privileged_obs_probe.json"
+}
 $ProbeArgs = @(
     "-3.12", "-B", "-m", "rcs_ac_v2.evaluation.probe_stage2_windows_env",
     "--config", $ConfigPath,

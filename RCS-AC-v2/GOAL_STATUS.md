@@ -1,6 +1,6 @@
 # RCS-AC v2 Goal Status
 
-Updated: 2026-05-27
+Updated: 2026-05-28
 
 ## Active Objective
 
@@ -751,6 +751,17 @@ validation on 2026-05-27 KST: `python -m pytest RCS-AC-v2/tests/test_stage2_carl
 not Windows clean performance evidence. Next required evidence is a committed
 Windows 32x32 privileged observation probe and tiny 32x32 replay collection
 from the clean clone.
+H1 Windows execution readiness update on 2026-05-28 KST: a committed
+32x32-specific clean config now exists at
+`RCS-AC-v2/configs/eval/clean_128_stage2_privileged_32x32.yaml`. It preserves
+the PDF-explicit privileged semantic43+ego contract and Raw2Drive 39-action
+contract while changing only BEV H/W to 32x32 and separating output paths under
+`windows_128_32x32`. The Windows observation probe wrapper now keeps 32x32
+probe output separate by default when the config path contains `32x32`, and
+the Windows workflow document points the H1 probe/tiny-replay lane at the
+32x32 config. This is still not Windows clean performance evidence; the clean
+clone must pull the committed code and run the probe plus tiny replay before
+H1 can be closed.
 ```
 
 Do not start Stage 3 raw sensor work or any fusion ablation until:
