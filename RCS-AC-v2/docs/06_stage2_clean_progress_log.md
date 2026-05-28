@@ -4483,3 +4483,67 @@ signm-boost duplication and instead use a more targeted objective/gate repair:
 preserve signm diversity without sampling away the `0.64-0.70` correction, or
 collect a correction replay that already contains enough signm-compatible
 mid-route diversity.
+
+2026-05-28 continuation: the `w075` route-window correction was re-tested with
+an explicit route-action-distribution sweep on the clean Windows clone. All
+runs used CUDA only; no CARLA official eval was run.
+
+First, the low distribution-weight candidate was cross-probed:
+
+```text
+candidate=windows_replay_h3_32x32_corr0615p3w075_dist050055_seed20260528
+RouteActionDistributionWeight=0.05
+generic ready_for_clean_eval=false
+failures=[
+  signp action probe recommended_for_clean_rerun is not true,
+  signm action probe recommended_for_clean_rerun is not true
+]
+signp action_counts={7:954,10:24}
+signp dominant_action_fraction=0.9754601227
+signp route 0.64-0.70 action10 fraction=24/45=0.5333333333
+signm action_counts={7:763,10:21}
+signm dominant_action_fraction=0.9732142857
+route_window_gate ready_for_route_window_clean_eval=false
+route_window_gate failure=signm early route action fraction 0.026786 > 0.020000
+decision=no official clean eval
+```
+
+Then stronger distribution weights were trained and self-probed against the
+`corr0615p3` correction replay:
+
+```text
+candidate=windows_replay_h3_32x32_corr0615p3w075_dist050055w1_seed20260528
+RouteActionDistributionWeight=1.0
+self_probe action_counts={1:4,10:53,16:48}
+self_probe moving_steer_fraction=1.0
+self_probe recommended_for_clean_rerun=false
+decision=no cross/official promotion
+
+candidate=windows_replay_h3_32x32_corr0615p3w075_dist050055w025_seed20260528
+RouteActionDistributionWeight=0.25
+self_probe action_counts={1:4,10:55,16:46}
+self_probe moving_steer_fraction=1.0
+self_probe recommended_for_clean_rerun=false
+decision=no cross/official promotion
+
+candidate=windows_replay_h3_32x32_corr0615p3w075_dist050055w010_seed20260528
+RouteActionDistributionWeight=0.10
+self_probe action_counts={1:4,10:58,16:42,19:1}
+self_probe moving_steer_fraction=1.0
+self_probe recommended_for_clean_rerun=false
+decision=no cross/official promotion
+```
+
+Interpretation:
+
+```text
+The simple route-action-distribution weight axis is too sharp for this replay
+mixture. Weight 0.05 keeps the route 0.64-0.70 correction partially alive but
+still collapses to action7 on signp/signm. Weights 0.10 and above immediately
+overcorrect the correction replay into moving-steer on every probed step. The
+next clean-first H3 step should not continue a wide weight sweep on the same
+objective. Prefer a data/objective change that preserves signp/signm diversity
+and carries the 0.64-0.70 correction in the same replay distribution, or a
+route-local objective that penalizes false moving-steer inside the correction
+window rather than only matching route-window action histograms.
+```

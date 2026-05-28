@@ -929,6 +929,32 @@ discontinuous; the next offline-only H3 action should make the moving-steer
 false-positive/steer-sequence pressure weaker or route-local so it does not
 turn the whole replay into action10/action16 moving-steer dominance.
 
+Latest continuation on 2026-05-28 KST:
+
+- The `w075` route-window correction candidate with
+  `RouteActionDistributionWeight=0.05` was cross-probed on Windows CUDA.
+  Generic promotion remained false: signp predicted `{7:954,10:24}` with
+  dominant action fraction `0.9754601227`, and signm predicted `{7:763,10:21}`
+  with dominant action fraction `0.9732142857`.
+- The supplemental route-window gate also stayed false for this follow-up:
+  signp still had route `0.64-0.70` action10 fraction `24/45=0.5333333333`,
+  but signm early action10 leakage was `21/784=0.0267857143`, above the
+  `0.02` limit.
+- Stronger route-action-distribution candidates were trained from committed
+  code with CUDA only, no CARLA:
+  `w1`, `w025`, and `w010`.
+- All three stronger candidates were rejected by the correction self-probe
+  before cross/official promotion. `w1` produced `{1:4,10:53,16:48}`,
+  `w025` produced `{1:4,10:55,16:46}`, and `w010` produced
+  `{1:4,10:58,16:42,19:1}` on `corr0615p3`; all had
+  `moving_steer_fraction=1.0` and `recommended_for_clean_rerun=false`.
+- Decision: no official CARLA clean eval is authorized from these checkpoints.
+  The clean-first H3 direction should move away from simply increasing
+  route-action-distribution weight on the same replay mixture. The next
+  candidate should change the data/objective so signp/signm diversity and the
+  route `0.64-0.70` correction coexist in the same learned distribution, while
+  explicitly penalizing false moving-steer in the correction window.
+
 Latest H3 route-local evidence:
 
 - Weak global `MovingSteerFalsePositiveWeight=0.05` still overcorrected to
