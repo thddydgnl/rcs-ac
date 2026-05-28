@@ -966,6 +966,15 @@ Latest continuation on 2026-05-28 KST:
   `RouteActionDistributionWeight=0.10` with route-local false-positive
   pressure around route `0.60-0.67`, then run correction self-probe and
   signp/signm cross gate before any official CARLA eval.
+- Windows CUDA follow-up at commit `ad32ee3` tested that route-local
+  false-positive objective without CARLA. `rfp025` still overcorrected on the
+  correction replay with `{1:4,10:58,16:42,19:1}` and
+  `moving_steer_fraction=1.0`. `rfp2` swung too far back to action7 with
+  `{7:102,16:3}`, `dominant_action_fraction=0.9714285714`, and
+  `recommended_for_clean_rerun=false`. Neither checkpoint is authorized for
+  cross/official promotion. The next H3 candidate should bracket the route
+  false-positive weight between `0.25` and `2.0` and/or reduce late-steer
+  margin pressure before any official CARLA eval.
 
 Latest H3 route-local evidence:
 

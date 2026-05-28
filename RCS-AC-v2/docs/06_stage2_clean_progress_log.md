@@ -4606,3 +4606,42 @@ RouteMovingSteerFalsePositiveMaxRouteProgress=0.67
 Promotion remains unchanged: run correction self-probe first, then signp/signm
 cross replay gate. Official Windows CARLA clean eval is still forbidden unless
 offline probes recommend promotion.
+
+Windows clean clone at commit `ad32ee3` trained and probed the first
+route-local false-positive candidates with CUDA only. CARLA was not launched.
+
+```text
+candidate=windows_replay_h3_32x32_corr0615p3w075_dist010_rfp025_seed20260528
+RouteActionDistributionWeight=0.10
+RouteMovingSteerFalsePositiveWeight=0.25
+corr0615p3 self_probe action_counts={1:4,10:58,16:42,19:1}
+corr0615p3 self_probe moving_steer_fraction=1.0
+corr0615p3 self_probe recommended_for_clean_rerun=false
+decision=no cross/official promotion
+```
+
+Interpretation: `rfp025` did not counteract the `dist010` over-steer regime.
+The candidate behaved like the earlier `dist010` run, selecting moving-steer
+for every correction replay step.
+
+```text
+candidate=windows_replay_h3_32x32_corr0615p3w075_dist010_rfp2_seed20260528
+RouteActionDistributionWeight=0.10
+RouteMovingSteerFalsePositiveWeight=2.0
+corr0615p3 self_probe action_counts={7:102,16:3}
+corr0615p3 self_probe dominant_action_fraction=0.9714285714
+corr0615p3 self_probe moving_steer_fraction=0.0285714286
+corr0615p3 self_probe predicted_nonmoving_on_label_moving_fraction=0.5428571429
+corr0615p3 self_probe recommended_for_clean_rerun=false
+decision=no cross/official promotion
+```
+
+Interpretation: `rfp2` proves the route-local false-positive loss is active,
+but the weight is too strong and erases the late correction back into action7
+dominance. The useful bracket is now between `0.25` and `2.0`, and likely also
+depends on weakening `RouteLateMovingSteerMarginWeight` /
+`RouteLateRightSteerMarginWeight` so the objective does not flip between all
+moving-steer and all straight. Next H3 CUDA candidate should try a midpoint
+such as `RouteMovingSteerFalsePositiveWeight=0.75` with the same self-probe
+gate, or reduce the late-steer margin weights before another official eval is
+considered.
