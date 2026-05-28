@@ -26,20 +26,21 @@ clean-stability fill results must be recorded separately.
 ## Current Stage
 
 ```text
-Stage H0/H1: PDF-core clean-first rebase and privileged observation upgrade
+Stage H3: 32x32 privileged clean-stability fill after H2 PDF-core rejection
 ```
 
 Status:
 
 ```text
-H2_STRICT_32X32_REAL_REPLAY_OFFLINE_REJECTED__H3_CLEAN_STABILITY_FILL_PENDING
+H3_32X32_CLEAN_STABILITY_FILL_IN_PROGRESS__OFFLINE_ACTION_COLLAPSE
 ```
 
 Last completed stage:
 
 ```text
-Stage 0: Contract preflight PASS
-Stage 1: Privileged world model PASS
+Stage H0: PDF-core clean-first rebase PASS
+Stage H1: 32x32 privileged observation/replay-smoke PASS
+Stage H2: strict 32x32 PDF-faithful replay baseline OFFLINE_REJECTED
 ```
 
 ## Required Reading Before Coding
@@ -852,6 +853,53 @@ CARLA 512-step primary subset clean gate is PASS or explicitly blocked after cla
 CARLA 2048-step subset clean gate is run or explicitly blocked
 collision/offroad/stuck/route-progress evidence is recorded
 failure class is infrastructure / CARLA / adapter / contract / model / driving
+```
+
+## Current H3 Snapshot
+
+```text
+Current true stage:
+H3 clean-stability fill for privileged 32x32 clean performance.
+
+Latest completed H3 evidence:
+windows_privileged_h3_32x32_real_2x512_seed20260524 replay exists with
+2 episodes, 530 total steps, lengths [265,265], and labels
+{7:432, 10:26, 13:12, 15:38, 16:14, 19:8}.
+
+The first H3 long fill candidate,
+windows_replay_h3_32x32_long_iw1_cb05_msfpa1_msnm1_seed20260524,
+was rejected offline before official CARLA eval because the action probe
+predicted action7 for all 530 replay observations:
+single_action_collapse=true and recommended_for_clean_rerun=false.
+
+Additional H3 no-code fill candidates were trained/probed on Windows CUDA and
+rejected before official clean eval:
+- iw1_cb1_msb2_msfpa05_msnm05_rprio50 collapsed to action8, with
+  zero_throttle_fraction=1.0 and previous_stuck_action8_fraction=1.0.
+- iw5_cb05_ssf005_aux1_cap7w1c70_logit7w05 improved to
+  action_counts={7:501,10:10,13:19} with zero_throttle_fraction=0, but still
+  failed dominant_action_fraction=0.9452830189.
+- iw5_cb1_ssf010_aux1_cap7w2c65_logit7w1_rprio25 overcorrected to
+  action_counts={10:526,15:4}, moving_steer_fraction=0.9924528302.
+- iw5_cb075_ssf0075_aux1_cap7w15c67_logit7w075_rprio10 collapsed to
+  action10 for all 530 observations.
+
+No official CARLA clean eval was run from these rejected H3 checkpoints.
+```
+
+This H3 lane is clean-stability fill, not PDF-explicit core. Official clean
+eval may only run from an H3 checkpoint if offline action probes recommend a
+clean rerun. H3 failure or pass must not be merged into the H2 PDF-faithful
+baseline claim.
+
+Next H3 action:
+
+```text
+Stop blind no-code cap sweeps on the current 2x512 replay. The evidence now
+brackets action7 majority collapse against action10/right-moving-steer collapse.
+Either collect a longer/more diverse 32x32 privileged replay or write a small
+trainer brief for an action-distribution regularizer that keeps the 39-action
+Raw2Drive control contract intact.
 ```
 
 ## Important Constraints

@@ -560,11 +560,12 @@ root .git은 삭제하지 마.
 다음 turn에서 바로 해야 할 일:
 
 ```text
-1. H1 observation upgrade 설계 브리프를 쓴다.
-2. BEVGridSpec config-driven화와 32x32 smoke test를 작은 단위로 시작한다.
-3. route/lane/obstacle coverage report를 privileged_obs_probe 또는 별도 probe에 기록한다.
-4. replay/checkpoint manifest에 BEV shape/schema/hash를 명시적으로 남긴다.
-5. route geometry scalar 중 PDF-explicit core에서 제외할 diagnostic/fill 필드와 raw-stage 재현 가능한 필드를 선별한다.
+1. H3 32x32 clean-stability fill을 계속 진행한다.
+2. H2 strict PDF-faithful failure와 H3 fill evidence를 분리해서 기록한다.
+3. H3 replay/action-probe에서 action collapse를 먼저 offline gate로 잡는다.
+4. recommended_for_clean_rerun=true 전에는 official CARLA clean eval을 실행하지 않는다.
+5. no-code fill knob bracket이 action7/action10 collapse 사이에서 안정화되지 않으면
+   더 긴/다양한 privileged replay 또는 작은 trainer gap을 implementation brief로 정의한다.
 ```
 
 2026-05-27 H0 note:
@@ -574,4 +575,15 @@ route_priority_components WIP는 clean-stability fill/diagnostic sampler로
 분류했고, Python trainer + Windows foreground/detached/mixed wrapper에 전파했다.
 --pdf-stage1-strict에서는 금지된다.
 검증: python -m pytest RCS-AC-v2/tests -q -> 151 passed.
+```
+
+2026-05-28 H3 note:
+
+```text
+H1 32x32 observation/replay-smoke passed on Windows.
+H2 strict 32x32 real replay training was rejected offline by action19 collapse.
+H3 fill started from windows_privileged_h3_32x32_real_2x512_seed20260524.
+Initial no-code fill candidates were still rejected offline before official
+CARLA eval, moving between action7 majority collapse and action10 oversteer
+collapse. See experiments/02_privileged_policy_clean/h3_clean_stability_fill_32x32_brief.md.
 ```
