@@ -169,8 +169,11 @@ target-24 후보는 target-24 replay만 통과했다고 512 clean으로 보내�
 기존 steer2 replay에서도 collapse하지 않는지 이 wrapper로 확인한다. probe가
 끝나면 `stage2_candidate_cross_replay_gate.json`을 만들고, 모든 replay에서
 action probe `recommended_for_clean_rerun=true` 및 latent probe 기준
-`linear_probe_test_accuracy >= 0.80`, majority 대비 margin `>= 0.15`를
-만족할 때만 512 clean 후보로 본다.
+`linear_probe_test_accuracy >= 0.80`, majority baseline을 이길 수 있는
+남은 accuracy headroom 대비 margin fraction `>= 0.15`를 만족할 때만
+512 clean 후보로 본다. 단순 majority 대비 절대 margin 0.15는
+`majority_action_fraction > 0.85`일 때 100% 초과 정확도를 요구할 수 있으므로
+사용하지 않는다.
 summarize_stage2_candidate_gate.ps1는 `stage2_candidate_cross_replay_gate.json`을
 읽고 다음 행동을 기계적으로 출력한다. `ready_for_clean_eval=true`면
 `run_official_512_clean_eval`까지만 승격하고, reject면 target-22 fallback을

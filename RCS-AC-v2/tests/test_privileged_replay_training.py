@@ -356,6 +356,40 @@ def test_candidate_cross_replay_gate_rejects_weak_latent_probe(tmp_path) -> None
     assert "latent probe" in result["failures"][0]
 
 
+def test_candidate_cross_replay_gate_uses_headroom_normalized_latent_margin(tmp_path) -> None:
+    replay_dir = tmp_path / "signp"
+    replay_dir.mkdir()
+    (replay_dir / "stage2_checkpoint_action_probe.json").write_text(
+        json.dumps(
+            {
+                "recommended_for_clean_rerun": True,
+                "action_counts": {"7": 798, "4": 69, "15": 111},
+                "moving_steer_fraction": 0.07,
+                "dominant_action_fraction": 0.816,
+                "nonzero_throttle_fraction": 1.0,
+                "reverse_action_count": 0,
+            }
+        )
+    )
+    (replay_dir / "stage2_replay_latent_probe.json").write_text(
+        json.dumps(
+            {
+                "majority_action_fraction": 0.8558282209,
+                "linear_probe_train_accuracy": 0.9693,
+                "linear_probe_test_accuracy": 0.9846938848,
+            }
+        )
+    )
+
+    result = evaluate_candidate_cross_replay_gate(output_dir=tmp_path, replay_names=["signp"])
+
+    latent = result["replays"]["signp"]["latent_probe"]
+    assert result["ready_for_clean_eval"] is True
+    assert latent["accuracy_headroom_over_majority"] == pytest.approx(0.1441717791)
+    assert latent["accuracy_margin_over_majority"] == pytest.approx(0.1288656639)
+    assert latent["accuracy_margin_fraction_of_headroom"] == pytest.approx(0.8938341796)
+
+
 def test_candidate_decision_summary_promotes_only_to_clean_eval_candidate(tmp_path) -> None:
     gate_path = tmp_path / "stage2_candidate_cross_replay_gate.json"
     gate_path.write_text(

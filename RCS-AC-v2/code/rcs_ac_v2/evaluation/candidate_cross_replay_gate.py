@@ -18,6 +18,8 @@ def evaluate_candidate_cross_replay_gate(
 ) -> dict[str, Any]:
     if not replay_names:
         raise ValueError("at least one replay name is required")
+    if min_latent_accuracy_margin < 0.0:
+        raise ValueError("min_latent_accuracy_margin must be non-negative")
     root = Path(output_dir)
     replay_results: dict[str, Any] = {}
     failures: list[str] = []
@@ -37,13 +39,18 @@ def evaluate_candidate_cross_replay_gate(
         latent_test = float(latent_probe.get("linear_probe_test_accuracy", 0.0))
         latent_majority = float(latent_probe.get("majority_action_fraction", 0.0))
         latent_margin = latent_test - latent_majority
-        latent_ready = latent_test >= min_latent_test_accuracy and latent_margin >= min_latent_accuracy_margin
+        latent_headroom = max(0.0, 1.0 - latent_majority)
+        latent_margin_fraction = latent_margin / latent_headroom if latent_headroom > 0.0 else 0.0
+        latent_ready = (
+            latent_test >= min_latent_test_accuracy
+            and latent_margin_fraction >= min_latent_accuracy_margin
+        )
         if not action_ready:
             failures.append(f"{replay_name}: action probe recommended_for_clean_rerun is not true")
         if not latent_ready:
             failures.append(
                 f"{replay_name}: latent probe test={latent_test:.6f}, majority={latent_majority:.6f}, "
-                f"margin={latent_margin:.6f}"
+                f"margin={latent_margin:.6f}, headroom_fraction={latent_margin_fraction:.6f}"
             )
         replay_results[replay_name] = {
             "action_probe": {
@@ -61,6 +68,8 @@ def evaluate_candidate_cross_replay_gate(
                 "linear_probe_test_accuracy": latent_test,
                 "linear_probe_train_accuracy": latent_probe.get("linear_probe_train_accuracy"),
                 "accuracy_margin_over_majority": latent_margin,
+                "accuracy_headroom_over_majority": latent_headroom,
+                "accuracy_margin_fraction_of_headroom": latent_margin_fraction,
             },
             "ready": action_ready and latent_ready,
         }
