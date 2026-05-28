@@ -825,3 +825,85 @@ action4 left-mild-steer tail. Next H3 work should target the 0.59-0.62 route
 window and avoid simply increasing global moving-steer pressure, because that
 previously caused action16 dominance.
 ```
+
+## Route-Local Action4 Cap Probes
+
+Subagent Hypatia recommended the smallest no-new-code follow-up: keep the best
+route-local sampling lineage and add a weak route-local logit cap on action4
+only around the 512 failure tail.
+
+Candidate:
+
+```text
+windows_replay_h3_32x32_routeprio0025_cap4_r0580625_w025_seed20260524
+
+Delta:
+RouteActionLogitCapWeight=0.25
+RouteActionLogitCapIds=4
+RouteActionLogitCapMargin=0.0
+RouteActionLogitCapMinRouteProgress=0.58
+RouteActionLogitCapMaxRouteProgress=0.625
+```
+
+Cross replay result:
+
+```text
+ready_for_clean_eval=false
+
+signp:
+action_counts={15:78,4:48,7:852}
+dominant_action_fraction=0.8711656442
+moving_steer_fraction=0.0490797546
+recommended_for_clean_rerun=false
+latent_margin_over_majority=0.1288656640
+
+signm:
+action_counts={15:79,19:1,4:15,7:689}
+dominant_action_fraction=0.8788265306
+moving_steer_fraction=0.0204081633
+recommended_for_clean_rerun=false
+```
+
+A weaker cap was also tested:
+
+```text
+windows_replay_h3_32x32_routeprio0025_cap4_r0580625_w010_seed20260524
+
+Delta:
+RouteActionLogitCapWeight=0.10
+RouteActionLogitCapIds=4
+RouteActionLogitCapMargin=0.0
+RouteActionLogitCapMinRouteProgress=0.58
+RouteActionLogitCapMaxRouteProgress=0.625
+```
+
+Cross replay result:
+
+```text
+ready_for_clean_eval=false
+
+signp:
+action_counts={15:81,4:48,7:849}
+dominant_action_fraction=0.8680981595
+moving_steer_fraction=0.0490797546
+recommended_for_clean_rerun=false
+latent_margin_over_majority=0.1288656640
+
+signm:
+action_counts={15:82,19:1,4:15,7:686}
+dominant_action_fraction=0.875
+moving_steer_fraction=0.0204081633
+recommended_for_clean_rerun=false
+```
+
+Interpretation:
+
+```text
+Both candidates preserved nonzero throttle and avoided global moving-steer
+overcorrection, but suppressing action4 in the failure band leaked into action7
+dominance on signp/signm cross probes. No official CARLA run is allowed from
+either checkpoint. Stop cap-only action4 tuning for this bracket. The next H3
+step should collect or build a small route_progress 0.59-0.62 correction replay
+or label adjustment so the policy learns the needed local geometry instead of
+only moving probability mass from action4 to action7.
+```

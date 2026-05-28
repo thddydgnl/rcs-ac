@@ -419,7 +419,8 @@ canonical Windows clean clone for the next Stage 2 candidate is C:\Users\thddy\D
 pull latest origin/codex/rcs-ac-v2-raw2drive before every Windows run
 latest best H3 lineage is windows_replay_h3_32x32_mixdivmid_iw5_cb05_routeprio0025_r045067_seed20260524
 it passed offline action probe and official 128 clean, but failed official 512 as offroad at route_progress=0.6153846154 after repeated action4 mild-left tail
-next clean-first action is offline-first: target route_progress 0.59-0.62/action4-tail using existing route-local knobs or a small route-window correction replay/label adjustment
+route-local action4 cap probes at weights 0.25 and 0.10 were rejected offline before CARLA because action4 suppression leaked into action7 dominance on signp/signm cross probes
+next clean-first action is offline-first: collect/build a small route_progress 0.59-0.62 correction replay or label adjustment rather than continuing cap-only action4 tuning
 do not run official 512 again unless checkpoint_action_probe returns recommended_for_clean_rerun=true and the generated 512 checkpoint-filled config is from committed/pushed code
 do not continue broad/global moving-steer pressure; it already overcorrected into action16 dominance
 do not start raw/fusion; privileged 512 clean is still failing
