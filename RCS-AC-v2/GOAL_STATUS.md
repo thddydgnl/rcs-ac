@@ -920,6 +920,23 @@ candidate should keep the new route>0.51 and mid045 components, but lower or
 rebalance the midm correction pressure so the policy does not jump from action7
 collapse to action10 collapse. Continue with offline action probes until
 recommended_for_clean_rerun=true.
+
+Follow-up Windows CUDA probes at clean clone commit 3b5d9bee narrowed the
+bracket:
+
+- midp=1,midm=1 collapsed to action10 for all 2310 observations.
+- midp=1,midm=0.5 collapsed to action7 for all 2310 observations.
+- midp=1,midm=0.75 also collapsed to action7 for all 2310 observations.
+- midp=1,midm=0.875 flipped back to action10 for all 2310 observations.
+- adding MovingSteerFalsePositiveWeight=0.25 with SteerSequenceFraction=0.025
+  broke the single action10 collapse but still failed with
+  action_counts={10:104,13:28,16:2178}, dominant_action_fraction=0.9428571429,
+  moving_steer_fraction=1.0.
+
+Do not run official CARLA from these checkpoints. Component weight only is too
+discontinuous; the next offline-only H3 action should make the moving-steer
+false-positive/steer-sequence pressure weaker or route-local so it does not
+turn the whole replay into action10/action16 moving-steer dominance.
 ```
 
 ## Important Constraints

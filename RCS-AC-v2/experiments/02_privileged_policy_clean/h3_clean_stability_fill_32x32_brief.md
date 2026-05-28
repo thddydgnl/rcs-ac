@@ -542,3 +542,129 @@ rebalance the midm component weight and/or add a less abrupt action7/action10
 bracket regularizer. Do not run official CARLA eval until the offline probe
 returns recommended_for_clean_rerun=true.
 ```
+
+## Midm Weight Bracket And Moving-Steer FP Probe
+
+Windows clean clone pulled commit `3b5d9bee` and ran additional CUDA offline
+probes on the same four-component mixed replay:
+
+```text
+windows_privileged_h3_32x32_mixed_diverse_t22_signpm_mid045_seed20260524
+episodes=14
+total_steps=2310
+```
+
+All candidates used the same H3 fill-only 32x32 contracts and remained
+offline-only. No official CARLA clean eval was run.
+
+### Candidate: `mid1`
+
+Delta from the previous overcorrected `midp=2,midm=3` candidate:
+
+```text
+ComponentSampleWeights=signp=1,signm=1,midp=1,midm=1
+```
+
+Full offline probe:
+
+```text
+action_counts={10:2310}
+dominant_action_fraction=1.0
+moving_steer_fraction=1.0
+predicted_moving_on_label_nonmoving_fraction=0.8393939394
+recommended_for_clean_rerun=false
+```
+
+### Candidate: `mid105`
+
+Delta:
+
+```text
+ComponentSampleWeights=signp=1,signm=1,midp=1,midm=0.5
+```
+
+Full offline probe:
+
+```text
+action_counts={7:2310}
+dominant_action_fraction=1.0
+moving_steer_fraction=0.0
+predicted_nonmoving_on_label_moving_fraction=0.1606060606
+recommended_for_clean_rerun=false
+```
+
+### Candidate: `mid1075`
+
+Delta:
+
+```text
+ComponentSampleWeights=signp=1,signm=1,midp=1,midm=0.75
+```
+
+Full offline probe:
+
+```text
+action_counts={7:2310}
+dominant_action_fraction=1.0
+moving_steer_fraction=0.0
+predicted_nonmoving_on_label_moving_fraction=0.1606060606
+recommended_for_clean_rerun=false
+```
+
+### Candidate: `mid10875`
+
+Delta:
+
+```text
+ComponentSampleWeights=signp=1,signm=1,midp=1,midm=0.875
+```
+
+Full offline probe:
+
+```text
+action_counts={10:2310}
+dominant_action_fraction=1.0
+moving_steer_fraction=1.0
+predicted_moving_on_label_nonmoving_fraction=0.8393939394
+recommended_for_clean_rerun=false
+```
+
+Conclusion:
+
+```text
+Component weighting alone is discontinuous in this bracket: midm<=0.75
+collapses to action7, while midm>=0.875 collapses to action10. This is not
+clean evidence, but it narrows the failure to an action7/action10 attractor
+threshold rather than a missing replay-file or CUDA issue.
+```
+
+### Candidate: `mid1_msfpa025`
+
+Delta from `mid1`:
+
+```text
+SteerSequenceFraction=0.025
+MovingSteerFalsePositiveWeight=0.25
+ComponentSampleWeights=signp=1,signm=1,midp=1,midm=1
+```
+
+Full offline probe:
+
+```text
+action_counts={10:104,13:28,16:2178}
+dominant_action_fraction=0.9428571429
+moving_steer_fraction=1.0
+predicted_moving_on_label_nonmoving_fraction=0.8393939394
+single_action_collapse=false
+recommended_for_clean_rerun=false
+```
+
+Conclusion:
+
+```text
+The mild moving-steer false-positive penalty broke the pure action10 collapse
+but shifted the attractor to action16/right-moving-steer dominance. The next
+candidate should not run CARLA. It should either lower the moving-steer
+false-positive pressure and/or make the penalty route-local, because full-route
+moving-steer penalties still overcorrect all nonmoving-label observations.
+```
