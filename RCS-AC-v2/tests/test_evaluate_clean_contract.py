@@ -846,6 +846,10 @@ def test_cross_replay_candidate_probe_runner_static_contract() -> None:
     assert "stage2_candidate_cross_replay_gate.json" in text
     assert "--min-latent-accuracy-margin" in text
     assert "--min-latent-test-accuracy" in text
+    assert "[string]$RouteWindowActionIds = \"\"" in text
+    assert "ROUTE_WINDOW_ACTION_IDS=$($ResolvedRouteWindowActionIds -join ',')" in text
+    assert "--route-window-action-ids" in text
+    assert "--route-window-required-replay-name" in text
 
 
 def test_mixed_replay_manifest_runner_static_contract() -> None:

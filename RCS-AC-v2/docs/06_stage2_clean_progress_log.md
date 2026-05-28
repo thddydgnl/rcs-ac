@@ -4369,3 +4369,41 @@ either add a route-window-aware promotion gate for the known collision bracket
 or modify the objective to preserve signm mid-route action diversity while
 retaining the route 0.64-0.70 action10 correction. Do not start raw/fusion from
 these checkpoints.
+
+Implementation follow-up: a route-window supplemental gate was added as
+clean-stability fill, without replacing the generic cross-replay gate or
+claiming clean evidence. The gate is written under the existing
+`stage2_candidate_cross_replay_gate.json` payload as `route_window_gate` when
+`--route-window-action-ids` is supplied. It checks route-bin action counts from
+the checkpoint action probe only; it does not change model inputs, action
+outputs, training data, or official CARLA evaluation.
+
+Contract boundary:
+
+```text
+source=route_window_cross_replay_gate
+clean_gate_evidence=false
+stage=H3 clean-stability fill
+does_not_replace=official Windows CARLA clean evidence
+does_not_relabel=PDF-explicit H2 core
+final_policy_contract=Raw2Drive 39 discrete actions
+```
+
+The Windows cross-replay wrapper now forwards:
+
+```text
+-RouteWindowActionIds
+-RouteWindowMinRouteProgress
+-RouteWindowMaxRouteProgress
+-RouteWindowMinActionFraction
+-RouteWindowEarlyMaxRouteProgress
+-RouteWindowMaxEarlyActionFraction
+-RouteWindowRequiredReplayNames
+-RouteWindowMaxZeroThrottleSteerFraction
+```
+
+The intended first use is to rerun the existing `w075` cross-probe gate from
+committed code and inspect whether the supplemental route-window view passes
+while the generic gate remains false. Even if the supplemental route-window
+view passes, official CARLA is still not authorized unless the remaining H3
+promotion criteria are explicitly accepted and recorded.

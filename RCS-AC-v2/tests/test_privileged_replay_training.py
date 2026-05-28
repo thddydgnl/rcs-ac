@@ -390,6 +390,96 @@ def test_candidate_cross_replay_gate_uses_headroom_normalized_latent_margin(tmp_
     assert latent["accuracy_margin_fraction_of_headroom"] == pytest.approx(0.8938341796)
 
 
+def test_candidate_cross_replay_gate_reports_route_window_supplement(tmp_path) -> None:
+    replay_dir = tmp_path / "signp"
+    replay_dir.mkdir()
+    (replay_dir / "stage2_checkpoint_action_probe.json").write_text(
+        json.dumps(
+            {
+                "recommended_for_clean_rerun": False,
+                "action_counts": {"7": 945, "10": 33},
+                "moving_steer_fraction": 0.0337423313,
+                "dominant_action_fraction": 0.9662576687,
+                "nonzero_throttle_fraction": 1.0,
+                "reverse_action_count": 0,
+                "zero_throttle_steer_fraction": 0.0,
+                "route_progress_bins": {
+                    "0.00-0.50": {"count": 750, "action_counts": {"7": 750}},
+                    "0.50-0.55": {"count": 72, "action_counts": {"7": 72}},
+                    "0.55-0.60": {"count": 75, "action_counts": {"7": 75}},
+                    "0.60-0.64": {"count": 36, "action_counts": {"7": 36}},
+                    "0.64-0.66": {"count": 39, "action_counts": {"7": 12, "10": 27}},
+                    "0.66-0.70": {"count": 6, "action_counts": {"10": 6}},
+                },
+            }
+        )
+    )
+    (replay_dir / "stage2_replay_latent_probe.json").write_text(
+        json.dumps(
+            {
+                "majority_action_fraction": 0.8558282209,
+                "linear_probe_train_accuracy": 0.959,
+                "linear_probe_test_accuracy": 0.9642857313,
+            }
+        )
+    )
+
+    result = evaluate_candidate_cross_replay_gate(
+        output_dir=tmp_path,
+        replay_names=["signp"],
+        route_window_action_ids=[10],
+        route_window_required_replay_names=["signp"],
+        route_window_min_route_progress=0.64,
+        route_window_max_route_progress=0.70,
+        route_window_min_action_fraction=0.50,
+        route_window_early_max_route_progress=0.60,
+        route_window_max_early_action_fraction=0.02,
+    )
+
+    assert result["ready_for_clean_eval"] is False
+    assert result["route_window_gate"]["ready_for_route_window_clean_eval"] is True
+    assert result["route_window_gate"]["clean_gate_evidence"] is False
+    signp = result["route_window_gate"]["replays"]["signp"]
+    assert signp["window_count"] == 45
+    assert signp["window_action_count"] == 33
+    assert signp["window_action_fraction"] == pytest.approx(33 / 45)
+    assert signp["early_action_fraction"] == 0.0
+
+
+def test_candidate_cross_replay_route_window_gate_rejects_early_leakage(tmp_path) -> None:
+    replay_dir = tmp_path / "signp"
+    replay_dir.mkdir()
+    (replay_dir / "stage2_checkpoint_action_probe.json").write_text(
+        json.dumps(
+            {
+                "recommended_for_clean_rerun": True,
+                "action_counts": {"7": 80, "10": 20},
+                "nonzero_throttle_fraction": 1.0,
+                "reverse_action_count": 0,
+                "zero_throttle_steer_fraction": 0.0,
+                "route_progress_bins": {
+                    "0.00-0.50": {"count": 80, "action_counts": {"7": 70, "10": 10}},
+                    "0.64-0.66": {"count": 20, "action_counts": {"10": 20}},
+                },
+            }
+        )
+    )
+    (replay_dir / "stage2_replay_latent_probe.json").write_text(
+        json.dumps({"majority_action_fraction": 0.50, "linear_probe_test_accuracy": 0.90})
+    )
+
+    result = evaluate_candidate_cross_replay_gate(
+        output_dir=tmp_path,
+        replay_names=["signp"],
+        route_window_action_ids=[10],
+        route_window_required_replay_names=["signp"],
+    )
+
+    route_gate = result["route_window_gate"]
+    assert route_gate["ready_for_route_window_clean_eval"] is False
+    assert any("early route action fraction" in failure for failure in route_gate["failures"])
+
+
 def test_candidate_decision_summary_promotes_only_to_clean_eval_candidate(tmp_path) -> None:
     gate_path = tmp_path / "stage2_candidate_cross_replay_gate.json"
     gate_path.write_text(

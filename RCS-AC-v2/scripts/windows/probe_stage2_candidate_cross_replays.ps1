@@ -18,6 +18,14 @@ param(
     [double]$MinLatentAccuracyMargin = 0.15,
     [double]$MinLatentTestAccuracy = 0.80,
     [string]$ForbiddenActionIds = "",
+    [string]$RouteWindowActionIds = "",
+    [double]$RouteWindowMinRouteProgress = 0.64,
+    [double]$RouteWindowMaxRouteProgress = 0.70,
+    [double]$RouteWindowMinActionFraction = 0.50,
+    [double]$RouteWindowEarlyMaxRouteProgress = 0.60,
+    [double]$RouteWindowMaxEarlyActionFraction = 0.02,
+    [string]$RouteWindowRequiredReplayNames = "",
+    [double]$RouteWindowMaxZeroThrottleSteerFraction = 0.0,
     [string]$Device = "cuda"
 )
 
@@ -46,6 +54,19 @@ if ($ForbiddenActionIds -ne "") {
         ForEach-Object { $_.Trim() } |
         Where-Object { $_ -ne "" } |
         ForEach-Object { [int]$_ }
+}
+$ResolvedRouteWindowActionIds = @()
+if ($RouteWindowActionIds -ne "") {
+    $ResolvedRouteWindowActionIds = $RouteWindowActionIds.Split(",") |
+        ForEach-Object { $_.Trim() } |
+        Where-Object { $_ -ne "" } |
+        ForEach-Object { [int]$_ }
+}
+$ResolvedRouteWindowRequiredReplayNames = @()
+if ($RouteWindowRequiredReplayNames -ne "") {
+    $ResolvedRouteWindowRequiredReplayNames = $RouteWindowRequiredReplayNames.Split(",") |
+        ForEach-Object { $_.Trim() } |
+        Where-Object { $_ -ne "" }
 }
 
 $ActionProbeScript = Join-Path $ProjectRoot "RCS-AC-v2\scripts\windows\probe_stage2_checkpoint_actions.ps1"
@@ -116,6 +137,7 @@ Write-Host "CONFIG_PATH=$ConfigPath"
 Write-Host "CHECKPOINT_MANIFEST_PATH=$CheckpointManifestPath"
 Write-Host "OUTPUT_DIR=$OutputDir"
 Write-Host "FORBIDDEN_ACTION_IDS=$($ResolvedForbiddenActionIds -join ',')"
+Write-Host "ROUTE_WINDOW_ACTION_IDS=$($ResolvedRouteWindowActionIds -join ',')"
 Invoke-ReplayProbePair `
     -ReplayName $PrimaryReplayName `
     -ReplayManifestPath $PrimaryReplayManifestPath `
@@ -141,6 +163,20 @@ $GateArgs = @(
 )
 if ($SecondaryReplayManifestPath -ne "") {
     $GateArgs += @("--replay-name", $SecondaryReplayName)
+}
+if ($ResolvedRouteWindowActionIds.Count -gt 0) {
+    $GateArgs += @(
+        "--route-window-action-ids", ($ResolvedRouteWindowActionIds -join ","),
+        "--route-window-min-route-progress", $RouteWindowMinRouteProgress,
+        "--route-window-max-route-progress", $RouteWindowMaxRouteProgress,
+        "--route-window-min-action-fraction", $RouteWindowMinActionFraction,
+        "--route-window-early-max-route-progress", $RouteWindowEarlyMaxRouteProgress,
+        "--route-window-max-early-action-fraction", $RouteWindowMaxEarlyActionFraction,
+        "--route-window-max-zero-throttle-steer-fraction", $RouteWindowMaxZeroThrottleSteerFraction
+    )
+    foreach ($ReplayName in $ResolvedRouteWindowRequiredReplayNames) {
+        $GateArgs += @("--route-window-required-replay-name", $ReplayName)
+    }
 }
 & py @GateArgs
 exit $LASTEXITCODE

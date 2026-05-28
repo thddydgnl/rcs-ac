@@ -468,6 +468,11 @@ from these diagnostic checkpoints. Next clean-first work should either add a
 route-window-aware promotion gate for the known route 0.6667 collision bracket,
 or adjust the objective so signm mid-route diversity is preserved while the
 route 0.64-0.70 action10 correction remains active.
+route-window supplemental gate implementation is now in progress as H3
+clean-stability fill. It must remain `clean_gate_evidence=false`, must not
+replace official Windows CARLA clean evidence, and must not be reported as
+PDF-explicit H2 core. Use it to inspect known collision-window correction and
+early leakage before deciding whether the next step is objective/data repair.
 do not run another official 512 until a new candidate passes cross replay and a 512 checkpoint action probe from committed/pushed code
 do not continue broad/global moving-steer pressure; it already overcorrected into action16 dominance
 do not start raw/fusion; privileged 512 clean is still failing
