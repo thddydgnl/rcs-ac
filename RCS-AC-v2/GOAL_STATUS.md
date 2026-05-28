@@ -32,7 +32,7 @@ Stage H0/H1: PDF-core clean-first rebase and privileged observation upgrade
 Status:
 
 ```text
-H1_LOCAL_32X32_PRIVILEGED_OBS_PATH_PASS__WINDOWS_PROBE_PENDING
+H1_WINDOWS_32X32_PRIVILEGED_PROBE_AND_TINY_REPLAY_PASS__CLEAN_GATE_PENDING
 ```
 
 Last completed stage:
@@ -762,6 +762,38 @@ the Windows workflow document points the H1 probe/tiny-replay lane at the
 32x32 config. This is still not Windows clean performance evidence; the clean
 clone must pull the committed code and run the probe plus tiny replay before
 H1 can be closed.
+H1 Windows probe update on 2026-05-28 KST: Windows SSH recovery first diagnosed
+a Mac-side userspace Tailscale stale-socket failure. The codex `tailscaled`
+process had exited, `tailscaled-codex.sock` remained, `lsof -iTCP:1055` showed
+no SOCKS listener, normal SSH to 100.87.219.58 timed out, SOCKS SSH returned
+`Connection closed by UNKNOWN port 65535`, and documented LAN IPs were stale
+or refused SSH. Restarting the codex userspace daemon restored local Tailscale
+IP 100.72.72.122, Windows peer 100.87.219.58, and SSH to host `Song`.
+The clean clone
+`C:\Users\thddy\Documents\code\RCS-AC-first-official-v2-7f87656` then pulled
+branch `codex/rcs-ac-v2-raw2drive` fast-forward to commit
+`27a3450ca270047d43f15f3812e4e2b7d4c0ab6a`. Tracked files were clean with
+`git status --short --branch --untracked-files=no`; old and new run artifacts
+remain untracked under experiments. CUDA/dependency guard passed with RTX 3080.
+The H1 32x32 privileged observation probe passed and wrote
+`RCS-AC-v2\experiments\02_privileged_policy_clean\windows_128_32x32\privileged_obs_probe.json`
+with `clean_gate_evidence=false`, status `PROBE_PASS`, source
+`carla_simulator_state`, schema `carla_simulator_semantic43_v1`, BEV shape
+`[1,1,43,32,32]`, ego shape `[1,1,8]`, route/lane/obstacle availability true,
+and neutral step collision/offroad/stuck false. The expected empty critical
+channels were `vehicle`, `pedestrian`, and `dynamic_vehicle`; actor near/far
+and static obstacle channels were nonzero. A tiny replay collection also
+passed at the same commit with 1 episode, 8 total steps,
+`privileged_bev_shapes=[[8,43,32,32]]`,
+`privileged_ego_shapes=[[8,8]]`, source
+`windows_carla_privileged_replay`, and manifest path
+`RCS-AC-v2\experiments\02_privileged_policy_clean\replay\windows_privileged_h1_32x32_tiny\stage2_privileged_replay_manifest.json`.
+CARLA was stopped after the probe/replay; RTX 3080 reported 58C, 0% GPU use,
+and 685 MiB memory. This closes the H1 Windows shape/coverage/replay-smoke
+evidence, but it is not clean performance evidence. Next work should decide
+whether to train a tiny 32x32 replay checkpoint purely as a shape smoke or move
+to the real privileged clean replay/training lane before official 128/512/2048
+clean gates.
 ```
 
 Do not start Stage 3 raw sensor work or any fusion ablation until:

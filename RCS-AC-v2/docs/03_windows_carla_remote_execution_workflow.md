@@ -216,6 +216,36 @@ Recovery order:
    probe, and then the intended candidate wrapper.
 ```
 
+Stale userspace daemon/socket diagnosis:
+
+```text
+If `tailscale --socket="$TS_SOCKET" status` says the local service is not
+running while `tailscaled-codex.sock` still exists, and `lsof -iTCP:1055`
+shows no listener, the Mac userspace daemon died and left a stale socket.
+Remove the stale socket, restart the codex userspace daemon, and verify both
+the SOCKS listener and peer list before SSH:
+
+rm -f "$HOME/.local/run/tailscaled-codex.sock"
+/opt/homebrew/opt/tailscale/bin/tailscaled \
+  --tun=userspace-networking \
+  --socks5-server=localhost:1055 \
+  --socket=$HOME/.local/run/tailscaled-codex.sock \
+  --statedir=$HOME/.local/share/tailscale-codex
+
+lsof -nP -iTCP:1055 -sTCP:LISTEN
+/opt/homebrew/opt/tailscale/bin/tailscale --socket="$TS_SOCKET" status
+```
+
+Known recovered case, 2026-05-28 KST:
+
+```text
+Symptom: normal Tailscale SSH timed out, SOCKS SSH returned
+`Connection closed by UNKNOWN port 65535`, and LAN IPs refused/timed out.
+Cause: Mac userspace `tailscaled` had exited, leaving only a stale socket file.
+Recovery: restart codex userspace `tailscaled`, confirm local IP
+100.72.72.122 and Windows peer 100.87.219.58, then SSH through SOCKS.
+```
+
 ## 4. Required Goal Order
 
 Every v2 implementation/experiment round that touches CARLA must follow this
