@@ -895,14 +895,31 @@ baseline claim.
 Next H3 action:
 
 ```text
-The route-window action-distribution regularizer is implemented and validated
-at commit 9aee5109, but two Windows CUDA offline candidates still failed:
-dist2+cap7w05 produced {7:514,10:10,13:6}, dominant_action_fraction=0.9698;
-dist10 alone collapsed to {7:530}. Stop using the current 2x512 replay as the
-only training source for further H3 cap/distribution sweeps. Collect a
-longer/more diverse 32x32 privileged replay with route progress beyond 0.51 and
-more balanced mild left/right/straight labels, then rerun the regularized H3
-offline gate.
+The route-window action-distribution regularizer is implemented and validated.
+The current 2x512 replay is no longer the only H3 source. Windows clean clone
+commit 0fcb5906 collected new 32x32 privileged replay components:
+
+- diverse_t22_signm_3x512: 3 episodes / 784 steps, route max 0.512821,
+  labels {7:621,10:38,13:12,15:73,16:30,19:10}.
+- diverse_t22_signp_3x512: 3 episodes / 978 steps, route max 0.666667,
+  labels {4:69,7:837,15:72}.
+- mid045_t22_signp_mth03_4x512: 4 episodes / 404 steps, route
+  0.461538-0.666667, labels {4:92,7:312}.
+- mid045_t22_signm_mth03_4x512: 4 episodes / 144 steps, route
+  0.461538-0.512821, labels {7:24,10:52,13:16,16:40,19:12}.
+
+Two mixed CUDA candidates were rejected offline before CARLA:
+
+- mixdiv signpm+base collapsed to action7 for all 2292 probed observations.
+- mixdivmid signpm+mid045 overcorrected to action10 for all 2310 probed
+  observations, with moving_steer_fraction=1.0 and
+  predicted_moving_on_label_nonmoving_fraction=0.8393939394.
+
+Do not run official CARLA clean eval from either checkpoint. The next H3
+candidate should keep the new route>0.51 and mid045 components, but lower or
+rebalance the midm correction pressure so the policy does not jump from action7
+collapse to action10 collapse. Continue with offline action probes until
+recommended_for_clean_rerun=true.
 ```
 
 ## Important Constraints

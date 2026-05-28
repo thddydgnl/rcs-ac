@@ -387,3 +387,158 @@ Do not use pure pursuit or waypoint final control.
 Keep H3 as clean-stability fill, not PDF-explicit core.
 Only run official 128 clean eval if recommended_for_clean_rerun=true.
 ```
+
+## Diverse Replay Collection And Mid045 Correction Components
+
+Windows access was rechecked through the documented userspace Tailscale SOCKS
+path on 2026-05-28 KST. The clean clone
+`C:\Users\thddy\Documents\code\RCS-AC-first-official-v2-7f87656` fast-forwarded
+to commit `0fcb5906`, SSH worked, CARLA readiness passed on Town04, and CARLA
+was stopped after each collection batch. RTX 3080 stayed idle/cool after each
+run.
+
+New H3 32x32 replay components were collected from the committed clean clone:
+
+```text
+windows_privileged_h3_32x32_diverse_t22_signm_3x512_seed20260524
+episodes=3
+total_steps=784
+episode_lengths=[262,261,261]
+route_progress ~= 0.025641 to 0.512821
+label_action_counts={7:621,10:38,13:12,15:73,16:30,19:10}
+bev_shape examples=[262,43,32,32]
+
+windows_privileged_h3_32x32_diverse_t22_signp_3x512_seed20260524
+episodes=3
+total_steps=978
+episode_lengths=[326,326,326]
+route_progress ~= 0.025641 to 0.666667
+label_action_counts={4:69,7:837,15:72}
+bev_shape examples=[326,43,32,32]
+```
+
+The signp component finally pushed H3 replay coverage beyond the previous
+0.512821 ceiling, but the combined full replay was still action7-heavy:
+
+```text
+combined_total_steps=1762
+combined_action_counts={4:69,7:1458,10:38,13:12,15:145,16:30,19:10}
+```
+
+A mixed replay using `signp`, `signm`, and the earlier H3 `base` 2x512 replay
+was created:
+
+```text
+windows_privileged_h3_32x32_mixed_diverse_t22_signpm_base_seed20260524
+episodes=8
+total_steps=2292
+git_commit=0fcb5906a38a00628f6ec25cb0bb7385196e08b7
+```
+
+Training candidate:
+
+```text
+windows_replay_h3_32x32_mixdiv_iw5_cb05_ssf005_aux1_dist2_cap7w05_seed20260524
+ComponentSampleWeights=signp=1,signm=1,base=0.5
+ImitationWeight=5.0
+ImitationClassBalance=true
+ImitationBalancePower=0.5
+SteerSequenceFraction=0.05
+WorldModelActionAuxWeight=1.0
+ActionMassCapWeight=0.5
+ActionMassCaps=7=0.70
+RouteActionLogitCapWeight=0.5
+RouteActionLogitCapIds=7
+RouteActionLogitCapMargin=0.05
+RouteActionLogitCapMinRouteProgress=0.0
+RouteActionLogitCapMaxRouteProgress=0.67
+RouteActionDistributionWeight=2.0
+RouteActionDistributionMinRouteProgress=0.0
+RouteActionDistributionMaxRouteProgress=0.67
+```
+
+Full offline action probe rejected it before any official CARLA eval:
+
+```text
+probed_actions=2292
+action_counts={7:2292}
+label_action_counts={4:69,7:1890,10:64,13:24,15:183,16:44,19:18}
+dominant_action_fraction=1.0
+single_action_collapse=true
+recommended_for_clean_rerun=false
+```
+
+Conclusion:
+
+```text
+Full-route replay diversity improved route coverage, but not enough label
+balance. The policy still collapsed to the straight moving action7. Official
+clean eval remains blocked.
+```
+
+To raise correction-label density, two route-window-only components were then
+collected with `RecordAfterRouteProgress=0.45` and
+`MinRecordedThrottle=0.3`:
+
+```text
+windows_privileged_h3_32x32_mid045_t22_signp_mth03_4x512_seed20260524
+episodes=4
+total_steps=404
+episode_lengths=[101,101,101,101]
+route_progress ~= 0.461538 to 0.666667
+label_action_counts={4:92,7:312}
+
+windows_privileged_h3_32x32_mid045_t22_signm_mth03_4x512_seed20260524
+episodes=4
+total_steps=144
+episode_lengths=[36,36,36,36]
+route_progress ~= 0.461538 to 0.512821
+label_action_counts={7:24,10:52,13:16,16:40,19:12}
+```
+
+These mid045 components are still clean-stability fill data, not PDF-explicit
+core evidence. They preserve the 43-channel 32x32 privileged BEV plus ego8
+input and the Raw2Drive 39-action output contract.
+
+The four-component mixed replay was created:
+
+```text
+windows_privileged_h3_32x32_mixed_diverse_t22_signpm_mid045_seed20260524
+components=signp,signm,midp,midm
+episodes=14
+total_steps=2310
+git_commit=0fcb5906a38a00628f6ec25cb0bb7385196e08b7
+```
+
+Training candidate:
+
+```text
+windows_replay_h3_32x32_mixdivmid_iw5_cb05_ssf005_aux1_dist2_cap7w05_seed20260524
+ComponentSampleWeights=signp=1,signm=1,midp=2,midm=3
+same imitation/action7-cap/distribution settings as the previous mixdiv run
+```
+
+Full offline action probe rejected it before any official CARLA eval:
+
+```text
+probed_actions=2310
+action_counts={10:2310}
+label_action_counts={4:161,7:1794,10:90,13:28,15:145,16:70,19:22}
+dominant_action_fraction=1.0
+moving_steer_fraction=1.0
+predicted_moving_on_label_nonmoving_fraction=0.8393939394
+single_action_collapse=true
+recommended_for_clean_rerun=false
+```
+
+Conclusion:
+
+```text
+The mid045 correction components are useful because they broke the pure action7
+failure bracket, but the first mid-weighted mix overcorrected into action10
+moving-steer collapse. This is progress diagnostically, not clean evidence.
+The next H3 candidate should keep the new mid045 components but lower or
+rebalance the midm component weight and/or add a less abrupt action7/action10
+bracket regularizer. Do not run official CARLA eval until the offline probe
+returns recommended_for_clean_rerun=true.
+```
