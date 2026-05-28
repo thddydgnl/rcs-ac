@@ -757,6 +757,15 @@ def test_stage2_replay_training_wrappers_expose_moving_steer_false_positive_stat
     assert '"-RouteActionMassCapWeight", $RouteActionMassCapWeight' in mixed
     assert '$StartArgs += @("-RouteActionMassCapIds", $RouteActionMassCapIds)' in mixed
 
+    assert "--route-action-distribution-weight" in module
+    assert "[double]$RouteActionDistributionWeight = 0.0" in train
+    assert '"--route-action-distribution-weight", $RouteActionDistributionWeight' in train
+    assert "[double]$RouteActionDistributionWeight = 0.0" in start
+    assert "-RouteActionDistributionWeight $RouteActionDistributionWeight" in start
+    assert "route_action_distribution_weight = $RouteActionDistributionWeight" in start
+    assert "[double]$RouteActionDistributionWeight = 0.0" in mixed
+    assert '"-RouteActionDistributionWeight", $RouteActionDistributionWeight' in mixed
+
     assert "--route-throttle-ceiling-weight" in module
     assert "--route-throttle-ceiling" in module
     assert "[double]$RouteThrottleCeilingWeight = 0.0" in train

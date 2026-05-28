@@ -50,6 +50,7 @@ from rcs_ac_v2.training.train_stage2_privileged_from_replay import (
     _moving_steer_action_ids,
     _parse_action_mass_cap_args,
     _parse_component_sample_weight_args,
+    _route_action_distribution_loss,
     _route_action_override_loss,
     _route_late_moving_steer_margin_loss,
     _route_late_right_steer_margin_loss,
@@ -628,6 +629,10 @@ def test_replay_training_exports_clean_eval_loadable_checkpoints(tmp_path) -> No
         route_action_mass_cap_min_speed_norm=0.5,
         route_action_mass_cap_min_route_progress=0.55,
         route_action_mass_cap_max_route_progress=0.66,
+        route_action_distribution_weight=0.42,
+        route_action_distribution_min_speed_norm=0.5,
+        route_action_distribution_min_route_progress=0.0,
+        route_action_distribution_max_route_progress=0.55,
         route_late_action_logit_cap_weight=0.44,
         route_late_action_logit_cap_ids=(8, 25),
         route_late_action_logit_cap_margin=0.05,
@@ -707,6 +712,10 @@ def test_replay_training_exports_clean_eval_loadable_checkpoints(tmp_path) -> No
     assert manifest["route_action_mass_cap_min_speed_norm"] == 0.5
     assert manifest["route_action_mass_cap_min_route_progress"] == 0.55
     assert manifest["route_action_mass_cap_max_route_progress"] == 0.66
+    assert manifest["route_action_distribution_weight"] == 0.42
+    assert manifest["route_action_distribution_min_speed_norm"] == 0.5
+    assert manifest["route_action_distribution_min_route_progress"] == 0.0
+    assert manifest["route_action_distribution_max_route_progress"] == 0.55
     assert manifest["route_late_action_logit_cap_weight"] == 0.44
     assert manifest["route_late_action_logit_cap_ids"] == [8, 25]
     assert manifest["route_late_action_logit_cap_margin"] == 0.05
@@ -735,6 +744,7 @@ def test_replay_training_exports_clean_eval_loadable_checkpoints(tmp_path) -> No
     assert manifest["policy"]["metrics"]["final_action_mass_cap"] >= 0.0
     assert manifest["policy"]["metrics"]["final_route_speed_action_mass_cap"] >= 0.0
     assert manifest["policy"]["metrics"]["final_route_action_mass_cap"] >= 0.0
+    assert manifest["policy"]["metrics"]["final_route_action_distribution"] >= 0.0
     assert manifest["policy"]["metrics"]["final_route_late_action_logit_cap"] >= 0.0
     assert manifest["policy"]["metrics"]["final_route_throttle_ceiling"] >= 0.0
     assert manifest["policy"]["metrics"]["final_route_late_throttle_ceiling"] >= 0.0
@@ -898,6 +908,7 @@ def test_pdf_stage1_strict_rejects_non_pdf_diagnostic_policy_settings(tmp_path) 
             imitation_weight=1.0,
             route_priority_sample_fraction=0.5,
             route_priority_components=("target22",),
+            route_action_distribution_weight=0.5,
             route_action_override_weight=0.5,
             route_action_override_id=10,
             device="cpu",
@@ -916,6 +927,50 @@ def test_action_mass_cap_loss_penalizes_over_cap_action_mass() -> None:
     assert caps == {7: 0.25, 15: 0.5}
     assert high_loss > low_loss
     assert empty_loss.item() == pytest.approx(0.0)
+
+
+def test_route_action_distribution_loss_penalizes_distribution_collapse() -> None:
+    action = torch.tensor([[7, 7, 10, 13]], dtype=torch.long)
+    ego = torch.zeros(1, 4, 8)
+    ego[..., 0] = 0.5
+    ego[..., 1] = torch.tensor([[0.1, 0.2, 0.3, 0.6]])
+    collapsed = torch.zeros(1, 4, 39)
+    collapsed[..., 10] = 8.0
+    matched = torch.full((1, 4, 39), -8.0)
+    matched[..., 7] = torch.log(torch.tensor(0.5))
+    matched[..., 10] = torch.log(torch.tensor(0.25))
+    matched[..., 13] = torch.log(torch.tensor(0.25))
+
+    high_loss = _route_action_distribution_loss(
+        logits=collapsed,
+        privileged_ego=ego,
+        action=action,
+        action_dim=39,
+        min_speed_norm=0.0,
+        min_route_progress=0.0,
+        max_route_progress=0.55,
+    )
+    low_loss = _route_action_distribution_loss(
+        logits=matched,
+        privileged_ego=ego,
+        action=action,
+        action_dim=39,
+        min_speed_norm=0.0,
+        min_route_progress=0.0,
+        max_route_progress=0.55,
+    )
+    inactive_loss = _route_action_distribution_loss(
+        logits=collapsed,
+        privileged_ego=ego,
+        action=action,
+        action_dim=39,
+        min_speed_norm=0.0,
+        min_route_progress=0.7,
+        max_route_progress=0.9,
+    )
+
+    assert high_loss > low_loss
+    assert inactive_loss.item() == pytest.approx(0.0)
 
 
 def test_route_speed_action_mass_cap_loss_is_conditional_on_ego_window() -> None:

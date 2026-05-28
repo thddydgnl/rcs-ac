@@ -64,6 +64,10 @@ param(
     [double]$RouteActionLogitCapMinSpeedNorm = 0.0,
     [double]$RouteActionLogitCapMinRouteProgress = 0.0,
     [double]$RouteActionLogitCapMaxRouteProgress = 1.0,
+    [double]$RouteActionDistributionWeight = 0.0,
+    [double]$RouteActionDistributionMinSpeedNorm = 0.0,
+    [double]$RouteActionDistributionMinRouteProgress = 0.0,
+    [double]$RouteActionDistributionMaxRouteProgress = 1.0,
     [double]$RouteLateActionLogitCapWeight = 0.0,
     [string]$RouteLateActionLogitCapIds = "",
     [double]$RouteLateActionLogitCapMargin = 0.0,
@@ -303,6 +307,10 @@ $LatestPointer = [ordered]@{
     route_action_logit_cap_min_speed_norm = $RouteActionLogitCapMinSpeedNorm
     route_action_logit_cap_min_route_progress = $RouteActionLogitCapMinRouteProgress
     route_action_logit_cap_max_route_progress = $RouteActionLogitCapMaxRouteProgress
+    route_action_distribution_weight = $RouteActionDistributionWeight
+    route_action_distribution_min_speed_norm = $RouteActionDistributionMinSpeedNorm
+    route_action_distribution_min_route_progress = $RouteActionDistributionMinRouteProgress
+    route_action_distribution_max_route_progress = $RouteActionDistributionMaxRouteProgress
     route_late_action_logit_cap_weight = $RouteLateActionLogitCapWeight
     route_late_action_logit_cap_ids = $RouteLateActionLogitCapIds
     route_late_action_logit_cap_margin = $RouteLateActionLogitCapMargin
@@ -377,6 +385,10 @@ $StartArgs = @(
     "-RouteActionLogitCapMinSpeedNorm", $RouteActionLogitCapMinSpeedNorm,
     "-RouteActionLogitCapMinRouteProgress", $RouteActionLogitCapMinRouteProgress,
     "-RouteActionLogitCapMaxRouteProgress", $RouteActionLogitCapMaxRouteProgress,
+    "-RouteActionDistributionWeight", $RouteActionDistributionWeight,
+    "-RouteActionDistributionMinSpeedNorm", $RouteActionDistributionMinSpeedNorm,
+    "-RouteActionDistributionMinRouteProgress", $RouteActionDistributionMinRouteProgress,
+    "-RouteActionDistributionMaxRouteProgress", $RouteActionDistributionMaxRouteProgress,
     "-RouteLateActionLogitCapWeight", $RouteLateActionLogitCapWeight,
     "-RouteLateActionLogitCapMargin", $RouteLateActionLogitCapMargin,
     "-RouteLateActionLogitCapMinSpeedNorm", $RouteLateActionLogitCapMinSpeedNorm,
