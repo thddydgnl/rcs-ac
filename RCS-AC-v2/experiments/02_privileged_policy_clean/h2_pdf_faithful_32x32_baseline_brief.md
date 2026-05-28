@@ -127,3 +127,69 @@ sets `recommended_for_clean_rerun=false`, so it cannot support a clean claim.
 5. Only after H2 is recorded, start H3 clean-stability fill variants if needed.
    - H3 may add auxiliary/diagnostic/fill knobs for clean performance.
    - H2 and H3 results must stay separate in result/status docs.
+
+## Real Replay Candidate Evidence
+
+Windows real replay collection on 2026-05-28 KST:
+
+```text
+Replay path:
+RCS-AC-v2\experiments\02_privileged_policy_clean\replay\windows_privileged_h2_32x32_real_4x128_seed20260524
+
+Commit:
+d6e45343abde88079da3b15f10b7a4c27ce0d9e9
+
+Episodes: 4
+Total steps: 512
+Episode lengths: [128, 128, 128, 128]
+Failed attempts: 0
+Source: windows_carla_privileged_replay
+clean_gate_evidence: false
+BEV shape per episode: [128,43,32,32]
+Ego shape per episode: [128,8]
+```
+
+Strict training from that replay:
+
+```text
+Checkpoint path:
+RCS-AC-v2\experiments\02_privileged_policy_clean\checkpoints\windows_replay_h2_32x32_strict_4x128_seed20260524
+
+pdf_stage1_strict=true
+world_model bev_height=32, bev_width=32, action_dim=39
+imitation_weight=0
+world_model_action_aux_weight=0
+route_priority_sample_fraction=0
+route_action_override_weight=0
+world_model final_total=2.050567626953125
+policy final_total=-0.0028065170627087355
+valid_action_ids=true
+```
+
+Action probe result:
+
+```text
+probed_actions=512
+action_counts={15:4, 16:4, 19:504}
+dominant_action_id=19
+dominant_action_fraction=0.984375
+moving_steer_fraction=0.9921875
+predicted_moving_on_label_nonmoving_fraction=0.9921875
+reverse_action_count=0
+previous_stuck_action8_fraction=0
+recommended_for_clean_rerun=false
+```
+
+Conclusion:
+
+```text
+H2 strict real-replay candidate is rejected offline before official CARLA eval.
+The failure is a PDF-faithful privileged baseline failure mode: imagined
+actor-critic without clean-stability fill collapses into right-moving steer
+action19 on mostly non-steering replay labels.
+
+Do not run official clean eval from this checkpoint unless intentionally
+recording a known-bad PDF-core failure. The clean-first path should now move to
+H3 clean-stability fill while preserving this H2 result as the PDF-explicit
+baseline reference.
+```

@@ -32,7 +32,7 @@ Stage H0/H1: PDF-core clean-first rebase and privileged observation upgrade
 Status:
 
 ```text
-H2_STRICT_32X32_TRAINER_PLUMBING_SMOKE_PASS__REAL_REPLAY_AND_CLEAN_GATE_PENDING
+H2_STRICT_32X32_REAL_REPLAY_OFFLINE_REJECTED__H3_CLEAN_STABILITY_FILL_PENDING
 ```
 
 Last completed stage:
@@ -813,6 +813,35 @@ steps, so `recommended_for_clean_rerun=false`; this is expected from an
 Next required H2 evidence is a real 32x32 privileged replay set, strict
 PDF-faithful training from that replay, offline probes, and then official
 128/512/2048 clean results recorded as PDF-explicit core.
+H2 real-replay update on 2026-05-28 KST: the Windows clean clone at commit
+`d6e45343abde88079da3b15f10b7a4c27ce0d9e9` collected a real 32x32 privileged
+replay set at
+`RCS-AC-v2\experiments\02_privileged_policy_clean\replay\windows_privileged_h2_32x32_real_4x128_seed20260524`.
+The replay manifest records 4 episodes, 512 total steps, episode lengths
+`[128,128,128,128]`, failed_attempt_count=0, source
+`windows_carla_privileged_replay`, `clean_gate_evidence=false`, BEV shape
+`[128,43,32,32]` per episode, and ego shape `[128,8]` per episode. CARLA was
+stopped after collection; RTX 3080 reported 59C, 0% GPU use, and 685 MiB
+memory. Strict H2 training from that replay completed on Windows CUDA with
+`-PdfStage1Strict`, `SequenceLength=16`, `BatchSize=8`, `WorldModelSteps=200`,
+and `PolicySteps=200`. The checkpoint manifest under
+`RCS-AC-v2\experiments\02_privileged_policy_clean\checkpoints\windows_replay_h2_32x32_strict_4x128_seed20260524`
+records `pdf_stage1_strict=true`, world model `bev_height=32`,
+`bev_width=32`, `action_dim=39`, `imitation_weight=0`,
+`world_model_action_aux_weight=0`, `route_priority_sample_fraction=0`,
+`route_action_override_weight=0`, world model final_total=2.050567626953125,
+policy final_total=-0.0028065170627087355, and valid_action_ids=true.
+The checkpoint action probe rejected the candidate before official CARLA eval:
+512 replay actions probed, action_counts `{15:4,16:4,19:504}`,
+dominant_action_id=19, dominant_action_fraction=0.984375,
+moving_steer_fraction=0.9921875,
+predicted_moving_on_label_nonmoving_fraction=0.9921875,
+reverse_action_count=0, previous_stuck_action8_fraction=0, and
+`recommended_for_clean_rerun=false`. This is a PDF-faithful privileged baseline
+failure mode, not clean evidence. Do not run official clean eval from this
+checkpoint unless intentionally recording a known-bad PDF-core failure. Next
+work should move to H3 clean-stability fill while keeping this H2 result
+separate from H3 clean-performance claims.
 ```
 
 Do not start Stage 3 raw sensor work or any fusion ablation until:
