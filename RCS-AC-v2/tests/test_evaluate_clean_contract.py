@@ -648,18 +648,49 @@ def test_stage2_replay_training_wrappers_expose_moving_steer_false_positive_stat
     ).read_text()
 
     assert "--moving-steer-false-positive-weight" in module
+    assert "--route-moving-steer-false-positive-weight" in module
     assert "moving_steer_false_positive_weight" in module
+    assert "route_moving_steer_false_positive_weight" in module
     assert "[double]$MovingSteerFalsePositiveWeight = 0.0" in train
+    assert "[double]$RouteMovingSteerFalsePositiveWeight = 0.0" in train
     assert '"--moving-steer-false-positive-weight", $MovingSteerFalsePositiveWeight' in train
+    assert (
+        '"--route-moving-steer-false-positive-weight", '
+        "$RouteMovingSteerFalsePositiveWeight"
+    ) in train
     assert "[double]$MovingSteerFalsePositiveWeight = 0.0" in start
+    assert "[double]$RouteMovingSteerFalsePositiveWeight = 0.0" in start
     assert "-MovingSteerFalsePositiveWeight $MovingSteerFalsePositiveWeight" in start
+    assert (
+        "-RouteMovingSteerFalsePositiveWeight "
+        "$RouteMovingSteerFalsePositiveWeight"
+    ) in start
     assert "moving_steer_false_positive_weight = $MovingSteerFalsePositiveWeight" in start
+    assert (
+        "route_moving_steer_false_positive_weight = "
+        "$RouteMovingSteerFalsePositiveWeight"
+    ) in start
     assert "[double]$MovingSteerFalsePositiveWeight = 0.0" in mixed
+    assert "[double]$RouteMovingSteerFalsePositiveWeight = 0.0" in mixed
     assert '"-MovingSteerFalsePositiveWeight", $MovingSteerFalsePositiveWeight' in mixed
+    assert (
+        '"-RouteMovingSteerFalsePositiveWeight", '
+        "$RouteMovingSteerFalsePositiveWeight"
+    ) in mixed
     assert "[double]$MovingSteerFalsePositiveWeight = 0.0" in target
+    assert "[double]$RouteMovingSteerFalsePositiveWeight = 0.0" in target
     assert "-MovingSteerFalsePositiveWeight $MovingSteerFalsePositiveWeight" in target
+    assert (
+        "-RouteMovingSteerFalsePositiveWeight "
+        "$RouteMovingSteerFalsePositiveWeight"
+    ) in target
     assert "[double]$MovingSteerFalsePositiveWeight = 0.0" in target_speed
+    assert "[double]$RouteMovingSteerFalsePositiveWeight = 0.0" in target_speed
     assert '"-MovingSteerFalsePositiveWeight", $MovingSteerFalsePositiveWeight' in target_speed
+    assert (
+        '"-RouteMovingSteerFalsePositiveWeight", '
+        "$RouteMovingSteerFalsePositiveWeight"
+    ) in target_speed
 
     assert "--route-priority-sample-fraction" in module
     assert "--route-priority-action-ids" in module

@@ -23,6 +23,10 @@ param(
     [double]$ImitationBalancePower = 0.5,
     [double]$SteerSequenceFraction = 0.10,
     [double]$MovingSteerFalsePositiveWeight = 0.0,
+    [double]$RouteMovingSteerFalsePositiveWeight = 0.0,
+    [double]$RouteMovingSteerFalsePositiveMinSpeedNorm = 0.0,
+    [double]$RouteMovingSteerFalsePositiveMinRouteProgress = 0.0,
+    [double]$RouteMovingSteerFalsePositiveMaxRouteProgress = 1.0,
     [double]$MovingSteerBinaryWeight = 0.0,
     [double]$MovingSteerNonmovingMarginWeight = 0.0,
     [double]$MovingSteerNonmovingMargin = 0.25,
@@ -158,6 +162,10 @@ powershell -ExecutionPolicy Bypass -File $StartScript `
     -ImitationBalancePower $ImitationBalancePower `
     -SteerSequenceFraction $SteerSequenceFraction `
     -MovingSteerFalsePositiveWeight $MovingSteerFalsePositiveWeight `
+    -RouteMovingSteerFalsePositiveWeight $RouteMovingSteerFalsePositiveWeight `
+    -RouteMovingSteerFalsePositiveMinSpeedNorm $RouteMovingSteerFalsePositiveMinSpeedNorm `
+    -RouteMovingSteerFalsePositiveMinRouteProgress $RouteMovingSteerFalsePositiveMinRouteProgress `
+    -RouteMovingSteerFalsePositiveMaxRouteProgress $RouteMovingSteerFalsePositiveMaxRouteProgress `
     -MovingSteerBinaryWeight $MovingSteerBinaryWeight `
     -MovingSteerNonmovingMarginWeight $MovingSteerNonmovingMarginWeight `
     -MovingSteerNonmovingMargin $MovingSteerNonmovingMargin `

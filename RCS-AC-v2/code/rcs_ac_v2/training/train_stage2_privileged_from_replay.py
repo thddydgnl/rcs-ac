@@ -65,6 +65,10 @@ def train_stage2_privileged_from_replay(
     route_priority_min_route_progress: float = 0.0,
     route_priority_max_route_progress: float = 1.0,
     moving_steer_false_positive_weight: float = 0.0,
+    route_moving_steer_false_positive_weight: float = 0.0,
+    route_moving_steer_false_positive_min_speed_norm: float = 0.0,
+    route_moving_steer_false_positive_min_route_progress: float = 0.0,
+    route_moving_steer_false_positive_max_route_progress: float = 1.0,
     moving_steer_binary_weight: float = 0.0,
     moving_steer_nonmoving_margin_weight: float = 0.0,
     moving_steer_nonmoving_margin: float = 0.25,
@@ -145,6 +149,9 @@ def train_stage2_privileged_from_replay(
             route_priority_action_ids=route_priority_action_ids,
             route_priority_components=route_priority_components,
             moving_steer_false_positive_weight=moving_steer_false_positive_weight,
+            route_moving_steer_false_positive_weight=(
+                route_moving_steer_false_positive_weight
+            ),
             moving_steer_binary_weight=moving_steer_binary_weight,
             moving_steer_nonmoving_margin_weight=moving_steer_nonmoving_margin_weight,
             route_late_moving_steer_margin_weight=route_late_moving_steer_margin_weight,
@@ -181,6 +188,25 @@ def train_stage2_privileged_from_replay(
         raise ValueError("behavior_entropy_weight must be non-negative")
     if moving_steer_false_positive_weight < 0.0:
         raise ValueError("moving_steer_false_positive_weight must be non-negative")
+    if route_moving_steer_false_positive_weight < 0.0:
+        raise ValueError("route_moving_steer_false_positive_weight must be non-negative")
+    if not 0.0 <= float(route_moving_steer_false_positive_min_speed_norm) <= 1.0:
+        raise ValueError("route_moving_steer_false_positive_min_speed_norm must be in [0, 1]")
+    if not 0.0 <= float(route_moving_steer_false_positive_min_route_progress) <= 1.0:
+        raise ValueError(
+            "route_moving_steer_false_positive_min_route_progress must be in [0, 1]"
+        )
+    if not 0.0 <= float(route_moving_steer_false_positive_max_route_progress) <= 1.0:
+        raise ValueError(
+            "route_moving_steer_false_positive_max_route_progress must be in [0, 1]"
+        )
+    if float(route_moving_steer_false_positive_min_route_progress) > float(
+        route_moving_steer_false_positive_max_route_progress
+    ):
+        raise ValueError(
+            "route_moving_steer_false_positive_min_route_progress must be <= "
+            "route_moving_steer_false_positive_max_route_progress"
+        )
     if not 0.0 <= float(route_priority_sample_fraction) <= 1.0:
         raise ValueError("route_priority_sample_fraction must be in [0, 1]")
     resolved_route_priority_action_ids = _normalize_action_id_tuple(route_priority_action_ids)
@@ -514,6 +540,15 @@ def train_stage2_privileged_from_replay(
             action=batch.action,
             moving_steer_mask=moving_steer_mask,
         )
+        route_moving_steer_false_positive_loss = _route_moving_steer_false_positive_loss(
+            logits=replay_policy.logits,
+            privileged_ego=batch.privileged_ego,
+            action=batch.action,
+            moving_steer_mask=moving_steer_mask,
+            min_speed_norm=route_moving_steer_false_positive_min_speed_norm,
+            min_route_progress=route_moving_steer_false_positive_min_route_progress,
+            max_route_progress=route_moving_steer_false_positive_max_route_progress,
+        )
         moving_steer_binary_loss = _moving_steer_binary_loss(
             logits=replay_policy.logits,
             action=batch.action,
@@ -621,6 +656,8 @@ def train_stage2_privileged_from_replay(
             float(behavior_weight) * losses.total
             + float(imitation_weight) * imitation_loss
             + float(moving_steer_false_positive_weight) * moving_steer_false_positive_loss
+            + float(route_moving_steer_false_positive_weight)
+            * route_moving_steer_false_positive_loss
             + float(moving_steer_binary_weight) * moving_steer_binary_loss
             + float(moving_steer_nonmoving_margin_weight) * moving_steer_nonmoving_margin_loss
             + float(route_late_moving_steer_margin_weight) * route_late_moving_steer_margin_loss
@@ -642,6 +679,9 @@ def train_stage2_privileged_from_replay(
         scalars["imitation"] = float(imitation_loss.detach().cpu().item())
         scalars["moving_steer_false_positive"] = float(
             moving_steer_false_positive_loss.detach().cpu().item()
+        )
+        scalars["route_moving_steer_false_positive"] = float(
+            route_moving_steer_false_positive_loss.detach().cpu().item()
         )
         scalars["moving_steer_binary"] = float(moving_steer_binary_loss.detach().cpu().item())
         scalars["moving_steer_nonmoving_margin"] = float(
@@ -715,6 +755,18 @@ def train_stage2_privileged_from_replay(
         "route_priority_min_route_progress": float(route_priority_min_route_progress),
         "route_priority_max_route_progress": float(route_priority_max_route_progress),
         "moving_steer_false_positive_weight": float(moving_steer_false_positive_weight),
+        "route_moving_steer_false_positive_weight": float(
+            route_moving_steer_false_positive_weight
+        ),
+        "route_moving_steer_false_positive_min_speed_norm": float(
+            route_moving_steer_false_positive_min_speed_norm
+        ),
+        "route_moving_steer_false_positive_min_route_progress": float(
+            route_moving_steer_false_positive_min_route_progress
+        ),
+        "route_moving_steer_false_positive_max_route_progress": float(
+            route_moving_steer_false_positive_max_route_progress
+        ),
         "moving_steer_binary_weight": float(moving_steer_binary_weight),
         "moving_steer_nonmoving_margin_weight": float(moving_steer_nonmoving_margin_weight),
         "moving_steer_nonmoving_margin": float(moving_steer_nonmoving_margin),
@@ -856,6 +908,9 @@ def train_stage2_privileged_from_replay(
                 "final_moving_steer_false_positive": policy_history[-1][
                     "moving_steer_false_positive"
                 ],
+                "final_route_moving_steer_false_positive": policy_history[-1][
+                    "route_moving_steer_false_positive"
+                ],
                 "final_moving_steer_binary": policy_history[-1]["moving_steer_binary"],
                 "final_moving_steer_nonmoving_margin": policy_history[-1][
                     "moving_steer_nonmoving_margin"
@@ -916,6 +971,9 @@ def train_stage2_privileged_from_replay(
                 "final_imitation": policy_history[-1]["imitation"],
                 "final_moving_steer_false_positive": policy_history[-1][
                     "moving_steer_false_positive"
+                ],
+                "final_route_moving_steer_false_positive": policy_history[-1][
+                    "route_moving_steer_false_positive"
                 ],
                 "final_moving_steer_binary": policy_history[-1]["moving_steer_binary"],
                 "final_moving_steer_nonmoving_margin": policy_history[-1][
@@ -1005,6 +1063,18 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--route-priority-min-route-progress", type=float, default=0.0)
     parser.add_argument("--route-priority-max-route-progress", type=float, default=1.0)
     parser.add_argument("--moving-steer-false-positive-weight", type=float, default=0.0)
+    parser.add_argument("--route-moving-steer-false-positive-weight", type=float, default=0.0)
+    parser.add_argument("--route-moving-steer-false-positive-min-speed-norm", type=float, default=0.0)
+    parser.add_argument(
+        "--route-moving-steer-false-positive-min-route-progress",
+        type=float,
+        default=0.0,
+    )
+    parser.add_argument(
+        "--route-moving-steer-false-positive-max-route-progress",
+        type=float,
+        default=1.0,
+    )
     parser.add_argument("--moving-steer-binary-weight", type=float, default=0.0)
     parser.add_argument("--moving-steer-nonmoving-margin-weight", type=float, default=0.0)
     parser.add_argument("--moving-steer-nonmoving-margin", type=float, default=0.25)
@@ -1096,6 +1166,18 @@ def main(argv: list[str] | None = None) -> None:
         route_priority_min_route_progress=args.route_priority_min_route_progress,
         route_priority_max_route_progress=args.route_priority_max_route_progress,
         moving_steer_false_positive_weight=args.moving_steer_false_positive_weight,
+        route_moving_steer_false_positive_weight=(
+            args.route_moving_steer_false_positive_weight
+        ),
+        route_moving_steer_false_positive_min_speed_norm=(
+            args.route_moving_steer_false_positive_min_speed_norm
+        ),
+        route_moving_steer_false_positive_min_route_progress=(
+            args.route_moving_steer_false_positive_min_route_progress
+        ),
+        route_moving_steer_false_positive_max_route_progress=(
+            args.route_moving_steer_false_positive_max_route_progress
+        ),
         moving_steer_binary_weight=args.moving_steer_binary_weight,
         moving_steer_nonmoving_margin_weight=args.moving_steer_nonmoving_margin_weight,
         moving_steer_nonmoving_margin=args.moving_steer_nonmoving_margin,
@@ -1193,6 +1275,7 @@ def _validate_pdf_stage1_strict_config(
     route_priority_action_ids: tuple[int, ...],
     route_priority_components: tuple[str, ...],
     moving_steer_false_positive_weight: float,
+    route_moving_steer_false_positive_weight: float,
     moving_steer_binary_weight: float,
     moving_steer_nonmoving_margin_weight: float,
     route_late_moving_steer_margin_weight: float,
@@ -1240,6 +1323,9 @@ def _validate_pdf_stage1_strict_config(
         violations.append("route_priority_sample_fraction must be 0")
     for name, value in {
         "moving_steer_false_positive_weight": moving_steer_false_positive_weight,
+        "route_moving_steer_false_positive_weight": (
+            route_moving_steer_false_positive_weight
+        ),
         "moving_steer_binary_weight": moving_steer_binary_weight,
         "moving_steer_nonmoving_margin_weight": moving_steer_nonmoving_margin_weight,
         "route_late_moving_steer_margin_weight": route_late_moving_steer_margin_weight,
@@ -1577,6 +1663,35 @@ def _moving_steer_false_positive_loss(
     if int(nonmoving_logits.shape[0]) == 0:
         return flat_logits.sum() * 0.0
     moving_mass = torch.softmax(nonmoving_logits, dim=-1)[:, moving_steer_mask].sum(dim=-1)
+    return -torch.log1p(-moving_mass.clamp(max=1.0 - 1e-6)).mean()
+
+
+def _route_moving_steer_false_positive_loss(
+    *,
+    logits: torch.Tensor,
+    privileged_ego: torch.Tensor,
+    action: torch.Tensor,
+    moving_steer_mask: torch.Tensor,
+    min_speed_norm: float,
+    min_route_progress: float,
+    max_route_progress: float,
+) -> torch.Tensor:
+    flat_logits = logits.reshape(-1, logits.shape[-1])
+    flat_action = action.reshape(-1)
+    flat_ego = privileged_ego.reshape(-1, privileged_ego.shape[-1])
+    speed_norm = flat_ego[:, 0]
+    route_progress = flat_ego[:, 1]
+    label_is_moving_steer = moving_steer_mask[flat_action]
+    selected = (
+        ~label_is_moving_steer
+        & (speed_norm >= float(min_speed_norm))
+        & (route_progress >= float(min_route_progress))
+        & (route_progress <= float(max_route_progress))
+    )
+    selected_logits = flat_logits[selected]
+    if int(selected_logits.shape[0]) == 0:
+        return flat_logits.sum() * 0.0
+    moving_mass = torch.softmax(selected_logits, dim=-1)[:, moving_steer_mask].sum(dim=-1)
     return -torch.log1p(-moving_mass.clamp(max=1.0 - 1e-6)).mean()
 
 

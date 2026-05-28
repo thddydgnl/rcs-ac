@@ -34,6 +34,10 @@ param(
     [double]$RoutePriorityMinRouteProgress = 0.0,
     [double]$RoutePriorityMaxRouteProgress = 1.0,
     [double]$MovingSteerFalsePositiveWeight = 0.0,
+    [double]$RouteMovingSteerFalsePositiveWeight = 0.0,
+    [double]$RouteMovingSteerFalsePositiveMinSpeedNorm = 0.0,
+    [double]$RouteMovingSteerFalsePositiveMinRouteProgress = 0.0,
+    [double]$RouteMovingSteerFalsePositiveMaxRouteProgress = 1.0,
     [double]$MovingSteerBinaryWeight = 0.0,
     [double]$MovingSteerNonmovingMarginWeight = 0.0,
     [double]$MovingSteerNonmovingMargin = 0.25,
@@ -278,6 +282,10 @@ $LatestPointer = [ordered]@{
     route_priority_min_route_progress = $RoutePriorityMinRouteProgress
     route_priority_max_route_progress = $RoutePriorityMaxRouteProgress
     moving_steer_false_positive_weight = $MovingSteerFalsePositiveWeight
+    route_moving_steer_false_positive_weight = $RouteMovingSteerFalsePositiveWeight
+    route_moving_steer_false_positive_min_speed_norm = $RouteMovingSteerFalsePositiveMinSpeedNorm
+    route_moving_steer_false_positive_min_route_progress = $RouteMovingSteerFalsePositiveMinRouteProgress
+    route_moving_steer_false_positive_max_route_progress = $RouteMovingSteerFalsePositiveMaxRouteProgress
     moving_steer_binary_weight = $MovingSteerBinaryWeight
     moving_steer_nonmoving_margin_weight = $MovingSteerNonmovingMarginWeight
     moving_steer_nonmoving_margin = $MovingSteerNonmovingMargin
@@ -360,6 +368,10 @@ $StartArgs = @(
     "-RoutePriorityMinRouteProgress", $RoutePriorityMinRouteProgress,
     "-RoutePriorityMaxRouteProgress", $RoutePriorityMaxRouteProgress,
     "-MovingSteerFalsePositiveWeight", $MovingSteerFalsePositiveWeight,
+    "-RouteMovingSteerFalsePositiveWeight", $RouteMovingSteerFalsePositiveWeight,
+    "-RouteMovingSteerFalsePositiveMinSpeedNorm", $RouteMovingSteerFalsePositiveMinSpeedNorm,
+    "-RouteMovingSteerFalsePositiveMinRouteProgress", $RouteMovingSteerFalsePositiveMinRouteProgress,
+    "-RouteMovingSteerFalsePositiveMaxRouteProgress", $RouteMovingSteerFalsePositiveMaxRouteProgress,
     "-MovingSteerBinaryWeight", $MovingSteerBinaryWeight,
     "-MovingSteerNonmovingMarginWeight", $MovingSteerNonmovingMarginWeight,
     "-MovingSteerNonmovingMargin", $MovingSteerNonmovingMargin,

@@ -52,6 +52,7 @@ from rcs_ac_v2.training.train_stage2_privileged_from_replay import (
     _parse_component_sample_weight_args,
     _route_action_distribution_loss,
     _route_action_override_loss,
+    _route_moving_steer_false_positive_loss,
     _route_late_moving_steer_margin_loss,
     _route_late_right_steer_margin_loss,
     _right_moving_steer_action_mask,
@@ -734,6 +735,10 @@ def test_replay_training_exports_clean_eval_loadable_checkpoints(tmp_path) -> No
         route_priority_min_route_progress=0.25,
         route_priority_max_route_progress=0.75,
         moving_steer_false_positive_weight=0.25,
+        route_moving_steer_false_positive_weight=0.33,
+        route_moving_steer_false_positive_min_speed_norm=0.4,
+        route_moving_steer_false_positive_min_route_progress=0.61,
+        route_moving_steer_false_positive_max_route_progress=0.67,
         moving_steer_binary_weight=0.5,
         moving_steer_nonmoving_margin_weight=0.75,
         moving_steer_nonmoving_margin=0.1,
@@ -813,6 +818,10 @@ def test_replay_training_exports_clean_eval_loadable_checkpoints(tmp_path) -> No
     assert manifest["route_priority_min_route_progress"] == 0.25
     assert manifest["route_priority_max_route_progress"] == 0.75
     assert manifest["moving_steer_false_positive_weight"] == 0.25
+    assert manifest["route_moving_steer_false_positive_weight"] == 0.33
+    assert manifest["route_moving_steer_false_positive_min_speed_norm"] == 0.4
+    assert manifest["route_moving_steer_false_positive_min_route_progress"] == 0.61
+    assert manifest["route_moving_steer_false_positive_max_route_progress"] == 0.67
     assert manifest["moving_steer_binary_weight"] == 0.5
     assert manifest["moving_steer_nonmoving_margin_weight"] == 0.75
     assert manifest["moving_steer_nonmoving_margin"] == 0.1
@@ -863,6 +872,7 @@ def test_replay_training_exports_clean_eval_loadable_checkpoints(tmp_path) -> No
     assert manifest["route_action_override_max_route_progress"] == 0.7
     assert manifest["world_model"]["metrics"]["final_action_aux"] >= 0.0
     assert manifest["policy"]["metrics"]["final_moving_steer_false_positive"] >= 0.0
+    assert manifest["policy"]["metrics"]["final_route_moving_steer_false_positive"] >= 0.0
     assert manifest["policy"]["metrics"]["final_moving_steer_binary"] >= 0.0
     assert manifest["policy"]["metrics"]["final_moving_steer_nonmoving_margin"] >= 0.0
     assert manifest["policy"]["metrics"]["final_action_mass_cap"] >= 0.0
@@ -1032,6 +1042,7 @@ def test_pdf_stage1_strict_rejects_non_pdf_diagnostic_policy_settings(tmp_path) 
             imitation_weight=1.0,
             route_priority_sample_fraction=0.5,
             route_priority_components=("target22",),
+            route_moving_steer_false_positive_weight=0.5,
             route_action_distribution_weight=0.5,
             route_action_override_weight=0.5,
             route_action_override_id=10,
@@ -1202,6 +1213,42 @@ def test_moving_steer_false_positive_loss_penalizes_nonmoving_labels() -> None:
     loss = _moving_steer_false_positive_loss(logits=logits, action=actions, moving_steer_mask=mask)
 
     assert loss.item() > 1.0
+
+
+def test_route_moving_steer_false_positive_loss_is_route_windowed() -> None:
+    mask = _moving_steer_action_mask(action_dim=39, device=torch.device("cpu"))
+    logits = torch.zeros(1, 3, 39)
+    logits[0, 0, 10] = 6.0
+    logits[0, 1, 10] = 6.0
+    logits[0, 2, 10] = 6.0
+    actions = torch.tensor([[7, 7, 10]], dtype=torch.long)
+    ego = torch.zeros(1, 3, 8)
+    ego[0, :, 0] = 0.5
+    ego[0, 0, 1] = 0.64
+    ego[0, 1, 1] = 0.58
+    ego[0, 2, 1] = 0.65
+
+    active_loss = _route_moving_steer_false_positive_loss(
+        logits=logits,
+        privileged_ego=ego,
+        action=actions,
+        moving_steer_mask=mask,
+        min_speed_norm=0.0,
+        min_route_progress=0.60,
+        max_route_progress=0.67,
+    )
+    inactive_loss = _route_moving_steer_false_positive_loss(
+        logits=logits,
+        privileged_ego=ego,
+        action=actions,
+        moving_steer_mask=mask,
+        min_speed_norm=0.0,
+        min_route_progress=0.70,
+        max_route_progress=0.80,
+    )
+
+    assert active_loss.item() > 1.0
+    assert inactive_loss.item() == pytest.approx(0.0)
 
 
 def test_moving_steer_binary_loss_penalizes_wrong_moving_state() -> None:

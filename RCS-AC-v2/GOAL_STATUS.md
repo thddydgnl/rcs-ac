@@ -954,6 +954,18 @@ Latest continuation on 2026-05-28 KST:
   candidate should change the data/objective so signp/signm diversity and the
   route `0.64-0.70` correction coexist in the same learned distribution, while
   explicitly penalizing false moving-steer in the correction window.
+- Follow-up implementation added an H3-only route-local moving-steer
+  false-positive penalty:
+  `route_moving_steer_false_positive_weight` plus speed/route window bounds.
+  It preserves Raw2Drive 39 discrete actions, adds no inference-time
+  controller/fallback, and is rejected by `pdf_stage1_strict`. Local focused
+  validation passed:
+  `PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=RCS-AC-v2/code pytest -q RCS-AC-v2/tests/test_privileged_replay_training.py RCS-AC-v2/tests/test_evaluate_clean_contract.py -q`
+  -> 82 passed.
+- Next Windows CUDA candidate should pair a conservative
+  `RouteActionDistributionWeight=0.10` with route-local false-positive
+  pressure around route `0.60-0.67`, then run correction self-probe and
+  signp/signm cross gate before any official CARLA eval.
 
 Latest H3 route-local evidence:
 

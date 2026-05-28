@@ -4547,3 +4547,62 @@ and carries the 0.64-0.70 correction in the same replay distribution, or a
 route-local objective that penalizes false moving-steer inside the correction
 window rather than only matching route-window action histograms.
 ```
+
+Implementation follow-up: a route-local moving-steer false-positive penalty was
+added as H3 clean-stability fill. This keeps the Raw2Drive 39-action output and
+does not add any inference-time controller/fallback. It only changes replay
+policy training when explicitly enabled:
+
+```text
+--route-moving-steer-false-positive-weight
+--route-moving-steer-false-positive-min-speed-norm
+--route-moving-steer-false-positive-min-route-progress
+--route-moving-steer-false-positive-max-route-progress
+```
+
+The loss penalizes moving-steer probability mass only for replay labels that
+are non-moving-steer and only inside the configured route window. It is the
+route-local counterpart to the existing global `moving_steer_false_positive`
+loss, and is intended for the current failure mode where distribution weights
+turn the whole correction replay into action10/action16 moving steer.
+
+Contract boundary:
+
+```text
+stage=H3 clean-stability fill
+clean_gate_evidence=false
+pdf_stage1_strict=forbidden
+final_policy_contract=Raw2Drive 39 discrete actions
+no_inference_time_action_mask=true
+no_pure_pursuit_or_waypoint_output=true
+```
+
+Local validation:
+
+```text
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=RCS-AC-v2/code python -m py_compile \
+  RCS-AC-v2/code/rcs_ac_v2/training/train_stage2_privileged_from_replay.py
+
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=RCS-AC-v2/code pytest -q \
+  RCS-AC-v2/tests/test_privileged_replay_training.py \
+  RCS-AC-v2/tests/test_evaluate_clean_contract.py -q
+-> 82 passed
+```
+
+Next candidate should reuse the previously too-strong route distribution
+setting conservatively, but add this route-local false-positive pressure in the
+same correction window before any official CARLA clean eval. Example starting
+point:
+
+```text
+RouteActionDistributionWeight=0.10
+RouteActionDistributionMinRouteProgress=0.50
+RouteActionDistributionMaxRouteProgress=0.55
+RouteMovingSteerFalsePositiveWeight=0.25
+RouteMovingSteerFalsePositiveMinRouteProgress=0.60
+RouteMovingSteerFalsePositiveMaxRouteProgress=0.67
+```
+
+Promotion remains unchanged: run correction self-probe first, then signp/signm
+cross replay gate. Official Windows CARLA clean eval is still forbidden unless
+offline probes recommend promotion.
