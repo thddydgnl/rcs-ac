@@ -4030,3 +4030,95 @@ Next meaningful clean-first work should either:
   early-route action15 logits, or
 - collect a cleaner closed-loop tail component whose labels do not force this
   target22 action15 collapse.
+
+### 2026-05-28 - late058w005 gate fix, official 128 pass, official 512 collision
+
+The `late058w005` candidate was re-evaluated after fixing the cross-replay
+latent gate. The old gate required an absolute `0.15` accuracy margin over the
+majority baseline, which is impossible when `majority_action_fraction > 0.85`.
+`candidate_cross_replay_gate.py` now keeps the absolute
+`linear_probe_test_accuracy >= 0.80` requirement but measures the margin as a
+fraction of the remaining accuracy headroom over majority.
+
+Windows clean clone:
+
+```text
+C:\Users\thddy\Documents\code\RCS-AC-first-official-v2-7f87656
+commit 783fe7e0f1780d6c2c59ceacf402f25681b8d8a8
+```
+
+The existing cross probe
+`h3_routeprio0025_late058w005_cross_probe` then passed:
+
+```text
+ready_for_clean_eval=true
+signp action_counts={15:111,4:69,7:798}
+signp dominant_action_fraction=0.8159509202
+signp moving_steer_fraction=0.0705521472
+signp latent margin fraction of headroom=0.8938341800
+signm action_counts={15:113,4:21,7:650}
+signm dominant_action_fraction=0.8290816327
+signm moving_steer_fraction=0.0267857143
+signm latent margin fraction of headroom=1.0
+```
+
+Official 128 clean eval passed from committed/pushed code:
+
+```text
+run_output_dir=RCS-AC-v2\experiments\02_privileged_policy_clean\windows_128_32x32\h3_routeprio0025_late058w005_official128_783fe7e
+source=windows_carla
+status=PASS
+clean_gate_pass=true
+steps=128/128
+done_reason=horizon_reached
+route_progress=0.2820512821
+collision/offroad/stuck=0/0/0
+episode_return=14.0170565441
+```
+
+The 512 runtime config was regenerated from
+`clean_512_stage2_privileged_32x32.yaml` plus the committed checkpoint manifest.
+A full signp action probe on that 512 config passed before CARLA:
+
+```text
+output_config=h3_routeprio0025_late058w005_official512_config\clean_512_stage2_privileged_32x32_with_checkpoints.yaml
+recommended_for_clean_rerun=true
+action_counts={15:111,4:69,7:798}
+dominant_action_fraction=0.8159509202
+moving_steer_fraction=0.0705521472
+nonzero_throttle_fraction=1.0
+reverse_action_count=0
+```
+
+Official 512 clean eval still failed:
+
+```text
+run_output_dir=RCS-AC-v2\experiments\02_privileged_policy_clean\windows_512_32x32\h3_routeprio0025_late058w005_official512_783fe7e
+source=windows_carla
+status=FAIL
+clean_gate_pass=false
+failure_class=driving
+done_reason=collision
+steps=310/512
+route_progress=0.6666666667
+collision/offroad/stuck=1/0/0
+episode_return=16.8073488230
+clean action_counts={7:248,15:37,4:25}
+```
+
+Failure tail:
+
+```text
+route 0.5897435897: action7 straight at about 18 km/h
+route 0.6153846154: three action4 mild-left steps, then action7 straight
+route 0.6410256410: repeated action7 straight
+route 0.6666666667: action7 straight, then collision at step 309
+```
+
+Decision: 128 remains a valid H3 clean-stability fill PASS, but this is not a
+512 clean PASS. The low-weight late058 mix fixed the previous offroad/action4
+tail enough to reach route `0.6667`, but it under-applies the late turning
+correction and returns to a straight-action collision bracket. The next H3
+candidate should target route `0.615-0.667` with a narrow late right/moving
+steer correction or replay component, while preserving the cross-replay action
+distribution and avoiding broad moving-steer pressure.

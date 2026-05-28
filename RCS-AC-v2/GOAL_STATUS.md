@@ -423,8 +423,12 @@ route-local action4 cap probes at weights 0.25 and 0.10 were rejected offline be
 late058 correction replay collection succeeded with 4 episodes / 160 steps and label_action_counts {7:24,10:24,13:20,16:12,19:24,22:56}; CARLA was stopped afterward
 late058w005 mixed candidate fixed action probes on signp/signm; the previous cross gate rejection was traced to an impossible absolute latent-margin rule on signp (majority=0.8558282209 made majority+0.15 exceed 1.0)
 candidate_cross_replay_gate.py now uses headroom-normalized latent margin while keeping the absolute latent test accuracy and action probe gates unchanged
-next clean-first action is to commit/push the gate fix, pull it into the Windows clean clone, rerun the late058w005 cross gate from existing artifacts, then run official 128 before any 512 eval only if ready_for_clean_eval=true
-do not run official 512 again unless checkpoint_action_probe returns recommended_for_clean_rerun=true and the generated 512 checkpoint-filled config is from committed/pushed code
+Windows clean clone pulled commit 783fe7e and reran the late058w005 cross gate from existing artifacts; ready_for_clean_eval=true
+official 128 clean eval from committed/pushed code passed: source=windows_carla, status=PASS, clean_gate_pass=true, steps=128/128, done_reason=horizon_reached, route_progress=0.2820512821, collision/offroad/stuck=0/0/0
+the generated 512 checkpoint-filled config from clean_512_stage2_privileged_32x32.yaml passed full signp checkpoint_action_probe with recommended_for_clean_rerun=true
+official 512 clean eval still failed: source=windows_carla, status=FAIL, clean_gate_pass=false, done_reason=collision, steps=310/512, route_progress=0.6666666667, collision/offroad/stuck=1/0/0, clean action_counts={7:248,15:37,4:25}
+failure tail: route 0.615-0.667 reverted to mostly action7 straight after only brief action4 mild-left; next clean-first action is a narrow route 0.615-0.667 late turn/right-moving correction, not raw/fusion
+do not run another official 512 until a new candidate passes cross replay and a 512 checkpoint action probe from committed/pushed code
 do not continue broad/global moving-steer pressure; it already overcorrected into action16 dominance
 do not start raw/fusion; privileged 512 clean is still failing
 commit/push RCS-AC-v2 work before Windows git pull --ff-only
