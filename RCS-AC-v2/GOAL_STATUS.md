@@ -32,7 +32,7 @@ Stage H0/H1: PDF-core clean-first rebase and privileged observation upgrade
 Status:
 
 ```text
-H1_WINDOWS_32X32_PRIVILEGED_PROBE_AND_TINY_REPLAY_PASS__CLEAN_GATE_PENDING
+H2_STRICT_32X32_TRAINER_PLUMBING_SMOKE_PASS__REAL_REPLAY_AND_CLEAN_GATE_PENDING
 ```
 
 Last completed stage:
@@ -794,6 +794,25 @@ evidence, but it is not clean performance evidence. Next work should decide
 whether to train a tiny 32x32 replay checkpoint purely as a shape smoke or move
 to the real privileged clean replay/training lane before official 128/512/2048
 clean gates.
+H2 stage-entry update on 2026-05-28 KST: the strict 32x32 trainer plumbing
+smoke passed on Windows CUDA. It used the tiny H1 32x32 replay only as a shape
+smoke with `SequenceLength=4`, `BatchSize=2`, `WorldModelSteps=2`,
+`PolicySteps=2`, `-PdfStage1Strict`, and `Device=cuda`. The checkpoint manifest
+under
+`RCS-AC-v2\experiments\02_privileged_policy_clean\checkpoints\windows_replay_h1_32x32_tiny_strict_smoke`
+recorded `pdf_stage1_strict=true`, source `windows_carla_privileged_replay`,
+replay shape `[[8,43,32,32]]`, world model `bev_height=32`,
+`bev_width=32`, `action_dim=39`, `imitation_weight=0`,
+`world_model_action_aux_weight=0`, and route/action override/cap/fill weights
+at zero. The action probe loaded this checkpoint with
+`configs/eval/clean_128_stage2_privileged_32x32.yaml` and generated a
+checkpoint-filled 32x32 eval config. It predicted action15 for all 8 tiny
+steps, so `recommended_for_clean_rerun=false`; this is expected from an
+8-step tiny replay and is not clean evidence. The H2 brief is recorded at
+`RCS-AC-v2/experiments/02_privileged_policy_clean/h2_pdf_faithful_32x32_baseline_brief.md`.
+Next required H2 evidence is a real 32x32 privileged replay set, strict
+PDF-faithful training from that replay, offline probes, and then official
+128/512/2048 clean results recorded as PDF-explicit core.
 ```
 
 Do not start Stage 3 raw sensor work or any fusion ablation until:
