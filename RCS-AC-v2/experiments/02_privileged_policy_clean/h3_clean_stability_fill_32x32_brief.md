@@ -269,6 +269,104 @@ flip the policy into action10/right-moving-steer dominance. Moving-steer binary
 supervision can also fall into zero-throttle action8.
 ```
 
+## Route Action Distribution Regularizer
+
+Commit `9aee5109` added an H3-only route-window action-distribution regularizer:
+
+```text
+RouteActionDistributionWeight
+RouteActionDistributionMinSpeedNorm
+RouteActionDistributionMinRouteProgress
+RouteActionDistributionMaxRouteProgress
+```
+
+This regularizer preserves the Raw2Drive 39 discrete action output and does
+not mask actions at inference. It compares the policy's mean softmax action
+distribution inside a route window against the replay label distribution in
+that same window. `-PdfStage1Strict` rejects the setting, so the H2
+PDF-faithful baseline remains separated from H3 clean-stability fill.
+
+Local validation:
+
+```text
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=RCS-AC-v2/code python -m pytest RCS-AC-v2/tests/test_privileged_replay_training.py -q -p no:cacheprovider
+-> 37 passed
+
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=RCS-AC-v2/code python -m pytest RCS-AC-v2/tests/test_evaluate_clean_contract.py -q -p no:cacheprovider
+-> 41 passed
+
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=RCS-AC-v2/code python -m pytest RCS-AC-v2/tests -q -p no:cacheprovider
+-> 159 passed
+```
+
+Windows clean clone pulled commit `9aee5109` and ran two CUDA offline probes.
+
+### Candidate: `iw5_cb05_ssf005_aux1_dist2_cap7w05`
+
+Settings:
+
+```text
+ImitationWeight=5.0
+ImitationClassBalance=true
+ImitationBalancePower=0.5
+SteerSequenceFraction=0.05
+WorldModelActionAuxWeight=1.0
+RouteActionDistributionWeight=2.0
+RouteActionDistributionMinRouteProgress=0.0
+RouteActionDistributionMaxRouteProgress=0.55
+ActionMassCapWeight=0.5
+ActionMassCaps=7=0.80
+MovingSteerFalsePositiveWeight=0.25
+```
+
+Offline probe result:
+
+```text
+action_counts={7:514, 10:10, 13:6}
+dominant_action_fraction=0.969811320754717
+moving_steer_fraction=0.03018867924528302
+zero_throttle_fraction=0.0
+single_action_collapse=false
+recommended_for_clean_rerun=false
+```
+
+### Candidate: `iw5_cb05_ssf005_aux1_dist10_msfpa025`
+
+Settings:
+
+```text
+ImitationWeight=5.0
+ImitationClassBalance=true
+ImitationBalancePower=0.5
+SteerSequenceFraction=0.05
+WorldModelActionAuxWeight=1.0
+RouteActionDistributionWeight=10.0
+RouteActionDistributionMinRouteProgress=0.0
+RouteActionDistributionMaxRouteProgress=0.55
+MovingSteerFalsePositiveWeight=0.25
+```
+
+Offline probe result:
+
+```text
+action_counts={7:530}
+dominant_action_fraction=1.0
+moving_steer_fraction=0.0
+single_action_collapse=true
+recommended_for_clean_rerun=false
+```
+
+Conclusion:
+
+```text
+The regularizer is implemented and validated, but on the current H3 2x512
+replay it does not produce a clean-rerun-ready checkpoint. It slightly improves
+the weak cap candidate without solving the early 0.00-0.50 action7 dominance,
+and a stronger distribution weight alone still collapses to action7.
+This strengthens the diagnosis that the current replay lacks enough diverse
+route/action coverage for the existing H3 offline gate.
+```
+
 ## Next Gate
 
 ```text

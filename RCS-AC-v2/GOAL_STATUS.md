@@ -895,11 +895,14 @@ baseline claim.
 Next H3 action:
 
 ```text
-Stop blind no-code cap sweeps on the current 2x512 replay. The evidence now
-brackets action7 majority collapse against action10/right-moving-steer collapse.
-Either collect a longer/more diverse 32x32 privileged replay or write a small
-trainer brief for an action-distribution regularizer that keeps the 39-action
-Raw2Drive control contract intact.
+The route-window action-distribution regularizer is implemented and validated
+at commit 9aee5109, but two Windows CUDA offline candidates still failed:
+dist2+cap7w05 produced {7:514,10:10,13:6}, dominant_action_fraction=0.9698;
+dist10 alone collapsed to {7:530}. Stop using the current 2x512 replay as the
+only training source for further H3 cap/distribution sweeps. Collect a
+longer/more diverse 32x32 privileged replay with route progress beyond 0.51 and
+more balanced mild left/right/straight labels, then rerun the regularized H3
+offline gate.
 ```
 
 ## Important Constraints
