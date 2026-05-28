@@ -4407,3 +4407,79 @@ committed code and inspect whether the supplemental route-window view passes
 while the generic gate remains false. Even if the supplemental route-window
 view passes, official CARLA is still not authorized unless the remaining H3
 promotion criteria are explicitly accepted and recorded.
+
+Committed code was pulled on the Windows clean clone at commit `1c05267` and
+the supplemental route-window gate was run against the existing
+`h3_corr0615p3w075_cross_probe` artifacts:
+
+```text
+output=RCS-AC-v2\experiments\02_privileged_policy_clean\windows_512_32x32\h3_corr0615p3w075_cross_probe\stage2_candidate_cross_replay_gate_route_window.json
+generic ready_for_clean_eval=false
+generic failures=[
+  signp action probe recommended_for_clean_rerun is not true,
+  signm action probe recommended_for_clean_rerun is not true
+]
+route_window_gate ready_for_route_window_clean_eval=true
+route_window_action_ids=10
+route_window_required_replay_names=signp
+signp window_count=45
+signp window_action_count=33
+signp window_action_fraction=0.7333333333
+signp early_count=897
+signp early_action_count=0
+signp early_action_fraction=0.0
+signp zero_throttle_steer_fraction=0.0
+signm required_for_window=false
+```
+
+Decision: the route-local correction is present and does not leak before route
+`0.60`, but this is still not an official clean-eval candidate because the
+generic signp/signm action probes fail. The next candidate should keep the
+`w075` route-window behavior while explicitly preserving signm/mid-route
+diversity, for example by boosting or separating the signm component instead
+of increasing the route-window correction pressure.
+
+Two signm-boost follow-ups tested that idea using a new mixed replay:
+
+```text
+mixed_replay=windows_privileged_h3_32x32_mixed_corecorr_signmboost_seed20260528
+components=corecorr + signmboost
+episodes=31
+total_steps=5121
+git_commit=1c05267
+```
+
+The strong boost candidate over-suppressed the route correction:
+
+```text
+candidate=windows_replay_h3_32x32_corr0615p3w075_signmboost_seed20260528
+component_sample_weights=corecorr=1,signmboost=1
+corr0615p3 self_probe recommended_for_clean_rerun=false
+corr0615p3 self_probe action_counts={7:100,10:5}
+corr0615p3 self_probe dominant_action_fraction=0.9523809524
+corr0615p3 route 0.64-0.66 action_counts={7:48,10:2}
+corr0615p3 route 0.66-0.70 action_counts={7:4,10:3}
+decision=no cross/official promotion
+```
+
+The weaker boost candidate recovered slightly more correction but still failed
+the correction self-probe:
+
+```text
+candidate=windows_replay_h3_32x32_corr0615p3w075_signmboost025_seed20260528
+component_sample_weights=corecorr=1,signmboost=0.25
+corr0615p3 self_probe recommended_for_clean_rerun=false
+corr0615p3 self_probe action_counts={7:93,10:12}
+corr0615p3 self_probe dominant_action_fraction=0.8857142857
+corr0615p3 route 0.64-0.66 action_counts={7:44,10:6}
+corr0615p3 route 0.66-0.70 action_counts={7:1,10:6}
+decision=no cross/official promotion
+```
+
+Interpretation: duplicating/boosting signm as a separate component preserves
+the older replay too strongly and erases the route-window correction before it
+can reach the generic cross gate. The next H3 step should avoid simple
+signm-boost duplication and instead use a more targeted objective/gate repair:
+preserve signm diversity without sampling away the `0.64-0.70` correction, or
+collect a correction replay that already contains enough signm-compatible
+mid-route diversity.

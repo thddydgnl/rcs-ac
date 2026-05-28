@@ -473,6 +473,18 @@ clean-stability fill. It must remain `clean_gate_evidence=false`, must not
 replace official Windows CARLA clean evidence, and must not be reported as
 PDF-explicit H2 core. Use it to inspect known collision-window correction and
 early leakage before deciding whether the next step is objective/data repair.
+Windows clean clone pulled commit `1c05267` and applied the supplemental gate
+to existing `w075` artifacts. Generic gate remains false, but route-window
+gate is true for signp: route 0.64-0.70 action10 fraction 33/45=0.7333333333,
+early route <0.60 action10 leakage 0/897, zero-throttle steer 0.0. This
+confirms the correction is localized; next objective/data repair should preserve
+signm diversity while keeping that route-window behavior.
+Signm duplicate-boost follow-ups did not solve this: signmboost=1 suppressed
+the correction to corr self-probe `{7:100,10:5}`, and signmboost=0.25 still
+failed with `{7:93,10:12}`, dominant action7 0.8857142857. Do not run official
+CARLA from either. Simple signm replay duplication is therefore not the right
+repair; use a targeted objective/gate repair or collect a correction replay
+with signm-compatible mid-route diversity.
 do not run another official 512 until a new candidate passes cross replay and a 512 checkpoint action probe from committed/pushed code
 do not continue broad/global moving-steer pressure; it already overcorrected into action16 dominance
 do not start raw/fusion; privileged 512 clean is still failing
