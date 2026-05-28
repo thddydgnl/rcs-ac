@@ -4122,3 +4122,250 @@ correction and returns to a straight-action collision bracket. The next H3
 candidate should target route `0.615-0.667` with a narrow late right/moving
 steer correction or replay component, while preserving the cross-replay action
 distribution and avoiding broad moving-steer pressure.
+
+### 2026-05-28 - action10override w005 official128 pass, official512 collision
+
+After the `late058w005` route `0.6667` collision, a conservative route-local
+action10-only candidate was trained as clean-stability fill:
+
+```text
+candidate=windows_replay_h3_32x32_late058w005_action10override_r0615067_w005_seed20260524
+checkpoint_manifest_sha256=d0600750d0f6e38775bb462e0e04acb552b38643c3eee61c7a5fdc119a1cb2d0
+component_sample_weights=signp=1,signm=1,base=1,late058=0.05
+route_action_override_weight=0.05
+route_action_override_id=10
+route_action_override_window=0.615-0.667
+world_model_steps=2000
+policy_steps=1000
+device=cuda
+```
+
+The 512-config cross replay gate passed:
+
+```text
+ready_for_clean_eval=true
+signp action_counts={15:93,4:72,7:813}
+signp dominant_action_fraction=0.8312883436
+signp moving_steer_fraction=0.0736196319
+signm action_counts={10:2,15:94,22:27,4:24,7:637}
+signm dominant_action_fraction=0.8125
+signm moving_steer_fraction=0.0676020408
+```
+
+The route-bin probe showed the previous over-right failure mode was gone:
+signp bins `0.64-0.66` and `0.66-0.70` predicted only action7. This made the
+candidate safe enough for a short official 128 smoke, but also warned that the
+512 failure bracket might still be under-corrected.
+
+Official 128 clean eval passed:
+
+```text
+run_output_dir=RCS-AC-v2\experiments\02_privileged_policy_clean\windows_128_32x32\h3_late058w005_action10override_r0615067_w005_official128_46ca4a6
+source=windows_carla
+status=PASS
+clean_gate_pass=true
+steps=128/128
+done_reason=horizon_reached
+route_progress=0.2564102564
+collision/offroad/stuck=0/0/0
+episode_return=13.8939466364
+```
+
+Official 512 clean eval still failed:
+
+```text
+run_output_dir=RCS-AC-v2\experiments\02_privileged_policy_clean\windows_512_32x32\h3_late058w005_action10override_r0615067_w005_official512_46ca4a6
+source=windows_carla
+status=FAIL
+clean_gate_pass=false
+failure_class=driving
+done_reason=collision
+steps=326/512
+route_progress=0.6666666667
+collision/offroad/stuck=1/0/0
+episode_return=18.7199508874
+```
+
+Failure tail:
+
+```text
+route 0.5128: repeated action7 straight, with short action4 mild-left bursts
+route 0.5385-0.5897: repeated action7 straight, again with brief action4 bursts
+route 0.6154: action7 straight from steps 295-306
+route 0.6410: action7 straight from steps 307-318
+route 0.6667: action7 straight from steps 319-325, then collision
+```
+
+CARLA was stopped after the run and RTX 3080 returned to about
+`50C / 0% / 695 MiB`.
+
+Decision: this confirms the latest active bracket is no longer offroad or
+high-throttle/sharp-steer collapse. It is an under-correction bracket: the
+policy returns to action7 straight too early after only mild-left bursts. The
+next primary clean-first path should be a narrow route `0.615-0.667`
+closed-loop privileged correction replay with `min_recorded_throttle>=0.3`,
+low component weight around `0.003-0.005`, and route-bin gates that reject
+action10/action13 leakage before route `0.60`. A stronger action10-only
+override (`w010`) may be used as an offline-only probe, but should not go to
+official CARLA unless cross replay and route-bin distributions remain sane.
+
+Subagent pulse:
+
+```text
+Agent A (Schrodinger) completed read-only evidence/failure audit.
+Agent C spawn failed with `agent thread limit reached`; the contract/gate role
+was manually simulated under the persistent subagent fallback rule.
+```
+
+### 2026-05-28 - corr0615 route-local replay diagnostics
+
+Windows SSH/CARLA access was rechecked through the documented SOCKS path after
+the Windows restart. The clean clone stayed at commit `46ca4a6`, CUDA was
+available on the RTX 3080, and CARLA was explicitly stopped after collection
+runs. GPU returned to idle around `42-46C / 0% / 695 MiB`.
+
+The first narrow correction replay followed Agent A's recommendation using the
+latest 128-pass/512-fail checkpoint as warmup:
+
+```text
+replay=windows_privileged_h3_32x32_corr0615_0667_t18_signp_mth03_min16_seed20260528
+route_window=0.615-0.667
+episodes=4
+total_steps=122
+episode_lengths=[30,31,30,31]
+action_counts={7:116,10:6}
+min_recorded_throttle=0.3
+```
+
+This replay was valid but too weak: only 6/122 labels were action10. The CUDA
+candidate `windows_replay_h3_32x32_corr0615w005_seed20260528` used a low
+`corr0615` component weight, but failed the offline cross gate:
+
+```text
+ready_for_clean_eval=false
+signp action_counts={7:978}
+signp single_action_collapse=true
+signm action_counts={7:760,22:17,10:7}
+signm dominant_action_fraction=0.9693877551
+decision=no official CARLA eval
+```
+
+A stronger route-local collection increased the replay controller steering gain
+while keeping the same failure window:
+
+```text
+replay=windows_privileged_h3_32x32_corr0615_0667_t16_signp3_mth03_min16_seed20260528
+route_window=0.615-0.667
+episodes=4
+total_steps=105
+episode_lengths=[26,26,30,23]
+action_counts={1:6,4:18,7:47,10:34}
+failed_attempt_count=0
+```
+
+The low/medium mix candidate
+`windows_replay_h3_32x32_corr0615p3w005_seed20260528` still underfit the
+correction component:
+
+```text
+cross_gate ready_for_clean_eval=false
+signp action_counts={4:48,7:930}
+signp dominant_action_fraction=0.9509202454
+signm action_counts={4:12,7:753,22:19}
+signm dominant_action_fraction=0.9604591837
+corr0615p3 self-probe action_counts={7:105}
+corr0615p3 self-probe single_action_collapse=true
+decision=no official CARLA eval
+```
+
+A diagnostic high-weight candidate proved the route-local signal is learnable,
+but still failed the normal promotion gate:
+
+```text
+candidate=windows_replay_h3_32x32_corr0615p3w100_diag_seed20260528
+component_sample_weights=core=1,corr0615p3=1
+route_priority_sample_fraction=0.15
+route_priority_action_ids=1,4,10
+route_priority_window=0.615-0.667
+```
+
+Self-probe on the correction replay:
+
+```text
+recommended_for_clean_rerun=true
+action_counts={1:1,4:2,7:87,10:15}
+dominant_action_fraction=0.8285714286
+moving_steer_fraction=0.1714285714
+route 0.64-0.66 action_counts={7:39,10:11}
+route 0.66-0.70 action_counts={1:1,4:2,10:4}
+```
+
+Cross replay gate:
+
+```text
+ready_for_clean_eval=false
+signp action_counts={1:3,4:9,7:933,10:33}
+signp dominant_action_fraction=0.9539877301
+signp route 0.64-0.66 action_counts={1:3,4:9,7:6,10:21}
+signp route 0.66-0.70 action_counts={10:6}
+signm action_counts={7:766,10:18}
+signm dominant_action_fraction=0.9770408163
+decision=no official CARLA eval from this diagnostic checkpoint
+```
+
+Interpretation: the current H3 failure is still a clean privileged policy
+problem, not a raw/fusion problem. The new `corr0615p3` data finally contains a
+usable route-local correction, and the diagnostic checkpoint can learn it. The
+remaining issue is balancing this route-local correction against the older
+signp/signm replay evidence without either ignoring the correction or failing
+the global action-distribution gate. The next candidate should search between
+the low mix and high diagnostic settings, or make the promotion gate explicitly
+route-window aware before any official CARLA eval.
+
+Two interpolation candidates narrowed the balance threshold:
+
+```text
+candidate=windows_replay_h3_32x32_corr0615p3w050_seed20260528
+component_sample_weights=core=1,corr0615p3=0.5
+route_priority_sample_fraction=0.08
+self_probe action_counts={7:105}
+self_probe single_action_collapse=true
+self_probe recommended_for_clean_rerun=false
+decision=no cross/official promotion; correction signal still ignored
+```
+
+```text
+candidate=windows_replay_h3_32x32_corr0615p3w075_seed20260528
+component_sample_weights=core=1,corr0615p3=0.75
+route_priority_sample_fraction=0.12
+self_probe recommended_for_clean_rerun=true
+self_probe action_counts={1:1,4:6,7:68,10:30}
+self_probe dominant_action_fraction=0.6476190476
+self_probe route 0.64-0.66 action_counts={1:1,4:6,7:20,10:23}
+self_probe route 0.66-0.70 action_counts={10:7}
+```
+
+The `w075` candidate learned the correction window cleanly, but still failed
+the signp/signm cross replay promotion gate:
+
+```text
+ready_for_clean_eval=false
+signp action_counts={7:945,10:33}
+signp dominant_action_fraction=0.9662576687
+signp route 0.64-0.66 action_counts={7:12,10:27}
+signp route 0.66-0.70 action_counts={10:6}
+signm action_counts={4:13,7:771}
+signm dominant_action_fraction=0.9834183673
+decision=no official CARLA eval from w075
+```
+
+Interpretation update: `corr0615p3` has a sharp training threshold. At 0.5 it
+is ignored; at 0.75 and 1.0 it learns the failure-window turn. The remaining
+gap is not raw sensor/fusion work. It is the Stage H3 privileged clean
+objective/gate mismatch: the route-local correction needed for route 0.6667
+causes the global signp/signm action-distribution gate to fail even when the
+correction is localized after route 0.64. The next clean-first step should
+either add a route-window-aware promotion gate for the known collision bracket
+or modify the objective to preserve signm mid-route action diversity while
+retaining the route 0.64-0.70 action10 correction. Do not start raw/fusion from
+these checkpoints.

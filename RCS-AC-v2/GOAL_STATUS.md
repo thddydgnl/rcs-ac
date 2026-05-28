@@ -32,7 +32,7 @@ Stage H3: 32x32 privileged clean-stability fill after H2 PDF-core rejection
 Status:
 
 ```text
-H3_32X32_CLEAN_STABILITY_FILL_IN_PROGRESS__128_PASS_512_OFFROAD_FAIL
+H3_32X32_CLEAN_STABILITY_FILL_IN_PROGRESS__ROUTE0667_CORRECTION_BALANCE_SEARCH
 ```
 
 Last completed stage:
@@ -306,20 +306,24 @@ Before Stage 2 checkpoint promotion, Windows privileged-observation validation, 
 Last pulse:
 
 ```text
-2026-05-26 Stage 2 clean-first blocked audit: James audited the current local
-state read-only and confirmed there is no remaining local implementation work
-that materially advances clean performance before Windows CUDA/CARLA is
-reachable. Local guard/wrapper work is already in place:
-resume_stage2_late_right_margin_candidate.ps1 sequences git pull,
-dependency/CUDA check, late-right PlanOnly, candidate check/start/probe, and
-explicit gate summary without ever calling official 512 clean eval. The next
-material clean-performance step requires Windows connectivity.
+2026-05-28 Stage H3 resume pulse: Agent A (Schrodinger) completed a read-only
+evidence/failure audit after Windows SSH recovery. Agent C spawn hit
+`agent thread limit reached`, so the contract/gate role was manually simulated
+per the persistent subagent protocol. Agent A classified the latest 512 failure
+as under-correction: repeated action7 straight after only brief action4, ending
+in collision at route_progress=0.6666666667. The recommended next clean-first
+direction is a narrow route 0.615-0.667 closed-loop privileged correction
+replay with min_recorded_throttle>=0.3 and very low component weight, not
+another broad override/cap sweep.
 ```
 
 Active agents:
 
 ```text
-Ohm completed the 2026-05-26 Stage 2 component-sampler audit and found that
+Schrodinger completed the 2026-05-28 H3 evidence/failure audit and should be
+closed after integration. One parallel Agent C spawn failed with
+`agent thread limit reached`; cleanup/reuse should be attempted before adding
+more agents. Ohm completed the 2026-05-26 Stage 2 component-sampler audit and found that
 component weights are episode-level, priority sampling can dilute their effect,
 unmatched component names silently default to 1.0, and the trainer lacked
 realized per-component visibility. The integrated patch adds component
@@ -410,7 +414,7 @@ If still unavailable, manually simulate Agent A/B/C roles and record fallback he
 
 ## Next Concrete Action
 
-Patch the current 512-step H3 offroad failure before raw/fusion work:
+Patch the current 512-step H3 route 0.6667 collision before raw/fusion work:
 
 ```text
 current true stage is H3 32x32 privileged clean-stability fill
@@ -428,6 +432,42 @@ official 128 clean eval from committed/pushed code passed: source=windows_carla,
 the generated 512 checkpoint-filled config from clean_512_stage2_privileged_32x32.yaml passed full signp checkpoint_action_probe with recommended_for_clean_rerun=true
 official 512 clean eval still failed: source=windows_carla, status=FAIL, clean_gate_pass=false, done_reason=collision, steps=310/512, route_progress=0.6666666667, collision/offroad/stuck=1/0/0, clean action_counts={7:248,15:37,4:25}
 failure tail: route 0.615-0.667 reverted to mostly action7 straight after only brief action4 mild-left; next clean-first action is a narrow route 0.615-0.667 late turn/right-moving correction, not raw/fusion
+follow-up `late058w005_action10override_r0615067_w005` trained on Windows CUDA,
+passed cross replay on signp/signm, and passed official 128
+(`steps=128/128`, route_progress=0.2564102564, collision/offroad/stuck=0/0/0),
+but official 512 still failed at route_progress=0.6666666667 with collision
+after a repeated action7 straight tail (`steps=326/512`,
+collision/offroad/stuck=1/0/0). CARLA was stopped afterward and RTX 3080 was
+idle at about 50C/0%/695MiB.
+Agent A recommendation after this failure: prefer a narrow closed-loop
+`corr0615_0667` privileged correction replay using the latest 128-pass/512-fail
+checkpoint as warmup, min_recorded_throttle>=0.3, labels constrained to the
+Raw2Drive 39-action table, and low component weight around 0.003-0.005. Before
+official CARLA, require cross replay plus route-bin evidence that action10/13
+does not leak before route 0.60 and action7 dominance is reduced inside
+0.615-0.667.
+offline-only exploratory candidate
+`windows_replay_h3_32x32_late058w005_action10override_r0615067_w010_seed20260524`
+was launched on Windows CUDA to test whether a slightly stronger action10-only
+local override can reduce the straight-tail failure without broad right-steer
+pressure. Do not run official CARLA from it unless cross replay passes and
+route-bin distributions are sane.
+latest route-local correction diagnostics:
+`corr0615_0667_t18_signp` was valid but too weak
+(`action_counts={7:116,10:6}`) and its low-weight candidate collapsed to
+action7 on signp. `corr0615_0667_t16_signp3` produced usable route-window
+labels (`action_counts={1:6,4:18,7:47,10:34}`); the low/medium mix still
+underfit the correction and failed cross replay, while the high-weight
+diagnostic learned route 0.64-0.70 action10 but still failed the global
+signp/signm promotion gate. Follow-up interpolation confirmed the threshold:
+`corr0615p3=0.5` still collapsed to action7 on the correction replay, while
+`corr0615p3=0.75` learned the route 0.64-0.70 correction
+(`self_probe action_counts={1:1,4:6,7:68,10:30}`) but failed cross replay with
+signp/signm dominant action7 fractions 0.966/0.983. Do not run official CARLA
+from these diagnostic checkpoints. Next clean-first work should either add a
+route-window-aware promotion gate for the known route 0.6667 collision bracket,
+or adjust the objective so signm mid-route diversity is preserved while the
+route 0.64-0.70 action10 correction remains active.
 do not run another official 512 until a new candidate passes cross replay and a 512 checkpoint action probe from committed/pushed code
 do not continue broad/global moving-steer pressure; it already overcorrected into action16 dominance
 do not start raw/fusion; privileged 512 clean is still failing
@@ -584,8 +624,8 @@ Current Stage 2 position:
 
 ```text
 Privileged clean is not solved yet.
-Latest official 512: FAIL offroad at route_progress 0.7435897436, 344/512 steps.
-Best recent official 512 is now FAIL offroad at route_progress 0.7435897436.
+Latest official 512: FAIL collision at route_progress 0.6666666667, 326/512 steps, from `late058w005_action10override_r0615067_w005`.
+Best recent official 512 evidence remains failure-only; no privileged 512 clean PASS exists.
 Latest successful full replay collections: windows_privileged_9398470_corr045_midroute_t14_minthr03_min16, windows_privileged_9398470_corr060_late_t14_minthr03_min16, and windows_privileged_c6b03e7_corr064_late_t14_minthr03_min16.
 Latest partial replay: windows_privileged_c6b03e7_corr066_late2_t14_minthr03_min16, 2 saved episodes, route 0.6667-0.7179.
 Latest offline candidates passed target22/steer2; latecap47 reached route 0.7436, but the action10 override regressed to route 0.7179.
@@ -653,6 +693,15 @@ but did not move this branch. Do not run official CARLA from this branch. Next
 meaningful Stage 2 work should either make route-priority sampling/loss
 component-aware enough not to dominate target22 early-route logits, or collect
 a cleaner closed-loop tail component.
+After the late058w005 latent-gate fix, official 128 clean passed but official
+512 failed at route 0.6667 by collision. The conservative action10 override
+candidate `late058w005_action10override_r0615067_w005` also passed official 128
+and failed official 512 at the same route bracket, with repeated action7
+straight from route 0.6154 through collision. This supersedes older offroad
+route 0.7436 text as the latest evidence. The next primary direction is a
+route 0.615-0.667 closed-loop correction replay; any further override/cap
+candidate is offline-only unless route-bin probes prove it does not leak
+action10/13 before route 0.60 or overcorrect the signp/signm cross replays.
 PDF-core H0 rebase then classified `route_priority_components` and
 `priority_episode_mask` as clean-stability fill/diagnostic sampler controls,
 not PDF-explicit core. Subagent Agent A and Agent C agreed with this
