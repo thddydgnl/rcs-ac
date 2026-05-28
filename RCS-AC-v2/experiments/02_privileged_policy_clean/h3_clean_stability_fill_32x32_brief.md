@@ -907,3 +907,122 @@ step should collect or build a small route_progress 0.59-0.62 correction replay
 or label adjustment so the policy learns the needed local geometry instead of
 only moving probability mass from action4 to action7.
 ```
+
+## Late058 Correction Replay And Low-Weight Mix
+
+The next H3 action moved away from cap-only tuning and collected a correction
+replay in the failure band.
+
+Replay collection:
+
+```text
+Replay:
+windows_privileged_h3_32x32_late058_t22_signm_mth03_warmroute_4x512_seed20260524
+
+Commit:
+9d09780dda21de9c65f57583c356107f8d0a12ba
+
+Config:
+clean_512_stage2_privileged_32x32.yaml
+
+WarmupPolicyConfig:
+checkpoints/windows_replay_h3_32x32_mixdivmid_iw5_cb05_routeprio0025_r045067_seed20260524/clean_512_stage2_privileged_32x32_with_checkpoints.yaml
+
+Collection knobs:
+TargetSpeedKmh=22
+SteerSign=-1.0
+RecordAfterRouteProgress=0.58
+MinRecordedThrottle=0.3
+MinRecordedSteps=16
+SkipFailedEpisodes=true
+MaxAttempts=10
+```
+
+Replay result:
+
+```text
+episodes=4
+total_steps=160
+episode_lengths=[40,40,40,40]
+source=windows_carla_privileged_replay
+clean_gate_evidence=false
+privileged_bev_shapes=[[40,43,32,32]]
+privileged_ego_shapes=[[40,8]]
+label_action_counts={7:24,10:24,13:20,16:12,19:24,22:56}
+CARLA stopped after collection
+GPU after stop=44C, 0% util, 693 MiB
+```
+
+The replay was then mixed with signp, signm, and the previous signpm+mid045
+base:
+
+```text
+Mixed replay:
+windows_privileged_h3_32x32_mixed_signpm_base_late058_seed20260524
+
+components=signp,signm,base,late058
+episodes=24
+total_steps=4232
+```
+
+Candidate:
+
+```text
+windows_replay_h3_32x32_routeprio0025_late058w005_seed20260524
+
+Settings:
+ImitationWeight=5.0
+ImitationClassBalance=true
+ImitationBalancePower=0.5
+SteerSequenceFraction=0.0
+MovingSteerFalsePositiveWeight=0.0
+RoutePrioritySampleFraction=0.025
+RoutePriorityActionIds=10,13,16,19
+RoutePriorityMinRouteProgress=0.45
+RoutePriorityMaxRouteProgress=0.67
+WorldModelActionAuxWeight=1.0
+ComponentSampleWeights=signp=1,signm=1,base=1,late058=0.05
+```
+
+Cross replay result:
+
+```text
+ready_for_clean_eval=false
+failure=signp latent probe margin below gate
+
+signp action probe:
+action_counts={15:111,4:69,7:798}
+dominant_action_fraction=0.8159509202
+moving_steer_fraction=0.0705521472
+nonzero_throttle_fraction=1.0
+recommended_for_clean_rerun=true
+
+signp latent probe:
+linear_probe_test_accuracy=0.9846938848
+majority_action_fraction=0.8558282209
+accuracy_margin_over_majority=0.1288656640
+required_margin=0.15
+
+signm action probe:
+action_counts={15:113,4:21,7:650}
+dominant_action_fraction=0.8290816327
+moving_steer_fraction=0.0267857143
+nonzero_throttle_fraction=1.0
+recommended_for_clean_rerun=true
+
+signm latent probe:
+linear_probe_test_accuracy=1.0
+majority_action_fraction=0.7920918367
+accuracy_margin_over_majority=0.2079081633
+```
+
+Interpretation:
+
+```text
+The late058 low-weight replay direction fixed the action-collapse side of the
+gate: both signp and signm action probes now pass. The remaining blocker is not
+CARLA readiness or action distribution; it is the signp latent-margin gate. Do
+not run official CARLA from this candidate while ready_for_clean_eval=false.
+Next H3 work should preserve the late058 low-weight correction but improve
+signp latent/action separability before a clean eval promotion.
+```

@@ -420,7 +420,9 @@ pull latest origin/codex/rcs-ac-v2-raw2drive before every Windows run
 latest best H3 lineage is windows_replay_h3_32x32_mixdivmid_iw5_cb05_routeprio0025_r045067_seed20260524
 it passed offline action probe and official 128 clean, but failed official 512 as offroad at route_progress=0.6153846154 after repeated action4 mild-left tail
 route-local action4 cap probes at weights 0.25 and 0.10 were rejected offline before CARLA because action4 suppression leaked into action7 dominance on signp/signm cross probes
-next clean-first action is offline-first: collect/build a small route_progress 0.59-0.62 correction replay or label adjustment rather than continuing cap-only action4 tuning
+late058 correction replay collection succeeded with 4 episodes / 160 steps and label_action_counts {7:24,10:24,13:20,16:12,19:24,22:56}; CARLA was stopped afterward
+late058w005 mixed candidate fixed action probes on signp/signm, but cross gate still rejected because signp latent margin stayed 0.1288656640 below the required 0.15
+next clean-first action is offline-first: preserve the late058 low-weight direction but improve signp latent/action separability before any clean eval promotion
 do not run official 512 again unless checkpoint_action_probe returns recommended_for_clean_rerun=true and the generated 512 checkpoint-filled config is from committed/pushed code
 do not continue broad/global moving-steer pressure; it already overcorrected into action16 dominance
 do not start raw/fusion; privileged 512 clean is still failing
