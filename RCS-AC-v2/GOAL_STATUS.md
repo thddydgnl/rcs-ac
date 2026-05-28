@@ -32,7 +32,7 @@ Stage H3: 32x32 privileged clean-stability fill after H2 PDF-core rejection
 Status:
 
 ```text
-H3_32X32_CLEAN_STABILITY_FILL_IN_PROGRESS__OFFLINE_ACTION_COLLAPSE
+H3_32X32_CLEAN_STABILITY_FILL_IN_PROGRESS__128_PASS_512_OFFROAD_FAIL
 ```
 
 Last completed stage:
@@ -410,102 +410,19 @@ If still unavailable, manually simulate Agent A/B/C roles and record fallback he
 
 ## Next Concrete Action
 
-Patch the 512-step collision failure before raw/fusion work:
+Patch the current 512-step H3 offroad failure before raw/fusion work:
 
 ```text
+current true stage is H3 32x32 privileged clean-stability fill
 current local branch is codex/rcs-ac-v2-raw2drive
 canonical Windows clean clone for the next Stage 2 candidate is C:\Users\thddy\Documents\code\RCS-AC-first-official-v2-7f87656
 pull latest origin/codex/rcs-ac-v2-raw2drive before every Windows run
-next canonical command is scripts/windows/resume_stage2_late_right_margin_candidate.ps1 with -MakeReplayIfMissing -StartIfMissing -ProbeWhenReady -Device cuda; it runs git pull, dependency/CUDA check, late-right -PlanOnly, candidate wrapper, and gate summary, but it never runs official 512 clean eval; if detached training is still running it exits 3 with STAGE2_LATE_RIGHT_RESUME_CANDIDATE_RUNNING=True and should be retried later
-manual fallback is scripts/windows/run_stage2_late_right_margin_candidate.ps1 with -Device cuda; first run it once with -PlanOnly to print resolved args/gate paths without git pull, CUDA guard, scheduled task launch, replay creation, or probing, then run it with -MakeReplayIfMissing -StartIfMissing -ProbeWhenReady -Device cuda
-after probing, run summarize_stage2_candidate_gate.ps1 with explicit -ProjectRoot C:\Users\thddy\Documents\code\RCS-AC-first-official-v2-7f87656, -CandidateName late_right_margin, and -GatePath RCS-AC-v2\experiments\02_privileged_policy_clean\windows_512\f7d903a2_mixed_t22_steer2_aux1_iw5_ssf005_rightmargin_w1_cap131619_pre0666_cross_probe\stage2_candidate_cross_replay_gate.json
-do not run official 512 clean eval unless that gate summary reports ready_for_clean_eval=true
-use the 512 failure evidence in RCS-AC-v2\experiments\02_privileged_policy_clean\windows_512\b4c8e58_fast35_primary512
-diagnose why the fast35 policy stayed on straight actions 7/15 through the collision window
-do not move to raw/fusion; privileged 512 clean is still failing
-the representation/objective collapse patch worked offline, so keep WorldModelActionAuxWeight available for the next candidate
-patch speed/turn timing around the 0.59-0.64 route-progress segment: collect/relabel a failure-window replay with safer target speed or earlier brake/steer timing, then train a new candidate
-Windows peer became unreachable after target22 detached training started; first resume action is to reconnect to 100.87.219.58 and check C:\Users\thddy\Documents\code\RCS-AC-first-official-v2-7f87656\RCS-AC-v2\experiments\02_privileged_policy_clean\checkpoints\windows_replay_7f87656_target22_aux1_balpow05_iw5\stage2_privileged_replay_checkpoint_manifest.json
-if target-24 training needs to be restarted, prefer run_stage2_target24_candidate_cycle.ps1 -StartIfMissing -ProbeWhenReady; it will check the old OutputDir, avoid reusing stale partial artifacts, start a fresh detached rerun OutputDir, and write/read `${OutputDir}.latest.json` so repeated resume commands inspect the active rerun instead of spawning duplicate reruns
-target-24 cross replay probes were unsafe; target22 replay was collected and target22 detached training was started, so next check target22 training/probe status before starting any new candidate
-use summarize_stage2_candidate_gate.ps1 on stage2_candidate_cross_replay_gate.json before deciding between 512 clean eval and target22 fallback; its output is an offline decision summary, not clean evidence
-rerun probe_stage2_candidate_cross_replays.ps1 before any new 512 clean gate; require action probes to pass on target-24 and steer2, and latent probes to remain materially stronger than majority baseline
-2026-05-26 reconnect check: LAN SSH probe to 192.168.0.13:22 timed out from
-the Mac, and earlier userspace Tailscale failed under the tailnet hardware
-attestation policy. A system `tailscale status` probe also failed with
-`failed to connect to local Tailscale service; is Tailscale running?`. Remote
-Windows/CUDA execution is paused until Windows is reachable through system
-Tailscale, LAN SSH, or a fixed tailnet device policy.
-2026-05-26 continuation reconnect check repeated the same results: LAN SSH to
-192.168.0.13:22 timed out and `tailscale status` could not connect to the local
-Tailscale service. The clean-first goal remains active; the next meaningful
-remote step is still the late-right `-PlanOnly` dry argument check followed by
-the CUDA candidate wrapper when Windows is reachable.
-2026-05-26 blocked audit reconnect check repeated the same blocker on all known
-paths: Tailscale SSH to 100.87.219.58:22 timed out, LAN SSH to
-192.168.0.13:22 timed out, and `tailscale status` still failed with
-`failed to connect to local Tailscale service; is Tailscale running?`. This is
-the same external-state blocker across repeated goal continuations. Further
-local edits would only polish orchestration and would not materially improve
-clean performance without Windows CUDA/CARLA.
-2026-05-26 remote execution is no longer paused. Userspace Tailscale SOCKS SSH
-to Windows is working, and Windows CUDA training/probing is active. Current
-active task is RCSV2Stage2BF7LateCap045Msfpa20Msmm10. First poll its detached
-training status; when TRAIN_READY_FOR_PROBE=True, rerun the same mixed candidate
-cycle with -ProbeWhenReady. If ready_for_clean_eval=false, reject and continue
-offline. If ready_for_clean_eval=true, run CARLA readiness guard before any
-official 512 clean eval.
-2026-05-26 BF7 passed target22/steer2 offline cross replay gates, but official
-512 clean failed at route_progress=0.5384615385. Mask diagnostics forbidding
-19, 16/19, and 16/19/21 did not improve route progress and converted the
-failure into high-speed offroad. Do not continue with mask-only search. Next
-run the CUDA mixed candidate
-5455ac1_mixed_t22_steer2_latecap045_msfpa20_msmm10_thr030_r048056 using
-RouteThrottleCeilingWeight=4.0, RouteThrottleCeiling=0.30, and route window
-0.48-0.56. Run cross replay probes first; official 512 clean is allowed only
-if the gate reports ready_for_clean_eval=true.
-2026-05-26 thr030 and thr025_hicap trained on Windows CUDA and were both
-rejected offline because steer2 moving steer stayed at 0.2117465224. BF7
-mask15 diagnostic was also rejected: target22 became too straight-dominant and
-steer2 still exceeded the moving-steer gate at 0.2040185471. Soft throttle/mass
-caps are not changing argmax enough. The current code patch adds
-RouteActionLogitCap* so route-window high-speed action ids can be pushed below
-the best non-capped action at the logit level before another CUDA candidate.
-2026-05-26 strong and weak RouteActionLogitCap candidates were both rejected
-offline before official CARLA eval. Strong weight pushed action 15 dominance
-too high and still failed steer2; weak weight reduced the disturbance but again
-failed steer2 at moving_steer_fraction=0.2117465224. Current active Windows
-CUDA task is
-0382d07_mixed_t22_steer2_latecap045_msfpa20_msmm10_override5w050_r048056,
-which preserves BF7 and trains zero-throttle action 5 in route 0.48-0.56 with
-RouteActionOverrideWeight=0.5. Poll RCSV2Stage2Override5W050R048056; if it
-passes target22/steer2 cross replay gate, run CARLA readiness guard before a
-single official 512 clean eval. If it fails offline, reject without CARLA.
-2026-05-26 override5w050 was rejected offline: target22 passed but steer2
-failed at moving_steer_fraction=0.2086553323, with action 5 appearing only
-6/647 times. A BF7-warmup route050 correction replay at target speed 12 was
-collected, then corr050_t12 weights 0.25 and 0.10 were trained on Windows CUDA.
-Both were rejected offline because steer2 stayed at moving_steer_fraction
-0.2117465224 while target22 remained healthy. Current active Windows CUDA task
-is 0382d07_corr050_t16_w025_bf7base, using a target-speed-16 route050
-correction replay. Poll RCSV2Stage2Corr050T16W025; only run official 512 if
-target22/steer2 cross replay gate reports ready_for_clean_eval=true.
-2026-05-26 corr050_t16_w025 and corr050_t16_w025_msfpa30 were also rejected
-offline. Both preserved target22 but failed steer2 with the same action counts
-{1:4,10:91,12:2,15:213,4:40,7:297} and moving_steer_fraction=0.2117465224.
-No official CARLA eval was run for these candidates. Next work should stop
-plain corr050 replay-weight sweeps and inspect per-component sampler/loss
-behavior or add a component-aware steer2 false-positive diagnostic before
-another CUDA candidate.
-do not treat the 128 PASS as full clean completion
-use SSH remote on Windows; HTTPS prompts for credentials
-use the v2-local minimal shared_core env builder by default; pass explicit dependency overrides only for local experiments
-keep the archive-runtime lane only for scratch infrastructure probes, not official clean PASS evidence
-run scripts/windows/check_stage2_windows_dependencies.ps1 to verify the v2-local env config and sibling shared_core remain available
-rerun scripts/windows/run_stage2_privileged_obs_probe.ps1 -StepNeutral if checkpoints/config/env wiring changes; clean clone commit e42dc6a already passed the current probe
-run scripts/windows/run_stage2_clean_eval.ps1 official execution after git pull --ff-only; use -RunOutputDir for summary/metrics/config mirroring, not PASS classification
-verify clean summary source=windows_carla and metrics.csv rows equal the configured horizon before any PASS claim
-experiments/02_privileged_policy_clean/windows_128_result.md and windows_512_result.md official run updates with summary+metrics pulled files
+latest best H3 lineage is windows_replay_h3_32x32_mixdivmid_iw5_cb05_routeprio0025_r045067_seed20260524
+it passed offline action probe and official 128 clean, but failed official 512 as offroad at route_progress=0.6153846154 after repeated action4 mild-left tail
+next clean-first action is offline-first: target route_progress 0.59-0.62/action4-tail using existing route-local knobs or a small route-window correction replay/label adjustment
+do not run official 512 again unless checkpoint_action_probe returns recommended_for_clean_rerun=true and the generated 512 checkpoint-filled config is from committed/pushed code
+do not continue broad/global moving-steer pressure; it already overcorrected into action16 dominance
+do not start raw/fusion; privileged 512 clean is still failing
 commit/push RCS-AC-v2 work before Windows git pull --ff-only
 ```
 
@@ -937,6 +854,30 @@ Do not run official CARLA from these checkpoints. Component weight only is too
 discontinuous; the next offline-only H3 action should make the moving-steer
 false-positive/steer-sequence pressure weaker or route-local so it does not
 turn the whole replay into action10/action16 moving-steer dominance.
+
+Latest H3 route-local evidence:
+
+- Weak global `MovingSteerFalsePositiveWeight=0.05` still overcorrected to
+  action16 dominance and was rejected offline.
+- The route-local sampler candidate
+  `windows_replay_h3_32x32_mixdivmid_iw5_cb05_routeprio0025_r045067_seed20260524`
+  passed the full offline probe with action_counts
+  `{4:327,7:1435,10:56,13:32,16:460}`,
+  dominant_action_fraction=0.6212121212, moving_steer_fraction=0.3787878788,
+  zero_throttle_fraction=0.0, and recommended_for_clean_rerun=true.
+- Official Windows 128 clean eval from that checkpoint lineage passed:
+  source=windows_carla, commit=feb91059, status=PASS, clean_gate_pass=true,
+  steps=128/128, done_reason=horizon_reached, route_progress=0.1794871795,
+  and collision/offroad/stuck counts all zero.
+- Commit 342935c added the committed 512-step 32x32 clean eval config. Official
+  Windows 512 eval from the same checkpoint lineage failed as a driving/offroad
+  case: source=windows_carla, status=FAIL, clean_gate_pass=false, steps=338/512,
+  done_reason=offroad, route_progress=0.6153846154, collision_count=0,
+  offroad_count=1, stuck_count=0, action_counts=`{4:67,7:271}`.
+- The failure tail repeated action4 at about 18 km/h around route_progress
+  0.59-0.62. The next H3 work should target that window before another
+  official 512 claim, while avoiding broad/global moving-steer pressure because
+  it previously produced action16 dominance.
 ```
 
 ## Important Constraints

@@ -668,3 +668,160 @@ candidate should not run CARLA. It should either lower the moving-steer
 false-positive pressure and/or make the penalty route-local, because full-route
 moving-steer penalties still overcorrect all nonmoving-label observations.
 ```
+
+## Route-Local Sampling Gate And Official Clean Eval
+
+Global `MovingSteerFalsePositiveWeight` is not route-windowed in the current
+trainer. A weak global setting still overcorrected:
+
+```text
+Candidate:
+windows_replay_h3_32x32_mixdivmid_iw5_cb05_ssf0025_aux1_dist2_mid1_msfpa005_seed20260524
+
+Delta:
+SteerSequenceFraction=0.025
+MovingSteerFalsePositiveWeight=0.05
+ComponentSampleWeights=signp=1,signm=1,midp=1,midm=1
+
+Full offline probe:
+action_counts={10:98,13:28,16:2184}
+dominant_action_fraction=0.9454545455
+moving_steer_fraction=1.0
+predicted_moving_on_label_nonmoving_fraction=0.8393939394
+recommended_for_clean_rerun=false
+```
+
+The first successful H3 offline gate came from removing global moving-steer
+pressure and using a small route-local priority sampler:
+
+```text
+Candidate:
+windows_replay_h3_32x32_mixdivmid_iw5_cb05_routeprio0025_r045067_seed20260524
+
+Settings:
+ImitationWeight=5.0
+ImitationClassBalance=true
+ImitationBalancePower=0.5
+SteerSequenceFraction=0.0
+MovingSteerFalsePositiveWeight=0.0
+RoutePrioritySampleFraction=0.025
+RoutePriorityActionIds=10,13,16,19
+RoutePriorityMinRouteProgress=0.45
+RoutePriorityMaxRouteProgress=0.67
+WorldModelActionAuxWeight=1.0
+ComponentSampleWeights=signp=1,signm=1,midp=1,midm=1
+```
+
+Full offline probe:
+
+```text
+probed_actions=2310
+action_counts={4:327,7:1435,10:56,13:32,16:460}
+dominant_action_fraction=0.6212121212
+moving_steer_fraction=0.3787878788
+predicted_moving_on_label_nonmoving_fraction=0.2272727273
+zero_throttle_fraction=0.0
+single_action_collapse=false
+recommended_for_clean_rerun=true
+```
+
+This is still H3 clean-stability fill, not PDF-explicit core, but it clears the
+offline gate while preserving the Raw2Drive 39-action control contract.
+
+Commit `342935c9` added the committed 512-step 32x32 clean eval config:
+
+```text
+RCS-AC-v2/configs/eval/clean_512_stage2_privileged_32x32.yaml
+```
+
+The config keeps the same semantic43+ego8 privileged input, 32x32 BEV shape,
+Raw2Drive 39-action output, checkpoint provenance requirements, and Windows
+CARLA summary contract. Its `mode` field remains `windows_carla_clean_128` only
+for current validator compatibility; horizon/pass gate/output paths are
+512-step settings.
+
+### Official 128 Clean Eval
+
+Runtime config:
+
+```text
+RCS-AC-v2\experiments\02_privileged_policy_clean\checkpoints\windows_replay_h3_32x32_mixdivmid_iw5_cb05_routeprio0025_r045067_seed20260524\clean_128_stage2_privileged_32x32_with_checkpoints.yaml
+```
+
+Output:
+
+```text
+RCS-AC-v2\experiments\02_privileged_policy_clean\windows_128_32x32\h3_mixdivmid_routeprio0025_r045067_128_eval
+```
+
+Result:
+
+```text
+source=windows_carla
+commit=feb91059ac63bac5ae553760334eb0425b2443cb
+status=PASS
+clean_gate_pass=true
+done_reason=horizon_reached
+steps=128/128
+route_progress=0.1794871795
+episode_return=13.2430181420
+collision_count=0
+offroad_count=0
+stuck_count=0
+failure_class=none
+```
+
+### Official 512 Clean Eval
+
+Runtime config:
+
+```text
+RCS-AC-v2\experiments\02_privileged_policy_clean\checkpoints\windows_replay_h3_32x32_mixdivmid_iw5_cb05_routeprio0025_r045067_seed20260524\clean_512_stage2_privileged_32x32_with_checkpoints.yaml
+```
+
+Output:
+
+```text
+RCS-AC-v2\experiments\02_privileged_policy_clean\windows_512_32x32\h3_mixdivmid_routeprio0025_r045067_512_eval
+```
+
+Result:
+
+```text
+source=windows_carla
+commit=342935c95d9455ea923b1c159c38e9ca046b6d59
+status=FAIL
+clean_gate_pass=false
+done_reason=offroad
+steps=338/512
+route_progress=0.6153846154
+episode_return=22.7896805126
+collision_count=0
+offroad_count=1
+stuck_count=0
+failure_class=driving
+action_counts={4:67,7:271}
+```
+
+The final tail was action4 repeated at about 18 km/h:
+
+```text
+steps 318-337:
+action_id=4
+throttle=0.3
+steer=-0.1
+route_progress=0.5897435897 -> 0.6153846154
+final done_reason=offroad
+```
+
+Conclusion:
+
+```text
+The route-local sampling candidate is the first H3 32x32 checkpoint to pass the
+offline action gate and official 128 clean gate. The 512 gate still fails, but
+the failure moved from action7/action10/action16 replay collapse into a real
+closed-loop driving/offroad issue around route_progress 0.61 after a long
+action4 left-mild-steer tail. Next H3 work should target the 0.59-0.62 route
+window and avoid simply increasing global moving-steer pressure, because that
+previously caused action16 dominance.
+```
