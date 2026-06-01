@@ -1,0 +1,580 @@
+{
+  "clean_gate_evidence": false,
+  "collision": false,
+  "done_reason": "privileged_obs_probe_pass",
+  "env_action_format": "stage4_v2",
+  "failure_class": "none",
+  "neutral_step_collision": false,
+  "neutral_step_done": false,
+  "neutral_step_done_reason": "running",
+  "neutral_step_info_keys": [
+    "action",
+    "action_smoothing_applied",
+    "aux_lane_edge_positive_ratio",
+    "aux_lane_edge_target",
+    "aux_mask_target_source",
+    "aux_mask_targets_available",
+    "aux_road_mask_positive_ratio",
+    "aux_road_mask_target",
+    "collision",
+    "collision_actor",
+    "collision_events",
+    "collision_intensity",
+    "control",
+    "done",
+    "done_reason",
+    "final_target_distance",
+    "first_offroad_step",
+    "frame",
+    "goal_check_hit",
+    "goal_radius",
+    "heading_error",
+    "is_low_speed",
+    "lane_invasion",
+    "lane_invasion_events",
+    "lane_markings",
+    "lane_offset",
+    "lidar_points",
+    "low_speed_brake_suppressed",
+    "low_speed_steps",
+    "maneuver_command",
+    "maneuver_hint_active",
+    "maneuver_turn_sign",
+    "max_steps_reached",
+    "min_target_distance",
+    "observation_keys",
+    "observation_shapes",
+    "offroad",
+    "offroad_candidate",
+    "offroad_grace_active",
+    "offroad_grace_steps",
+    "offroad_steps",
+    "offroad_threshold",
+    "pedal_overlap_suppressed",
+    "privileged_bev_channel_names_sha256",
+    "privileged_ego_fields",
+    "privileged_ego_schema",
+    "privileged_observation_clean_gate_eligible",
+    "privileged_observation_schema",
+    "privileged_observation_source",
+    "raw_longitudinal_action",
+    "reached_goal",
+    "recent_brake_mean",
+    "recent_control_window",
+    "recent_speed_mean_kmh",
+    "recent_steer_mean",
+    "recent_throttle_mean",
+    "reward",
+    "reward_breakdown",
+    "route_progress",
+    "route_progress_at_done",
+    "semantic_actor_available",
+    "semantic_nonzero_channel_names",
+    "semantic_nonzero_channels",
+    "semantic_route_available",
+    "spawn_point_index",
+    "speed_kmh",
+    "speed_mps",
+    "step",
+    "stuck",
+    "stuck_trigger_step",
+    "target_distance",
+    "target_speed_kmh",
+    "target_waypoint_index",
+    "timestamp",
+    "vehicle_x",
+    "vehicle_y",
+    "vehicle_yaw",
+    "vehicle_z"
+  ],
+  "neutral_step_offroad": false,
+  "neutral_step_reward": 0.1,
+  "neutral_step_route_progress": 0.02564102564102564,
+  "neutral_step_speed_kmh": 5.2920005321502686,
+  "neutral_step_stuck": false,
+  "neutral_step_truncated": false,
+  "offroad": false,
+  "privileged_bev_channel_names_sha256": "382e53122998198ad8f392c7298465057d364b23cf1fedb32465872ae43320a3",
+  "privileged_bev_finite": true,
+  "privileged_bev_shape": [
+    1,
+    1,
+    43,
+    16,
+    16
+  ],
+  "privileged_ego_fields": [
+    "speed_kmh_norm40",
+    "route_progress",
+    "lane_offset_norm5",
+    "heading_error_deg_norm180",
+    "steer",
+    "throttle",
+    "brake",
+    "target_distance_norm50"
+  ],
+  "privileged_ego_finite": true,
+  "privileged_ego_schema": "carla_simulator_ego8_v1",
+  "privileged_ego_shape": [
+    1,
+    1,
+    8
+  ],
+  "privileged_observation_clean_gate_eligible": true,
+  "privileged_observation_schema": "carla_simulator_semantic43_v1",
+  "privileged_observation_source": "carla_simulator_state",
+  "raw_info_keys": [
+    "action",
+    "action_smoothing_applied",
+    "aux_lane_edge_positive_ratio",
+    "aux_lane_edge_target",
+    "aux_mask_target_source",
+    "aux_mask_targets_available",
+    "aux_road_mask_positive_ratio",
+    "aux_road_mask_target",
+    "collision",
+    "collision_actor",
+    "collision_events",
+    "collision_intensity",
+    "control",
+    "done",
+    "done_reason",
+    "final_target_distance",
+    "first_offroad_step",
+    "frame",
+    "goal_check_hit",
+    "goal_radius",
+    "heading_error",
+    "is_low_speed",
+    "lane_invasion",
+    "lane_invasion_events",
+    "lane_markings",
+    "lane_offset",
+    "lidar_points",
+    "low_speed_brake_suppressed",
+    "low_speed_steps",
+    "maneuver_command",
+    "maneuver_hint_active",
+    "maneuver_turn_sign",
+    "max_steps_reached",
+    "min_target_distance",
+    "observation_keys",
+    "observation_shapes",
+    "offroad",
+    "offroad_candidate",
+    "offroad_grace_active",
+    "offroad_grace_steps",
+    "offroad_steps",
+    "offroad_threshold",
+    "pedal_overlap_suppressed",
+    "raw_longitudinal_action",
+    "reached_goal",
+    "recent_brake_mean",
+    "recent_control_window",
+    "recent_speed_mean_kmh",
+    "recent_steer_mean",
+    "recent_throttle_mean",
+    "reward",
+    "reward_breakdown",
+    "route_progress",
+    "route_progress_at_done",
+    "spawn_point_index",
+    "speed_kmh",
+    "speed_mps",
+    "step",
+    "stuck",
+    "stuck_trigger_step",
+    "target_distance",
+    "target_speed_kmh",
+    "target_waypoint_index",
+    "timestamp",
+    "vehicle_x",
+    "vehicle_y",
+    "vehicle_yaw",
+    "vehicle_z"
+  ],
+  "raw_info_summary": {
+    "action": {
+      "shape": [
+        3
+      ],
+      "type": "ndarray"
+    },
+    "action_smoothing_applied": {
+      "type": "bool"
+    },
+    "aux_lane_edge_positive_ratio": {
+      "type": "float"
+    },
+    "aux_lane_edge_target": {
+      "shape": [
+        1,
+        45,
+        80
+      ],
+      "type": "ndarray"
+    },
+    "aux_mask_target_source": {
+      "type": "str"
+    },
+    "aux_mask_targets_available": {
+      "type": "bool"
+    },
+    "aux_road_mask_positive_ratio": {
+      "type": "float"
+    },
+    "aux_road_mask_target": {
+      "shape": [
+        1,
+        45,
+        80
+      ],
+      "type": "ndarray"
+    },
+    "collision": {
+      "type": "bool"
+    },
+    "collision_actor": {
+      "type": "str"
+    },
+    "collision_events": {
+      "len": 0,
+      "type": "list"
+    },
+    "collision_intensity": {
+      "type": "float"
+    },
+    "control": {
+      "keys": [
+        "brake",
+        "steer",
+        "throttle"
+      ],
+      "type": "dict"
+    },
+    "done": {
+      "type": "bool"
+    },
+    "done_reason": {
+      "type": "str"
+    },
+    "final_target_distance": {
+      "type": "float"
+    },
+    "first_offroad_step": {
+      "type": "int"
+    },
+    "frame": {
+      "type": "int"
+    },
+    "goal_check_hit": {
+      "type": "bool"
+    },
+    "goal_radius": {
+      "type": "float"
+    },
+    "heading_error": {
+      "type": "float"
+    },
+    "is_low_speed": {
+      "type": "bool"
+    },
+    "lane_invasion": {
+      "type": "bool"
+    },
+    "lane_invasion_events": {
+      "len": 0,
+      "type": "list"
+    },
+    "lane_markings": {
+      "len": 0,
+      "type": "list"
+    },
+    "lane_offset": {
+      "type": "float"
+    },
+    "lidar_points": {
+      "type": "int"
+    },
+    "low_speed_brake_suppressed": {
+      "type": "bool"
+    },
+    "low_speed_steps": {
+      "type": "int"
+    },
+    "maneuver_command": {
+      "type": "str"
+    },
+    "maneuver_hint_active": {
+      "type": "bool"
+    },
+    "maneuver_turn_sign": {
+      "type": "float"
+    },
+    "max_steps_reached": {
+      "type": "bool"
+    },
+    "min_target_distance": {
+      "type": "float"
+    },
+    "observation_keys": {
+      "len": 10,
+      "type": "list"
+    },
+    "observation_shapes": {
+      "keys": [
+        "ego",
+        "lidar",
+        "lidar_points_ego",
+        "lidar_raw",
+        "quality_stats",
+        "rgb",
+        "risk_stats",
+        "route",
+        "route_commitment_stats",
+        "sensor_dropout_mask"
+      ],
+      "type": "dict"
+    },
+    "offroad": {
+      "type": "bool"
+    },
+    "offroad_candidate": {
+      "type": "bool"
+    },
+    "offroad_grace_active": {
+      "type": "bool"
+    },
+    "offroad_grace_steps": {
+      "type": "int"
+    },
+    "offroad_steps": {
+      "type": "int"
+    },
+    "offroad_threshold": {
+      "type": "float"
+    },
+    "pedal_overlap_suppressed": {
+      "type": "bool"
+    },
+    "raw_longitudinal_action": {
+      "type": "float"
+    },
+    "reached_goal": {
+      "type": "bool"
+    },
+    "recent_brake_mean": {
+      "type": "float"
+    },
+    "recent_control_window": {
+      "type": "int"
+    },
+    "recent_speed_mean_kmh": {
+      "type": "float"
+    },
+    "recent_steer_mean": {
+      "type": "float"
+    },
+    "recent_throttle_mean": {
+      "type": "float"
+    },
+    "reward": {
+      "type": "float"
+    },
+    "reward_breakdown": {
+      "keys": [
+        "collision_penalty",
+        "control_cost",
+        "curve_overspeed_penalty",
+        "dense_progress_reward",
+        "goal_bonus",
+        "heading_error_penalty",
+        "heading_recovery_reward",
+        "high_speed_steer_penalty",
+        "lane_invasion_penalty",
+        "lane_offset_penalty",
+        "lane_reward",
+        "offroad_penalty",
+        "progress_reward",
+        "speed_alignment_bonus",
+        "speed_alignment_factor",
+        "speed_reward",
+        "stuck_penalty"
+      ],
+      "type": "dict"
+    },
+    "route_progress": {
+      "type": "float"
+    },
+    "route_progress_at_done": {
+      "type": "float"
+    },
+    "spawn_point_index": {
+      "type": "int"
+    },
+    "speed_kmh": {
+      "type": "float"
+    },
+    "speed_mps": {
+      "type": "float"
+    },
+    "step": {
+      "type": "int"
+    },
+    "stuck": {
+      "type": "bool"
+    },
+    "stuck_trigger_step": {
+      "type": "int"
+    },
+    "target_distance": {
+      "type": "float"
+    },
+    "target_speed_kmh": {
+      "type": "float"
+    },
+    "target_waypoint_index": {
+      "type": "int"
+    },
+    "timestamp": {
+      "type": "str"
+    },
+    "vehicle_x": {
+      "type": "float"
+    },
+    "vehicle_y": {
+      "type": "float"
+    },
+    "vehicle_yaw": {
+      "type": "float"
+    },
+    "vehicle_z": {
+      "type": "float"
+    }
+  },
+  "raw_obs_keys": [
+    "ego",
+    "lidar",
+    "lidar_points_ego",
+    "lidar_raw",
+    "quality_stats",
+    "rgb",
+    "risk_stats",
+    "route",
+    "route_commitment_stats",
+    "sensor_dropout_mask"
+  ],
+  "raw_obs_summary": {
+    "ego": {
+      "shape": [
+        5
+      ],
+      "type": "ndarray"
+    },
+    "lidar": {
+      "shape": [
+        1,
+        64,
+        64
+      ],
+      "type": "ndarray"
+    },
+    "lidar_points_ego": {
+      "shape": [
+        389,
+        4
+      ],
+      "type": "ndarray"
+    },
+    "lidar_raw": {
+      "shape": [
+        389,
+        4
+      ],
+      "type": "ndarray"
+    },
+    "quality_stats": {
+      "shape": [
+        15
+      ],
+      "type": "ndarray"
+    },
+    "rgb": {
+      "shape": [
+        3,
+        90,
+        160
+      ],
+      "type": "ndarray"
+    },
+    "risk_stats": {
+      "shape": [
+        6
+      ],
+      "type": "ndarray"
+    },
+    "route": {
+      "shape": [
+        10
+      ],
+      "type": "ndarray"
+    },
+    "route_commitment_stats": {
+      "shape": [
+        5
+      ],
+      "type": "ndarray"
+    },
+    "sensor_dropout_mask": {
+      "shape": [
+        4
+      ],
+      "type": "ndarray"
+    }
+  },
+  "raw_reset_keys": [
+    "done",
+    "frame",
+    "info",
+    "obs",
+    "reward",
+    "route_progress",
+    "route_waypoints"
+  ],
+  "raw_reset_type": "dict",
+  "route_progress": 0.02564102564102564,
+  "semantic_actor_available": true,
+  "semantic_nonzero_channel_names": [
+    "drivable_road",
+    "lane_marking",
+    "route_path",
+    "route_target",
+    "ego_vehicle",
+    "static_obstacle",
+    "junction",
+    "route_straight",
+    "ego_footprint_tail",
+    "actor_near_field",
+    "actor_far_field"
+  ],
+  "semantic_nonzero_channels": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    7,
+    15,
+    37,
+    39,
+    40,
+    41
+  ],
+  "semantic_route_available": true,
+  "source": "windows_carla_privileged_obs_probe",
+  "speed_kmh": 3.5280002832412722,
+  "stage": "stage2_privileged_policy_clean",
+  "status": "PROBE_PASS",
+  "step_neutral": true,
+  "stuck": false
+}

@@ -1,0 +1,46 @@
+{
+  "clean_gate_evidence": false,
+  "collector": "collect_stage2_privileged_replay",
+  "config": "RCS-AC-v2\\configs\\eval\\clean_128_stage2_privileged.yaml",
+  "config_sha256": "e2eef056141549086ab2386cf0f4c2bb28e118266b520e52bed8df7c55ba4880",
+  "episode_lengths": [
+    128,
+    128,
+    128,
+    128
+  ],
+  "episodes": 4,
+  "files": [
+    {
+      "bytes": 25706,
+      "path": "RCS-AC-v2\\experiments\\02_privileged_policy_clean\\replay\\windows_privileged_9c24ff7_fast35_pilot\\episode_0000.npz",
+      "sha256": "6cc1cafa86a5e3ba5ad3871a09f354f3032d71c710ddd3568a8fcd4dab8f2883"
+    },
+    {
+      "bytes": 25710,
+      "path": "RCS-AC-v2\\experiments\\02_privileged_policy_clean\\replay\\windows_privileged_9c24ff7_fast35_pilot\\episode_0001.npz",
+      "sha256": "66b3d6455242c5c4acb67de57e1ee6b5a729d8eac5e3506ead150aa668628ff8"
+    },
+    {
+      "bytes": 25710,
+      "path": "RCS-AC-v2\\experiments\\02_privileged_policy_clean\\replay\\windows_privileged_9c24ff7_fast35_pilot\\episode_0002.npz",
+      "sha256": "872864fe09bdfe665b7b8357fa050070b4bde500097dfcecef5a0a894772e586"
+    },
+    {
+      "bytes": 25708,
+      "path": "RCS-AC-v2\\experiments\\02_privileged_policy_clean\\replay\\windows_privileged_9c24ff7_fast35_pilot\\episode_0003.npz",
+      "sha256": "ffd528efe58ac144d4d16cc5391e9e8320636533985ead4b21d5fb58ac71ba3e"
+    }
+  ],
+  "git_commit": "9c24ff70346b7683cd1c0ed5ef961ce16419bad7",
+  "git_status_short": "?? RCS-AC-v2/experiments/02_privileged_policy_clean/windows_128/b20d8eb_bc_pilot/\n?? RCS-AC-v2/experiments/02_privileged_policy_clean/windows_128/metrics.csv\n?? RCS-AC-v2/experiments/02_privileged_policy_clean/windows_128/summary.json",
+  "privileged_bev_channel_names_sha256": "382e53122998198ad8f392c7298465057d364b23cf1fedb32465872ae43320a3",
+  "privileged_ego_schema": "carla_simulator_ego8_v1",
+  "privileged_observation_schema": "carla_simulator_semantic43_v1",
+  "privileged_observation_source": "carla_simulator_state",
+  "run_kind": "official_clean_clone_replay_collection",
+  "source": "windows_carla_privileged_replay",
+  "steer_sign": -1.0,
+  "target_speed_kmh": 35.0,
+  "total_steps": 512
+}

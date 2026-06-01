@@ -1,0 +1,343 @@
+param(
+    [string]$ProjectRoot = "C:\Users\thddy\Documents\code\RCS-AC-first",
+    [string]$ReplayPath = "RCS-AC-v2\experiments\02_privileged_policy_clean\replay\windows_privileged",
+    [string]$ReplayManifestPath = "",
+    [string]$OutputDir = "RCS-AC-v2\experiments\02_privileged_policy_clean\checkpoints\windows_replay",
+    [int]$Seed = 20260524,
+    [int]$SequenceLength = 16,
+    [int]$BatchSize = 8,
+    [int]$WorldModelSteps = 200,
+    [int]$PolicySteps = 200,
+    [double]$LearningRate = 0.0003,
+    [switch]$PdfStage1Strict,
+    [double]$ImitationWeight = 0.0,
+    [double]$BehaviorWeight = 1.0,
+    [double]$BehaviorGamma = 0.99,
+    [double]$BehaviorLambda = 1.0,
+    [double]$BehaviorActorWeight = 0.1,
+    [double]$BehaviorCriticWeight = 1.0,
+    [double]$BehaviorEntropyWeight = 0.001,
+    [switch]$ImitationClassBalance,
+    [double]$ImitationBalancePower = 1.0,
+    [double]$SteerSequenceFraction = 0.0,
+    [double]$RoutePrioritySampleFraction = 0.0,
+    [string]$RoutePriorityActionIds = "",
+    [string]$RoutePriorityComponents = "",
+    [double]$RoutePriorityMinRouteProgress = 0.0,
+    [double]$RoutePriorityMaxRouteProgress = 1.0,
+    [double]$MovingSteerFalsePositiveWeight = 0.0,
+    [double]$RouteMovingSteerFalsePositiveWeight = 0.0,
+    [double]$RouteMovingSteerFalsePositiveMinSpeedNorm = 0.0,
+    [double]$RouteMovingSteerFalsePositiveMinRouteProgress = 0.0,
+    [double]$RouteMovingSteerFalsePositiveMaxRouteProgress = 1.0,
+    [double]$MovingSteerBinaryWeight = 0.0,
+    [double]$MovingSteerNonmovingMarginWeight = 0.0,
+    [double]$MovingSteerNonmovingMargin = 0.25,
+    [double]$RouteLateMovingSteerMarginWeight = 0.0,
+    [double]$RouteLateMovingSteerMargin = 0.25,
+    [double]$RouteLateMovingSteerMinSpeedNorm = 0.0,
+    [double]$RouteLateMovingSteerMinRouteProgress = 0.0,
+    [double]$RouteLateMovingSteerMaxRouteProgress = 1.0,
+    [double]$RouteLateRightSteerMarginWeight = 0.0,
+    [double]$RouteLateRightSteerMargin = 0.25,
+    [double]$RouteLateRightSteerMinSpeedNorm = 0.0,
+    [double]$RouteLateRightSteerMinRouteProgress = 0.0,
+    [double]$RouteLateRightSteerMaxRouteProgress = 1.0,
+    [double]$WorldModelActionAuxWeight = 0.0,
+    [string]$ComponentSampleWeights = "",
+    [double]$ActionMassCapWeight = 0.0,
+    [string]$ActionMassCaps = "",
+    [double]$RouteSpeedActionMassCapWeight = 0.0,
+    [string]$RouteSpeedActionIds = "",
+    [double]$RouteSpeedActionMassCap = 1.0,
+    [double]$RouteSpeedMinSpeedNorm = 0.0,
+    [double]$RouteSpeedMinRouteProgress = 0.0,
+    [double]$RouteSpeedMaxRouteProgress = 1.0,
+    [double]$RouteActionMassCapWeight = 0.0,
+    [string]$RouteActionMassCapIds = "",
+    [double]$RouteActionMassCap = 1.0,
+    [double]$RouteActionMassCapMinSpeedNorm = 0.0,
+    [double]$RouteActionMassCapMinRouteProgress = 0.0,
+    [double]$RouteActionMassCapMaxRouteProgress = 1.0,
+    [double]$RouteActionLogitCapWeight = 0.0,
+    [string]$RouteActionLogitCapIds = "",
+    [double]$RouteActionLogitCapMargin = 0.0,
+    [double]$RouteActionLogitCapMinSpeedNorm = 0.0,
+    [double]$RouteActionLogitCapMinRouteProgress = 0.0,
+    [double]$RouteActionLogitCapMaxRouteProgress = 1.0,
+    [double]$RouteActionDistributionWeight = 0.0,
+    [double]$RouteActionDistributionMinSpeedNorm = 0.0,
+    [double]$RouteActionDistributionMinRouteProgress = 0.0,
+    [double]$RouteActionDistributionMaxRouteProgress = 1.0,
+    [double]$RouteLateActionLogitCapWeight = 0.0,
+    [string]$RouteLateActionLogitCapIds = "",
+    [double]$RouteLateActionLogitCapMargin = 0.0,
+    [double]$RouteLateActionLogitCapMinSpeedNorm = 0.0,
+    [double]$RouteLateActionLogitCapMinRouteProgress = 0.0,
+    [double]$RouteLateActionLogitCapMaxRouteProgress = 1.0,
+    [double]$RouteThrottleCeilingWeight = 0.0,
+    [double]$RouteThrottleCeiling = 1.0,
+    [double]$RouteThrottleMinSpeedNorm = 0.0,
+    [double]$RouteThrottleMinRouteProgress = 0.0,
+    [double]$RouteThrottleMaxRouteProgress = 1.0,
+    [double]$RouteLateThrottleCeilingWeight = 0.0,
+    [double]$RouteLateThrottleCeiling = 1.0,
+    [double]$RouteLateThrottleMinSpeedNorm = 0.0,
+    [double]$RouteLateThrottleMinRouteProgress = 0.0,
+    [double]$RouteLateThrottleMaxRouteProgress = 1.0,
+    [double]$RouteActionOverrideWeight = 0.0,
+    [int]$RouteActionOverrideId = -1,
+    [double]$RouteActionOverrideMinSpeedNorm = 0.0,
+    [double]$RouteActionOverrideMinRouteProgress = 0.0,
+    [double]$RouteActionOverrideMaxRouteProgress = 1.0,
+    [int]$HiddenDim = 128,
+    [string]$Device = "cuda",
+    [string]$LogPath = "",
+    [string]$TaskName = "RCSV2Stage2ReplayTrain",
+    [string]$InteractiveUser = "song\song",
+    [switch]$NoStart
+)
+
+$ErrorActionPreference = "Stop"
+
+function Quote-PowerShellString {
+    param([Parameter(Mandatory = $true)][AllowEmptyString()][string]$Value)
+    return "'" + ($Value -replace "'", "''") + "'"
+}
+
+Set-Location $ProjectRoot
+$CudaAssertScript = Join-Path $ProjectRoot "RCS-AC-v2\scripts\windows\assert_stage2_cuda_available.ps1"
+powershell -ExecutionPolicy Bypass -File $CudaAssertScript -ProjectRoot $ProjectRoot -Device $Device
+if ($LASTEXITCODE -ne 0) {
+    exit $LASTEXITCODE
+}
+if ($ReplayManifestPath -eq "") {
+    $ReplayManifestPath = Join-Path $ReplayPath "stage2_privileged_replay_manifest.json"
+}
+if ($LogPath -eq "") {
+    $LogPath = Join-Path $OutputDir "train_stage2_privileged_from_replay.log"
+}
+New-Item -ItemType Directory -Force -Path $OutputDir | Out-Null
+New-Item -ItemType Directory -Force -Path (Split-Path -Parent $LogPath) | Out-Null
+$ResolvedOutputDir = (Resolve-Path $OutputDir).Path
+$ResolvedLogPath = (Resolve-Path (Split-Path -Parent $LogPath)).Path
+$ResolvedLogPath = Join-Path $ResolvedLogPath (Split-Path -Leaf $LogPath)
+$LaunchManifestPath = Join-Path $ResolvedOutputDir "train_stage2_privileged_from_replay.launch.json"
+
+$TrainingScript = Join-Path $ProjectRoot "RCS-AC-v2\scripts\windows\train_stage2_privileged_from_replay.ps1"
+$QuotedProjectRoot = Quote-PowerShellString $ProjectRoot
+$QuotedTrainingScript = Quote-PowerShellString $TrainingScript
+$QuotedReplayPath = Quote-PowerShellString $ReplayPath
+$QuotedReplayManifestPath = Quote-PowerShellString $ReplayManifestPath
+$QuotedOutputDir = Quote-PowerShellString $ResolvedOutputDir
+$QuotedDevice = Quote-PowerShellString $Device
+$QuotedComponentSampleWeights = Quote-PowerShellString $ComponentSampleWeights
+$QuotedActionMassCaps = Quote-PowerShellString $ActionMassCaps
+$QuotedRouteSpeedActionIds = Quote-PowerShellString $RouteSpeedActionIds
+$QuotedRoutePriorityActionIds = Quote-PowerShellString $RoutePriorityActionIds
+$QuotedRoutePriorityComponents = Quote-PowerShellString $RoutePriorityComponents
+$QuotedRouteActionMassCapIds = Quote-PowerShellString $RouteActionMassCapIds
+$QuotedRouteActionLogitCapIds = Quote-PowerShellString $RouteActionLogitCapIds
+$QuotedRouteLateActionLogitCapIds = Quote-PowerShellString $RouteLateActionLogitCapIds
+$QuotedLogPath = Quote-PowerShellString $ResolvedLogPath
+$InnerScriptPath = Join-Path $ResolvedOutputDir "train_stage2_privileged_from_replay.detached.ps1"
+$QuotedInnerScriptPath = Quote-PowerShellString $InnerScriptPath
+$ImitationClassBalanceArg = ""
+if ($ImitationClassBalance) {
+    $ImitationClassBalanceArg = " -ImitationClassBalance"
+}
+$PdfStage1StrictArg = ""
+if ($PdfStage1Strict) {
+    $PdfStage1StrictArg = " -PdfStage1Strict"
+}
+$ComponentSampleWeightsArg = ""
+if ($ComponentSampleWeights -ne "") {
+    $ComponentSampleWeightsArg = " -ComponentSampleWeights $QuotedComponentSampleWeights"
+}
+$ActionMassCapsArg = ""
+if ($ActionMassCaps -ne "") {
+    $ActionMassCapsArg = " -ActionMassCaps $QuotedActionMassCaps"
+}
+$RouteSpeedActionIdsArg = ""
+if ($RouteSpeedActionIds -ne "") {
+    $RouteSpeedActionIdsArg = " -RouteSpeedActionIds $QuotedRouteSpeedActionIds"
+}
+$RoutePriorityActionIdsArg = ""
+if ($RoutePriorityActionIds -ne "") {
+    $RoutePriorityActionIdsArg = " -RoutePriorityActionIds $QuotedRoutePriorityActionIds"
+}
+$RoutePriorityComponentsArg = ""
+if ($RoutePriorityComponents -ne "") {
+    $RoutePriorityComponentsArg = " -RoutePriorityComponents $QuotedRoutePriorityComponents"
+}
+$RouteActionMassCapIdsArg = ""
+if ($RouteActionMassCapIds -ne "") {
+    $RouteActionMassCapIdsArg = " -RouteActionMassCapIds $QuotedRouteActionMassCapIds"
+}
+$RouteActionLogitCapIdsArg = ""
+if ($RouteActionLogitCapIds -ne "") {
+    $RouteActionLogitCapIdsArg = " -RouteActionLogitCapIds $QuotedRouteActionLogitCapIds"
+}
+$RouteLateActionLogitCapIdsArg = ""
+if ($RouteLateActionLogitCapIds -ne "") {
+    $RouteLateActionLogitCapIdsArg = " -RouteLateActionLogitCapIds $QuotedRouteLateActionLogitCapIds"
+}
+
+$InnerCommand = @"
+`$ErrorActionPreference = 'Stop'
+`$LogPath = $QuotedLogPath
+"DETACHED_TRAIN_STARTED=`$(Get-Date -Format o)" | Set-Content -Path `$LogPath
+try {
+    Set-Location $QuotedProjectRoot
+    powershell -ExecutionPolicy Bypass -File $QuotedTrainingScript -ProjectRoot $QuotedProjectRoot -ReplayPath $QuotedReplayPath -ReplayManifestPath $QuotedReplayManifestPath -OutputDir $QuotedOutputDir -Seed $Seed -SequenceLength $SequenceLength -BatchSize $BatchSize -WorldModelSteps $WorldModelSteps -PolicySteps $PolicySteps -LearningRate $LearningRate -ImitationWeight $ImitationWeight -BehaviorWeight $BehaviorWeight -BehaviorGamma $BehaviorGamma -BehaviorLambda $BehaviorLambda -BehaviorActorWeight $BehaviorActorWeight -BehaviorCriticWeight $BehaviorCriticWeight -BehaviorEntropyWeight $BehaviorEntropyWeight -ImitationBalancePower $ImitationBalancePower -SteerSequenceFraction $SteerSequenceFraction -RoutePrioritySampleFraction $RoutePrioritySampleFraction$RoutePriorityActionIdsArg$RoutePriorityComponentsArg -RoutePriorityMinRouteProgress $RoutePriorityMinRouteProgress -RoutePriorityMaxRouteProgress $RoutePriorityMaxRouteProgress -MovingSteerFalsePositiveWeight $MovingSteerFalsePositiveWeight -RouteMovingSteerFalsePositiveWeight $RouteMovingSteerFalsePositiveWeight -RouteMovingSteerFalsePositiveMinSpeedNorm $RouteMovingSteerFalsePositiveMinSpeedNorm -RouteMovingSteerFalsePositiveMinRouteProgress $RouteMovingSteerFalsePositiveMinRouteProgress -RouteMovingSteerFalsePositiveMaxRouteProgress $RouteMovingSteerFalsePositiveMaxRouteProgress -MovingSteerBinaryWeight $MovingSteerBinaryWeight -MovingSteerNonmovingMarginWeight $MovingSteerNonmovingMarginWeight -MovingSteerNonmovingMargin $MovingSteerNonmovingMargin -RouteLateMovingSteerMarginWeight $RouteLateMovingSteerMarginWeight -RouteLateMovingSteerMargin $RouteLateMovingSteerMargin -RouteLateMovingSteerMinSpeedNorm $RouteLateMovingSteerMinSpeedNorm -RouteLateMovingSteerMinRouteProgress $RouteLateMovingSteerMinRouteProgress -RouteLateMovingSteerMaxRouteProgress $RouteLateMovingSteerMaxRouteProgress -RouteLateRightSteerMarginWeight $RouteLateRightSteerMarginWeight -RouteLateRightSteerMargin $RouteLateRightSteerMargin -RouteLateRightSteerMinSpeedNorm $RouteLateRightSteerMinSpeedNorm -RouteLateRightSteerMinRouteProgress $RouteLateRightSteerMinRouteProgress -RouteLateRightSteerMaxRouteProgress $RouteLateRightSteerMaxRouteProgress -WorldModelActionAuxWeight $WorldModelActionAuxWeight$ComponentSampleWeightsArg -ActionMassCapWeight $ActionMassCapWeight$ActionMassCapsArg -RouteSpeedActionMassCapWeight $RouteSpeedActionMassCapWeight$RouteSpeedActionIdsArg -RouteSpeedActionMassCap $RouteSpeedActionMassCap -RouteSpeedMinSpeedNorm $RouteSpeedMinSpeedNorm -RouteSpeedMinRouteProgress $RouteSpeedMinRouteProgress -RouteSpeedMaxRouteProgress $RouteSpeedMaxRouteProgress -RouteActionMassCapWeight $RouteActionMassCapWeight$RouteActionMassCapIdsArg -RouteActionMassCap $RouteActionMassCap -RouteActionMassCapMinSpeedNorm $RouteActionMassCapMinSpeedNorm -RouteActionMassCapMinRouteProgress $RouteActionMassCapMinRouteProgress -RouteActionMassCapMaxRouteProgress $RouteActionMassCapMaxRouteProgress -RouteActionLogitCapWeight $RouteActionLogitCapWeight$RouteActionLogitCapIdsArg -RouteActionLogitCapMargin $RouteActionLogitCapMargin -RouteActionLogitCapMinSpeedNorm $RouteActionLogitCapMinSpeedNorm -RouteActionLogitCapMinRouteProgress $RouteActionLogitCapMinRouteProgress -RouteActionLogitCapMaxRouteProgress $RouteActionLogitCapMaxRouteProgress -RouteActionDistributionWeight $RouteActionDistributionWeight -RouteActionDistributionMinSpeedNorm $RouteActionDistributionMinSpeedNorm -RouteActionDistributionMinRouteProgress $RouteActionDistributionMinRouteProgress -RouteActionDistributionMaxRouteProgress $RouteActionDistributionMaxRouteProgress -RouteLateActionLogitCapWeight $RouteLateActionLogitCapWeight$RouteLateActionLogitCapIdsArg -RouteLateActionLogitCapMargin $RouteLateActionLogitCapMargin -RouteLateActionLogitCapMinSpeedNorm $RouteLateActionLogitCapMinSpeedNorm -RouteLateActionLogitCapMinRouteProgress $RouteLateActionLogitCapMinRouteProgress -RouteLateActionLogitCapMaxRouteProgress $RouteLateActionLogitCapMaxRouteProgress -RouteThrottleCeilingWeight $RouteThrottleCeilingWeight -RouteThrottleCeiling $RouteThrottleCeiling -RouteThrottleMinSpeedNorm $RouteThrottleMinSpeedNorm -RouteThrottleMinRouteProgress $RouteThrottleMinRouteProgress -RouteThrottleMaxRouteProgress $RouteThrottleMaxRouteProgress -RouteLateThrottleCeilingWeight $RouteLateThrottleCeilingWeight -RouteLateThrottleCeiling $RouteLateThrottleCeiling -RouteLateThrottleMinSpeedNorm $RouteLateThrottleMinSpeedNorm -RouteLateThrottleMinRouteProgress $RouteLateThrottleMinRouteProgress -RouteLateThrottleMaxRouteProgress $RouteLateThrottleMaxRouteProgress -RouteActionOverrideWeight $RouteActionOverrideWeight -RouteActionOverrideId $RouteActionOverrideId -RouteActionOverrideMinSpeedNorm $RouteActionOverrideMinSpeedNorm -RouteActionOverrideMinRouteProgress $RouteActionOverrideMinRouteProgress -RouteActionOverrideMaxRouteProgress $RouteActionOverrideMaxRouteProgress$ImitationClassBalanceArg$PdfStage1StrictArg -HiddenDim $HiddenDim -Device $QuotedDevice *>&1 | Tee-Object -FilePath `$LogPath -Append
+    `$Code = `$LASTEXITCODE
+}
+catch {
+    `$Code = 99
+    "TRAIN_EXCEPTION=`$(`$_.Exception.GetType().FullName): `$(`$_.Exception.Message)" | Tee-Object -FilePath `$LogPath -Append
+}
+"TRAIN_EXIT_CODE=`$Code" | Tee-Object -FilePath `$LogPath -Append
+exit `$Code
+"@
+
+$InnerCommand | Set-Content -Path $InnerScriptPath
+$TaskArgument = "-NoProfile -ExecutionPolicy Bypass -File `"$InnerScriptPath`""
+$GitCommit = (git rev-parse HEAD).Trim()
+$GitBranch = (git rev-parse --abbrev-ref HEAD).Trim()
+$PythonVersion = (& py -3.12 --version 2>&1 | Out-String).Trim()
+$HostName = [System.Net.Dns]::GetHostName()
+
+$LaunchManifest = [ordered]@{
+    project_root = $ProjectRoot
+    git_commit = $GitCommit
+    git_branch = $GitBranch
+    python_version = $PythonVersion
+    host = $HostName
+    started_by = [System.Security.Principal.WindowsIdentity]::GetCurrent().Name
+    replay_path = $ReplayPath
+    replay_manifest_path = $ReplayManifestPath
+    output_dir = $ResolvedOutputDir
+    log_path = $ResolvedLogPath
+    inner_script_path = $InnerScriptPath
+    task_name = $TaskName
+    seed = $Seed
+    sequence_length = $SequenceLength
+    batch_size = $BatchSize
+    world_model_steps = $WorldModelSteps
+    policy_steps = $PolicySteps
+    learning_rate = $LearningRate
+    pdf_stage1_strict = [bool]$PdfStage1Strict
+    imitation_weight = $ImitationWeight
+    behavior_weight = $BehaviorWeight
+    behavior_gamma = $BehaviorGamma
+    behavior_lambda = $BehaviorLambda
+    behavior_actor_weight = $BehaviorActorWeight
+    behavior_critic_weight = $BehaviorCriticWeight
+    behavior_entropy_weight = $BehaviorEntropyWeight
+    imitation_class_balance = [bool]$ImitationClassBalance
+    imitation_balance_power = $ImitationBalancePower
+    steer_sequence_fraction = $SteerSequenceFraction
+    route_priority_sample_fraction = $RoutePrioritySampleFraction
+    route_priority_action_ids = $RoutePriorityActionIds
+    route_priority_components = $RoutePriorityComponents
+    route_priority_min_route_progress = $RoutePriorityMinRouteProgress
+    route_priority_max_route_progress = $RoutePriorityMaxRouteProgress
+    moving_steer_false_positive_weight = $MovingSteerFalsePositiveWeight
+    route_moving_steer_false_positive_weight = $RouteMovingSteerFalsePositiveWeight
+    route_moving_steer_false_positive_min_speed_norm = $RouteMovingSteerFalsePositiveMinSpeedNorm
+    route_moving_steer_false_positive_min_route_progress = $RouteMovingSteerFalsePositiveMinRouteProgress
+    route_moving_steer_false_positive_max_route_progress = $RouteMovingSteerFalsePositiveMaxRouteProgress
+    moving_steer_binary_weight = $MovingSteerBinaryWeight
+    moving_steer_nonmoving_margin_weight = $MovingSteerNonmovingMarginWeight
+    moving_steer_nonmoving_margin = $MovingSteerNonmovingMargin
+    route_late_moving_steer_margin_weight = $RouteLateMovingSteerMarginWeight
+    route_late_moving_steer_margin = $RouteLateMovingSteerMargin
+    route_late_moving_steer_min_speed_norm = $RouteLateMovingSteerMinSpeedNorm
+    route_late_moving_steer_min_route_progress = $RouteLateMovingSteerMinRouteProgress
+    route_late_moving_steer_max_route_progress = $RouteLateMovingSteerMaxRouteProgress
+    route_late_right_steer_margin_weight = $RouteLateRightSteerMarginWeight
+    route_late_right_steer_margin = $RouteLateRightSteerMargin
+    route_late_right_steer_min_speed_norm = $RouteLateRightSteerMinSpeedNorm
+    route_late_right_steer_min_route_progress = $RouteLateRightSteerMinRouteProgress
+    route_late_right_steer_max_route_progress = $RouteLateRightSteerMaxRouteProgress
+    world_model_action_aux_weight = $WorldModelActionAuxWeight
+    component_sample_weights = $ComponentSampleWeights
+    action_mass_cap_weight = $ActionMassCapWeight
+    action_mass_caps = $ActionMassCaps
+    route_speed_action_mass_cap_weight = $RouteSpeedActionMassCapWeight
+    route_speed_action_ids = $RouteSpeedActionIds
+    route_speed_action_mass_cap = $RouteSpeedActionMassCap
+    route_speed_min_speed_norm = $RouteSpeedMinSpeedNorm
+    route_speed_min_route_progress = $RouteSpeedMinRouteProgress
+    route_speed_max_route_progress = $RouteSpeedMaxRouteProgress
+    route_action_mass_cap_weight = $RouteActionMassCapWeight
+    route_action_mass_cap_ids = $RouteActionMassCapIds
+    route_action_mass_cap = $RouteActionMassCap
+    route_action_mass_cap_min_speed_norm = $RouteActionMassCapMinSpeedNorm
+    route_action_mass_cap_min_route_progress = $RouteActionMassCapMinRouteProgress
+    route_action_mass_cap_max_route_progress = $RouteActionMassCapMaxRouteProgress
+    route_action_logit_cap_weight = $RouteActionLogitCapWeight
+    route_action_logit_cap_ids = $RouteActionLogitCapIds
+    route_action_logit_cap_margin = $RouteActionLogitCapMargin
+    route_action_logit_cap_min_speed_norm = $RouteActionLogitCapMinSpeedNorm
+    route_action_logit_cap_min_route_progress = $RouteActionLogitCapMinRouteProgress
+    route_action_logit_cap_max_route_progress = $RouteActionLogitCapMaxRouteProgress
+    route_action_distribution_weight = $RouteActionDistributionWeight
+    route_action_distribution_min_speed_norm = $RouteActionDistributionMinSpeedNorm
+    route_action_distribution_min_route_progress = $RouteActionDistributionMinRouteProgress
+    route_action_distribution_max_route_progress = $RouteActionDistributionMaxRouteProgress
+    route_late_action_logit_cap_weight = $RouteLateActionLogitCapWeight
+    route_late_action_logit_cap_ids = $RouteLateActionLogitCapIds
+    route_late_action_logit_cap_margin = $RouteLateActionLogitCapMargin
+    route_late_action_logit_cap_min_speed_norm = $RouteLateActionLogitCapMinSpeedNorm
+    route_late_action_logit_cap_min_route_progress = $RouteLateActionLogitCapMinRouteProgress
+    route_late_action_logit_cap_max_route_progress = $RouteLateActionLogitCapMaxRouteProgress
+    route_throttle_ceiling_weight = $RouteThrottleCeilingWeight
+    route_throttle_ceiling = $RouteThrottleCeiling
+    route_throttle_min_speed_norm = $RouteThrottleMinSpeedNorm
+    route_throttle_min_route_progress = $RouteThrottleMinRouteProgress
+    route_throttle_max_route_progress = $RouteThrottleMaxRouteProgress
+    route_late_throttle_ceiling_weight = $RouteLateThrottleCeilingWeight
+    route_late_throttle_ceiling = $RouteLateThrottleCeiling
+    route_late_throttle_min_speed_norm = $RouteLateThrottleMinSpeedNorm
+    route_late_throttle_min_route_progress = $RouteLateThrottleMinRouteProgress
+    route_late_throttle_max_route_progress = $RouteLateThrottleMaxRouteProgress
+    route_action_override_weight = $RouteActionOverrideWeight
+    route_action_override_id = $RouteActionOverrideId
+    route_action_override_min_speed_norm = $RouteActionOverrideMinSpeedNorm
+    route_action_override_min_route_progress = $RouteActionOverrideMinRouteProgress
+    route_action_override_max_route_progress = $RouteActionOverrideMaxRouteProgress
+    hidden_dim = $HiddenDim
+    device = $Device
+    created_at = (Get-Date -Format o)
+}
+$LaunchManifest | ConvertTo-Json -Depth 4 | Set-Content -Path $LaunchManifestPath
+
+Write-Host "STAGE2_DETACHED_REPLAY_TRAIN_READY=True"
+Write-Host "REPLAY_PATH=$ReplayPath"
+Write-Host "REPLAY_MANIFEST_PATH=$ReplayManifestPath"
+Write-Host "OUTPUT_DIR=$ResolvedOutputDir"
+Write-Host "TRAIN_LOG_PATH=$ResolvedLogPath"
+Write-Host "TRAIN_LAUNCH_MANIFEST_PATH=$LaunchManifestPath"
+Write-Host "TRAIN_SCRIPT_PATH=$InnerScriptPath"
+Write-Host "TRAIN_TASK_NAME=$TaskName"
+if ($NoStart) {
+    Write-Host "TRAIN_DETACHED_DRY_RUN=True"
+    exit 0
+}
+
+$ExistingTask = Get-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue
+if ($null -ne $ExistingTask -and [string]$ExistingTask.State -eq "Running") {
+    Write-Host "TRAIN_TASK_ALREADY_RUNNING=True"
+    Write-Host "TRAIN_TASK_NAME=$TaskName"
+    Write-Host "TRAIN_LAUNCH_MANIFEST_PATH=$LaunchManifestPath"
+    exit 3
+}
+Unregister-ScheduledTask -TaskName $TaskName -Confirm:$false -ErrorAction SilentlyContinue
+$Action = New-ScheduledTaskAction -Execute "powershell.exe" -Argument $TaskArgument -WorkingDirectory $ProjectRoot
+$Trigger = New-ScheduledTaskTrigger -Once -At (Get-Date).AddMinutes(1)
+$Principal = New-ScheduledTaskPrincipal -UserId $InteractiveUser -LogonType Interactive -RunLevel Highest
+$Settings = New-ScheduledTaskSettingsSet -MultipleInstances IgnoreNew -ExecutionTimeLimit ([TimeSpan]::Zero)
+Register-ScheduledTask -TaskName $TaskName -Action $Action -Trigger $Trigger -Principal $Principal -Settings $Settings -Force | Out-Null
+Start-ScheduledTask -TaskName $TaskName
+Write-Host "TRAIN_TASK_STARTED=True"
