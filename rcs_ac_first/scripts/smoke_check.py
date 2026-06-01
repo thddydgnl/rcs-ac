@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -345,7 +346,7 @@ def run_loss_check(model: RCSACFirstModel, obs: torch.Tensor, auxiliary: torch.T
 def run_checkpoint_check(config_path: Path, device_override: str | None) -> dict[str, object]:
     config = load_phase1_config(config_path)
     agent = PPOAgent(PPOConfig.from_phase1_config(config, device_override=device_override))
-    checkpoint_dir = PROJECT_ROOT / "checkpoints" / "smoke_check"
+    checkpoint_dir = PROJECT_ROOT / "checkpoints" / "smoke_check" / config_path.stem / f"pid_{os.getpid()}"
     checkpoint_dir.mkdir(parents=True, exist_ok=True)
     checkpoint_path = checkpoint_dir / "last.pt"
     agent.save(str(checkpoint_path), extra_state={"smoke_check": True, "global_step": 0})
@@ -534,9 +535,9 @@ def run_recurrent_rollout_update_check(config_path: Path, device_override: str |
         raise RuntimeError(f"hidden state batch shape mismatch: {tuple(batch.hidden_states.shape)}")
     metrics = agent.update(batch)
     required = ("actor_loss", "critic_loss", "entropy", "total_loss", "aux_mask_available_rate")
-    if bool(config.model.enable_shapley):
+    if bool(config.model.enable_shapley and config.shapley.enabled):
         required = required + ("shapley_alignment_loss", "shapley_subset_count")
-    if bool(config.model.enable_dropout_consistency):
+    if bool(config.model.enable_dropout_consistency and config.dropout_consistency.enabled):
         required = required + ("dropout_consistency_loss",)
     missing = [key for key in required if key not in metrics]
     if missing:

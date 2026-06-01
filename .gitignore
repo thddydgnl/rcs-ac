@@ -20,9 +20,39 @@ Thumbs.db
 
 # CARLA/RL run artifacts
 checkpoints/
-logs/
 outputs/
-remote_runs/
+logs/*
+!logs/**/
+!logs/**/*.csv
+logs/**/rgb/
+remote_runs/*
+!remote_runs/**/
+!remote_runs/summary.json
+!remote_runs/metrics.csv
+!remote_runs/**/*.json
+!remote_runs/**/*.csv
+!remote_runs/**/*.txt
+remote_runs/**/rgb/
+round*_results/**/rgb/
+
+# Curated stabilization commits keep selected remote run tables. Older local
+# exploration bundles stay on disk but out of normal git status.
+remote_runs/ppo_matched_bc_pretrain_estimated_scalar_seed9_20260503/
+remote_runs/ppo_matched_bc_pretrain_estimated_scalar_seed9_actor_route_boost_20260503/
+remote_runs/ppo_matched_bc_pretrain_estimated_scalar_seed9_actor_route_boost_ppo8192_20260503/
+remote_runs/ppo_matched_bc_pretrain_estimated_scalar_seed9_late_boost_20260503/
+remote_runs/ppo_matched_bc_pretrain_estimated_scalar_seed9_late_route_boost_20260503/
+remote_runs/ppo_matched_bc_pretrain_estimated_scalar_seed9_rgb_corrective_authority_20260503/
+remote_runs/ppo_matched_bc_pretrain_estimated_scalar_seed9_sequence_preemptive_transition_20260503/
+remote_runs/ppo_matched_bc_pretrain_estimated_scalar_seed9_sequence_transition_20260503/
+remote_runs/ppo_matched_bc_pretrain_estimated_scalar_seed9_turn_phase_20260503/
+remote_runs/ppo_matched_bc_pretrain_estimated_scalar_seed9_turn_phase_branch_authority_20260504/
+remote_runs/ppo_matched_bc_pretrain_estimated_scalar_seed9_turn_phase_enhanced_20260503/
+remote_runs/ppo_matched_bc_pretrain_estimated_scalar_seed9_turn_phase_longitudinal_only_20260503/
+remote_runs/ppo_matched_bc_pretrain_estimated_scalar_seed9_turn_phase_overlay_20260503/
+remote_runs/ppo_matched_bc_pretrain_estimated_scalar_seed9_turn_phase_preoffroad_branch_20260504/
+remote_runs/ppo_matched_bc_pretrain_estimated_scalar_seed9_turn_phase_severe_recovery_20260503/
+remote_runs/ppo_matched_rgb_scalar_seed13_8192_20260503/
 
 # Local datasets and generated artifacts
 data/**/*.npz

@@ -121,6 +121,16 @@ def validate_expert_arrays(
         optional = np.asarray(value)
         if optional.shape[:1] == (n,):
             result[key] = optional.copy()
+    if (
+        "target_corrective_delta" not in result
+        and "target_corrected_steer" in result
+        and "policy_action_steer" in result
+    ):
+        result["target_corrective_delta"] = (
+            np.asarray(result["target_corrected_steer"], dtype=np.float32).reshape(-1)
+            - np.asarray(result["policy_action_steer"], dtype=np.float32).reshape(-1)
+        ).astype(np.float32, copy=False)
+        result["target_corrective_delta_available"] = np.ones((n,), dtype=np.float32)
     _validate_optional_mask_arrays(result, n)
     return result
 
@@ -167,6 +177,28 @@ def _optional_mask_item(arrays: dict[str, np.ndarray], row: int) -> dict[str, to
         "aux_lane_edge_target": lane_tensor,
         "aux_mask_targets_available": available_tensor,
     }
+
+
+def _optional_scalar_item(arrays: dict[str, np.ndarray], key: str, row: int) -> torch.Tensor:
+    value = arrays.get(key)
+    if value is None:
+        return torch.tensor(0.0, dtype=torch.float32)
+    return torch.tensor(float(np.asarray(value).reshape(-1)[row]), dtype=torch.float32)
+
+
+def _optional_scalar_available_item(arrays: dict[str, np.ndarray], key: str, row: int) -> tuple[torch.Tensor, torch.Tensor]:
+    value = arrays.get(key)
+    if value is None:
+        return torch.tensor(0.0, dtype=torch.float32), torch.tensor(0.0, dtype=torch.float32)
+    available = arrays.get(f"{key}_available")
+    if available is None:
+        available_value = 1.0
+    else:
+        available_value = float(np.asarray(available).reshape(-1)[row])
+    return (
+        torch.tensor(float(np.asarray(value).reshape(-1)[row]), dtype=torch.float32),
+        torch.tensor(available_value, dtype=torch.float32),
+    )
 
 
 def summarize_expert_arrays(arrays: dict[str, Any]) -> ExpertDatasetSummary:
@@ -251,11 +283,21 @@ class ExpertDataset(Dataset[dict[str, torch.Tensor]]):
 
     def __getitem__(self, index: int) -> dict[str, torch.Tensor]:
         row = int(self.indices[int(index)])
+        target_delta, target_delta_available = _optional_scalar_available_item(
+            self.arrays,
+            "target_corrective_delta",
+            row,
+        )
         item = {
             "obs": torch.from_numpy(self.arrays["obs_flat"][row].astype(np.float32, copy=False)),
             "auxiliary": torch.from_numpy(self.arrays["auxiliary"][row].astype(np.float32, copy=False)),
             "expert_action": torch.from_numpy(self.arrays["expert_action"][row].astype(np.float32, copy=False)),
             "route_progress": torch.tensor(float(self.arrays["route_progress"][row]), dtype=torch.float32),
+            "lane_offset": _optional_scalar_item(self.arrays, "lane_offset", row),
+            "heading_error": _optional_scalar_item(self.arrays, "heading_error", row),
+            "policy_action_steer": _optional_scalar_item(self.arrays, "policy_action_steer", row),
+            "target_corrective_delta": target_delta,
+            "target_corrective_delta_available": target_delta_available,
             "done": torch.tensor(bool(self.arrays["done"][row]), dtype=torch.bool),
             "bad_transition": torch.tensor(bool(self.arrays["bad_transition_mask"][row]), dtype=torch.bool),
         }
@@ -295,10 +337,13 @@ class SequenceExpertDataset(Dataset[dict[str, torch.Tensor]]):
         include_bad_transitions: bool = True,
     ) -> None:
         arrays = load_expert_npz(path)
+        source_indices = np.arange(int(arrays["obs_flat"].shape[0]), dtype=np.int64)
         if not include_bad_transitions:
             keep = ~arrays["bad_transition_mask"].astype(np.bool_)
             arrays = {key: value[keep] if value.shape[:1] == keep.shape else value for key, value in arrays.items()}
+            source_indices = source_indices[keep]
         self.arrays = arrays
+        self.source_indices = source_indices
         self.path = Path(path)
         self.split = split
         self.sequence_length = int(sequence_length)
@@ -347,6 +392,11 @@ class SequenceExpertDataset(Dataset[dict[str, torch.Tensor]]):
         auxiliary = np.zeros((length, aux_dim), dtype=np.float32)
         expert_action = np.zeros((length, action_dim), dtype=np.float32)
         route_progress = np.zeros((length,), dtype=np.float32)
+        lane_offset = np.zeros((length,), dtype=np.float32)
+        heading_error = np.zeros((length,), dtype=np.float32)
+        policy_action_steer = np.zeros((length,), dtype=np.float32)
+        target_corrective_delta = np.zeros((length,), dtype=np.float32)
+        target_corrective_delta_available = np.zeros((length,), dtype=np.float32)
         done = np.zeros((length,), dtype=np.bool_)
         bad = np.zeros((length,), dtype=np.bool_)
         valid = np.zeros((length,), dtype=np.float32)
@@ -359,10 +409,26 @@ class SequenceExpertDataset(Dataset[dict[str, torch.Tensor]]):
             row = start + step
             if row >= n or int(self.arrays["episode_id"][row]) != episode_id:
                 break
+            if step > 0:
+                previous_row = row - 1
+                source_gap = int(self.source_indices[row]) - int(self.source_indices[previous_row])
+                step_gap = int(self.arrays["step_in_episode"][row]) - int(self.arrays["step_in_episode"][previous_row])
+                if source_gap != 1 or step_gap != 1:
+                    break
             obs[step] = self.arrays["obs_flat"][row].astype(np.float32, copy=False)
             auxiliary[step] = self.arrays["auxiliary"][row].astype(np.float32, copy=False)
             expert_action[step] = self.arrays["expert_action"][row].astype(np.float32, copy=False)
             route_progress[step] = float(self.arrays["route_progress"][row])
+            lane_offset[step] = float(_optional_scalar_item(self.arrays, "lane_offset", row).item())
+            heading_error[step] = float(_optional_scalar_item(self.arrays, "heading_error", row).item())
+            policy_action_steer[step] = float(_optional_scalar_item(self.arrays, "policy_action_steer", row).item())
+            target_delta, target_delta_available = _optional_scalar_available_item(
+                self.arrays,
+                "target_corrective_delta",
+                row,
+            )
+            target_corrective_delta[step] = float(target_delta.item())
+            target_corrective_delta_available[step] = float(target_delta_available.item())
             done[step] = bool(self.arrays["done"][row])
             bad[step] = bool(self.arrays["bad_transition_mask"][row])
             valid[step] = 1.0
@@ -378,6 +444,11 @@ class SequenceExpertDataset(Dataset[dict[str, torch.Tensor]]):
             "auxiliary": torch.from_numpy(auxiliary),
             "expert_action": torch.from_numpy(expert_action),
             "route_progress": torch.from_numpy(route_progress),
+            "lane_offset": torch.from_numpy(lane_offset),
+            "heading_error": torch.from_numpy(heading_error),
+            "policy_action_steer": torch.from_numpy(policy_action_steer),
+            "target_corrective_delta": torch.from_numpy(target_corrective_delta),
+            "target_corrective_delta_available": torch.from_numpy(target_corrective_delta_available),
             "done": torch.from_numpy(done),
             "bad_transition": torch.from_numpy(bad),
             "valid_mask": torch.from_numpy(valid),

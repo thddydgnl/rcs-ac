@@ -1,0 +1,19 @@
+{
+  "global_step": 4096,
+  "last": {
+    "approx_kl": 0.11092962324619293,
+    "collision_count": 0,
+    "entropy": -5.217221260070801,
+    "global_step": 4096,
+    "imitation_loss": 0.08160928636789322,
+    "last_route_progress": 0.8461538461538461,
+    "mean_reward": 0.050390832126140594,
+    "mean_route_progress": 0.7684294871794874,
+    "offroad_count": 0,
+    "policy_loss": 0.2008746713399887,
+    "stuck_count": 0,
+    "update": 31,
+    "value_loss": 0.5421475172042847
+  },
+  "updates": 32
+}

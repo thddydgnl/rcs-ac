@@ -13,6 +13,7 @@ from rcs_ac_first.rl.losses import (
     compute_dense_perception_aux_loss,
     compute_entropy_loss,
     compute_dropout_consistency_loss,
+    compute_estimated_scalar_aux_loss,
     compute_ppo_actor_loss,
     compute_reliability_supervision_loss,
     compute_risk_aware_regularization,
@@ -68,6 +69,7 @@ class PPOAgent:
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=float(config.train.learning_rate))
         self.hidden_state: torch.Tensor | None = None
         self.hidden_state_before_action: torch.Tensor | None = None
+        self.update_count = 0
 
     def reset_hidden(self) -> None:
         self.hidden_state = None
@@ -133,6 +135,8 @@ class PPOAgent:
         auxiliary_observations: torch.Tensor | None,
         actions: torch.Tensor,
         hidden_states: torch.Tensor | None = None,
+        *,
+        use_shapley_estimate: bool = True,
     ) -> tuple[dict[str, torch.Tensor | None], torch.Tensor, torch.Tensor]:
         hidden_for_model = self._prepare_batch_hidden(
             hidden_states,
@@ -143,6 +147,7 @@ class PPOAgent:
             auxiliary_observations,
             hidden_for_model,
             track_diagnostics=True,
+            use_shapley_estimate=use_shapley_estimate,
         )
         action_mean = outputs["action_mean"]
         dist = self._distribution(action_mean)  # type: ignore[arg-type]
@@ -153,6 +158,9 @@ class PPOAgent:
         indices = torch.arange(num_items, device=self.device)
         minibatch_size = min(int(self.config.train.minibatch_size), num_items)
         totals = _MetricAccumulator()
+        use_shapley_this_update = self._shapley_enabled() and (
+            int(self.update_count) % int(self.config.shapley.every_updates) == 0
+        )
 
         for _ in range(int(self.config.train.update_epochs)):
             perm = indices[torch.randperm(num_items, device=self.device)]
@@ -163,6 +171,12 @@ class PPOAgent:
                     batch.auxiliary_observations[mb_idx],
                     batch.actions[mb_idx],
                     batch.hidden_states[mb_idx],
+                    use_shapley_estimate=use_shapley_this_update,
+                )
+                outputs["_shapley_estimated"] = torch.as_tensor(
+                    float(use_shapley_this_update),
+                    dtype=torch.float32,
+                    device=self.device,
                 )
                 value = outputs["value"]
 
@@ -191,6 +205,14 @@ class PPOAgent:
                     lane_edge_weight=self.config.loss.aux_lane_edge_mask_loss_weight,
                     lane_edge_pos_weight=self.config.loss.aux_lane_edge_pos_weight,
                 )
+                estimated_scalar_loss, estimated_scalar_metrics = compute_estimated_scalar_aux_loss(
+                    outputs.get("estimated_lane_offset"),  # type: ignore[arg-type]
+                    batch.aux_lane_offset_targets[mb_idx],
+                    outputs.get("estimated_heading_error"),  # type: ignore[arg-type]
+                    batch.aux_heading_error_targets[mb_idx],
+                    lane_offset_weight=float(self.config.model.estimated_scalar_loss_weight),
+                    heading_error_weight=float(self.config.model.estimated_scalar_loss_weight),
+                )
                 entropy_loss = compute_entropy_loss(entropy)
                 reliability_loss = compute_reliability_supervision_loss(
                     outputs["reliability"],  # type: ignore[arg-type]
@@ -217,6 +239,7 @@ class PPOAgent:
                     + self.config.loss.entropy_loss_weight * entropy_loss
                     + aux_loss
                     + dense_aux_loss
+                    + estimated_scalar_loss
                     + self.config.loss.reliability_loss_weight * reliability_loss
                     + self.config.loss.risk_supervision_loss_weight * risk_supervision_loss
                     + self.config.loss.risk_regularization_weight * risk_regularization
@@ -238,14 +261,17 @@ class PPOAgent:
                         "grad_norm": float(torch.as_tensor(grad_norm).detach().cpu().item()),
                         **aux_metrics,
                         **dense_aux_metrics,
+                        **estimated_scalar_metrics,
                         "reliability_loss": float(reliability_loss.detach().cpu().item()),
                         "risk_supervision_loss": float(risk_supervision_loss.detach().cpu().item()),
                         "risk_regularization": float(risk_regularization.detach().cpu().item()),
                         **self._phase2_metrics(outputs, batch, mb_idx),
+                        "shapley_estimated": float(use_shapley_this_update),
                         "shapley_alignment_loss": float(shapley_alignment_loss.detach().cpu().item()),
                         **dropout_metrics,
                     }
                 )
+        self.update_count += 1
         return totals.mean()
 
     def get_diagnostics(self) -> dict[str, float]:
@@ -315,8 +341,9 @@ class PPOAgent:
         track_diagnostics: bool,
         modality_mask: torch.Tensor | None = None,
         contribution_override: torch.Tensor | None = None,
+        use_shapley_estimate: bool = True,
     ) -> dict[str, torch.Tensor | None]:
-        if contribution_override is not None or not self._shapley_enabled():
+        if contribution_override is not None or not self._shapley_enabled() or not bool(use_shapley_estimate):
             return self.model.forward_policy_outputs(
                 observations,
                 auxiliary=auxiliary_observations,
@@ -385,6 +412,9 @@ class PPOAgent:
         if not isinstance(fusion_weights, torch.Tensor):
             raise RuntimeError("fusion_weights missing from model outputs")
         if not self._shapley_enabled():
+            return fusion_weights.new_zeros(())
+        estimated = outputs.get("_shapley_estimated")
+        if isinstance(estimated, torch.Tensor) and float(estimated.detach().cpu().item()) <= 0.0:
             return fusion_weights.new_zeros(())
         if not isinstance(contribution, torch.Tensor):
             raise RuntimeError("contribution missing from model outputs")

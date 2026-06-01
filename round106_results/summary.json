@@ -1,0 +1,54 @@
+{
+  "round": 106,
+  "status": "BLOCK",
+  "purpose": "Route-window steering corrective-delta probe after Round105 speed-gate longitudinal labels.",
+  "bc": {
+    "trainable_parameters": 514,
+    "trainable_actor_head_rows": [
+      0
+    ],
+    "train_loss": 0.008336,
+    "val_loss": 0.021599,
+    "init_checkpoint": "checkpoints/rgb_perception_actor_features_v2_speed_gate_longitudinal_bc_round105/last.pt",
+    "checkpoint": "checkpoints/rgb_perception_actor_features_v2_route_window_steer_delta_bc_round106/last.pt"
+  },
+  "eval_512": {
+    "collision": 0,
+    "offroad": 0,
+    "severe_early_offroad": 0,
+    "stuck": 0,
+    "done_reason_counts": {
+      "max_steps": 1
+    },
+    "max_route_progress": 0.46153846153846156,
+    "mean_action_jitter_l1": 0.12546589548719567,
+    "visual_center_correction_rate": 0.8235294117647058,
+    "corrective_sign_rate": 0.8235294117647058,
+    "initial_mean_steer": -0.061531913345970676,
+    "initial_left_steer_rate": 0.6375
+  },
+  "eval_2048": {
+    "collision": 0,
+    "offroad": 1,
+    "severe_early_offroad": 0,
+    "stuck": 0,
+    "done_reason_counts": {
+      "max_steps": 3,
+      "offroad": 1
+    },
+    "max_route_progress": 0.46153846153846156,
+    "mean_action_jitter_l1": 0.14348769248998394,
+    "visual_center_correction_rate": 0.5030674846625767,
+    "corrective_sign_rate": 0.7239263803680982,
+    "initial_mean_steer": -0.060729037121054714,
+    "initial_left_steer_rate": 0.6175,
+    "offroad_terminal": {
+      "route_progress": 0.3076923076923077,
+      "lane_offset": -2.5897707029767933,
+      "heading_error": 40.37137169384775,
+      "longitudinal": -0.21700961887836456,
+      "speed_kmh": 7.848389291811192
+    }
+  },
+  "decision": "Do not promote. Steering-only probe moved failure later and reduced heading error, but 2048 still has offroad and no longer preserves the Round105 strong longitudinal slowdown at terminal."
+}

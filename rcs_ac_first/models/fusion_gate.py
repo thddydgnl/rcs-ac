@@ -145,7 +145,11 @@ class FusionGate(nn.Module):
 
         logits = logits.masked_fill(modality_mask <= 0.0, -1.0e9)
         raw_weights = torch.softmax(logits / float(self.config.temperature), dim=-1)
-        weights = self._apply_safety_floors(raw_weights, modality_mask=modality_mask)
+        weights = self._apply_safety_floors(
+            raw_weights,
+            reliability=reliability,
+            modality_mask=modality_mask,
+        )
         stacked = torch.stack([projected[key] for key in MODALITY_ORDER], dim=1)
         fused = torch.sum(stacked * weights.unsqueeze(-1), dim=1)
         diagnostics = self._build_diagnostics(
@@ -166,12 +170,23 @@ class FusionGate(nn.Module):
             diagnostics=diagnostics,
         )
 
-    def _apply_safety_floors(self, raw_weights: torch.Tensor, *, modality_mask: torch.Tensor) -> torch.Tensor:
+    def _apply_safety_floors(
+        self,
+        raw_weights: torch.Tensor,
+        *,
+        reliability: torch.Tensor,
+        modality_mask: torch.Tensor,
+    ) -> torch.Tensor:
         floor = torch.zeros_like(raw_weights)
         ego_index = MODALITY_ORDER.index("ego")
         route_index = MODALITY_ORDER.index("route")
-        floor[:, ego_index] = float(self.config.ego_weight_floor) * modality_mask[:, ego_index]
-        floor[:, route_index] = float(self.config.route_weight_floor) * modality_mask[:, route_index]
+        reliability = reliability.to(device=raw_weights.device, dtype=raw_weights.dtype).clamp(0.0, 1.0)
+        floor[:, ego_index] = (
+            float(self.config.ego_weight_floor) * reliability[:, ego_index] * modality_mask[:, ego_index]
+        )
+        floor[:, route_index] = (
+            float(self.config.route_weight_floor) * reliability[:, route_index] * modality_mask[:, route_index]
+        )
         remaining = (1.0 - floor.sum(dim=-1, keepdim=True)).clamp_min(1.0e-6)
         weights = floor + remaining * raw_weights * modality_mask
         return weights / weights.sum(dim=-1, keepdim=True).clamp_min(1.0e-8)

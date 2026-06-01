@@ -17,10 +17,18 @@ Required operating guides live in:
 docs/operating_guides/
 ```
 
-Before starting or continuing any stabilization round, read:
+Before starting or continuing an ordinary stabilization round, read:
 
 ```text
 docs/operating_guides/00_agent_workflow_rules.md
+docs/operating_guides/03_lite_subagent_stabilization_workflow.md
+```
+
+Read these only when needed:
+
+```text
+docs/operating_guides/02_integrated_subagent_remote_stabilization_workflow.md
+docs/operating_guides/04_full_subagent_roles_and_legacy_rules.md
 docs/operating_guides/01_remote_mac_windows_stabilization_workflow.md
 ```
 
@@ -38,3 +46,9 @@ docs/operating_guides/01_remote_mac_windows_stabilization_workflow.md
 - `10_preoffroad_speed_guard_hold_v1_result.md`
 - `11_rgb_aux_no_lateral_recovery_probe_result.md`
 - `12_rgb_perception_actor_features_v1_result.md`
+- `13_rgb_perception_actor_features_v2_pretrain_plan.md`
+- `14_masked_recovery_visual_pretrain_plan.md`
+- `15_mixed_masked_visual_bc_gate.md`
+- `16_visual_zero_margin_bc_gate.md`
+- `17_drift_window_visual_steer_bc_gate.md`
+- `18_bridge_window_visual_steer_bc_gate.md`

@@ -131,11 +131,10 @@ class RolloutBuffer:
     def compute_returns_and_advantages(self, *, last_value: float, last_done: bool) -> None:
         last_advantage = 0.0
         for index in reversed(range(self.ptr)):
+            next_non_terminal = 1.0 - float(self.dones[index])
             if index == self.ptr - 1:
-                next_non_terminal = 1.0 - float(last_done)
-                next_value = float(last_value)
+                next_value = 0.0 if bool(last_done) else float(last_value)
             else:
-                next_non_terminal = 1.0 - float(self.dones[index + 1])
                 next_value = float(self.values[index + 1])
             delta = self.rewards[index] + self.gamma * next_value * next_non_terminal - self.values[index]
             last_advantage = delta + self.gamma * self.gae_lambda * next_non_terminal * last_advantage

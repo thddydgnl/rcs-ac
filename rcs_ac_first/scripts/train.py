@@ -94,6 +94,7 @@ TRAINING_LOG_FIELDS: tuple[str, ...] = (
     "shapley_raw_ego",
     "shapley_raw_route",
     "contribution_entropy",
+    "shapley_estimated",
     "dropout_action_l1",
     "dropout_value_l1",
     "dropout_mask_rgb_rate",
@@ -154,6 +155,7 @@ TRAINING_LOG_FIELDS: tuple[str, ...] = (
     "std_override_source",
     "log_std_dim0",
     "log_std_dim1",
+    "deterministic_rollout",
     "update_success",
     "nan_detected",
 )
@@ -445,6 +447,49 @@ def _override_model_log_std(
     }
 
 
+def _ppo_trainable_module_names(config: Phase1CoreConfig) -> list[str]:
+    ppo_raw = config.raw.get("ppo") if isinstance(config.raw, dict) else None
+    if not isinstance(ppo_raw, dict):
+        return []
+    raw = ppo_raw.get("trainable_module_names", [])
+    if isinstance(raw, str):
+        return [raw]
+    return [str(item) for item in raw]
+
+
+def _ppo_deterministic_rollout(config: Phase1CoreConfig) -> bool:
+    ppo_raw = config.raw.get("ppo") if isinstance(config.raw, dict) else None
+    if not isinstance(ppo_raw, dict):
+        return False
+    return bool(ppo_raw.get("deterministic_rollout", False))
+
+
+def _select_trainable_parameters(
+    agent: PPOAgent,
+    module_names: list[str],
+) -> list[torch.nn.Parameter]:
+    if not module_names:
+        return [parameter for parameter in agent.model.parameters() if parameter.requires_grad]
+    prefixes = tuple(str(name).strip() for name in module_names if str(name).strip())
+    if not prefixes:
+        return [parameter for parameter in agent.model.parameters() if parameter.requires_grad]
+    selected: list[torch.nn.Parameter] = []
+    for name, parameter in agent.model.named_parameters():
+        trainable = name.startswith(prefixes)
+        parameter.requires_grad_(trainable)
+        if trainable:
+            selected.append(parameter)
+    if not selected:
+        raise ValueError(f"ppo.trainable_module_names selected no parameters: {module_names}")
+    selected_count = sum(int(parameter.numel()) for parameter in selected)
+    total_count = sum(int(parameter.numel()) for parameter in agent.model.parameters())
+    print(
+        "[trainable] "
+        f"prefixes={list(prefixes)} selected_params={selected_count} total_params={total_count}"
+    )
+    return selected
+
+
 def _resolve_log_std_override(config: Phase1CoreConfig, args: argparse.Namespace) -> tuple[list[float] | None, str]:
     if args.override_log_std is not None:
         return [float(item) for item in args.override_log_std], "cli"
@@ -515,6 +560,7 @@ def _write_training_log_row(
     metrics: dict[str, float] | None = None,
     checkpoint_path: str = "",
     init_metadata: dict[str, Any] | None = None,
+    deterministic_rollout: bool = False,
     update_success: bool = True,
     nan_detected: bool = False,
 ) -> None:
@@ -528,6 +574,11 @@ def _write_training_log_row(
             float(action.get("longitudinal", 0.0)),
         ]
     )
+    actual_steer = float(control.get("steer", decoded["steer"])) if isinstance(control, dict) else float(decoded["steer"])
+    actual_throttle = (
+        float(control.get("throttle", decoded["throttle"])) if isinstance(control, dict) else float(decoded["throttle"])
+    )
+    actual_brake = float(control.get("brake", decoded["brake"])) if isinstance(control, dict) else float(decoded["brake"])
     row: dict[str, Any] = {field: "" for field in TRAINING_LOG_FIELDS}
     row.update(
         {
@@ -552,15 +603,16 @@ def _write_training_log_row(
             "collision": bool(info.get("collision", False)),
             "offroad": bool(info.get("offroad", False)),
             "stuck": bool(info.get("stuck", False)),
-            "steer": float(decoded["steer"]),
+            "steer": actual_steer,
             "longitudinal": float(decoded["longitudinal"]),
-            "throttle": float(decoded["throttle"]),
-            "brake": float(decoded["brake"]),
+            "throttle": actual_throttle,
+            "brake": actual_brake,
             "speed_kmh": float(info.get("speed_kmh", 0.0)),
             "lane_offset": float(info.get("lane_offset", 0.0)),
             "heading_error": float(info.get("heading_error", 0.0)),
             "reward": float(info.get("reward", 0.0)),
             "checkpoint_path": checkpoint_path,
+            "deterministic_rollout": bool(deterministic_rollout),
             "update_success": bool(update_success),
             "nan_detected": bool(nan_detected),
             "aux_mask_targets_available": bool(info.get("aux_mask_targets_available", False)),
@@ -681,6 +733,15 @@ def main() -> int:
             f"skipped_keys={init_metadata['init_skipped_key_count']} "
             f"std_override={init_metadata.get('std_override_enabled', False)}"
         )
+    trainable_module_names = _ppo_trainable_module_names(config)
+    deterministic_rollout = _ppo_deterministic_rollout(config)
+    if trainable_module_names:
+        if bool(args.load_init_optimizer):
+            raise ValueError("ppo.trainable_module_names cannot be combined with --load-init-optimizer")
+        trainable_parameters = _select_trainable_parameters(agent, trainable_module_names)
+        agent.optimizer = torch.optim.Adam(trainable_parameters, lr=float(config.train.learning_rate))
+    if deterministic_rollout:
+        print("[rollout] deterministic_action=true")
     buffer = RolloutBuffer(
         capacity=config.train.rollout_steps,
         obs_dim=obs_spec.total_dim,
@@ -728,7 +789,7 @@ def main() -> int:
                 action, log_prob, value = agent.act(
                     observation,
                     auxiliary_observation=current_auxiliary,
-                    deterministic=False,
+                    deterministic=deterministic_rollout,
                 )
                 diagnostics = agent.get_diagnostics()
                 step_result = env.step(action, policy_diagnostics=diagnostics)
@@ -807,6 +868,7 @@ def main() -> int:
                         info=info,
                         diagnostics=agent.get_diagnostics(),
                         init_metadata=init_metadata,
+                        deterministic_rollout=deterministic_rollout,
                     )
                     print(
                         f"[episode] idx={episode_index} total_steps={total_steps} "
@@ -868,6 +930,7 @@ def main() -> int:
                 metrics=metrics,
                 checkpoint_path=checkpoint_path,
                 init_metadata=init_metadata,
+                deterministic_rollout=deterministic_rollout,
             )
             print(
                 f"[update] idx={update} total_steps={total_steps} "

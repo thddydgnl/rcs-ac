@@ -1,0 +1,102 @@
+{
+  "checkpoint_path": "C:\\Users\\thddy\\Documents\\code\\RCS-AC-first\\checkpoints\\ppo_matched_rgb_scalar_seed9_8192_20260503T162757\\update_0015.pt",
+  "collision_cluster_counts": {
+    "other": 1
+  },
+  "collision_context_window_steps": 32,
+  "collision_count": 1,
+  "collision_events": [
+    {
+      "cluster": "other",
+      "episode": 0,
+      "heading_error": -11.878187689676821,
+      "lane_offset": 1.95653422620656,
+      "longitudinal": 0.00941628310829401,
+      "risk_scalar": 0.0,
+      "route_offset_corrective_sign": false,
+      "route_progress": 0.5641025641025641,
+      "route_visual_center_sign_agreement": false,
+      "speed_kmh": 4.56976193282415,
+      "steer": -0.002487825695425272,
+      "step": 357,
+      "visual_center_corrective_sign": false,
+      "visual_zero_signed_steer_delta": 0.00120990676805377,
+      "window_max_abs_heading_error": 11.878187689676821,
+      "window_max_abs_lane_offset": 1.9630355941816882,
+      "window_mean_abs_heading_error": 9.674339349991895,
+      "window_mean_abs_lane_offset": 1.444272210899564,
+      "window_mean_action_jitter_l1": 0.00025755585375009105,
+      "window_mean_speed_kmh": 13.960339924744304,
+      "window_mean_visual_zero_steer_delta": 0.0011213126490474679,
+      "window_route_offset_corrective_sign_rate": 0.0,
+      "window_route_visual_center_sign_agreement_rate": 0.0,
+      "window_step_count": 32,
+      "window_visual_center_correction_rate": 0.0
+    }
+  ],
+  "collision_rate": 0.001953125,
+  "completed_steps": 512,
+  "corrective_need_count": 0,
+  "corrective_sign_rate": 0.0,
+  "corrective_sign_source": "route_offset",
+  "done_reason_counts": {
+    "collision": 1
+  },
+  "early_offroad_count": 0,
+  "early_offroad_route_max": 0.08,
+  "episode_count": 2,
+  "final_route_progress": 0.23076923076923078,
+  "initial_audit": {
+    "final_heading_error": -0.36650227717217376,
+    "final_lane_offset": 0.06542600241279974,
+    "left_steer_rate": 0.28125,
+    "maneuver_command_counts": {
+      "left": 80,
+      "straight": 80
+    },
+    "mean_applied_steer": 0.0016277428660032456,
+    "mean_heading_error": -0.2561943582440023,
+    "mean_lane_offset": 0.026765818452257083,
+    "mean_route_target_heading": 0.4856247944789277,
+    "mean_steer": 0.0016277428660032456,
+    "mean_yaw_delta": 0.0,
+    "right_steer_rate": 0.65625,
+    "row_count": 160
+  },
+  "initial_audit_steps": 80,
+  "max_route_progress": 0.5641025641025641,
+  "mean_action_jitter_l1": 0.0008239888111347682,
+  "mean_corrective_steer_delta": 0.0,
+  "mean_corrective_visual_zero_steer_delta": 0.0,
+  "mean_corrective_visual_zero_steer_share": 0.0,
+  "mean_longitudinal_jitter": 0.00033256634196732193,
+  "mean_route_progress": 0.21634615384615385,
+  "mean_steer_jitter": 0.0004914224691674463,
+  "mean_visual_center_correction_score": 0.0,
+  "mean_visual_zero_action_l1": 0.0012414534603522043,
+  "mean_visual_zero_longitudinal_delta": 0.0001555176349938847,
+  "mean_visual_zero_steer_delta": 0.0010859358253583196,
+  "near_collision_cluster_route_offset_corrective_sign_rate": 0.0,
+  "near_collision_cluster_route_visual_agreement_rate": 0.0,
+  "near_collision_cluster_row_count": 30,
+  "near_collision_cluster_visual_center_correction_rate": 0.0,
+  "num_steps": 512,
+  "offroad_rate": 0.0,
+  "output_csv": "C:\\Users\\thddy\\Documents\\code\\RCS-AC-first\\outputs\\bc_eval\\ppo_matched_rgb_scalar_seed9_8192_eval_512_update0015_20260503T164930\\bc_eval_log.csv",
+  "pass_reasons": [
+    "BC clean rollout completed with finite in-range actions and positive route progress",
+    "BC checkpoint satisfies initial and recommended I2 thresholds except random-policy comparison"
+  ],
+  "pass_status": "PASS",
+  "ppo_gate_fail_reasons": [
+    "collision_count 1 > 0"
+  ],
+  "ppo_gate_status": "BLOCK",
+  "route_offset_corrective_sign_rate": 0.0,
+  "route_visual_center_sign_agreement_rate": 0.0,
+  "run_name": "ppo_matched_rgb_scalar_seed9_8192_eval_512_update0015_20260503T164930",
+  "severe_early_offroad_count": 0,
+  "severe_early_terminal_offroad_count": 0,
+  "stuck_rate": 0.0,
+  "visual_center_correction_rate": 0.0
+}

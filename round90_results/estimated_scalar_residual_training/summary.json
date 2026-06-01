@@ -1,0 +1,79 @@
+{
+  "config": "configs/bc_frame_rgb_perception_actor_features_v2_sustain_late_recovery_round90.yaml",
+  "init_checkpoint": "checkpoints/rgb_perception_actor_features_v2_sustain_late_recovery_bc_round90/last.pt",
+  "output_checkpoint": "checkpoints/rgb_perception_actor_features_v2_estimated_scalar_residual_round90/last.pt",
+  "dataset": "data/expert/rgb_perception_actor_features_v2_early_route_mix_4256_round36_provenance.npz",
+  "sample_count": 4256,
+  "trainable_parameters": 1922,
+  "epochs": 30,
+  "learning_rate": 0.003,
+  "before": {
+    "lane_offset_abs_error": {
+      "mean": 0.9447698593139648,
+      "median": 1.0663048028945923,
+      "p90": 1.4985271692276,
+      "p95": 1.9636335372924805,
+      "p99": 2.4857003688812256,
+      "max": 2.7826218605041504
+    },
+    "heading_error_abs_error": {
+      "mean": 7.5203986167907715,
+      "median": 3.02417254447937,
+      "p90": 21.902286529541016,
+      "p95": 26.311656951904297,
+      "p99": 32.78789520263672,
+      "max": 37.519039154052734
+    },
+    "lane_offset_sign_agreement_all": 0.7066115736961365,
+    "lane_offset_sign_count_all": 3872,
+    "heading_error_sign_agreement_all": 0.44679751992225647,
+    "heading_error_sign_count_all": 3872,
+    "lane_offset_sign_agreement_early_severe": 0.7024608254432678,
+    "heading_error_sign_agreement_early_severe": 0.4365212619304657,
+    "lane_offset_sign_agreement_left": 0.864386796951294,
+    "lane_offset_sign_agreement_right": 0.1367013305425644,
+    "estimated_lane_offset_mean": -0.040040597319602966,
+    "estimated_heading_error_mean": 0.0003217048360966146,
+    "target_lane_abs_mean": 0.9498668313026428,
+    "target_heading_abs_mean": 7.51470947265625
+  },
+  "after": {
+    "lane_offset_abs_error": {
+      "mean": 0.13054123520851135,
+      "median": 0.0920368880033493,
+      "p90": 0.29774901270866394,
+      "p95": 0.35538312792778015,
+      "p99": 0.5066065788269043,
+      "max": 1.446126937866211
+    },
+    "heading_error_abs_error": {
+      "mean": 2.615464448928833,
+      "median": 1.352568507194519,
+      "p90": 7.173961162567139,
+      "p95": 9.947338104248047,
+      "p99": 13.0610990524292,
+      "max": 17.02203941345215
+    },
+    "lane_offset_sign_agreement_all": 0.9788222908973694,
+    "lane_offset_sign_count_all": 3872,
+    "heading_error_sign_agreement_all": 0.8566632270812988,
+    "heading_error_sign_count_all": 3872,
+    "lane_offset_sign_agreement_early_severe": 0.9770693778991699,
+    "heading_error_sign_agreement_early_severe": 0.8562639951705933,
+    "lane_offset_sign_agreement_left": 1.0,
+    "lane_offset_sign_agreement_right": 1.0,
+    "estimated_lane_offset_mean": -0.6425147652626038,
+    "estimated_heading_error_mean": -0.33993542194366455,
+    "target_lane_abs_mean": 0.9498668313026428,
+    "target_heading_abs_mean": 7.51470947265625
+  },
+  "improvement": {
+    "lane_mae_delta": 0.8142286241054535,
+    "heading_mae_delta": 4.9049341678619385,
+    "lane_sign_all_delta": 0.2722107172012329,
+    "heading_sign_all_delta": 0.40986570715904236,
+    "lane_sign_early_severe_delta": 0.2746085524559021,
+    "heading_sign_early_severe_delta": 0.41974273324012756
+  },
+  "note": "Only estimated_scalar_head was trained. Encoder, perception aux head, actor, critic, reliability, risk, and scalar adapter were frozen. Targets are privileged offline supervision only."
+}

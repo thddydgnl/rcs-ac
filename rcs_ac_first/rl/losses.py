@@ -47,6 +47,79 @@ def compute_scalar_aux_loss(
     return total, metrics
 
 
+def compute_estimated_scalar_aux_loss(
+    estimated_lane_offset: torch.Tensor | None,
+    target_lane_offset: torch.Tensor,
+    estimated_heading_error: torch.Tensor | None,
+    target_heading_error: torch.Tensor,
+    *,
+    lane_offset_weight: float = 1.0,
+    heading_error_weight: float = 1.0,
+) -> tuple[torch.Tensor, dict[str, float]]:
+    reference = target_lane_offset
+    if isinstance(estimated_lane_offset, torch.Tensor):
+        reference = estimated_lane_offset
+    elif isinstance(estimated_heading_error, torch.Tensor):
+        reference = estimated_heading_error
+    zero = reference.sum() * 0.0
+    metrics = {
+        "estimated_scalar_loss": 0.0,
+        "estimated_lane_offset_loss": 0.0,
+        "estimated_heading_error_loss": 0.0,
+        "estimated_lane_offset_mae": 0.0,
+        "estimated_heading_error_mae": 0.0,
+        "estimated_lane_offset_sign_agreement": 0.0,
+        "estimated_heading_error_sign_agreement": 0.0,
+    }
+    if estimated_lane_offset is None or estimated_heading_error is None:
+        return zero, metrics
+
+    lane = estimated_lane_offset.reshape(-1)
+    heading = estimated_heading_error.reshape(-1)
+    lane_target = target_lane_offset.to(device=lane.device, dtype=lane.dtype).reshape(-1)
+    heading_target = target_heading_error.to(device=heading.device, dtype=heading.dtype).reshape(-1)
+    if tuple(lane.shape) != tuple(lane_target.shape):
+        raise ValueError(f"estimated lane target shape mismatch: {tuple(lane.shape)} vs {tuple(lane_target.shape)}")
+    if tuple(heading.shape) != tuple(heading_target.shape):
+        raise ValueError(
+            f"estimated heading target shape mismatch: {tuple(heading.shape)} vs {tuple(heading_target.shape)}"
+        )
+
+    lane_loss = F.smooth_l1_loss(lane, lane_target)
+    heading_loss = F.smooth_l1_loss(heading, heading_target)
+    total = float(lane_offset_weight) * lane_loss + float(heading_error_weight) * heading_loss
+    lane_sign_mask = (lane.detach().abs() > 1.0e-6) & (lane_target.detach().abs() > 1.0e-6)
+    heading_sign_mask = (heading.detach().abs() > 1.0e-6) & (heading_target.detach().abs() > 1.0e-6)
+    metrics.update(
+        {
+            "estimated_scalar_loss": float(total.detach().cpu().item()),
+            "estimated_lane_offset_loss": float(lane_loss.detach().cpu().item()),
+            "estimated_heading_error_loss": float(heading_loss.detach().cpu().item()),
+            "estimated_lane_offset_mae": float((lane - lane_target).detach().abs().mean().cpu().item()),
+            "estimated_heading_error_mae": float((heading - heading_target).detach().abs().mean().cpu().item()),
+        }
+    )
+    if bool(lane_sign_mask.any().item()):
+        metrics["estimated_lane_offset_sign_agreement"] = float(
+            (torch.sign(lane[lane_sign_mask]) == torch.sign(lane_target[lane_sign_mask]))
+            .to(dtype=torch.float32)
+            .mean()
+            .detach()
+            .cpu()
+            .item()
+        )
+    if bool(heading_sign_mask.any().item()):
+        metrics["estimated_heading_error_sign_agreement"] = float(
+            (torch.sign(heading[heading_sign_mask]) == torch.sign(heading_target[heading_sign_mask]))
+            .to(dtype=torch.float32)
+            .mean()
+            .detach()
+            .cpu()
+            .item()
+        )
+    return total, metrics
+
+
 def compute_dense_perception_aux_loss(
     pred_road_mask_logits: torch.Tensor,
     road_mask_target: torch.Tensor,

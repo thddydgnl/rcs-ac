@@ -58,25 +58,39 @@ RCS-AC는 reliability, counterfactual contribution, risk-aware weighting을 함�
 
 초기 구현에서는 기존 `attention` 학습 루프를 완전히 복사하지 않는다. 대신 필요한 부분을 adapter 형태로 가져오거나, Phase 1에서는 wrapper를 써서 학습 루프 drift를 줄인다.
 
-## 3. 추천 폴더 구조
+## 3. 현재 폴더 구조
+
+이 문서는 2026-04-26에 시작된 마스터 플랜이며, 아래 구조는 2026-05-01 기준 실제 저장소 상태를 반영한다. 초기 초안의 일부 설계 항목은 별도 파일로 만들지 않았고, 현재는 runtime contract, Shapley 평가 스크립트, 결과 문서, 운영 가이드가 그 역할을 나누어 맡는다.
 
 ```text
 RCS-AC-first/
   README.md
+  REMOTE_SETUP.md
+  configs/
+    phase1_core_smoke.yaml
+    phase2_reliability_risk_smoke.yaml
+    phase3_full_shapley_smoke.yaml
+    bc_*.yaml / phase3_bc_*.yaml
+  data/
+    expert/
   docs/
     00_three_phase_master_plan.md
     01_phase_checklist.md
-    02_interface_contract.md
-    03_experiment_protocol.md
-    04_risk_and_reliability_design.md
-    05_shapley_design.md
+    02_phase1_core_execution_validation.md
+    03_phase1_1_rgb_perception_aux_tasks.md
+    04_phase2_reliability_risk_execution_plan.md
+    05_phase3_counterfactual_shapley_execution_plan.md
+    10_phase1_core_result.md
+    11_phase2_reliability_risk_result.md
+    12_phase3_counterfactual_shapley_result.md
+    14_imitation_rl_execution_plan.md
+    15_clean_stability_foundation_plan.md
+    operating_guides/
+    stabilization_rounds/
   rcs_ac_first/
     __init__.py
-    configs/
-      phase1_core_smoke.yaml
-      phase1_core_train.yaml
-      phase2_reliability_risk.yaml
-      phase3_full_shapley.yaml
+    data/
+      expert_dataset.py
     models/
       __init__.py
       encoders.py
@@ -97,21 +111,23 @@ RCS-AC-first/
       __init__.py
       observation.py
       action.py
+      auxiliary.py
       config.py
-      logging.py
-      checkpoint.py
-      seed.py
+      modality_mask.py
+      phase2_targets.py
     scripts/
       train.py
       smoke_check.py
-      evaluate.py
       evaluate_shapley.py
-      summarize_logs.py
-    tests/
-      test_model_shapes.py
+      train_bc.py
+      evaluate_bc.py
+      collect_expert_dataset.py
+      collect_recovery_dataset.py
+      combine_expert_datasets.py
+  tests/
+      test_rollout_buffer.py
+      test_observation.py
       test_fusion_gate.py
-      test_losses.py
-      test_shapley_estimator.py
   outputs/
   logs/
   checkpoints/
@@ -1017,7 +1033,7 @@ Consistency:
 - dropout consistency finite
 - Shapley alignment finite
 
-`test_shapley_estimator.py`
+Shapley estimator regression
 
 - subset mask 생성
 - contribution shape
@@ -1140,4 +1156,3 @@ py -3.12 .\RCS-AC-first\rcs_ac_first\scripts\train.py --config .\RCS-AC-first\rc
 - reliability supervision, Shapley alignment, dropout consistency, risk regularization을 config로 켜고 끌 수 있다.
 - 악천후와 센서 드랍에서 attention baseline 대비 성능 감소폭을 줄이는 것을 목표 지표로 삼는다.
 - 평가 시 contribution map을 뽑아 해석 가능한 결과를 만든다.
-

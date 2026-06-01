@@ -1,0 +1,102 @@
+{
+  "baseline_round90": {
+    "512": {
+      "collision_count": 0,
+      "offroad_rate": 0.0,
+      "severe_early_offroad_count": 0,
+      "stuck_rate": 0.0,
+      "max_route_progress": 0.4358974358974359,
+      "mean_route_progress": 0.2137920673076923,
+      "final_route_progress": 0.4358974358974359,
+      "completed_steps": 512,
+      "pass_status": "PASS",
+      "ppo_gate_status": "BLOCK",
+      "mean_action_jitter_l1": 0.13210669174077339,
+      "corrective_sign_rate": 0.0,
+      "visual_center_correction_rate": 0.0
+    },
+    "2048": {
+      "collision_count": 0,
+      "offroad_rate": 0.0,
+      "severe_early_offroad_count": 0,
+      "stuck_rate": 0.0,
+      "max_route_progress": 0.41025641025641024,
+      "mean_route_progress": 0.18368139022435898,
+      "final_route_progress": 0.38461538461538464,
+      "completed_steps": 2048,
+      "pass_status": "PASS",
+      "ppo_gate_status": "BLOCK",
+      "mean_action_jitter_l1": 0.1463045585035161,
+      "corrective_sign_rate": 0.8159509202453987,
+      "visual_center_correction_rate": 0.49079754601226994
+    }
+  },
+  "estimated_scalar_v6": {
+    "512": {
+      "collision_count": 0,
+      "offroad_rate": 0.0,
+      "severe_early_offroad_count": 0,
+      "stuck_rate": 0.0,
+      "max_route_progress": 0.4358974358974359,
+      "mean_route_progress": 0.21885016025641024,
+      "final_route_progress": 0.4358974358974359,
+      "completed_steps": 512,
+      "pass_status": "PASS",
+      "ppo_gate_status": "BLOCK",
+      "mean_action_jitter_l1": 0.12876943252922501,
+      "corrective_sign_rate": 0.0,
+      "visual_center_correction_rate": 0.0
+    },
+    "2048": {
+      "collision_count": 0,
+      "offroad_rate": 0.0,
+      "severe_early_offroad_count": 0,
+      "stuck_rate": 0.0,
+      "max_route_progress": 0.4358974358974359,
+      "mean_route_progress": 0.19762870592948717,
+      "final_route_progress": 0.358974358974359,
+      "completed_steps": 2048,
+      "pass_status": "PASS",
+      "ppo_gate_status": "BLOCK",
+      "mean_action_jitter_l1": 0.1391666706654746,
+      "corrective_sign_rate": 0.7290322580645161,
+      "visual_center_correction_rate": 0.3548387096774194
+    }
+  },
+  "delta_v6_minus_round90": {
+    "512": {
+      "collision_count": 0,
+      "offroad_rate": 0.0,
+      "severe_early_offroad_count": 0,
+      "stuck_rate": 0.0,
+      "max_route_progress": 0.0,
+      "mean_route_progress": 0.0050580929487179516,
+      "final_route_progress": 0.0,
+      "completed_steps": 0,
+      "pass_status": null,
+      "ppo_gate_status": null,
+      "mean_action_jitter_l1": -0.0033372592115483712,
+      "corrective_sign_rate": 0.0,
+      "visual_center_correction_rate": 0.0
+    },
+    "2048": {
+      "collision_count": 0,
+      "offroad_rate": 0.0,
+      "severe_early_offroad_count": 0,
+      "stuck_rate": 0.0,
+      "max_route_progress": 0.02564102564102566,
+      "mean_route_progress": 0.013947315705128194,
+      "final_route_progress": -0.02564102564102566,
+      "completed_steps": 0,
+      "pass_status": null,
+      "ppo_gate_status": null,
+      "mean_action_jitter_l1": -0.007137887838041479,
+      "corrective_sign_rate": -0.08691866218088262,
+      "visual_center_correction_rate": -0.13595883633485056
+    }
+  },
+  "notes": [
+    "2048 first attempt failed due CARLA streaming/load_world timeout; simulator was force-restarted and the retry completed successfully.",
+    "Windows eval ran from C:/Users/thddy/Documents/code/RCS-AC-first-v6-eval using the v6 checkpoint copied from Mac."
+  ]
+}

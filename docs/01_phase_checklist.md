@@ -4,6 +4,12 @@
 
 이 체크리스트는 `00_three_phase_master_plan.md`를 실제 작업 순서로 쪼갠 문서다.
 
+현재 읽는 법:
+
+- 각 Phase의 "공식 완료 상태"와 하단 "공식 완료 기록"이 현재 판단의 기준이다.
+- 중간의 긴 세부 체크리스트는 초기 구현 당시의 작업 분해를 보존한 archival log다.
+- 세부 항목이 비어 있어도 공식 완료 상태가 우선한다. 최신 실행 방법은 루트 `README.md`를 기준으로 한다.
+
 ## Phase 1: RCS-AC Core
 
 ### 0. Phase 1 공식 완료 상태
@@ -342,16 +348,19 @@
 
 ## 최종 통합 체크
 
-- [ ] Phase 1 core 통과
-- [ ] Phase 2 reliability/risk 통과
-- [ ] Phase 3 Shapley/full robustness 통과
+- [x] Phase 1 core 통과
+- [x] Phase 2 reliability/risk 통과
+- [x] Phase 3 Shapley/full robustness 통과
 - [ ] clean weather baseline 비교
 - [ ] mild weather 비교
 - [ ] heavy weather 비교
 - [ ] sensor dropout 비교
 - [ ] contribution report 생성
-- [ ] 최종 README 업데이트
+- [x] 최종 README 업데이트
 - [ ] 실험 결과 문서화
+
+위 미완료 항목은 구현 wiring이 아니라 안정화/논문용 비교 실험 범위다.
+
 ## Phase 3 공식 완료 기록
 
 상세 실행계획: `docs/05_phase3_counterfactual_shapley_execution_plan.md`
