@@ -1,0 +1,78 @@
+seed: 7
+host: "127.0.0.1"
+port: 2000
+town: "Town04"
+output_root: "outputs/ppo_early_fusion_env"
+logs_dir: "logs"
+checkpoints_dir: "checkpoints"
+run_name: "early_fusion_baseline"
+model_type: "early_fusion"
+model_variant: "early_fusion_concat"
+baseline_name: "early_fusion_concat_baseline"
+reward_version: "pair1_frozen_v1"
+weather: "default"
+traffic_mode: "none"
+debug_shapes: true
+total_timesteps: 8192
+rollout_steps: 128
+max_episode_steps: 384
+save_every_updates: 1
+deterministic_eval: false
+eval_episodes: 1
+env:
+  route_length: 40
+  route_spacing: 3.0
+  image_every: 50
+  client_timeout: 30.0
+  goal_radius: 3.0
+  stuck_speed_threshold_mps: 0.20
+  stuck_min_steps: 80
+  offroad_min_steps: 5
+  offroad_grace_steps: 8
+  suppress_conflicting_pedals: true
+  low_speed_brake_suppression: true
+  low_speed_brake_speed_threshold_kmh: 1.5
+  low_speed_brake_max: 0.15
+model:
+  action_dim: 3
+  hidden_dim: 256
+  rgb_feature_dim: 64
+  lidar_feature_dim: 32
+  ego_feature_dim: 32
+  route_feature_dim: 32
+reward:
+  progress_weight: 6.0
+  progress_scale: 2.0
+  dense_progress_distance_weight: 0.2
+  dense_progress_positive_only: true
+  lane_weight: 0.1
+  lane_offset_penalty_weight: 0.02
+  heading_error_penalty_weight: 0.002
+  heading_recovery_reward_weight: 0.001
+  speed_reward_weight: 0.35
+  speed_reward_target_kmh: 8.0
+  curve_heading_error_threshold: 5.0
+  curve_speed_penalty_weight: 0.01
+  curve_lane_offset_threshold: 0.5
+  lane_offset_speed_penalty_weight: 0.02
+  collision_penalty: 10.0
+  offroad_penalty: 5.0
+  lane_invasion_penalty: 1.0
+  steer_change_weight: 0.05
+  throttle_change_weight: 0.02
+  brake_change_weight: 0.02
+  control_cost_scale: 0.3
+  goal_bonus: 20.0
+  stuck_penalty: 3.0
+  stuck_penalty_scale: 0.3
+  progress_delta_clip: 1.0
+ppo:
+  learning_rate: 0.0003
+  gamma: 0.99
+  gae_lambda: 0.95
+  clip_coef: 0.2
+  value_coef: 0.5
+  entropy_coef: 0.01
+  max_grad_norm: 0.5
+  update_epochs: 4
+  minibatch_size: 64
