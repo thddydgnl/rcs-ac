@@ -1,0 +1,5 @@
+target_modality,target_delta_clean_minus_weak,target_delta_clean_minus_mild,weak_to_mild_delta,mild_minus_weak_delta,clean_to_weak_margin_flag,weak_to_mild_margin_flag,weak_to_mild_monotonicity_flag,candidate_name
+distance,0.0012543002764383582,0.002568085988362556,0.001313785711924198,0.001313785711924198,1,0,0,reference_plus_small_reliability_weight_up
+ego,-1.786152521765505e-05,-3.2762686411502706e-05,-1.4901161193847656e-05,-1.4901161193847656e-05,0,0,0,reference_plus_small_reliability_weight_up
+route,-3.745158513379643e-05,1.0132789611816406e-06,3.846486409497807e-05,3.846486409497807e-05,0,0,0,reference_plus_small_reliability_weight_up
+vision,-0.00010075171788526127,-0.00012453397115064213,-2.378225326538086e-05,-2.378225326538086e-05,0,0,0,reference_plus_small_reliability_weight_up

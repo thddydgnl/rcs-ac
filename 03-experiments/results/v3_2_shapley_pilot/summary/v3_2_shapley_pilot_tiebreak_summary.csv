@@ -1,0 +1,4 @@
+candidate_name,vision_reliability_clean_minus_mild,ego_reliability_clean_minus_mild,vision_logit_clean_minus_mild,ego_logit_clean_minus_mild,saturation_warning_flag,route_distance_side_effect_flag
+reference_v3_1b_balanced_locked,0.0006164113680521277,1.8477439880371094e-06,0.013554970423380386,4.5299530029296875e-05,0.0,0.0
+v3_2_hybrid_teacher_small,0.00040213267008470943,6.496906280517578e-06,0.011694033940633286,0.00018978118896484375,0.0,0.0
+v3_2_targetlogit_teacher_medium,0.00044314066569006716,4.0531158447265625e-06,0.01368371645609523,0.00013105074564601082,0.0,0.0

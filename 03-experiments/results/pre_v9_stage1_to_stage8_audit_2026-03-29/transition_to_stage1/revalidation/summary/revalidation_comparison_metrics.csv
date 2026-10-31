@@ -1,0 +1,3 @@
+model_name,mean_eval_success_rate,std_eval_success_rate,mean_eval_return,std_eval_return,mean_eval_avg_progress_to_goal,std_eval_avg_progress_to_goal,collision_rate,timeout_rate,hidden_bug_rate,nan_rate,crashed_rate,training_completion_rate
+baseline_c_attention,0.9,0.0,4.932380814154284,0.05192760973971049,0.09124307212757325,0.005678245185633888,0.10000000000000002,0.0,0.0,0.0,0.0,1.0
+standard_v1,0.7333333333333333,0.2718251071716682,4.864442710591447,1.696971418672835,0.07594024487050488,0.02500824618005323,0.03333333333333333,0.21666666666666667,0.0,0.0,0.0,1.0

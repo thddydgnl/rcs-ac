@@ -1,0 +1,1 @@
+{"update": 4, "train_step": 2048, "wall_clock_time": 231.72436022758484, "finished_flag": 0, "nan_detected": 0, "crashed_flag": 0, "eval/return_mean": 6.207592699023468, "eval/success_rate": 1.0, "eval/collision_rate": 0.0, "eval/timeout_rate": 0.0, "eval/avg_progress_to_goal": 0.09639265180082034, "eval/consistency_gap_mean": 0.012460769766243614}

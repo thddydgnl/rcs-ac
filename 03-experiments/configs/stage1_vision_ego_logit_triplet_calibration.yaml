@@ -1,0 +1,125 @@
+experiment_name: stage1_vision_ego_logit_triplet_calibration
+output_root: /Users/song-yonghwi/Documents/GitHub/RCS-AC_test/results/stage1_vision_ego_logit_triplet_calibration
+device: cpu
+base_stage1_config_path: /Users/song-yonghwi/Documents/GitHub/RCS-AC_test/configs/stage1_warmup.yaml
+base_checkpoint_root: /Users/song-yonghwi/Documents/GitHub/RCS-AC_test/results/stage1_reliability_objective_calibration/target_vs_nontarget_ranking_loss
+reference_candidate_name: reference_target_vs_nontarget_ranking_loss
+seeds: [0, 1, 2]
+num_eval_episodes: 20
+
+base_config_overrides:
+  model:
+    reliability_hidden_dims: [64]
+  warmup:
+    freeze_policy_backbone: true
+    train_reliability_head_only: true
+    train_reliability_projection: true
+    use_paired_calibration_batches: true
+    use_direct_corruption_targets: true
+    direct_target_drop_scale: 3.5
+    focus_vision_ego_pairing: true
+    weak_corruption_scale: 0.03
+    mild_corruption_scale: 0.06
+    calibration_only_vision_weak_strength: 0.035
+    calibration_only_vision_mild_strength: 0.07
+    calibration_only_ego_weak_strength: 0.03
+    calibration_only_ego_mild_strength: 0.055
+
+train:
+  learning_rate: 0.0003
+  num_base_states: 256
+  batch_size: 32
+  num_updates: 200
+
+probes:
+  clean:
+    corruption_type: clean
+    corruption_strength: 0.0
+  weak_vision:
+    corruption_type: vision
+    corruption_strength: 0.03
+  mild_vision:
+    corruption_type: vision
+    corruption_strength: 0.06
+  weak_ego:
+    corruption_type: ego
+    corruption_strength: 0.025
+  mild_ego:
+    corruption_type: ego
+    corruption_strength: 0.05
+  weak_distance:
+    corruption_type: distance
+    corruption_strength: 0.03
+  mild_distance:
+    corruption_type: distance
+    corruption_strength: 0.06
+  weak_route:
+    corruption_type: route
+    corruption_strength: 0.03
+  mild_route:
+    corruption_type: route
+    corruption_strength: 0.06
+
+candidate_order:
+  - reference_target_vs_nontarget_ranking_loss
+  - reference_freeze_backbone_plus_vision_logit_triplet
+  - reference_freeze_backbone_plus_ego_logit_triplet
+  - reference_freeze_backbone_plus_vision_ego_logit_triplet
+  - reference_freeze_backbone_plus_vision_ego_logit_triplet_plus_directional_small
+  - reference_freeze_backbone_plus_vision_ego_logit_triplet_plus_small_strength_up
+
+candidates:
+  reference_target_vs_nontarget_ranking_loss:
+    round: A
+    use_existing_checkpoint: true
+
+  reference_freeze_backbone_plus_vision_logit_triplet:
+    round: B
+    overrides:
+      warmup:
+        logit_triplet_loss_coef: 1.0
+        weak_margin_vision: 0.01
+        mild_margin_vision: 0.015
+
+  reference_freeze_backbone_plus_ego_logit_triplet:
+    round: C
+    overrides:
+      warmup:
+        logit_triplet_loss_coef: 1.0
+        weak_margin_ego: 0.008
+        mild_margin_ego: 0.012
+
+  reference_freeze_backbone_plus_vision_ego_logit_triplet:
+    round: D
+    overrides:
+      warmup:
+        logit_triplet_loss_coef: 1.0
+        weak_margin_vision: 0.01
+        mild_margin_vision: 0.015
+        weak_margin_ego: 0.008
+        mild_margin_ego: 0.012
+
+  reference_freeze_backbone_plus_vision_ego_logit_triplet_plus_directional_small:
+    round: E
+    overrides:
+      warmup:
+        logit_triplet_loss_coef: 1.0
+        directional_monotonicity_loss_coef: 0.1
+        weak_margin_vision: 0.01
+        mild_margin_vision: 0.015
+        weak_margin_ego: 0.008
+        mild_margin_ego: 0.012
+
+  reference_freeze_backbone_plus_vision_ego_logit_triplet_plus_small_strength_up:
+    round: E
+    overrides:
+      warmup:
+        logit_triplet_loss_coef: 1.0
+        weak_margin_vision: 0.01
+        mild_margin_vision: 0.015
+        weak_margin_ego: 0.008
+        mild_margin_ego: 0.012
+        calibration_only_vision_weak_strength: 0.04
+        calibration_only_vision_mild_strength: 0.08
+        calibration_only_ego_weak_strength: 0.035
+        calibration_only_ego_mild_strength: 0.06

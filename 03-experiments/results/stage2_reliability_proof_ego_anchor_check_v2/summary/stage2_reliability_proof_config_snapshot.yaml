@@ -1,0 +1,53 @@
+experiment_name: stage2_reliability_proof_ego_anchor_check_v2
+output_root: /Users/song-yonghwi/Documents/GitHub/RCS-AC_test/results/stage2_reliability_proof_ego_anchor_check_v2
+device: cpu
+base_stage1_config_path: /Users/song-yonghwi/Documents/GitHub/RCS-AC_test/configs/stage1_warmup.yaml
+baseline_eval_rows_path: /Users/song-yonghwi/Documents/GitHub/RCS-AC_test/results/stage2_reliability_proof/reference_freeze_backbone_plus_vision_ego_logit_triplet/eval_rows.json
+seeds:
+- 0
+- 1
+- 2
+num_eval_episodes: 24
+num_eval_episodes_smoke: 6
+candidate_order:
+- ego_anchor_target_residual
+- ego_anchor_target_residual_plus_margin
+candidates:
+  ego_anchor_target_residual:
+    checkpoint_root: /Users/song-yonghwi/Documents/GitHub/RCS-AC_test/results/stage2_ego_reliability_anchor_pilot_v2/ego_anchor_target_residual
+    source_experiment_name: stage2_ego_reliability_anchor_pilot_v2
+  ego_anchor_target_residual_plus_margin:
+    checkpoint_root: /Users/song-yonghwi/Documents/GitHub/RCS-AC_test/results/stage2_ego_reliability_anchor_pilot_v2/ego_anchor_target_residual_plus_margin
+    source_experiment_name: stage2_ego_reliability_anchor_pilot_v2
+eval_probes:
+- name: normal_eval
+  kind: clean
+  strength: 0.0
+- name: mild_vision
+  kind: single
+  modality: vision
+  strength: 0.06
+- name: mild_distance
+  kind: single
+  modality: distance
+  strength: 0.06
+- name: mild_ego
+  kind: single
+  modality: ego
+  strength: 0.05
+- name: mild_route
+  kind: single
+  modality: route
+  strength: 0.06
+scoring:
+  required_target_modalities: 4
+  clean_success_rate_floor: 0.79
+  target_positive_ratio_pass: 1.0
+  target_lowest_ratio_pass: 0.75
+  mean_target_vs_nontarget_gap_pass: 0.0
+  vision_positive_ratio_pass: 1.0
+  distance_positive_ratio_pass: 1.0
+  ego_positive_ratio_pass: 1.0
+  route_positive_ratio_pass: 1.0
+  max_non_ego_clean_reliability_drift_pass: 0.02
+  ego_residual_delta_mild_minus_clean_max: 0.0

@@ -1,0 +1,4 @@
+config_name,success_diff_vs_baseline,return_diff_vs_baseline,progress_diff_vs_baseline,success_std_ratio_vs_baseline,return_std_ratio_vs_baseline,hidden_bug_rate,nan_rate,crashed_rate
+rcs_ac_v1_gru_small_grad_clip_strong_seq_short,0.06666666666666654,1.302131189761353,0.028481897412584743,1.7320508075688759,1.2714509006146117,0.0,0.0,0.0
+rcs_ac_v1_gru_small_grad_clip_strong_longer_train,0.1333333333333333,1.8222336499313623,0.03864058588293003,0.9999999999999988,0.8255939222286821,0.0,0.0,0.0
+rcs_ac_v1_gru_small_grad_clip_strong_lr_low,0.033333333333333215,1.2389577616171334,0.023990120806999214,2.6457513110645885,1.5860973777826137,0.0,0.0,0.0

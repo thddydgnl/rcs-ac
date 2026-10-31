@@ -1,0 +1,3 @@
+candidate_name,vision_reliability_clean_minus_mild,ego_reliability_clean_minus_mild,vision_logit_clean_minus_mild,ego_logit_clean_minus_mild,saturation_warning_flag,route_distance_side_effect_flag
+reference_freeze_backbone_plus_ego_logit_triplet,0.0030298829078674316,-0.0004311800003051758,0.015540838241577148,-0.0020343661308288574,0.0,1.0
+reference_freeze_backbone_plus_vision_ego_logit_triplet,0.0013799071311950684,-0.0005765557289123535,0.007077455520629883,-0.0033402442932128906,0.0,1.0

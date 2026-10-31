@@ -1,0 +1,29 @@
+experiment_name: transition_to_stage1
+output_root: /Users/song-yonghwi/Documents/GitHub/RCS-AC_test/results/pre_v9_stage1_to_stage8_audit_2026-03-29/transition_to_stage1_smoke
+standard_v1:
+  winner_name: rcs_ac_v1_gru_small_grad_clip_strong_longer_train
+  base_config_path: /Users/song-yonghwi/Documents/GitHub/RCS-AC_test/configs/rcs_ac_v1.yaml
+  registered_config_path: /tmp/rcs_ac_pre_v9_audit_2026-03-29/generated_configs/standard_v1_smoke.yaml
+  overrides:
+    ppo:
+      total_steps: 4096
+      sequence_length: 16
+      update_epochs: 4
+      learning_rate: 0.0001
+      entropy_coef: 0.003
+      max_grad_norm: 0.3
+    logging:
+      eval_interval_updates: 2
+revalidation:
+  baseline_config_path: /Users/song-yonghwi/Documents/GitHub/RCS-AC_test/configs/baseline_c_attention_fusion.yaml
+  seeds:
+  - 0
+  env_mode: normal
+  total_steps: 4096
+  eval_interval_updates: 2
+stage1_warmup:
+  config_path: /tmp/rcs_ac_pre_v9_audit_2026-03-29/generated_configs/stage1_warmup_runtime_smoke.yaml
+  seeds:
+  - 0
+  env_mode: normal
+  init_checkpoint_root: /Users/song-yonghwi/Documents/GitHub/RCS-AC_test/results/pre_v9_stage1_to_stage8_audit_2026-03-29/transition_to_stage1_smoke/revalidation/standard_v1

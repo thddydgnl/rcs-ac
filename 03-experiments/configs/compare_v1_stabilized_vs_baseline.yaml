@@ -1,0 +1,97 @@
+experiment_name: compare_v1_stabilized_vs_baseline
+output_root: /Users/song-yonghwi/Documents/GitHub/RCS-AC_test/results_v1_final_compare
+env_mode: normal
+seeds: [0, 1, 2]
+fair_total_steps: 20000
+
+models:
+  baseline_c_attention:
+    model_type: baseline_c_attention
+    config_path: /Users/song-yonghwi/Documents/GitHub/RCS-AC_test/configs/baseline_c_attention_fusion.yaml
+    overrides:
+      ppo:
+        total_steps: 20000
+        learning_rate: 0.0001
+        entropy_coef: 0.003
+        update_epochs: 4
+        max_grad_norm: 0.3
+      logging:
+        eval_interval_updates: 2
+  rcs_ac_v1_default:
+    model_type: rcs_ac_v1
+    config_path: /Users/song-yonghwi/Documents/GitHub/RCS-AC_test/configs/rcs_ac_v1.yaml
+    overrides: {}
+  rcs_ac_v1_gru_small:
+    model_type: rcs_ac_v1
+    config_path: /Users/song-yonghwi/Documents/GitHub/RCS-AC_test/configs/rcs_ac_v1.yaml
+    overrides:
+      model:
+        recurrent_hidden_dim: 64
+  rcs_ac_v1_grad_clip_strong:
+    model_type: rcs_ac_v1
+    config_path: /Users/song-yonghwi/Documents/GitHub/RCS-AC_test/configs/rcs_ac_v1.yaml
+    overrides:
+      ppo:
+        max_grad_norm: 0.3
+  rcs_ac_v1_seq_short:
+    model_type: rcs_ac_v1
+    config_path: /Users/song-yonghwi/Documents/GitHub/RCS-AC_test/configs/rcs_ac_v1.yaml
+    overrides:
+      ppo:
+        sequence_length: 8
+  rcs_ac_v1_gru_small_grad_clip_strong:
+    model_type: rcs_ac_v1
+    config_path: /Users/song-yonghwi/Documents/GitHub/RCS-AC_test/configs/rcs_ac_v1.yaml
+    overrides:
+      model:
+        recurrent_hidden_dim: 64
+      ppo:
+        max_grad_norm: 0.3
+  rcs_ac_v1_gru_small_grad_clip_strong_seq_short:
+    model_type: rcs_ac_v1
+    config_path: /Users/song-yonghwi/Documents/GitHub/RCS-AC_test/configs/rcs_ac_v1.yaml
+    overrides:
+      model:
+        recurrent_hidden_dim: 64
+      ppo:
+        max_grad_norm: 0.3
+        sequence_length: 8
+  rcs_ac_v1_gru_small_grad_clip_strong_longer_train:
+    model_type: rcs_ac_v1
+    config_path: /Users/song-yonghwi/Documents/GitHub/RCS-AC_test/configs/rcs_ac_v1.yaml
+    overrides:
+      model:
+        recurrent_hidden_dim: 64
+      ppo:
+        max_grad_norm: 0.3
+        total_steps: 30000
+  rcs_ac_v1_gru_small_grad_clip_strong_lr_low:
+    model_type: rcs_ac_v1
+    config_path: /Users/song-yonghwi/Documents/GitHub/RCS-AC_test/configs/rcs_ac_v1.yaml
+    overrides:
+      model:
+        recurrent_hidden_dim: 64
+      ppo:
+        max_grad_norm: 0.3
+        learning_rate: 0.00005
+
+rounds:
+  round_1:
+    candidates:
+      - baseline_c_attention
+      - rcs_ac_v1_default
+      - rcs_ac_v1_gru_small
+      - rcs_ac_v1_grad_clip_strong
+      - rcs_ac_v1_seq_short
+  round_2:
+    auto_select_top_k_from_round_1: 2
+    fixed_candidates:
+      - baseline_c_attention
+      - rcs_ac_v1_gru_small_grad_clip_strong
+      - rcs_ac_v1_gru_small_grad_clip_strong_seq_short
+  round_3:
+    include_baseline: true
+    include_round_2_winner: true
+    optional_candidates:
+      - rcs_ac_v1_gru_small_grad_clip_strong_longer_train
+      - rcs_ac_v1_gru_small_grad_clip_strong_lr_low

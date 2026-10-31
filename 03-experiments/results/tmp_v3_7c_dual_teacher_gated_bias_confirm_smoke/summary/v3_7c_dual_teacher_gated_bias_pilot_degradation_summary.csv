@@ -1,0 +1,3 @@
+candidate_name,corruption_type,normal_to_mild_return_drop,normal_to_mild_success_drop,normal_to_mild_progress_drop
+reference_v3_6_medium_locked,mild_vision,-0.006983075775205627,0.0,-0.0003694711253046934
+v3_7c_gated_bias_small,mild_vision,-0.009792937249877287,0.0,-0.0005301536992192157

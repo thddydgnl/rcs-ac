@@ -1,0 +1,141 @@
+experiment_name: stage1_reliability_objective_calibration
+output_root: /Users/song-yonghwi/Documents/GitHub/RCS-AC_test/results/stage1_reliability_objective_calibration
+device: cpu
+base_stage1_config_path: /Users/song-yonghwi/Documents/GitHub/RCS-AC_test/configs/stage1_warmup.yaml
+base_checkpoint_root: /Users/song-yonghwi/Documents/GitHub/RCS-AC_test/results/stage1_reliability_calibration_v2/small_head_capacity_change
+reference_candidate_name: current_best_reference
+seeds: [0, 1, 2]
+num_eval_episodes: 20
+
+base_config_overrides:
+  model:
+    reliability_hidden_dims: [64]
+
+train:
+  total_steps: 8192
+  eval_interval_updates: 2
+  save_interval_updates: 4
+
+probes:
+  clean:
+    corruption_type: clean
+    corruption_strength: 0.0
+  weak_vision:
+    corruption_type: vision
+    corruption_strength: 0.03
+  weak_distance:
+    corruption_type: distance
+    corruption_strength: 0.03
+  weak_ego:
+    corruption_type: ego
+    corruption_strength: 0.025
+  weak_route:
+    corruption_type: route
+    corruption_strength: 0.03
+  mild_vision:
+    corruption_type: vision
+    corruption_strength: 0.06
+  mild_distance:
+    corruption_type: distance
+    corruption_strength: 0.06
+  mild_route:
+    corruption_type: route
+    corruption_strength: 0.06
+
+candidate_order:
+  - current_best_reference
+  - target_margin_drop_loss
+  - target_vs_nontarget_ranking_loss
+  - target_margin_drop_plus_small_weight_up
+  - target_vs_nontarget_ranking_plus_small_weight_up
+  - modality_specific_head_input_more_direct
+  - modality_specific_head_input_plus_target_ranking
+  - best_objective_longer_steps
+
+candidates:
+  current_best_reference:
+    round: A
+    use_existing_checkpoint: true
+  target_margin_drop_loss:
+    round: A
+    overrides:
+      warmup:
+        reliability_loss_coef: 0.10
+        weak_corruption_probability: 0.25
+        weak_corruption_scale: 0.03
+        use_direct_corruption_targets: true
+        direct_target_drop_scale: 3.5
+        target_margin_loss_coef: 0.20
+        target_margin_value: 0.08
+  target_vs_nontarget_ranking_loss:
+    round: A
+    overrides:
+      warmup:
+        reliability_loss_coef: 0.10
+        weak_corruption_probability: 0.25
+        weak_corruption_scale: 0.03
+        use_direct_corruption_targets: true
+        direct_target_drop_scale: 3.5
+        target_ranking_loss_coef: 0.25
+        target_ranking_margin: 0.05
+  target_margin_drop_plus_small_weight_up:
+    round: A
+    overrides:
+      warmup:
+        reliability_loss_coef: 0.12
+        weak_corruption_probability: 0.30
+        weak_corruption_scale: 0.03
+        use_direct_corruption_targets: true
+        direct_target_drop_scale: 4.0
+        target_margin_loss_coef: 0.25
+        target_margin_value: 0.10
+  target_vs_nontarget_ranking_plus_small_weight_up:
+    round: A
+    overrides:
+      warmup:
+        reliability_loss_coef: 0.12
+        weak_corruption_probability: 0.30
+        weak_corruption_scale: 0.03
+        use_direct_corruption_targets: true
+        direct_target_drop_scale: 4.0
+        target_ranking_loss_coef: 0.30
+        target_ranking_margin: 0.06
+  modality_specific_head_input_more_direct:
+    round: B
+    overrides:
+      model:
+        reliability_input_mode: own_plus_fused
+        reliability_hidden_dims: [64]
+      warmup:
+        reliability_loss_coef: 0.10
+        weak_corruption_probability: 0.25
+        weak_corruption_scale: 0.03
+        use_direct_corruption_targets: true
+        direct_target_drop_scale: 3.5
+  modality_specific_head_input_plus_target_ranking:
+    round: B
+    overrides:
+      model:
+        reliability_input_mode: own_plus_fused
+        reliability_hidden_dims: [64]
+      warmup:
+        reliability_loss_coef: 0.12
+        weak_corruption_probability: 0.30
+        weak_corruption_scale: 0.03
+        use_direct_corruption_targets: true
+        direct_target_drop_scale: 4.0
+        target_ranking_loss_coef: 0.30
+        target_ranking_margin: 0.06
+  best_objective_longer_steps:
+    round: C
+    overrides:
+      warmup:
+        reliability_loss_coef: 0.12
+        weak_corruption_probability: 0.30
+        weak_corruption_scale: 0.03
+        use_direct_corruption_targets: true
+        direct_target_drop_scale: 4.0
+        target_ranking_loss_coef: 0.30
+        target_ranking_margin: 0.06
+      ppo:
+        total_steps: 16384

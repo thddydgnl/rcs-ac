@@ -1,0 +1,3665 @@
+[
+  {
+    "candidate_name": "reference_v3_6_medium_locked",
+    "seed": 0,
+    "probe_name": "normal_eval",
+    "env_mode": "normal",
+    "corruption_type": "normal_eval",
+    "train_step": 1536,
+    "eval_return": 6.6513365769991655,
+    "eval_success_rate": 1.0,
+    "eval_collision_rate": 0.0,
+    "eval_timeout_rate": 0.0,
+    "eval_avg_progress_to_goal": 0.11738005205988884,
+    "consistency_loss": 0.0,
+    "consistency_gap_mean": 0.0,
+    "same_state_action_diff_clean_vs_corrupt": 0.0,
+    "reference_same_state_action_diff_clean_vs_corrupt": 0.007133897836320102,
+    "consistency_gain_score": 0.0,
+    "reliability_nan_detected": 0.0,
+    "route_attention_dominance_ratio": 1.8015321493148804,
+    "logit_mean_vision_clean": 3.323338270187378,
+    "logit_mean_vision_weak": NaN,
+    "logit_mean_vision_mild": NaN,
+    "logit_mean_ego_clean": 3.3216910362243652,
+    "logit_mean_ego_weak": NaN,
+    "logit_mean_ego_mild": NaN,
+    "reference_logit_mean_vision_clean": 3.323338270187378,
+    "reference_logit_mean_ego_clean": 3.3216910362243652,
+    "current_clean_logit_mean_vision": 3.323338270187378,
+    "current_clean_logit_mean_ego": 3.3216910362243652,
+    "attention_shapley_kl": 0.16015044366940856,
+    "attention_shapley_rank_corr": 0.925,
+    "targetlogit_shapley_mean_vision": 1.630385850148741e-05,
+    "targetlogit_shapley_mean_ego": 0.04276636987924576,
+    "attention_bias_gates": [
+      [
+        0.3819356858730316,
+        0.41874566674232483,
+        0.3825882375240326,
+        0.43952932953834534
+      ],
+      [
+        0.3816552460193634,
+        0.42131391167640686,
+        0.3825519382953644,
+        0.4372950494289398
+      ],
+      [
+        0.38164591789245605,
+        0.4213694930076599,
+        0.381987601518631,
+        0.43478789925575256
+      ],
+      [
+        0.38175567984580994,
+        0.41874566674232483,
+        0.38117706775665283,
+        0.4323345422744751
+      ],
+      [
+        0.3818906843662262,
+        0.4164246916770935,
+        0.3802972435951233,
+        0.430017352104187
+      ],
+      [
+        0.3819330632686615,
+        0.41651198267936707,
+        0.3793807625770569,
+        0.4278891384601593
+      ],
+      [
+        0.3818938136100769,
+        0.4187454879283905,
+        0.37844640016555786,
+        0.42600035667419434
+      ],
+      [
+        0.3820517063140869,
+        0.4183938205242157,
+        0.37752267718315125,
+        0.42438989877700806
+      ],
+      [
+        0.38212794065475464,
+        0.4184108078479767,
+        0.3766522705554962,
+        0.42306220531463623
+      ],
+      [
+        0.38212499022483826,
+        0.41874566674232483,
+        0.3758540451526642,
+        0.4220006465911865
+      ],
+      [
+        0.38220542669296265,
+        0.41874566674232483,
+        0.37515518069267273,
+        0.4211626350879669
+      ],
+      [
+        0.38228026032447815,
+        0.41874566674232483,
+        0.3745936453342438,
+        0.42047223448753357
+      ],
+      [
+        0.38234570622444153,
+        0.41874566674232483,
+        0.3741735816001892,
+        0.41985562443733215
+      ],
+      [
+        0.3823997378349304,
+        0.41874566674232483,
+        0.3738800585269928,
+        0.4192563593387604
+      ],
+      [
+        0.38244184851646423,
+        0.41874566674232483,
+        0.37368664145469666,
+        0.4186391234397888
+      ],
+      [
+        0.38247302174568176,
+        0.41874566674232483,
+        0.3735654950141907,
+        0.4179856777191162
+      ],
+      [
+        0.38249486684799194,
+        0.41874566674232483,
+        0.3734939396381378,
+        0.41728830337524414
+      ],
+      [
+        0.38250935077667236,
+        0.41874566674232483,
+        0.3734559416770935,
+        0.4165443181991577
+      ],
+      [
+        0.38249507546424866,
+        0.41874566674232483,
+        0.3734579384326935,
+        0.4157941937446594
+      ],
+      [
+        0.38247692584991455,
+        0.41874566674232483,
+        0.3734607398509979,
+        0.415041446685791
+      ],
+      [
+        0.38245826959609985,
+        0.41874566674232483,
+        0.37346044182777405,
+        0.41428619623184204
+      ],
+      [
+        0.3824400305747986,
+        0.41874566674232483,
+        0.37345629930496216,
+        0.41352835297584534
+      ],
+      [
+        0.3824228048324585,
+        0.41874566674232483,
+        0.37344804406166077,
+        0.41276824474334717
+      ],
+      [
+        0.38240697979927063,
+        0.41874566674232483,
+        0.3734357953071594,
+        0.41200634837150574
+      ],
+      [
+        0.38239267468452454,
+        0.41874566674232483,
+        0.373419851064682,
+        0.4112436771392822
+      ],
+      [
+        0.38238006830215454,
+        0.41874566674232483,
+        0.37340041995048523,
+        0.41048166155815125
+      ],
+      [
+        0.3823690414428711,
+        0.41874566674232483,
+        0.37337809801101685,
+        0.4097219705581665
+      ],
+      [
+        0.38235965371131897,
+        0.41874566674232483,
+        0.3733533024787903,
+        0.4089665710926056
+      ],
+      [
+        0.38235172629356384,
+        0.41874566674232483,
+        0.37332651019096375,
+        0.4082174003124237
+      ],
+      [
+        0.3823452889919281,
+        0.41874566674232483,
+        0.3732982873916626,
+        0.4074764549732208
+      ],
+      [
+        0.3823402523994446,
+        0.41874566674232483,
+        0.3732689917087555,
+        0.40674570202827454
+      ],
+      [
+        0.38233664631843567,
+        0.41874566674232483,
+        0.373239129781723,
+        0.40602704882621765
+      ],
+      [
+        0.38233447074890137,
+        0.41874566674232483,
+        0.3732091784477234,
+        0.40532243251800537
+      ],
+      [
+        0.3823338449001312,
+        0.41874566674232483,
+        0.37317943572998047,
+        0.40463387966156006
+      ],
+      [
+        0.3823350667953491,
+        0.41874566674232483,
+        0.3731503486633301,
+        0.40396392345428467
+      ],
+      [
+        0.3823385238647461,
+        0.41874566674232483,
+        0.3731224834918976,
+        0.40331587195396423
+      ],
+      [
+        0.3823450803756714,
+        0.41874566674232483,
+        0.3730963170528412,
+        0.4026953876018524
+      ],
+      [
+        0.3823563754558563,
+        0.41874566674232483,
+        0.37307268381118774,
+        0.4021132290363312
+      ],
+      [
+        0.38237595558166504,
+        0.41874566674232483,
+        0.37305283546447754,
+        0.4015951454639435
+      ],
+      [
+        0.38241317868232727,
+        0.41874566674232483,
+        0.3730390965938568,
+        0.40121984481811523
+      ]
+    ],
+    "attention_source_bias_gates": [
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ]
+    ],
+    "attention_bias_gate_residuals": [
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ]
+    ],
+    "attention_bias_gate_residual_logits": [
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ]
+    ],
+    "attention_gate_reconstruction_errors": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "gate_reconstruction_error_mean": 0.0,
+    "residual_alpha_mean": 1.0,
+    "adapter_gate_alpha_mean": 0.0,
+    "gate_logit_offset_mean": 0.0,
+    "gate_output_scale_mean": 1.0,
+    "gate_threshold_shift_alpha_mean": 0.0,
+    "gate_source_logit_bias_mean": 0.0,
+    "gate_common_cancel_alpha_mean": 0.0,
+    "gate_contrast_shift_alpha_mean": 0.0,
+    "gate_mild_rescue_alpha_mean": 0.0,
+    "attention_gate_cancel_temperature": 4.0,
+    "attention_gate_selector_temperature": 4.0,
+    "attention_gate_rescue_selector_floor": 0.44999998807907104,
+    "attention_gate_mild_gate_min": 0.07999999821186066,
+    "corruption_kind": "clean",
+    "corruption_strength": 0.0,
+    "corruption_strength_scalar": 0.0,
+    "corruption_strengths_json": "[0.0]",
+    "clean_vs_mild_gate_feature_auc": 0.5,
+    "clean_vs_mild_gate_feature_delta_norm": 0.0,
+    "source_gate_feature_onoff_auc_delta": 0.0,
+    "teacher_delta_feature_onoff_auc_delta": 0.0,
+    "attention_mean_vision": 0.10093977302312851,
+    "attention_std_vision": 0.019674668088555336,
+    "attention_score_mean_vision": -2.009800910949707,
+    "attention_score_std_vision": 0.007146596442908049,
+    "attention_score_adapter_delta_norm_mean_vision": 1.9976577758789062,
+    "attention_bias_mean_vision": -0.16280074417591095,
+    "attention_source_bias_gate_mean_vision": 0.0,
+    "attention_bias_gate_residual_mean_vision": 0.0,
+    "attention_bias_gate_residual_logit_mean_vision": 0.0,
+    "attention_bias_gate_adapter_logit_mean_vision": 0.0,
+    "attention_bias_gate_delta_logit_mean_vision": 0.0,
+    "attention_bias_gate_scaled_delta_logit_mean_vision": 0.0,
+    "attention_bias_gate_threshold_shift_logit_mean_vision": 0.0,
+    "attention_bias_gate_post_shift_logit_mean_vision": 0.0,
+    "attention_bias_gate_post_shift_excess_mean_vision": 0.0,
+    "attention_bias_gate_common_cancel_gate_mean_vision": 0.0,
+    "attention_bias_gate_common_cancel_logit_mean_vision": 0.0,
+    "attention_bias_gate_post_cancel_logit_mean_vision": 0.0,
+    "attention_bias_gate_contrast_shift_logit_mean_vision": 0.0,
+    "attention_bias_gate_mild_rescue_gate_mean_vision": 0.0,
+    "attention_bias_gate_selector_prob_mean_vision": 0.0,
+    "attention_bias_gate_selector_active_mean_vision": 0.0,
+    "attention_bias_gate_mild_rescue_value_mean_vision": 0.0,
+    "attention_bias_gate_mild_rescue_logit_mean_vision": 0.0,
+    "attention_bias_gate_adapter_hidden_norm_mean_vision": 0.0,
+    "attention_bias_gate_mean_vision": 0.38226431608200073,
+    "attention_gate_output_scale_mean_vision": 1.0,
+    "attention_gate_threshold_shift_alpha_mean_vision": 0.0,
+    "attention_gate_source_logit_bias_mean_vision": 0.0,
+    "attention_gate_common_cancel_alpha_mean_vision": 0.0,
+    "attention_gate_contrast_shift_alpha_mean_vision": 0.0,
+    "attention_gate_mild_rescue_alpha_mean_vision": 0.0,
+    "reliability_mean_vision": 0.9652208089828491,
+    "reliability_std_vision": 3.1395018140756292e-06,
+    "raw_shapley_mean_vision": -2.9260913834150415e-06,
+    "shapley_target_mean_vision": 0.07657774537801743,
+    "attention_mean_distance": 0.44372421503067017,
+    "attention_std_distance": 0.08357679098844528,
+    "attention_score_mean_distance": -0.5269037485122681,
+    "attention_score_std_distance": 0.047899991273880005,
+    "attention_score_adapter_delta_norm_mean_distance": 1.568000316619873,
+    "attention_bias_mean_distance": -0.21970990300178528,
+    "attention_source_bias_gate_mean_distance": 0.0,
+    "attention_bias_gate_residual_mean_distance": 0.0,
+    "attention_bias_gate_residual_logit_mean_distance": 0.0,
+    "attention_bias_gate_adapter_logit_mean_distance": 0.0,
+    "attention_bias_gate_delta_logit_mean_distance": 0.0,
+    "attention_bias_gate_scaled_delta_logit_mean_distance": 0.0,
+    "attention_bias_gate_threshold_shift_logit_mean_distance": 0.0,
+    "attention_bias_gate_post_shift_logit_mean_distance": 0.0,
+    "attention_bias_gate_post_shift_excess_mean_distance": 0.0,
+    "attention_bias_gate_common_cancel_gate_mean_distance": 0.0,
+    "attention_bias_gate_common_cancel_logit_mean_distance": 0.0,
+    "attention_bias_gate_post_cancel_logit_mean_distance": 0.0,
+    "attention_bias_gate_contrast_shift_logit_mean_distance": 0.0,
+    "attention_bias_gate_mild_rescue_gate_mean_distance": 0.0,
+    "attention_bias_gate_selector_prob_mean_distance": 0.0,
+    "attention_bias_gate_selector_active_mean_distance": 0.0,
+    "attention_bias_gate_mild_rescue_value_mean_distance": 0.0,
+    "attention_bias_gate_mild_rescue_logit_mean_distance": 0.0,
+    "attention_bias_gate_adapter_hidden_norm_mean_distance": 0.0,
+    "attention_bias_gate_mean_distance": 0.41874441504478455,
+    "attention_gate_output_scale_mean_distance": 1.0,
+    "attention_gate_threshold_shift_alpha_mean_distance": 0.0,
+    "attention_gate_source_logit_bias_mean_distance": 0.0,
+    "attention_gate_common_cancel_alpha_mean_distance": 0.0,
+    "attention_gate_contrast_shift_alpha_mean_distance": 0.0,
+    "attention_gate_mild_rescue_alpha_mean_distance": 0.0,
+    "reliability_mean_distance": 0.9650484323501587,
+    "reliability_std_distance": 0.0001973530452232808,
+    "raw_shapley_mean_distance": 0.5372611284255981,
+    "shapley_target_mean_distance": 0.6722664833068848,
+    "attention_mean_ego": 0.08013655990362167,
+    "attention_std_ego": 0.010312650352716446,
+    "attention_score_mean_ego": -2.226851224899292,
+    "attention_score_std_ego": 0.08803041279315948,
+    "attention_score_adapter_delta_norm_mean_ego": 1.5501760244369507,
+    "attention_bias_mean_ego": -0.07932273298501968,
+    "attention_source_bias_gate_mean_ego": 0.0,
+    "attention_bias_gate_residual_mean_ego": 0.0,
+    "attention_bias_gate_residual_logit_mean_ego": 0.0,
+    "attention_bias_gate_adapter_logit_mean_ego": 0.0,
+    "attention_bias_gate_delta_logit_mean_ego": 0.0,
+    "attention_bias_gate_scaled_delta_logit_mean_ego": 0.0,
+    "attention_bias_gate_threshold_shift_logit_mean_ego": 0.0,
+    "attention_bias_gate_post_shift_logit_mean_ego": 0.0,
+    "attention_bias_gate_post_shift_excess_mean_ego": 0.0,
+    "attention_bias_gate_common_cancel_gate_mean_ego": 0.0,
+    "attention_bias_gate_common_cancel_logit_mean_ego": 0.0,
+    "attention_bias_gate_post_cancel_logit_mean_ego": 0.0,
+    "attention_bias_gate_contrast_shift_logit_mean_ego": 0.0,
+    "attention_bias_gate_mild_rescue_gate_mean_ego": 0.0,
+    "attention_bias_gate_selector_prob_mean_ego": 0.0,
+    "attention_bias_gate_selector_active_mean_ego": 0.0,
+    "attention_bias_gate_mild_rescue_value_mean_ego": 0.0,
+    "attention_bias_gate_mild_rescue_logit_mean_ego": 0.0,
+    "attention_bias_gate_adapter_hidden_norm_mean_ego": 0.0,
+    "attention_bias_gate_mean_ego": 0.37501972913742065,
+    "attention_gate_output_scale_mean_ego": 1.0,
+    "attention_gate_threshold_shift_alpha_mean_ego": 0.0,
+    "attention_gate_source_logit_bias_mean_ego": 0.0,
+    "attention_gate_common_cancel_alpha_mean_ego": 0.0,
+    "attention_gate_contrast_shift_alpha_mean_ego": 0.0,
+    "attention_gate_mild_rescue_alpha_mean_ego": 0.0,
+    "reliability_mean_ego": 0.9651614427566528,
+    "reliability_std_ego": 0.0005468978779390454,
+    "raw_shapley_mean_ego": -0.0020484491251409054,
+    "shapley_target_mean_ego": 0.07596011459827423,
+    "attention_mean_route": 0.37519943714141846,
+    "attention_std_route": 0.113023541867733,
+    "attention_score_mean_route": -0.7172683477401733,
+    "attention_score_std_route": 0.501161515712738,
+    "attention_score_adapter_delta_norm_mean_route": 2.37325119972229,
+    "attention_bias_mean_route": -0.15377117693424225,
+    "attention_source_bias_gate_mean_route": 0.0,
+    "attention_bias_gate_residual_mean_route": 0.0,
+    "attention_bias_gate_residual_logit_mean_route": 0.0,
+    "attention_bias_gate_adapter_logit_mean_route": 0.0,
+    "attention_bias_gate_delta_logit_mean_route": 0.0,
+    "attention_bias_gate_scaled_delta_logit_mean_route": 0.0,
+    "attention_bias_gate_threshold_shift_logit_mean_route": 0.0,
+    "attention_bias_gate_post_shift_logit_mean_route": 0.0,
+    "attention_bias_gate_post_shift_excess_mean_route": 0.0,
+    "attention_bias_gate_common_cancel_gate_mean_route": 0.0,
+    "attention_bias_gate_common_cancel_logit_mean_route": 0.0,
+    "attention_bias_gate_post_cancel_logit_mean_route": 0.0,
+    "attention_bias_gate_contrast_shift_logit_mean_route": 0.0,
+    "attention_bias_gate_mild_rescue_gate_mean_route": 0.0,
+    "attention_bias_gate_selector_prob_mean_route": 0.0,
+    "attention_bias_gate_selector_active_mean_route": 0.0,
+    "attention_bias_gate_mild_rescue_value_mean_route": 0.0,
+    "attention_bias_gate_mild_rescue_logit_mean_route": 0.0,
+    "attention_bias_gate_adapter_hidden_norm_mean_route": 0.0,
+    "attention_bias_gate_mean_route": 0.4156418740749359,
+    "attention_gate_output_scale_mean_route": 1.0,
+    "attention_gate_threshold_shift_alpha_mean_route": 0.0,
+    "attention_gate_source_logit_bias_mean_route": 0.0,
+    "attention_gate_common_cancel_alpha_mean_route": 0.0,
+    "attention_gate_contrast_shift_alpha_mean_route": 0.0,
+    "attention_gate_mild_rescue_alpha_mean_route": 0.0,
+    "reliability_mean_route": 0.9589385986328125,
+    "reliability_std_route": 0.006937636528164148,
+    "raw_shapley_mean_route": 0.16113285720348358,
+    "shapley_target_mean_route": 0.17519566416740417,
+    "attention_relative_gap_score_mean_vision_distance": 0.18918690085411072,
+    "attention_relative_gap_score_mean_vision_ego": 0.2052426040172577,
+    "attention_relative_gap_score_mean_vision_route": 0.172175794839859,
+    "attention_relative_gap_norm_mean": 0.3299160897731781,
+    "attention_bias_norm_mean": 0.33022648096084595,
+    "attention_bias_gate_norm_mean": 0.7968315482139587,
+    "attention_bias_abs_mean": 0.153901144862175,
+    "clean_score_anchor_error": 0.0,
+    "clean_action_anchor_error": 0.0,
+    "source_sign_score_anchor_error": 0.016079309117048978,
+    "source_clean_gate_preserve_error": 0.12293324209749698
+  },
+  {
+    "candidate_name": "reference_v3_6_medium_locked",
+    "seed": 0,
+    "probe_name": "mild_vision",
+    "env_mode": "mild",
+    "corruption_type": "mild_vision",
+    "train_step": 1536,
+    "eval_return": 6.650014277198353,
+    "eval_success_rate": 1.0,
+    "eval_collision_rate": 0.0,
+    "eval_timeout_rate": 0.0,
+    "eval_avg_progress_to_goal": 0.11736686900258064,
+    "consistency_loss": 1.8551591502008783e-05,
+    "consistency_gap_mean": 0.0031357924279291184,
+    "same_state_action_diff_clean_vs_corrupt": 0.0031357924279291184,
+    "reference_same_state_action_diff_clean_vs_corrupt": 0.008125586109235883,
+    "consistency_gain_score": 0.0,
+    "reliability_nan_detected": 0.0,
+    "route_attention_dominance_ratio": 1.791276454925537,
+    "logit_mean_vision_clean": 3.323338031768799,
+    "logit_mean_vision_weak": NaN,
+    "logit_mean_vision_mild": 3.313175916671753,
+    "logit_mean_ego_clean": 3.3217415809631348,
+    "logit_mean_ego_weak": NaN,
+    "logit_mean_ego_mild": NaN,
+    "reference_logit_mean_vision_clean": 3.323338031768799,
+    "reference_logit_mean_ego_clean": 3.3217415809631348,
+    "current_clean_logit_mean_vision": 3.323338031768799,
+    "current_clean_logit_mean_ego": 3.3217415809631348,
+    "attention_shapley_kl": 0.15986666744574904,
+    "attention_shapley_rank_corr": 0.9149999999999998,
+    "targetlogit_shapley_mean_vision": -0.006798883434385061,
+    "targetlogit_shapley_mean_ego": 0.04273272678256035,
+    "attention_bias_gates": [
+      [
+        0.3835257291793823,
+        0.4188396632671356,
+        0.382782906293869,
+        0.43960806727409363
+      ],
+      [
+        0.38598963618278503,
+        0.42144066095352173,
+        0.38285329937934875,
+        0.4373989999294281
+      ],
+      [
+        0.38171640038490295,
+        0.42138224840164185,
+        0.3820103704929352,
+        0.43480321764945984
+      ],
+      [
+        0.38239896297454834,
+        0.4187651574611664,
+        0.3812209963798523,
+        0.4323582947254181
+      ],
+      [
+        0.38190022110939026,
+        0.41643837094306946,
+        0.38031893968582153,
+        0.43003299832344055
+      ],
+      [
+        0.3819863200187683,
+        0.4165070056915283,
+        0.37939369678497314,
+        0.4279114305973053
+      ],
+      [
+        0.3819149136543274,
+        0.4187432825565338,
+        0.37844064831733704,
+        0.42600613832473755
+      ],
+      [
+        0.38245105743408203,
+        0.41841191053390503,
+        0.3775677978992462,
+        0.4244261384010315
+      ],
+      [
+        0.3840430974960327,
+        0.4184820353984833,
+        0.37681707739830017,
+        0.42314663529396057
+      ],
+      [
+        0.38244137167930603,
+        0.41874584555625916,
+        0.3758558928966522,
+        0.42202508449554443
+      ],
+      [
+        0.38464799523353577,
+        0.4188202917575836,
+        0.37532249093055725,
+        0.42124614119529724
+      ],
+      [
+        0.3848571479320526,
+        0.4188272953033447,
+        0.37476426362991333,
+        0.42055514454841614
+      ],
+      [
+        0.38233432173728943,
+        0.41875168681144714,
+        0.3742048144340515,
+        0.41987353563308716
+      ],
+      [
+        0.39100977778434753,
+        0.41897276043891907,
+        0.3743550479412079,
+        0.4194502532482147
+      ],
+      [
+        0.3873865604400635,
+        0.41887354850769043,
+        0.3739689290523529,
+        0.41875335574150085
+      ],
+      [
+        0.3824175298213959,
+        0.4187508523464203,
+        0.37358927726745605,
+        0.41799676418304443
+      ],
+      [
+        0.382737934589386,
+        0.41876456141471863,
+        0.3735438883304596,
+        0.4173235297203064
+      ],
+      [
+        0.3836113512516022,
+        0.4187788665294647,
+        0.3735254108905792,
+        0.416583389043808
+      ],
+      [
+        0.3825453519821167,
+        0.41874900460243225,
+        0.37346985936164856,
+        0.4158053398132324
+      ],
+      [
+        0.3839744031429291,
+        0.4187660217285156,
+        0.37352779507637024,
+        0.41507747769355774
+      ],
+      [
+        0.38295280933380127,
+        0.4187677800655365,
+        0.3735133111476898,
+        0.4143182933330536
+      ],
+      [
+        0.38260072469711304,
+        0.418752521276474,
+        0.3734840750694275,
+        0.4135424792766571
+      ],
+      [
+        0.3830932676792145,
+        0.4187745153903961,
+        0.373526930809021,
+        0.41283154487609863
+      ],
+      [
+        0.3830924332141876,
+        0.41876330971717834,
+        0.3734903335571289,
+        0.4120427072048187
+      ],
+      [
+        0.3834956884384155,
+        0.41879233717918396,
+        0.37353503704071045,
+        0.4113277494907379
+      ],
+      [
+        0.38428282737731934,
+        0.4187908172607422,
+        0.3735235929489136,
+        0.4105655550956726
+      ],
+      [
+        0.3848751485347748,
+        0.418824702501297,
+        0.37355101108551025,
+        0.4098372459411621
+      ],
+      [
+        0.38231605291366577,
+        0.4187559485435486,
+        0.37340250611305237,
+        0.40900200605392456
+      ],
+      [
+        0.38335302472114563,
+        0.4187995195388794,
+        0.37344956398010254,
+        0.40831321477890015
+      ],
+      [
+        0.38223996758461,
+        0.41874417662620544,
+        0.373306006193161,
+        0.4074903726577759
+      ],
+      [
+        0.38258400559425354,
+        0.4187542796134949,
+        0.37329035997390747,
+        0.40677160024642944
+      ],
+      [
+        0.3840286433696747,
+        0.41881227493286133,
+        0.37338513135910034,
+        0.4061230421066284
+      ],
+      [
+        0.3836706876754761,
+        0.41879889369010925,
+        0.3733215928077698,
+        0.40539953112602234
+      ],
+      [
+        0.3848676383495331,
+        0.41882067918777466,
+        0.37333282828330994,
+        0.40473881363868713
+      ],
+      [
+        0.38232728838920593,
+        0.41874566674232483,
+        0.3731500804424286,
+        0.4039609134197235
+      ],
+      [
+        0.3832506239414215,
+        0.41878584027290344,
+        0.37319493293762207,
+        0.40336671471595764
+      ],
+      [
+        0.38197165727615356,
+        0.41872063279151917,
+        0.37304621934890747,
+        0.40264013409614563
+      ],
+      [
+        0.3824894428253174,
+        0.418746680021286,
+        0.37306639552116394,
+        0.4020785391330719
+      ],
+      [
+        0.38591060042381287,
+        0.4188538193702698,
+        0.37328803539276123,
+        0.40170764923095703
+      ],
+      [
+        0.3825940191745758,
+        0.4187491834163666,
+        0.37305620312690735,
+        0.4010951519012451
+      ]
+    ],
+    "attention_source_bias_gates": [
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ]
+    ],
+    "attention_bias_gate_residuals": [
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ]
+    ],
+    "attention_bias_gate_residual_logits": [
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ]
+    ],
+    "attention_gate_reconstruction_errors": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "gate_reconstruction_error_mean": 0.0,
+    "residual_alpha_mean": 1.0,
+    "adapter_gate_alpha_mean": 0.0,
+    "gate_logit_offset_mean": 0.0,
+    "gate_output_scale_mean": 1.0,
+    "gate_threshold_shift_alpha_mean": 0.0,
+    "gate_source_logit_bias_mean": 0.0,
+    "gate_common_cancel_alpha_mean": 0.0,
+    "gate_contrast_shift_alpha_mean": 0.0,
+    "gate_mild_rescue_alpha_mean": 0.0,
+    "attention_gate_cancel_temperature": 4.0,
+    "attention_gate_selector_temperature": 4.0,
+    "attention_gate_rescue_selector_floor": 0.44999998807907104,
+    "attention_gate_mild_gate_min": 0.07999999821186066,
+    "corruption_kind": "single",
+    "corruption_strength": 0.06,
+    "corruption_strength_scalar": 0.06,
+    "corruption_strengths_json": "[0.06]",
+    "clean_vs_mild_gate_feature_auc": 0.826875,
+    "clean_vs_mild_gate_feature_delta_norm": 0.06212895325607555,
+    "source_gate_feature_onoff_auc_delta": 0.0,
+    "teacher_delta_feature_onoff_auc_delta": 0.0,
+    "attention_mean_vision": 0.10424735397100449,
+    "attention_std_vision": 0.020411057397723198,
+    "attention_score_mean_vision": -1.9712364673614502,
+    "attention_score_std_vision": 0.054795537143945694,
+    "attention_score_adapter_delta_norm_mean_vision": 2.0611424446105957,
+    "attention_bias_mean_vision": -0.16909310221672058,
+    "attention_source_bias_gate_mean_vision": 0.0,
+    "attention_bias_gate_residual_mean_vision": 0.0,
+    "attention_bias_gate_residual_logit_mean_vision": 0.0,
+    "attention_bias_gate_adapter_logit_mean_vision": 0.0,
+    "attention_bias_gate_delta_logit_mean_vision": 0.0,
+    "attention_bias_gate_scaled_delta_logit_mean_vision": 0.0,
+    "attention_bias_gate_threshold_shift_logit_mean_vision": 0.0,
+    "attention_bias_gate_post_shift_logit_mean_vision": 0.0,
+    "attention_bias_gate_post_shift_excess_mean_vision": 0.0,
+    "attention_bias_gate_common_cancel_gate_mean_vision": 0.0,
+    "attention_bias_gate_common_cancel_logit_mean_vision": 0.0,
+    "attention_bias_gate_post_cancel_logit_mean_vision": 0.0,
+    "attention_bias_gate_contrast_shift_logit_mean_vision": 0.0,
+    "attention_bias_gate_mild_rescue_gate_mean_vision": 0.0,
+    "attention_bias_gate_selector_prob_mean_vision": 0.0,
+    "attention_bias_gate_selector_active_mean_vision": 0.0,
+    "attention_bias_gate_mild_rescue_value_mean_vision": 0.0,
+    "attention_bias_gate_mild_rescue_logit_mean_vision": 0.0,
+    "attention_bias_gate_adapter_hidden_norm_mean_vision": 0.0,
+    "attention_bias_gate_mean_vision": 0.3834971785545349,
+    "attention_gate_output_scale_mean_vision": 1.0,
+    "attention_gate_threshold_shift_alpha_mean_vision": 0.0,
+    "attention_gate_source_logit_bias_mean_vision": 0.0,
+    "attention_gate_common_cancel_alpha_mean_vision": 0.0,
+    "attention_gate_contrast_shift_alpha_mean_vision": 0.0,
+    "attention_gate_mild_rescue_alpha_mean_vision": 0.0,
+    "reliability_mean_vision": 0.9648770093917847,
+    "reliability_std_vision": 0.00027491155196912587,
+    "raw_shapley_mean_vision": 0.0011488088639453053,
+    "shapley_target_mean_vision": 0.0767994299530983,
+    "attention_mean_distance": 0.4420452117919922,
+    "attention_std_distance": 0.08330174535512924,
+    "attention_score_mean_distance": -0.5242924690246582,
+    "attention_score_std_distance": 0.04875421151518822,
+    "attention_score_adapter_delta_norm_mean_distance": 1.5679981708526611,
+    "attention_bias_mean_distance": -0.21970930695533752,
+    "attention_source_bias_gate_mean_distance": 0.0,
+    "attention_bias_gate_residual_mean_distance": 0.0,
+    "attention_bias_gate_residual_logit_mean_distance": 0.0,
+    "attention_bias_gate_adapter_logit_mean_distance": 0.0,
+    "attention_bias_gate_delta_logit_mean_distance": 0.0,
+    "attention_bias_gate_scaled_delta_logit_mean_distance": 0.0,
+    "attention_bias_gate_threshold_shift_logit_mean_distance": 0.0,
+    "attention_bias_gate_post_shift_logit_mean_distance": 0.0,
+    "attention_bias_gate_post_shift_excess_mean_distance": 0.0,
+    "attention_bias_gate_common_cancel_gate_mean_distance": 0.0,
+    "attention_bias_gate_common_cancel_logit_mean_distance": 0.0,
+    "attention_bias_gate_post_cancel_logit_mean_distance": 0.0,
+    "attention_bias_gate_contrast_shift_logit_mean_distance": 0.0,
+    "attention_bias_gate_mild_rescue_gate_mean_distance": 0.0,
+    "attention_bias_gate_selector_prob_mean_distance": 0.0,
+    "attention_bias_gate_selector_active_mean_distance": 0.0,
+    "attention_bias_gate_mild_rescue_value_mean_distance": 0.0,
+    "attention_bias_gate_mild_rescue_logit_mean_distance": 0.0,
+    "attention_bias_gate_adapter_hidden_norm_mean_distance": 0.0,
+    "attention_bias_gate_mean_distance": 0.41878408193588257,
+    "attention_gate_output_scale_mean_distance": 1.0,
+    "attention_gate_threshold_shift_alpha_mean_distance": 0.0,
+    "attention_gate_source_logit_bias_mean_distance": 0.0,
+    "attention_gate_common_cancel_alpha_mean_distance": 0.0,
+    "attention_gate_contrast_shift_alpha_mean_distance": 0.0,
+    "attention_gate_mild_rescue_alpha_mean_distance": 0.0,
+    "reliability_mean_distance": 0.9650484323501587,
+    "reliability_std_distance": 0.00019744601740967482,
+    "raw_shapley_mean_distance": 0.5373726487159729,
+    "shapley_target_mean_distance": 0.6715661883354187,
+    "attention_mean_ego": 0.07984539121389389,
+    "attention_std_ego": 0.010302839800715446,
+    "attention_score_mean_ego": -2.2241508960723877,
+    "attention_score_std_ego": 0.08832410722970963,
+    "attention_score_adapter_delta_norm_mean_ego": 1.5503379106521606,
+    "attention_bias_mean_ego": -0.07935833930969238,
+    "attention_source_bias_gate_mean_ego": 0.0,
+    "attention_bias_gate_residual_mean_ego": 0.0,
+    "attention_bias_gate_residual_logit_mean_ego": 0.0,
+    "attention_bias_gate_adapter_logit_mean_ego": 0.0,
+    "attention_bias_gate_delta_logit_mean_ego": 0.0,
+    "attention_bias_gate_scaled_delta_logit_mean_ego": 0.0,
+    "attention_bias_gate_threshold_shift_logit_mean_ego": 0.0,
+    "attention_bias_gate_post_shift_logit_mean_ego": 0.0,
+    "attention_bias_gate_post_shift_excess_mean_ego": 0.0,
+    "attention_bias_gate_common_cancel_gate_mean_ego": 0.0,
+    "attention_bias_gate_common_cancel_logit_mean_ego": 0.0,
+    "attention_bias_gate_post_cancel_logit_mean_ego": 0.0,
+    "attention_bias_gate_contrast_shift_logit_mean_ego": 0.0,
+    "attention_bias_gate_mild_rescue_gate_mean_ego": 0.0,
+    "attention_bias_gate_selector_prob_mean_ego": 0.0,
+    "attention_bias_gate_selector_active_mean_ego": 0.0,
+    "attention_bias_gate_mild_rescue_value_mean_ego": 0.0,
+    "attention_bias_gate_mild_rescue_logit_mean_ego": 0.0,
+    "attention_bias_gate_adapter_hidden_norm_mean_ego": 0.0,
+    "attention_bias_gate_mean_ego": 0.3751111924648285,
+    "attention_gate_output_scale_mean_ego": 1.0,
+    "attention_gate_threshold_shift_alpha_mean_ego": 0.0,
+    "attention_gate_source_logit_bias_mean_ego": 0.0,
+    "attention_gate_common_cancel_alpha_mean_ego": 0.0,
+    "attention_gate_contrast_shift_alpha_mean_ego": 0.0,
+    "attention_gate_mild_rescue_alpha_mean_ego": 0.0,
+    "reliability_mean_ego": 0.9651631116867065,
+    "reliability_std_ego": 0.0005440825480036438,
+    "raw_shapley_mean_ego": -0.0020503257401287556,
+    "shapley_target_mean_ego": 0.07582300901412964,
+    "attention_mean_route": 0.37386205792427063,
+    "attention_std_route": 0.11289439350366592,
+    "attention_score_mean_route": -0.7146174907684326,
+    "attention_score_std_route": 0.5020533800125122,
+    "attention_score_adapter_delta_norm_mean_route": 2.3733062744140625,
+    "attention_bias_mean_route": -0.15358208119869232,
+    "attention_source_bias_gate_mean_route": 0.0,
+    "attention_bias_gate_residual_mean_route": 0.0,
+    "attention_bias_gate_residual_logit_mean_route": 0.0,
+    "attention_bias_gate_adapter_logit_mean_route": 0.0,
+    "attention_bias_gate_delta_logit_mean_route": 0.0,
+    "attention_bias_gate_scaled_delta_logit_mean_route": 0.0,
+    "attention_bias_gate_threshold_shift_logit_mean_route": 0.0,
+    "attention_bias_gate_post_shift_logit_mean_route": 0.0,
+    "attention_bias_gate_post_shift_excess_mean_route": 0.0,
+    "attention_bias_gate_common_cancel_gate_mean_route": 0.0,
+    "attention_bias_gate_common_cancel_logit_mean_route": 0.0,
+    "attention_bias_gate_post_cancel_logit_mean_route": 0.0,
+    "attention_bias_gate_contrast_shift_logit_mean_route": 0.0,
+    "attention_bias_gate_mild_rescue_gate_mean_route": 0.0,
+    "attention_bias_gate_selector_prob_mean_route": 0.0,
+    "attention_bias_gate_selector_active_mean_route": 0.0,
+    "attention_bias_gate_mild_rescue_value_mean_route": 0.0,
+    "attention_bias_gate_mild_rescue_logit_mean_route": 0.0,
+    "attention_bias_gate_adapter_hidden_norm_mean_route": 0.0,
+    "attention_bias_gate_mean_route": 0.4156883656978607,
+    "attention_gate_output_scale_mean_route": 1.0,
+    "attention_gate_threshold_shift_alpha_mean_route": 0.0,
+    "attention_gate_source_logit_bias_mean_route": 0.0,
+    "attention_gate_common_cancel_alpha_mean_route": 0.0,
+    "attention_gate_contrast_shift_alpha_mean_route": 0.0,
+    "attention_gate_mild_rescue_alpha_mean_route": 0.0,
+    "reliability_mean_route": 0.9589503407478333,
+    "reliability_std_route": 0.006947739515453577,
+    "raw_shapley_mean_route": 0.16217896342277527,
+    "shapley_target_mean_route": 0.17581132054328918,
+    "attention_relative_gap_score_mean_vision_distance": 0.16958455741405487,
+    "attention_relative_gap_score_mean_vision_ego": 0.18602579832077026,
+    "attention_relative_gap_score_mean_vision_route": 0.15373694896697998,
+    "attention_relative_gap_norm_mean": 0.2972952425479889,
+    "attention_bias_norm_mean": 0.3336438536643982,
+    "attention_bias_gate_norm_mean": 0.7975125312805176,
+    "attention_bias_abs_mean": 0.155435711145401,
+    "clean_score_anchor_error": 0.0,
+    "clean_action_anchor_error": 0.0,
+    "source_sign_score_anchor_error": 0.015490945987403392,
+    "source_clean_gate_preserve_error": 0.12293401490896941
+  },
+  {
+    "candidate_name": "reference_v3_6_medium_locked",
+    "seed": 0,
+    "probe_name": "mild_vision_route",
+    "env_mode": "mild",
+    "corruption_type": "mild_vision_route",
+    "train_step": 1536,
+    "eval_return": 6.6395561988884575,
+    "eval_success_rate": 1.0,
+    "eval_collision_rate": 0.0,
+    "eval_timeout_rate": 0.0,
+    "eval_avg_progress_to_goal": 0.11721802465617656,
+    "consistency_loss": 0.0009263981090649104,
+    "consistency_gap_mean": 0.027308082580566405,
+    "same_state_action_diff_clean_vs_corrupt": 0.027308082580566405,
+    "reference_same_state_action_diff_clean_vs_corrupt": 0.016514219529926776,
+    "consistency_gain_score": 0.0,
+    "reliability_nan_detected": 0.0,
+    "route_attention_dominance_ratio": 2.0310795307159424,
+    "logit_mean_vision_clean": 3.3233330249786377,
+    "logit_mean_vision_weak": NaN,
+    "logit_mean_vision_mild": 3.312664031982422,
+    "logit_mean_ego_clean": 3.322108507156372,
+    "logit_mean_ego_weak": NaN,
+    "logit_mean_ego_mild": NaN,
+    "reference_logit_mean_vision_clean": 3.3233330249786377,
+    "reference_logit_mean_ego_clean": 3.322108507156372,
+    "current_clean_logit_mean_vision": 3.3233330249786377,
+    "current_clean_logit_mean_ego": 3.322108507156372,
+    "attention_shapley_kl": 0.1712327616289258,
+    "attention_shapley_rank_corr": 0.9,
+    "targetlogit_shapley_mean_vision": -0.007125183008611202,
+    "targetlogit_shapley_mean_ego": 0.04248829931020737,
+    "attention_bias_gates": [
+      [
+        0.38199788331985474,
+        0.41874438524246216,
+        0.3826003074645996,
+        0.4400319457054138
+      ],
+      [
+        0.3853118419647217,
+        0.42139995098114014,
+        0.3827434778213501,
+        0.438571959733963
+      ],
+      [
+        0.3819461762905121,
+        0.42142823338508606,
+        0.3819626271724701,
+        0.43751800060272217
+      ],
+      [
+        0.3836464583873749,
+        0.4188286364078522,
+        0.3813314139842987,
+        0.43429771065711975
+      ],
+      [
+        0.38312724232673645,
+        0.4165250062942505,
+        0.38038936257362366,
+        0.43228089809417725
+      ],
+      [
+        0.3862614333629608,
+        0.41656357049942017,
+        0.37961170077323914,
+        0.43013983964920044
+      ],
+      [
+        0.38225916028022766,
+        0.41875159740448,
+        0.3784416913986206,
+        0.4282836318016052
+      ],
+      [
+        0.38216432929039,
+        0.418410986661911,
+        0.37752285599708557,
+        0.4269104301929474
+      ],
+      [
+        0.38400453329086304,
+        0.4184516370296478,
+        0.37677136063575745,
+        0.4256800711154938
+      ],
+      [
+        0.38223642110824585,
+        0.41875168681144714,
+        0.3759194612503052,
+        0.42462363839149475
+      ],
+      [
+        0.3829808831214905,
+        0.4187607169151306,
+        0.375256210565567,
+        0.42413055896759033
+      ],
+      [
+        0.3821495473384857,
+        0.41874057054519653,
+        0.37462735176086426,
+        0.4229227304458618
+      ],
+      [
+        0.3825776278972626,
+        0.4187506139278412,
+        0.374252051115036,
+        0.4230026602745056
+      ],
+      [
+        0.3845333158969879,
+        0.41880565881729126,
+        0.3740631937980652,
+        0.42182835936546326
+      ],
+      [
+        0.3827107548713684,
+        0.4187459945678711,
+        0.3737431764602661,
+        0.42112407088279724
+      ],
+      [
+        0.38486447930336,
+        0.4188196063041687,
+        0.37375906109809875,
+        0.42068740725517273
+      ],
+      [
+        0.38258975744247437,
+        0.41874513030052185,
+        0.3735221028327942,
+        0.4203404486179352
+      ],
+      [
+        0.3840372860431671,
+        0.41880369186401367,
+        0.37361258268356323,
+        0.419996440410614
+      ],
+      [
+        0.3826582431793213,
+        0.4187396466732025,
+        0.37351974844932556,
+        0.4194173514842987
+      ],
+      [
+        0.3850765526294708,
+        0.41882526874542236,
+        0.37372636795043945,
+        0.41812434792518616
+      ],
+      [
+        0.38493818044662476,
+        0.4188188314437866,
+        0.37374594807624817,
+        0.41738006472587585
+      ],
+      [
+        0.383911669254303,
+        0.41881680488586426,
+        0.37371644377708435,
+        0.4168577194213867
+      ],
+      [
+        0.38435032963752747,
+        0.4188138246536255,
+        0.373715341091156,
+        0.41601210832595825
+      ],
+      [
+        0.38387125730514526,
+        0.4187996983528137,
+        0.3736664354801178,
+        0.4152834713459015
+      ],
+      [
+        0.3826800286769867,
+        0.4187701642513275,
+        0.37359121441841125,
+        0.4142530560493469
+      ],
+      [
+        0.38336431980133057,
+        0.41877448558807373,
+        0.37356436252593994,
+        0.41367191076278687
+      ],
+      [
+        0.3823334872722626,
+        0.41874220967292786,
+        0.37345948815345764,
+        0.4126209318637848
+      ],
+      [
+        0.3841730058193207,
+        0.4188007414340973,
+        0.3735412061214447,
+        0.4120764136314392
+      ],
+      [
+        0.38701120018959045,
+        0.41890960931777954,
+        0.3736972510814667,
+        0.4114440381526947
+      ],
+      [
+        0.3857310116291046,
+        0.41885673999786377,
+        0.3735419511795044,
+        0.4105840027332306
+      ],
+      [
+        0.385287880897522,
+        0.4188357889652252,
+        0.3734566271305084,
+        0.4097996950149536
+      ],
+      [
+        0.38355615735054016,
+        0.41879814863204956,
+        0.37334173917770386,
+        0.4095505177974701
+      ],
+      [
+        0.3864630162715912,
+        0.41885924339294434,
+        0.3734425902366638,
+        0.4082239270210266
+      ],
+      [
+        0.3835464119911194,
+        0.41880691051483154,
+        0.37330207228660583,
+        0.40748339891433716
+      ],
+      [
+        0.38446614146232605,
+        0.41880613565444946,
+        0.3732665181159973,
+        0.40654730796813965
+      ],
+      [
+        0.3835398256778717,
+        0.4187737703323364,
+        0.3731512129306793,
+        0.40591728687286377
+      ],
+      [
+        0.3840831518173218,
+        0.4187893271446228,
+        0.37314489483833313,
+        0.4053572118282318
+      ],
+      [
+        0.3824378252029419,
+        0.4187573194503784,
+        0.3730282783508301,
+        0.40485328435897827
+      ],
+      [
+        0.38355597853660583,
+        0.4187830090522766,
+        0.3730415105819702,
+        0.4040881395339966
+      ],
+      [
+        0.3867853879928589,
+        0.4188765585422516,
+        0.37319111824035645,
+        0.4034894108772278
+      ]
+    ],
+    "attention_source_bias_gates": [
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ]
+    ],
+    "attention_bias_gate_residuals": [
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ]
+    ],
+    "attention_bias_gate_residual_logits": [
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ]
+    ],
+    "attention_gate_reconstruction_errors": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "gate_reconstruction_error_mean": 0.0,
+    "residual_alpha_mean": 1.0,
+    "adapter_gate_alpha_mean": 0.0,
+    "gate_logit_offset_mean": 0.0,
+    "gate_output_scale_mean": 1.0,
+    "gate_threshold_shift_alpha_mean": 0.0,
+    "gate_source_logit_bias_mean": 0.0,
+    "gate_common_cancel_alpha_mean": 0.0,
+    "gate_contrast_shift_alpha_mean": 0.0,
+    "gate_mild_rescue_alpha_mean": 0.0,
+    "attention_gate_cancel_temperature": 4.0,
+    "attention_gate_selector_temperature": 4.0,
+    "attention_gate_rescue_selector_floor": 0.44999998807907104,
+    "attention_gate_mild_gate_min": 0.07999999821186066,
+    "corruption_kind": "mixed",
+    "corruption_strength": 0.06,
+    "corruption_strength_scalar": 0.06,
+    "corruption_strengths_json": "[0.06, 0.05]",
+    "clean_vs_mild_gate_feature_auc": 0.888125,
+    "clean_vs_mild_gate_feature_delta_norm": 0.0771557991260687,
+    "source_gate_feature_onoff_auc_delta": 0.0,
+    "teacher_delta_feature_onoff_auc_delta": 0.0,
+    "attention_mean_vision": 0.10025067627429962,
+    "attention_std_vision": 0.0216300617903471,
+    "attention_score_mean_vision": -1.9610345363616943,
+    "attention_score_std_vision": 0.04286035895347595,
+    "attention_score_adapter_delta_norm_mean_vision": 2.0674548149108887,
+    "attention_bias_mean_vision": -0.17291828989982605,
+    "attention_source_bias_gate_mean_vision": 0.0,
+    "attention_bias_gate_residual_mean_vision": 0.0,
+    "attention_bias_gate_residual_logit_mean_vision": 0.0,
+    "attention_bias_gate_adapter_logit_mean_vision": 0.0,
+    "attention_bias_gate_delta_logit_mean_vision": 0.0,
+    "attention_bias_gate_scaled_delta_logit_mean_vision": 0.0,
+    "attention_bias_gate_threshold_shift_logit_mean_vision": 0.0,
+    "attention_bias_gate_post_shift_logit_mean_vision": 0.0,
+    "attention_bias_gate_post_shift_excess_mean_vision": 0.0,
+    "attention_bias_gate_common_cancel_gate_mean_vision": 0.0,
+    "attention_bias_gate_common_cancel_logit_mean_vision": 0.0,
+    "attention_bias_gate_post_cancel_logit_mean_vision": 0.0,
+    "attention_bias_gate_contrast_shift_logit_mean_vision": 0.0,
+    "attention_bias_gate_mild_rescue_gate_mean_vision": 0.0,
+    "attention_bias_gate_selector_prob_mean_vision": 0.0,
+    "attention_bias_gate_selector_active_mean_vision": 0.0,
+    "attention_bias_gate_mild_rescue_value_mean_vision": 0.0,
+    "attention_bias_gate_mild_rescue_logit_mean_vision": 0.0,
+    "attention_bias_gate_adapter_hidden_norm_mean_vision": 0.0,
+    "attention_bias_gate_mean_vision": 0.3838304877281189,
+    "attention_gate_output_scale_mean_vision": 1.0,
+    "attention_gate_threshold_shift_alpha_mean_vision": 0.0,
+    "attention_gate_source_logit_bias_mean_vision": 0.0,
+    "attention_gate_common_cancel_alpha_mean_vision": 0.0,
+    "attention_gate_contrast_shift_alpha_mean_vision": 0.0,
+    "attention_gate_mild_rescue_alpha_mean_vision": 0.0,
+    "reliability_mean_vision": 0.9648596048355103,
+    "reliability_std_vision": 0.00029426178662106395,
+    "raw_shapley_mean_vision": 0.0015389134641736746,
+    "shapley_target_mean_vision": 0.0790318176150322,
+    "attention_mean_distance": 0.420160710811615,
+    "attention_std_distance": 0.08336520940065384,
+    "attention_score_mean_distance": -0.5236361622810364,
+    "attention_score_std_distance": 0.04817403107881546,
+    "attention_score_adapter_delta_norm_mean_distance": 1.5679833889007568,
+    "attention_bias_mean_distance": -0.21970339119434357,
+    "attention_source_bias_gate_mean_distance": 0.0,
+    "attention_bias_gate_residual_mean_distance": 0.0,
+    "attention_bias_gate_residual_logit_mean_distance": 0.0,
+    "attention_bias_gate_adapter_logit_mean_distance": 0.0,
+    "attention_bias_gate_delta_logit_mean_distance": 0.0,
+    "attention_bias_gate_scaled_delta_logit_mean_distance": 0.0,
+    "attention_bias_gate_threshold_shift_logit_mean_distance": 0.0,
+    "attention_bias_gate_post_shift_logit_mean_distance": 0.0,
+    "attention_bias_gate_post_shift_excess_mean_distance": 0.0,
+    "attention_bias_gate_common_cancel_gate_mean_distance": 0.0,
+    "attention_bias_gate_common_cancel_logit_mean_distance": 0.0,
+    "attention_bias_gate_post_cancel_logit_mean_distance": 0.0,
+    "attention_bias_gate_contrast_shift_logit_mean_distance": 0.0,
+    "attention_bias_gate_mild_rescue_gate_mean_distance": 0.0,
+    "attention_bias_gate_selector_prob_mean_distance": 0.0,
+    "attention_bias_gate_selector_active_mean_distance": 0.0,
+    "attention_bias_gate_mild_rescue_value_mean_distance": 0.0,
+    "attention_bias_gate_mild_rescue_logit_mean_distance": 0.0,
+    "attention_bias_gate_adapter_hidden_norm_mean_distance": 0.0,
+    "attention_bias_gate_mean_distance": 0.41879454255104065,
+    "attention_gate_output_scale_mean_distance": 1.0,
+    "attention_gate_threshold_shift_alpha_mean_distance": 0.0,
+    "attention_gate_source_logit_bias_mean_distance": 0.0,
+    "attention_gate_common_cancel_alpha_mean_distance": 0.0,
+    "attention_gate_contrast_shift_alpha_mean_distance": 0.0,
+    "attention_gate_mild_rescue_alpha_mean_distance": 0.0,
+    "reliability_mean_distance": 0.9650484323501587,
+    "reliability_std_distance": 0.0001981616806006059,
+    "raw_shapley_mean_distance": 0.5232539176940918,
+    "shapley_target_mean_distance": 0.6535385251045227,
+    "attention_mean_ego": 0.07588207721710205,
+    "attention_std_ego": 0.010551576502621174,
+    "attention_score_mean_ego": -2.2230420112609863,
+    "attention_score_std_ego": 0.08739852160215378,
+    "attention_score_adapter_delta_norm_mean_ego": 1.5501468181610107,
+    "attention_bias_mean_ego": -0.07988967001438141,
+    "attention_source_bias_gate_mean_ego": 0.0,
+    "attention_bias_gate_residual_mean_ego": 0.0,
+    "attention_bias_gate_residual_logit_mean_ego": 0.0,
+    "attention_bias_gate_adapter_logit_mean_ego": 0.0,
+    "attention_bias_gate_delta_logit_mean_ego": 0.0,
+    "attention_bias_gate_scaled_delta_logit_mean_ego": 0.0,
+    "attention_bias_gate_threshold_shift_logit_mean_ego": 0.0,
+    "attention_bias_gate_post_shift_logit_mean_ego": 0.0,
+    "attention_bias_gate_post_shift_excess_mean_ego": 0.0,
+    "attention_bias_gate_common_cancel_gate_mean_ego": 0.0,
+    "attention_bias_gate_common_cancel_logit_mean_ego": 0.0,
+    "attention_bias_gate_post_cancel_logit_mean_ego": 0.0,
+    "attention_bias_gate_contrast_shift_logit_mean_ego": 0.0,
+    "attention_bias_gate_mild_rescue_gate_mean_ego": 0.0,
+    "attention_bias_gate_selector_prob_mean_ego": 0.0,
+    "attention_bias_gate_selector_active_mean_ego": 0.0,
+    "attention_bias_gate_mild_rescue_value_mean_ego": 0.0,
+    "attention_bias_gate_mild_rescue_logit_mean_ego": 0.0,
+    "attention_bias_gate_adapter_hidden_norm_mean_ego": 0.0,
+    "attention_bias_gate_mean_ego": 0.37514954805374146,
+    "attention_gate_output_scale_mean_ego": 1.0,
+    "attention_gate_threshold_shift_alpha_mean_ego": 0.0,
+    "attention_gate_source_logit_bias_mean_ego": 0.0,
+    "attention_gate_common_cancel_alpha_mean_ego": 0.0,
+    "attention_gate_contrast_shift_alpha_mean_ego": 0.0,
+    "attention_gate_mild_rescue_alpha_mean_ego": 0.0,
+    "reliability_mean_ego": 0.9651758074760437,
+    "reliability_std_ego": 0.0005149596836417913,
+    "raw_shapley_mean_ego": -0.0010531950974836946,
+    "shapley_target_mean_ego": 0.07822512090206146,
+    "attention_mean_route": 0.40370649099349976,
+    "attention_std_route": 0.11475453525781631,
+    "attention_score_mean_route": -0.5810350179672241,
+    "attention_score_std_route": 0.49895957112312317,
+    "attention_score_adapter_delta_norm_mean_route": 2.4229254722595215,
+    "attention_bias_mean_route": -0.12930063903331757,
+    "attention_source_bias_gate_mean_route": 0.0,
+    "attention_bias_gate_residual_mean_route": 0.0,
+    "attention_bias_gate_residual_logit_mean_route": 0.0,
+    "attention_bias_gate_adapter_logit_mean_route": 0.0,
+    "attention_bias_gate_delta_logit_mean_route": 0.0,
+    "attention_bias_gate_scaled_delta_logit_mean_route": 0.0,
+    "attention_bias_gate_threshold_shift_logit_mean_route": 0.0,
+    "attention_bias_gate_post_shift_logit_mean_route": 0.0,
+    "attention_bias_gate_post_shift_excess_mean_route": 0.0,
+    "attention_bias_gate_common_cancel_gate_mean_route": 0.0,
+    "attention_bias_gate_common_cancel_logit_mean_route": 0.0,
+    "attention_bias_gate_post_cancel_logit_mean_route": 0.0,
+    "attention_bias_gate_contrast_shift_logit_mean_route": 0.0,
+    "attention_bias_gate_mild_rescue_gate_mean_route": 0.0,
+    "attention_bias_gate_selector_prob_mean_route": 0.0,
+    "attention_bias_gate_selector_active_mean_route": 0.0,
+    "attention_bias_gate_mild_rescue_value_mean_route": 0.0,
+    "attention_bias_gate_mild_rescue_logit_mean_route": 0.0,
+    "attention_bias_gate_adapter_hidden_norm_mean_route": 0.0,
+    "attention_bias_gate_mean_route": 0.4183851182460785,
+    "attention_gate_output_scale_mean_route": 1.0,
+    "attention_gate_threshold_shift_alpha_mean_route": 0.0,
+    "attention_gate_source_logit_bias_mean_route": 0.0,
+    "attention_gate_common_cancel_alpha_mean_route": 0.0,
+    "attention_gate_contrast_shift_alpha_mean_route": 0.0,
+    "attention_gate_mild_rescue_alpha_mean_route": 0.0,
+    "reliability_mean_route": 0.9580709338188171,
+    "reliability_std_route": 0.00757627235725522,
+    "raw_shapley_mean_route": 0.17522990703582764,
+    "shapley_target_mean_route": 0.18920457363128662,
+    "attention_relative_gap_score_mean_vision_distance": 0.16447868943214417,
+    "attention_relative_gap_score_mean_vision_ego": 0.1810053437948227,
+    "attention_relative_gap_score_mean_vision_route": 0.1550496220588684,
+    "attention_relative_gap_norm_mean": 0.29242223501205444,
+    "attention_bias_norm_mean": 0.32524827122688293,
+    "attention_bias_gate_norm_mean": 0.7991034388542175,
+    "attention_bias_abs_mean": 0.15045300126075745,
+    "clean_score_anchor_error": 0.0,
+    "clean_action_anchor_error": 0.0,
+    "source_sign_score_anchor_error": 0.015400179661810398,
+    "source_clean_gate_preserve_error": 0.12294744588434696
+  }
+]

@@ -1,0 +1,5 @@
+candidate_name,distance_to_activation_residual_logit,distance_to_activation_final_gate,distance_to_promotion_final_gate,distance_to_promotion_mild_floor_ratio,distance_to_promotion_gap_ratio,delta_vs_reference_v3_7c_final_gate_gap,delta_vs_reference_v3_7c_relative_gap,delta_vs_reference_v3_6_normal_success_rate,delta_vs_reference_v3_6_mild_success_rate
+reference_v3_6_medium_locked,-0.01,-0.008741358518600464,-0.018741358518600464,0.8,-0.1,0.0012586414813995361,-0.04386190573374438,0.0,0.0
+v3_7f2_3_actuated_balanced,-0.00987485259771347,-0.009976981431245804,-0.019976981431245804,-0.2,-0.1,2.3018568754196167e-05,3.9736429835457443e-07,0.0,0.0
+v3_7f2_3_actuated_vision_heavy,-0.00994048901135102,-0.00998364970088005,-0.01998364970088005,-0.2,-0.1,1.635029911994934e-05,3.377596535791838e-07,0.0,0.0
+reference_v3_7c_medium_locked,-0.01,-0.01,-0.02,-0.2,-0.1,0.0,0.0,0.0,0.0

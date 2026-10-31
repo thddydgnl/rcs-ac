@@ -1,0 +1,47 @@
+{
+  "seed": 0,
+  "device": "cpu",
+  "env": {
+    "corruption_mode": "clean"
+  },
+  "model": {
+    "encoder_hidden_dims": [
+      64,
+      64
+    ],
+    "encoder_output_dim": 64,
+    "attention_hidden_dim": 64,
+    "recurrent_hidden_dim": 64,
+    "attention_temperature": 1.5,
+    "use_feature_layer_norm": true,
+    "actor_hidden_dims": [
+      64
+    ],
+    "critic_hidden_dims": [
+      64
+    ],
+    "action_log_std_init": -0.5,
+    "warm_start_baseline_c_checkpoint": null
+  },
+  "ppo": {
+    "total_steps": 20000,
+    "rollout_steps": 1024,
+    "sequence_length": 16,
+    "num_eval_episodes": 10,
+    "gamma": 0.99,
+    "gae_lambda": 0.95,
+    "clip_eps": 0.2,
+    "update_epochs": 4,
+    "minibatch_num_sequences": 8,
+    "learning_rate": 0.0001,
+    "value_loss_coef": 0.5,
+    "entropy_coef": 0.003,
+    "max_grad_norm": 0.3
+  },
+  "logging": {
+    "run_name": "grad_clip_strong_seed_0",
+    "output_dir": "/Users/song-yonghwi/Documents/GitHub/RCS-AC_test/results_rcs_ac_v1_stabilization/grad_clip_strong/seed_0",
+    "eval_interval_updates": 2,
+    "save_interval_updates": 10
+  }
+}

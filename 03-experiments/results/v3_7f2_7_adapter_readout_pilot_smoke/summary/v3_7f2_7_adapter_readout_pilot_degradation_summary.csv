@@ -1,0 +1,9 @@
+candidate_name,corruption_type,normal_to_mild_return_drop,normal_to_mild_success_drop,normal_to_mild_progress_drop
+reference_v3_6_medium_locked,mild_vision,0.0013222998008126652,0.0,1.3183057308199797e-05
+reference_v3_6_medium_locked,mild_vision_route,0.011780378110707979,0.0,0.00016202740371228097
+reference_v3_7c_medium_locked,mild_vision,0.002061316506005717,0.0,2.917870879172446e-05
+reference_v3_7c_medium_locked,mild_vision_route,0.021440421035515023,0.0,0.0003790318965911782
+v3_7f2_7_adapter_readout_frozen_adapter,mild_vision,0.002063208180481446,0.0,2.9220432043078337e-05
+v3_7f2_7_adapter_readout_frozen_adapter,mild_vision_route,0.02144395752810002,0.0,0.0003791172057390213
+v3_7f2_7_adapter_readout_low_lr_adapter,mild_vision,0.0020614509703591466,0.0,2.9194355010989104e-05
+v3_7f2_7_adapter_readout_low_lr_adapter,mild_vision_route,0.021445403662509577,0.0,0.0003791417926549967

@@ -1,0 +1,29 @@
+experiment_name: rcs_ac_v1_stabilization
+output_root: /Users/song-yonghwi/Documents/GitHub/RCS-AC_test/results_rcs_ac_v1_stabilization
+env_mode: normal
+seeds: [0, 1, 2]
+
+base_config_path: /Users/song-yonghwi/Documents/GitHub/RCS-AC_test/configs/rcs_ac_v1.yaml
+
+ablations:
+  lr_low:
+    ppo:
+      learning_rate: 0.0001
+  gru_small:
+    model:
+      recurrent_hidden_dim: 64
+  seq_short:
+    ppo:
+      sequence_length: 8
+  seq_medium:
+    ppo:
+      sequence_length: 16
+  entropy_low:
+    ppo:
+      entropy_coef: 0.003
+  grad_clip_strong:
+    ppo:
+      max_grad_norm: 0.3
+  longer_train:
+    ppo:
+      total_steps: 20000

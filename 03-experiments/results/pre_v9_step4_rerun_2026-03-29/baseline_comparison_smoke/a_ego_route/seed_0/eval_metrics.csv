@@ -1,0 +1,3 @@
+update,train_step,wall_clock_time,finished_flag,nan_detected,crashed_flag,eval/return_mean,eval/success_rate,eval/collision_rate,eval/timeout_rate,eval/avg_progress_to_goal,model_name,seed
+1,1024,3.130120038986206,0,0,0,-1.770481776315569,0.1,0.15,0.65,0.0021666536953417297,a_ego_route,0
+2,2048,5.672368049621582,0,0,0,-0.4771691929451777,0.2,0.2,0.3,0.00704178491625788,a_ego_route,0

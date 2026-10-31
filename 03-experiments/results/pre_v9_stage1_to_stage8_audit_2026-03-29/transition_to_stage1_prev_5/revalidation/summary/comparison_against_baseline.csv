@@ -1,0 +1,2 @@
+model_name,success_diff_vs_baseline,return_diff_vs_baseline,progress_diff_vs_baseline,success_std_ratio_vs_baseline,return_std_ratio_vs_baseline,hidden_bug_rate,nan_rate,crashed_rate
+standard_v1,-0.06666666666666665,0.5880065539643198,0.010452342778270132,3.0000000000000044,1.6292874192768982,0.0,0.0,0.0

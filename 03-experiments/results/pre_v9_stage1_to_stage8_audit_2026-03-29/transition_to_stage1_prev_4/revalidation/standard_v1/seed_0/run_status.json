@@ -1,0 +1,6 @@
+{
+  "finished_flag": 0,
+  "nan_detected": 0,
+  "crashed_flag": 1,
+  "error_message": "RuntimeError: Can't access the shape of an uninitialized parameter or buffer. This error usually happens in `load_state_dict` when trying to load an uninitialized parameter into an initialized one. Call `forward` to initialize the parameters before accessing their attributes."
+}

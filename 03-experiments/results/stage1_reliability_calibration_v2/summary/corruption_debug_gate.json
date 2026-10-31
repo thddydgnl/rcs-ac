@@ -1,0 +1,6 @@
+{
+  "verdict": "PASS",
+  "reason": "Requested probe parameters match actual targeted observation changes and train/eval paths are consistent.",
+  "go_no_go_for_calibration": 1,
+  "mean_train_eval_l2": 0.0
+}

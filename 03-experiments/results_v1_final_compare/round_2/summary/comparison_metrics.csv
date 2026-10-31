@@ -1,0 +1,6 @@
+config_name,model_name,num_runs,finished_rate,nan_rate,crashed_rate,mean_eval_success_rate,std_eval_success_rate,mean_eval_return,std_eval_return,mean_eval_avg_progress_to_goal,std_eval_avg_progress_to_goal,mean_eval_collision_rate,mean_eval_timeout_rate,mean_actor_loss,mean_critic_loss,mean_entropy,mean_grad_norm,mean_hidden_norm,std_hidden_norm,mean_hidden_reset_count,mean_sequence_length,mean_masked_timestep_ratio,hidden_bug_rate,mean_route_attention_dominance_ratio,mean_attention_std,mean_wall_clock_time
+rcs_ac_v1_grad_clip_strong,rcs_ac_v1,3,0.0,0.0,1.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0
+rcs_ac_v1_seq_short,rcs_ac_v1,3,0.0,0.0,1.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0
+baseline_c_attention,baseline_c_attention,3,0.0,0.0,1.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0
+rcs_ac_v1_gru_small_grad_clip_strong,rcs_ac_v1,3,0.0,0.0,1.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0
+rcs_ac_v1_gru_small_grad_clip_strong_seq_short,rcs_ac_v1,3,0.0,0.0,1.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0

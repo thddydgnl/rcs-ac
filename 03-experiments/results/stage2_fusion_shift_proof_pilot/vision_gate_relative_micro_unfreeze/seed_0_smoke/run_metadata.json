@@ -1,0 +1,7 @@
+{
+  "mode": "smoke",
+  "num_eval_episodes": 6,
+  "metrics_filename": "fusion_shift_eval_rows.json",
+  "candidate_name": "vision_gate_relative_micro_unfreeze",
+  "config_hash": "702134719cc1f748"
+}

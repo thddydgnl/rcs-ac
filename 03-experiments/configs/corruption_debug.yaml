@@ -1,0 +1,35 @@
+output_root: /Users/song-yonghwi/Documents/GitHub/RCS-AC_test/results/corruption_debug
+device: cpu
+stage1_config_path: /Users/song-yonghwi/Documents/GitHub/RCS-AC_test/configs/stage1_warmup.yaml
+stage1_checkpoint_root: /Users/song-yonghwi/Documents/GitHub/RCS-AC_test/results_transition_to_stage1/stage1_warmup/standard_v1
+env_mode: normal
+debug_seed: 0
+debug_steps: 4
+train_eval_l2_tolerance: 1.0e-6
+seeds: [0, 1, 2]
+
+probes:
+  clean:
+    corruption_type: clean
+    corruption_strength: 0.0
+  weak_vision:
+    corruption_type: vision
+    corruption_strength: 0.03
+  weak_distance:
+    corruption_type: distance
+    corruption_strength: 0.03
+  weak_ego:
+    corruption_type: ego
+    corruption_strength: 0.025
+  weak_route:
+    corruption_type: route
+    corruption_strength: 0.03
+  mild_vision:
+    corruption_type: vision
+    corruption_strength: 0.06
+  mild_distance:
+    corruption_type: distance
+    corruption_strength: 0.06
+  mild_route:
+    corruption_type: route
+    corruption_strength: 0.06

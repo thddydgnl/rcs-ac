@@ -1,0 +1,9 @@
+corruption_type,target_modality,target_delta_clean_minus_probe,target_delta_clean_minus_weak,target_delta_clean_minus_mild,target_relative_drop_ratio,rank_among_modalities,target_positive_flag,target_top1_flag,target_top2_flag,target_vs_nontarget_gap,vision_specific_positive_flag,ego_specific_positive_flag,candidate_name
+mild_distance,distance,0.002568085988362556,0.0,0.002568085988362556,0.0025966397325092295,1,1,1,1,0.0025768743620977475,0,0,reference_plus_small_reliability_weight_up
+mild_ego,ego,-3.2762686411502706e-05,0.0,-3.2762686411502706e-05,-3.3173923477478104e-05,4,0,0,0,-3.529257244531495e-05,0,0,reference_plus_small_reliability_weight_up
+mild_route,route,1.0132789611816406e-06,0.0,1.0132789611816406e-06,1.026857312055615e-06,4,1,0,0,-9.549988640666918e-06,0,0,reference_plus_small_reliability_weight_up
+mild_vision,vision,-0.00012453397115064213,0.0,-0.00012453397115064213,-0.00012610822278519014,4,0,0,0,-0.00011277198791496505,0,0,reference_plus_small_reliability_weight_up
+weak_distance,distance,0.0012543002764383582,0.0012543002764383582,0.0,0.0012682464485442846,1,1,1,1,0.0012650026215446826,0,0,reference_plus_small_reliability_weight_up
+weak_ego,ego,-1.786152521765505e-05,-1.786152521765505e-05,0.0,-1.8085722987401278e-05,4,0,0,0,-1.965628729923748e-05,0,0,reference_plus_small_reliability_weight_up
+weak_route,route,-3.745158513379643e-05,-3.745158513379643e-05,0.0,-3.795345163178448e-05,4,0,0,0,-3.607405556567874e-05,0,0,reference_plus_small_reliability_weight_up
+weak_vision,vision,-0.00010075171788526127,-0.00010075171788526127,0.0,-0.00010202533467511318,4,0,0,0,-9.190373950525761e-05,0,0,reference_plus_small_reliability_weight_up

@@ -1,0 +1,7 @@
+{
+  "mode": "smoke",
+  "num_eval_episodes": 6,
+  "metrics_filename": "ego_anchor_eval_rows.json",
+  "candidate_name": "ego_anchor_target_residual",
+  "config_hash": "5269ed6044f22e3d"
+}

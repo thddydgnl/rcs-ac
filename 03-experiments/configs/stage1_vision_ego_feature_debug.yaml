@@ -1,0 +1,28 @@
+experiment_name: stage1_vision_ego_feature_debug
+output_root: /Users/song-yonghwi/Documents/GitHub/RCS-AC_test/results/stage1_vision_ego_feature_debug
+device: cpu
+stage1_config_path: /Users/song-yonghwi/Documents/GitHub/RCS-AC_test/configs/stage1_warmup.yaml
+checkpoint_root: /Users/song-yonghwi/Documents/GitHub/RCS-AC_test/results/stage1_reliability_objective_calibration/target_vs_nontarget_ranking_loss
+seeds: [0, 1, 2]
+num_eval_episodes: 3
+trace_steps: 4
+feature_diff_epsilon: 1.0e-6
+logit_diff_epsilon: 1.0e-6
+reliability_diff_epsilon: 1.0e-6
+
+probes:
+  clean:
+    corruption_type: clean
+    corruption_strength: 0.0
+  weak_vision:
+    corruption_type: vision
+    corruption_strength: 0.03
+  mild_vision:
+    corruption_type: vision
+    corruption_strength: 0.06
+  weak_ego:
+    corruption_type: ego
+    corruption_strength: 0.025
+  mild_ego:
+    corruption_type: ego
+    corruption_strength: 0.05

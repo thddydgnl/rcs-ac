@@ -1,0 +1,14 @@
+experiment_name: stage4_baseline_comparison
+output_root: /Users/song-yonghwi/Documents/GitHub/RCS-AC_test/results/pre_v9_stage1_to_stage8_audit_2026-03-29/baseline_comparison
+env_mode: normal
+seeds:
+- 0
+- 1
+- 2
+baselines:
+  a_ego_route:
+    config_path: /Users/song-yonghwi/Documents/GitHub/RCS-AC_test/configs/baseline_a_ego_route.yaml
+  b_early_fusion:
+    config_path: /Users/song-yonghwi/Documents/GitHub/RCS-AC_test/configs/baseline_b_early_fusion.yaml
+  c_attention_fusion:
+    config_path: /Users/song-yonghwi/Documents/GitHub/RCS-AC_test/configs/baseline_c_attention_fusion.yaml

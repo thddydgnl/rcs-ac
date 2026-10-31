@@ -1,0 +1,151 @@
+experiment_name: stage1_targeted_monotonicity_calibration
+output_root: /Users/song-yonghwi/Documents/GitHub/RCS-AC_test/results/stage1_targeted_monotonicity_calibration
+device: cpu
+base_stage1_config_path: /Users/song-yonghwi/Documents/GitHub/RCS-AC_test/configs/stage1_warmup.yaml
+base_checkpoint_root: /Users/song-yonghwi/Documents/GitHub/RCS-AC_test/results/stage1_reliability_objective_calibration/target_vs_nontarget_ranking_loss
+reference_candidate_name: reference_target_vs_nontarget_ranking_loss
+seeds:
+- 0
+- 1
+- 2
+num_eval_episodes: 20
+base_config_overrides:
+  model:
+    reliability_hidden_dims:
+    - 64
+  warmup:
+    use_direct_corruption_targets: true
+    direct_target_drop_scale: 3.5
+    weak_corruption_probability: 0.2
+    weak_corruption_scale: 0.03
+    mild_corruption_probability: 0.2
+    mild_corruption_scale: 0.06
+    reliability_loss_coef: 0.1
+    target_ranking_loss_coef: 0.25
+    target_ranking_margin: 0.05
+    monotonicity_margin_clean_weak: 0.0
+    monotonicity_margin_weak_mild: 0.01
+train:
+  total_steps: 8192
+  eval_interval_updates: 2
+  save_interval_updates: 4
+scoring:
+  monotonicity_margin_clean_weak: 0.0
+  monotonicity_margin_weak_mild: 0.01
+probes:
+  clean:
+    corruption_type: clean
+    corruption_strength: 0.0
+  weak_vision:
+    corruption_type: vision
+    corruption_strength: 0.03
+  weak_distance:
+    corruption_type: distance
+    corruption_strength: 0.03
+  weak_ego:
+    corruption_type: ego
+    corruption_strength: 0.025
+  weak_route:
+    corruption_type: route
+    corruption_strength: 0.03
+  mild_vision:
+    corruption_type: vision
+    corruption_strength: 0.06
+  mild_distance:
+    corruption_type: distance
+    corruption_strength: 0.06
+  mild_ego:
+    corruption_type: ego
+    corruption_strength: 0.05
+  mild_route:
+    corruption_type: route
+    corruption_strength: 0.06
+candidate_order:
+- reference_target_vs_nontarget_ranking_loss
+- ranking_plus_target_monotonicity_small
+- ranking_plus_target_monotonicity_medium
+- ranking_plus_target_monotonicity_small_plus_vision_margin_up
+- ranking_plus_target_monotonicity_small_plus_ego_margin_up
+- ranking_plus_target_monotonicity_small_plus_vision_ego_margin_up
+- ranking_plus_target_monotonicity_small_plus_vision_ego_weight_up
+- reference_plus_small_reliability_weight_up
+- reference_plus_small_reliability_weight_up_plus_target_monotonicity_small
+- reference_plus_minimal_modality_specific_head_gate
+candidates:
+  reference_target_vs_nontarget_ranking_loss:
+    round: A
+    use_existing_checkpoint: true
+  ranking_plus_target_monotonicity_small:
+    round: A
+    overrides:
+      warmup:
+        monotonicity_loss_coef: 0.12
+        monotonicity_margin: 0.06
+        monotonicity_margin_weak_mild: 0.01
+  ranking_plus_target_monotonicity_medium:
+    round: A
+    overrides:
+      warmup:
+        monotonicity_loss_coef: 0.22
+        monotonicity_margin: 0.08
+        monotonicity_margin_weak_mild: 0.015
+  ranking_plus_target_monotonicity_small_plus_vision_margin_up:
+    round: B
+    overrides:
+      warmup:
+        monotonicity_loss_coef: 0.12
+        monotonicity_margin: 0.06
+        monotonicity_margin_weak_mild: 0.01
+        target_margin_loss_coef: 0.1
+        target_margin_value: 0.06
+        vision_margin_multiplier: 2.0
+  ranking_plus_target_monotonicity_small_plus_ego_margin_up:
+    round: B
+    overrides:
+      warmup:
+        monotonicity_loss_coef: 0.12
+        monotonicity_margin: 0.06
+        monotonicity_margin_weak_mild: 0.01
+        target_margin_loss_coef: 0.1
+        target_margin_value: 0.06
+        ego_margin_multiplier: 2.0
+  ranking_plus_target_monotonicity_small_plus_vision_ego_margin_up:
+    round: B
+    overrides:
+      warmup:
+        monotonicity_loss_coef: 0.12
+        monotonicity_margin: 0.06
+        monotonicity_margin_weak_mild: 0.01
+        target_margin_loss_coef: 0.1
+        target_margin_value: 0.06
+        vision_ego_margin_multiplier: 1.8
+  ranking_plus_target_monotonicity_small_plus_vision_ego_weight_up:
+    round: B
+    overrides:
+      warmup:
+        monotonicity_loss_coef: 0.12
+        monotonicity_margin: 0.06
+        monotonicity_margin_weak_mild: 0.01
+        vision_ego_weight_multiplier: 2.0
+  reference_plus_small_reliability_weight_up:
+    round: C
+    overrides:
+      warmup:
+        reliability_loss_coef: 0.12
+  reference_plus_small_reliability_weight_up_plus_target_monotonicity_small:
+    round: C
+    overrides:
+      warmup:
+        reliability_loss_coef: 0.12
+        monotonicity_loss_coef: 0.12
+        monotonicity_margin: 0.06
+        monotonicity_margin_weak_mild: 0.01
+  reference_plus_minimal_modality_specific_head_gate:
+    round: D
+    overrides:
+      model:
+        reliability_input_mode: own_plus_fused
+      warmup:
+        monotonicity_loss_coef: 0.1
+        monotonicity_margin: 0.05
+        monotonicity_margin_weak_mild: 0.01

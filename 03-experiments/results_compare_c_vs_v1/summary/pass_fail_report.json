@@ -1,0 +1,17 @@
+{
+  "overall_grade": "FAIL",
+  "performance_close": false,
+  "std_improved_or_close": false,
+  "hidden_bug_free": true,
+  "baseline_c": {
+    "eval_success_rate_mean": 0.6333333333333333,
+    "eval_return_mean": 3.160043180927882,
+    "eval_avg_progress_mean": 0.04143444116646917
+  },
+  "rcs_ac_v1": {
+    "eval_success_rate_mean": 0.39999999999999997,
+    "eval_return_mean": 2.8583317667914865,
+    "eval_avg_progress_mean": 0.04036352563591314,
+    "hidden_bug_rate": 0.0
+  }
+}

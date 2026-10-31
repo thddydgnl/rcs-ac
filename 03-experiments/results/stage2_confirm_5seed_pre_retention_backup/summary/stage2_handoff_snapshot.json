@@ -1,0 +1,136 @@
+{
+  "standard_stage2_candidate": "reference_freeze_backbone_plus_vision_ego_logit_triplet",
+  "standard_candidate_path": "/Users/song-yonghwi/Documents/GitHub/RCS-AC_test/results/stage2_mild_pilot/reference_freeze_backbone_plus_vision_ego_logit_triplet",
+  "source_experiment_name": "stage2_mild_pilot",
+  "backup_candidate": "reference_freeze_backbone_plus_ego_logit_triplet",
+  "backup_candidate_path": "/Users/song-yonghwi/Documents/GitHub/RCS-AC_test/results/stage2_mild_pilot/reference_freeze_backbone_plus_ego_logit_triplet",
+  "candidate_order": [
+    "reference_freeze_backbone_plus_vision_ego_logit_triplet",
+    "reference_freeze_backbone_plus_ego_logit_triplet"
+  ],
+  "seeds": [
+    0,
+    1,
+    2,
+    3,
+    4
+  ],
+  "enabled_losses": {
+    "actor_loss_coef": 1.0,
+    "value_loss_coef": 0.5,
+    "entropy_coef": 0.003,
+    "reliability_loss_coef": 0.08,
+    "consistency_loss_coef": 0.15,
+    "shapley_loss_coef": 0.0,
+    "risk_loss_coef": 0.0,
+    "direct_target_drop_scale": 3.5
+  },
+  "corruption_policy": {
+    "train_corruption": {
+      "clean_probability": 0.6,
+      "mild_single_probability": 0.35,
+      "mild_mixed_probability": 0.05,
+      "single_modality": [
+        {
+          "name": "vision",
+          "strength": 0.06,
+          "weight": 1.0
+        },
+        {
+          "name": "distance",
+          "strength": 0.06,
+          "weight": 0.7
+        },
+        {
+          "name": "ego",
+          "strength": 0.05,
+          "weight": 1.0
+        },
+        {
+          "name": "route",
+          "strength": 0.06,
+          "weight": 0.7
+        }
+      ],
+      "mixed": [
+        {
+          "name": "mild_vision_route",
+          "modalities": [
+            "vision",
+            "route"
+          ],
+          "strengths": [
+            0.05,
+            0.05
+          ]
+        },
+        {
+          "name": "mild_distance_ego",
+          "modalities": [
+            "distance",
+            "ego"
+          ],
+          "strengths": [
+            0.05,
+            0.045
+          ]
+        }
+      ]
+    },
+    "eval_probes": [
+      {
+        "name": "normal_eval",
+        "kind": "clean",
+        "strength": 0.0
+      },
+      {
+        "name": "mild_vision",
+        "kind": "single",
+        "modality": "vision",
+        "strength": 0.06
+      },
+      {
+        "name": "mild_distance",
+        "kind": "single",
+        "modality": "distance",
+        "strength": 0.06
+      },
+      {
+        "name": "mild_ego",
+        "kind": "single",
+        "modality": "ego",
+        "strength": 0.05
+      },
+      {
+        "name": "mild_route",
+        "kind": "single",
+        "modality": "route",
+        "strength": 0.06
+      },
+      {
+        "name": "mild_vision_route",
+        "kind": "mixed",
+        "modalities": [
+          "vision",
+          "route"
+        ],
+        "strengths": [
+          0.05,
+          0.05
+        ]
+      },
+      {
+        "name": "mild_distance_ego",
+        "kind": "mixed",
+        "modalities": [
+          "distance",
+          "ego"
+        ],
+        "strengths": [
+          0.05,
+          0.045
+        ]
+      }
+    ]
+  }
+}

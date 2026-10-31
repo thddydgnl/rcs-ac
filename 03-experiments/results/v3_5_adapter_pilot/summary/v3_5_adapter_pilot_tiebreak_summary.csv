@@ -1,0 +1,4 @@
+candidate_name,vision_reliability_clean_minus_mild,ego_reliability_clean_minus_mild,vision_logit_clean_minus_mild,ego_logit_clean_minus_mild,saturation_warning_flag,route_distance_side_effect_flag
+reference_v3_1b_balanced_locked,0.0006216764450073242,-1.0132789611816406e-06,0.014021952946980498,-2.7179718017578125e-05,0.0,0.0
+v3_5_adapter_medium,0.00047187010447180544,-3.2782554626464844e-06,0.010524511337280273,-0.00010530153910304207,0.0,0.0
+v3_5_adapter_small,0.0007607738176981238,-6.020069122314453e-06,0.016113599141438506,-0.00017889340718557634,0.0,0.0

@@ -1,0 +1,10 @@
+experiment_name: compare_baseline_c_vs_v1
+output_root: /Users/song-yonghwi/Documents/GitHub/RCS-AC_test/results_compare_c_vs_v1
+env_mode: normal
+seeds: [0, 1, 2]
+
+models:
+  baseline_c_attention:
+    config_path: /Users/song-yonghwi/Documents/GitHub/RCS-AC_test/configs/baseline_c_attention_fusion.yaml
+  rcs_ac_v1:
+    config_path: /Users/song-yonghwi/Documents/GitHub/RCS-AC_test/configs/rcs_ac_v1.yaml

@@ -1,0 +1,7 @@
+{
+  "mode": "smoke",
+  "num_eval_episodes": 6,
+  "metrics_filename": "fusion_shift_eval_rows.json",
+  "candidate_name": "vision_gate_residual_only",
+  "config_hash": "8a6975f6cfc80fb6"
+}

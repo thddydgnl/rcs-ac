@@ -1,0 +1,7 @@
+{
+  "mode": "full",
+  "num_eval_episodes": 24,
+  "metrics_filename": "eval_rows.json",
+  "candidate_name": "reference_freeze_backbone_plus_vision_ego_logit_triplet",
+  "config_hash": "f7ac8ac14a4fdd81"
+}

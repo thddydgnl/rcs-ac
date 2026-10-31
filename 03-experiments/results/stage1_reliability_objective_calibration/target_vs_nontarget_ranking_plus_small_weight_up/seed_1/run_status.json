@@ -1,0 +1,16 @@
+{
+  "finished_flag": 1,
+  "nan_detected": 0,
+  "crashed_flag": 0,
+  "wall_clock_time": 24.012454986572266,
+  "total_updates": 8,
+  "hidden_validation": {
+    "hidden_zero_init_ok": true,
+    "hidden_reset_ok": true,
+    "hidden_leakage_detected": false,
+    "hidden_shape_mismatch_detected": false,
+    "hidden_nan_detected": false,
+    "hidden_reset_count": 181
+  },
+  "reliability_nan_detected": 0
+}

@@ -1,0 +1,44 @@
+experiment_name: stage2_reliability_proof
+output_root: /Users/song-yonghwi/Documents/GitHub/RCS-AC_test/results/stage2_reliability_proof
+device: cpu
+base_stage1_config_path: /Users/song-yonghwi/Documents/GitHub/RCS-AC_test/configs/stage1_warmup.yaml
+seeds:
+- 0
+- 1
+- 2
+- 3
+- 4
+num_eval_episodes: 24
+num_eval_episodes_smoke: 6
+candidate_order:
+- reference_freeze_backbone_plus_vision_ego_logit_triplet
+candidates:
+  reference_freeze_backbone_plus_vision_ego_logit_triplet:
+    checkpoint_root: /Users/song-yonghwi/Documents/GitHub/RCS-AC_test/results/stage2_confirm_5seed/reference_freeze_backbone_plus_vision_ego_logit_triplet
+    source_experiment_name: stage2_confirm_5seed
+eval_probes:
+- name: normal_eval
+  kind: clean
+  strength: 0.0
+- name: mild_vision
+  kind: single
+  modality: vision
+  strength: 0.06
+- name: mild_distance
+  kind: single
+  modality: distance
+  strength: 0.06
+- name: mild_ego
+  kind: single
+  modality: ego
+  strength: 0.05
+- name: mild_route
+  kind: single
+  modality: route
+  strength: 0.06
+scoring:
+  required_target_modalities: 4
+  clean_success_rate_floor: 0.76
+  target_positive_ratio_pass: 0.75
+  target_lowest_ratio_pass: 0.5
+  mean_target_vs_nontarget_gap_pass: 0.0

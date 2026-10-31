@@ -1,0 +1,7 @@
+{
+  "mode": "smoke",
+  "num_eval_episodes": 6,
+  "metrics_filename": "fusion_shift_eval_rows.json",
+  "candidate_name": "vision_gate_threshold_effect_anchor_scale002",
+  "config_hash": "13a4916a4e8c810a"
+}

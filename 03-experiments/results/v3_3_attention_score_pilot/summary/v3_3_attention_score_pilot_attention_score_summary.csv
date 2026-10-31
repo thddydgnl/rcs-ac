@@ -1,0 +1,4 @@
+candidate_name,vision_attention_score_clean_minus_mild,vision_attention_relative_score_clean_minus_mild,vision_attention_clean_minus_mild,vision_targetlogit_shapley_clean_minus_mild,vision_attention_targetlogit_sign_match_flag
+reference_v3_1b_balanced_locked,-0.06771421432495117,-0.07579789724614894,-0.006555731097857148,0.025024677316347763,0.0
+v3_3_attention_score_medium,-0.04569896062215184,-0.05075313258243541,-0.004374193648497268,0.0224404198427995,0.0
+v3_3_attention_score_small,-0.05237809816996264,-0.05388421608626659,-0.0050925686955451965,0.019493619600931808,0.0

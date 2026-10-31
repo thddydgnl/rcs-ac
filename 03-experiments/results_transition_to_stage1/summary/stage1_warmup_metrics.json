@@ -1,0 +1,16 @@
+[
+  {
+    "mean_eval_success_rate":0.78,
+    "std_eval_success_rate":0.04,
+    "mean_eval_return":3.8704593641,
+    "std_eval_return":0.3454130194,
+    "mean_eval_avg_progress_to_goal":0.0748686579,
+    "std_eval_avg_progress_to_goal":0.0029169667,
+    "collision_rate":0.22,
+    "timeout_rate":0.0,
+    "mean_reliability_loss":0.0164661662,
+    "reliability_nan_rate":0.0,
+    "mean_attention_reliability_correlation":-0.7186867916,
+    "finished_rate":1.0
+  }
+]

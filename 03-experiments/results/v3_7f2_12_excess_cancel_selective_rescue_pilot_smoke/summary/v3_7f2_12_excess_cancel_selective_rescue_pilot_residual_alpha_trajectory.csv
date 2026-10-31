@@ -1,0 +1,7 @@
+candidate_name,seed,update,vision_residual_alpha,vision_logit_offset,vision_adapter_gate_alpha,score_adapter_delta_norm
+v3_7f2_12_excess_cancel_selective_rescue_balanced,0,1,0.9997768215835094,-0.00022491544609692937,5.999774694442749,0.0
+v3_7f2_12_excess_cancel_selective_rescue_balanced,0,2,0.9993282295763493,-0.0007044779904390452,5.999294072389603,0.0
+v3_7f2_12_excess_cancel_selective_rescue_balanced,0,3,0.9989740923047066,-0.0011853625728690531,5.9988179206848145,0.0
+v3_7f2_12_excess_cancel_selective_rescue_rescue_heavy,0,1,0.9997772686183453,-0.0002247739181484576,5.999774694442749,0.0
+v3_7f2_12_excess_cancel_selective_rescue_rescue_heavy,0,2,0.9993282295763493,-0.0007025847553450149,5.99929404258728,0.0
+v3_7f2_12_excess_cancel_selective_rescue_rescue_heavy,0,3,0.9989737160503864,-0.0011806698566942941,5.9988153874874115,0.0

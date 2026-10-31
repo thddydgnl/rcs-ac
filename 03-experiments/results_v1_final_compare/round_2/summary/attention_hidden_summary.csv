@@ -1,0 +1,16 @@
+config_name,seed,attention_mean_vision,attention_mean_distance,attention_mean_ego,attention_mean_route,attention_std_vision,attention_std_distance,attention_std_ego,attention_std_route,route_attention_dominance_ratio,hidden_norm_mean,hidden_norm_std,hidden_reset_count,masked_timestep_ratio,hidden_nan_detected,hidden_shape_mismatch_detected,hidden_leakage_suspected
+rcs_ac_v1_grad_clip_strong,0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0
+rcs_ac_v1_grad_clip_strong,1,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0
+rcs_ac_v1_grad_clip_strong,2,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0
+rcs_ac_v1_seq_short,0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0
+rcs_ac_v1_seq_short,1,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0
+rcs_ac_v1_seq_short,2,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0
+baseline_c_attention,0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0
+baseline_c_attention,1,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0
+baseline_c_attention,2,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0
+rcs_ac_v1_gru_small_grad_clip_strong,0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0
+rcs_ac_v1_gru_small_grad_clip_strong,1,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0
+rcs_ac_v1_gru_small_grad_clip_strong,2,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0
+rcs_ac_v1_gru_small_grad_clip_strong_seq_short,0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0
+rcs_ac_v1_gru_small_grad_clip_strong_seq_short,1,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0
+rcs_ac_v1_gru_small_grad_clip_strong_seq_short,2,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0

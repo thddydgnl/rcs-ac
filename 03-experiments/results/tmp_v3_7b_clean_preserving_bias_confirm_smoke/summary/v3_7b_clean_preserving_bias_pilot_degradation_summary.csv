@@ -1,0 +1,13 @@
+candidate_name,corruption_type,normal_to_mild_return_drop,normal_to_mild_success_drop,normal_to_mild_progress_drop
+reference_v3_7_medium_locked,mild_distance,-0.05604164170760839,0.0,-0.003952296088381324
+reference_v3_7_medium_locked,mild_distance_ego,-0.9526558738593769,-0.16666666666666674,-0.0025147650904648045
+reference_v3_7_medium_locked,mild_ego,-0.02062811291427291,0.0,-0.0002121747123052381
+reference_v3_7_medium_locked,mild_route,-0.9310107743099794,-0.16666666666666674,-0.0087165919438974
+reference_v3_7_medium_locked,mild_vision,-0.025685685027855953,0.0,-0.00042376598042388747
+reference_v3_7_medium_locked,mild_vision_route,-0.9975189765150816,-0.16666666666666674,-0.009669216077667325
+v3_7b_clean_preserve_adapter_low,mild_distance,-0.05462260993236434,0.0,-0.003959048200282575
+v3_7b_clean_preserve_adapter_low,mild_distance_ego,-0.9308757608380018,-0.16666666666666674,-0.00223492588112717
+v3_7b_clean_preserve_adapter_low,mild_ego,0.0007684690761378121,0.0,2.0030961537409464e-05
+v3_7b_clean_preserve_adapter_low,mild_route,-0.9091748120127399,-0.16666666666666674,-0.008476195694935115
+v3_7b_clean_preserve_adapter_low,mild_vision,0.0197119487011026,0.0,0.0001329683327574438
+v3_7b_clean_preserve_adapter_low,mild_vision_route,-0.9760640394124982,-0.16666666666666674,-0.00943425019463795

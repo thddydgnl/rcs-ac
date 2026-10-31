@@ -1,0 +1,48 @@
+{
+  "observation_keys": [
+    "vision",
+    "distance",
+    "ego",
+    "route",
+    "aux"
+  ],
+  "observation_shapes": {
+    "vision": [
+      8
+    ],
+    "distance": [
+      9
+    ],
+    "ego": [
+      5
+    ],
+    "route": [
+      5
+    ],
+    "aux": [
+      8
+    ]
+  },
+  "action_shape": [
+    2
+  ],
+  "action_low": [
+    -1.0,
+    -1.0
+  ],
+  "action_high": [
+    1.0,
+    1.0
+  ],
+  "aux_dim": 8,
+  "has_risk_stats_in_info": true,
+  "has_quality_stats_in_info": true,
+  "stage1_expected_modality_keys": [
+    "vision",
+    "distance",
+    "ego",
+    "route",
+    "aux"
+  ],
+  "stage1_config_encoder_output_dim": 64
+}

@@ -1,0 +1,51 @@
+{
+  "audit_root": "/Users/song-yonghwi/Documents/GitHub/RCS-AC_test/results/pre_v9_stage1_to_stage8_audit_2026-03-29",
+  "generated_config_root": "/tmp/rcs_ac_pre_v9_audit_2026-03-29/generated_configs",
+  "step4_baseline_root": "/Users/song-yonghwi/Documents/GitHub/RCS-AC_test/results/pre_v9_stage1_to_stage8_audit_2026-03-29/baseline_comparison",
+  "step4_standard_v1_config": "/tmp/rcs_ac_pre_v9_audit_2026-03-29/generated_configs/standard_v1.yaml",
+  "step5_stage1_root": "/Users/song-yonghwi/Documents/GitHub/RCS-AC_test/results/pre_v9_stage1_to_stage8_audit_2026-03-29/transition_to_stage1/stage1_warmup/standard_v1",
+  "step6_winner_name": null,
+  "step6_winner_checkpoint_root": null,
+  "step6_secondary_name": null,
+  "step6_secondary_checkpoint_root": null,
+  "step7_roots": {
+    "stage2_mild_pilot": "/Users/song-yonghwi/Documents/GitHub/RCS-AC_test/results/pre_v9_stage1_to_stage8_audit_2026-03-29/stage2_mild_pilot",
+    "stage2_reliability_proof": "/Users/song-yonghwi/Documents/GitHub/RCS-AC_test/results/pre_v9_stage1_to_stage8_audit_2026-03-29/stage2_reliability_proof",
+    "stage2_fusion_shift_proof_pilot": "/Users/song-yonghwi/Documents/GitHub/RCS-AC_test/results/pre_v9_stage1_to_stage8_audit_2026-03-29/stage2_fusion_shift_proof_pilot"
+  },
+  "step8_roots": {
+    "stage2_confirm_5seed": "/Users/song-yonghwi/Documents/GitHub/RCS-AC_test/results/pre_v9_stage1_to_stage8_audit_2026-03-29/stage2_confirm_5seed",
+    "stage2_full": "/Users/song-yonghwi/Documents/GitHub/RCS-AC_test/results/pre_v9_stage1_to_stage8_audit_2026-03-29/stage2_full"
+  },
+  "step8_locked_baseline_root": null,
+  "step8_locked_baseline_manifest": null,
+  "step8_primary_candidate_name": null,
+  "step8_primary_checkpoint_path": null,
+  "step8_confirm_checkpoint_path": null,
+  "step9_base_stage1_config_path": null,
+  "step9_base_candidate_name": null,
+  "config_hashes": {
+    "compare_baselines.yaml": "72c31a9563dded64",
+    "standard_v1.yaml": "16a9897e39d4e470",
+    "stage1_warmup_runtime.yaml": "43641e9ba5fa4c98",
+    "transition_to_stage1.yaml": "2bf5abcee32e7e69",
+    "stage1_vision_ego_logit_triplet_calibration.yaml": "ffe33372627bd3a9",
+    "compare_baselines_smoke.yaml": "1e9dafb57e9c9b9b",
+    "standard_v1_smoke.yaml": "d7afcaa140d4d106",
+    "stage1_warmup_runtime_smoke.yaml": "bb170969d67fd2f3",
+    "transition_to_stage1_smoke.yaml": "7ab4179e8216933b",
+    "stage1_vision_ego_logit_triplet_calibration_smoke.yaml": "b2a88d1a5b61d92d",
+    "stage2_mild_pilot_smoke.yaml": "1b4afd887c7fdea8",
+    "stage2_reliability_proof_smoke.yaml": "7a95becf72033551",
+    "stage2_fusion_shift_proof_pilot_smoke.yaml": "333b9d56390f18e0",
+    "stage2_confirm_5seed_smoke.yaml": "c5b221130b5c467c",
+    "stage2_full_smoke.yaml": "1459b8ee98a714eb",
+    "stage2_mild_pilot.yaml": "de85bd8e280e0074",
+    "stage2_reliability_proof.yaml": "be7c0f3675ad6fac",
+    "stage2_fusion_shift_proof_pilot.yaml": "4d8843325f16ca62",
+    "stage2_confirm_5seed.yaml": "149767344987c64f",
+    "stage2_full.yaml": "57db185e95691fb5"
+  },
+  "mode": "full",
+  "env_overrides": {}
+}

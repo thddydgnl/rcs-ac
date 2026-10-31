@@ -1,0 +1,5 @@
+candidate_name,vision_adapter_delta_norm_clean_mean,vision_adapter_delta_norm_mild_mean,vision_adapter_gate_hidden_norm_clean_mean,vision_adapter_gate_hidden_norm_mild_mean,vision_adapter_gate_logit_clean_mean,vision_adapter_gate_logit_mild_mean,vision_adapter_gate_logit_mild_minus_clean,vision_adapter_gate_readout_compression_ratio,adapter_to_gate_transfer_efficiency,adapter_readout_nonvision_drift_mean,adapter_readout_cheat_warning_flag
+reference_v3_6_medium_locked,1.9976577758789062,2.0611424446105957,0.0,0.0,0.0,0.0,0.0,0.0,2079.814672470093,0.0,1.0
+reference_v3_7c_medium_locked,2.267232894897461,2.3509058952331543,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,1.0
+v3_7f2_7_adapter_readout_frozen_adapter,2.267232894897461,2.3509058952331543,2.2677383422851562,2.3513941764831543,-0.24396178126335144,-0.2454591989517212,-0.001497417688369751,-0.017896067815928195,-0.06627338541148373,0.2337931270400683,1.0
+v3_7f2_7_adapter_readout_low_lr_adapter,2.2752959728240967,2.3596513271331787,2.2757999897003174,2.360137701034546,-0.022617820650339127,-0.024081163108348846,-0.0014633424580097198,-0.017347357141645845,-0.2835471331142299,0.07277706513802211,1.0

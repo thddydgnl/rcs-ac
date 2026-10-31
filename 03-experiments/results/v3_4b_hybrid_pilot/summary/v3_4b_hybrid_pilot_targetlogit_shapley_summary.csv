@@ -1,0 +1,5 @@
+candidate_name,vision_targetlogit_shapley_clean_minus_mild,ego_targetlogit_shapley_clean_minus_mild,vision_attention_targetlogit_sign_match_flag,ego_attention_targetlogit_sign_match_flag,targetlogit_shapley_mean_vision,targetlogit_shapley_mean_ego
+reference_v3_1b_balanced_locked,0.026505555957555778,0.003564483175675079,0.0,1.0,0.06651283977996736,0.11090580994884174
+v3_4b_hybrid_coupled_low,0.023980590204397842,0.0035759483774503165,0.0,1.0,0.06586308511240142,0.11003594153693744
+v3_4b_hybrid_medium,0.02327389642596244,0.0035881735384464264,0.0,1.0,0.06598878687336332,0.11027413837256886
+v3_4b_hybrid_small,0.02453354249397914,0.003580397615830108,0.0,1.0,0.06797192547292936,0.1102279784778754

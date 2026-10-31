@@ -1,0 +1,4 @@
+candidate_name,vision_attention_clean_minus_mild,ego_attention_clean_minus_mild,vision_targetlogit_shapley_clean_minus_mild,ego_targetlogit_shapley_clean_minus_mild,vision_attention_targetlogit_sign_match_flag,ego_attention_targetlogit_sign_match_flag
+reference_v3_1b_balanced_locked,-0.006294531126817063,7.396191358566284e-05,0.027627178778251014,0.003653859098752349,0.0,1.0
+v3_1c_attention_sign_medium,-0.004514344036579132,9.506444136302139e-05,0.0215427614748478,0.003775358200073256,0.0,1.0
+v3_1c_attention_sign_small,-0.003933993478616074,6.165852149327827e-05,0.017948811252911888,0.0041311110059420175,0.0,1.0

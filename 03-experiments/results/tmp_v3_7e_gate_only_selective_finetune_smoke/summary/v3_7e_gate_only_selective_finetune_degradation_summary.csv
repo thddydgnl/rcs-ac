@@ -1,0 +1,11 @@
+candidate_name,corruption_type,normal_to_mild_return_drop,normal_to_mild_success_drop,normal_to_mild_progress_drop
+reference_v3_6_medium_locked,mild_distance,-2.9032406114111664,-0.5,-0.027039816206501366
+reference_v3_6_medium_locked,mild_ego,0.0015422272309657536,0.0,0.0006215699105745348
+reference_v3_6_medium_locked,mild_route,-2.982706359340809,-0.5,-0.030426498213461745
+reference_v3_6_medium_locked,mild_vision,-0.014069221189710657,0.0,-0.0008412595838308279
+reference_v3_6_medium_locked,mixed_low,-2.943569935960695,-0.5,-0.029141833183580435
+v3_7e_gate_only_balanced,mild_distance,-2.876886952328497,-0.5,-0.026382657140493385
+v3_7e_gate_only_balanced,mild_ego,-0.00014435925986688858,0.0,-2.9025971889487523e-05
+v3_7e_gate_only_balanced,mild_route,-2.940669861598872,-0.5,-0.028683659382935225
+v3_7e_gate_only_balanced,mild_vision,-0.018883872570005344,0.0,-0.0011021019890904427
+v3_7e_gate_only_balanced,mixed_low,-2.920800762725995,-0.5,-0.027960086395514408

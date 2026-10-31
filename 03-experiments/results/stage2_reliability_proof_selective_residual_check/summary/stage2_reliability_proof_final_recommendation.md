@@ -1,0 +1,22 @@
+# Stage 2 Reliability Proof Report
+
+- Recommended: **vision_ego_selective_residual_plus_weak_positive**
+- Verdict: **WARN**
+- Target positive ratio: `0.750`
+- Target lowest ratio: `0.750`
+- Mean target-vs-nontarget gap: `0.004279`
+- Clean success rate: `0.833`
+- Weakest modality: `ego`
+- Vision residual delta (mild-clean): `-0.000019`
+- Ego residual delta (mild-clean): `-0.000001`
+- Mixed eval episode count flag: `0`
+
+## Final Summary
+
+| candidate_name                                   |   clean_success_rate |   clean_return |   min_eval_episodes_per_row |   max_eval_episodes_per_row |   mixed_eval_episode_count_flag |   observed_target_modalities |   target_positive_ratio |   target_lowest_ratio |   mean_target_vs_nontarget_gap |   vision_positive_ratio |   distance_positive_ratio |   ego_positive_ratio |   route_positive_ratio |   vision_residual_delta_clean_mean |   vision_residual_delta_mild_mean |   ego_residual_delta_clean_mean |   ego_residual_delta_mild_mean |   ego_residual_delta_mild_minus_clean |   vision_residual_delta_mild_minus_clean |   vision_clean_reliability_drift |   distance_clean_reliability_drift |   ego_clean_reliability_drift |   route_clean_reliability_drift |   max_non_ego_clean_reliability_drift | weakest_target_modality   | pass_fail   |
+|:-------------------------------------------------|---------------------:|---------------:|----------------------------:|----------------------------:|--------------------------------:|-----------------------------:|------------------------:|----------------------:|-------------------------------:|------------------------:|--------------------------:|---------------------:|-----------------------:|-----------------------------------:|----------------------------------:|--------------------------------:|-------------------------------:|--------------------------------------:|-----------------------------------------:|---------------------------------:|-----------------------------------:|------------------------------:|--------------------------------:|--------------------------------------:|:--------------------------|:------------|
+| vision_ego_selective_residual_plus_weak_positive |             0.833333 |        4.97968 |                           6 |                           6 |                               0 |                            4 |                    0.75 |                  0.75 |                     0.00427867 |                       1 |                         1 |                    0 |                      1 |                       -1.72308e-05 |                      -3.626e-05   |                    -2.65252e-05 |                   -2.74976e-05 |                          -9.72442e-07 |                             -1.90292e-05 |                       0.00349486 |                          0.0283991 |                     0.0191229 |                        0.051357 |                              0.051357 | ego                       | WARN        |
+| vision_ego_selective_residual                    |             0.833333 |        4.97968 |                           6 |                           6 |                               0 |                            4 |                    0.75 |                  0.75 |                     0.00427861 |                       1 |                         1 |                    0 |                      1 |                       -2.88227e-05 |                      -4.60363e-05 |                     4.02238e-05 |                    4.0336e-05  |                           1.12273e-07 |                             -1.72136e-05 |                       0.00349301 |                          0.0283991 |                     0.0191347 |                        0.051357 |                              0.051357 | ego                       | WARN        |
+
+- 다음 단계 판단:
+  - 먼저 reliability 반응성부터 더 확인해야 함

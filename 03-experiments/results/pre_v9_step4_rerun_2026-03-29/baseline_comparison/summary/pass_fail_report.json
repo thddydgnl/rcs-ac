@@ -1,0 +1,27 @@
+{
+  "overall_grade": "PASS",
+  "curve_checks": {
+    "a_ego_route": true,
+    "b_early_fusion": true,
+    "c_attention_fusion": true
+  },
+  "eval_file_checks": {
+    "a_ego_route": true,
+    "b_early_fusion": true,
+    "c_attention_fusion": true
+  },
+  "single_vs_early": {
+    "grade": "PASS",
+    "success_diff": 0.050000000000000044,
+    "return_diff": 0.48327775239546256,
+    "progress_diff": -0.0018040570955365626,
+    "std_ratio": 1.322875655532295
+  },
+  "early_vs_attention": {
+    "grade": "PASS",
+    "success_diff": 0.08333333333333326,
+    "return_diff": 0.4472225699226282,
+    "progress_diff": 0.007681685983560255,
+    "std_ratio": 1.0629727531881445
+  }
+}

@@ -1,0 +1,42 @@
+experiment_name: transition_to_stage1
+output_root: /Users/song-yonghwi/Documents/GitHub/RCS-AC_test/results/pre_v9_stage1_to_stage8_audit_2026-03-29/transition_to_stage1_smoke
+standard_v1:
+  winner_name: rcs_ac_v1_gru_small_grad_clip_strong_longer_train
+  base_config_path: /Users/song-yonghwi/Documents/GitHub/RCS-AC_test/configs/rcs_ac_v1.yaml
+  registered_config_path: /tmp/rcs_ac_pre_v9_audit_2026-03-29/generated_configs/standard_v1_smoke.yaml
+  overrides:
+    model:
+      encoder_output_dim: 128
+      attention_hidden_dim: 128
+      recurrent_hidden_dim: 128
+      append_mean_context: true
+      actor_hidden_dims:
+      - 128
+      critic_hidden_dims:
+      - 128
+    ppo:
+      total_steps: 4096
+      sequence_length: 16
+      num_eval_episodes: 6
+      update_epochs: 8
+      learning_rate: 0.0003
+      entropy_coef: 0.01
+      max_grad_norm: 0.5
+      rollout_steps: 1024
+    logging:
+      eval_interval_updates: 2
+revalidation:
+  baseline_config_path: /Users/song-yonghwi/Documents/GitHub/RCS-AC_test/configs/baseline_c_attention_fusion.yaml
+  baseline_checkpoint_root: /Users/song-yonghwi/Documents/GitHub/RCS-AC_test/results/pre_v9_stage1_to_stage8_audit_2026-03-29/baseline_comparison_smoke/c_attention_fusion
+  seeds:
+  - 0
+  env_mode: normal
+  total_steps: 4096
+  eval_interval_updates: 5
+  num_eval_episodes: 6
+stage1_warmup:
+  config_path: /tmp/rcs_ac_pre_v9_audit_2026-03-29/generated_configs/stage1_warmup_runtime_smoke.yaml
+  seeds:
+  - 0
+  env_mode: normal
+  init_checkpoint_root: /Users/song-yonghwi/Documents/GitHub/RCS-AC_test/results/pre_v9_stage1_to_stage8_audit_2026-03-29/transition_to_stage1_smoke/revalidation/standard_v1

@@ -1,0 +1,2 @@
+mean_eval_success_rate,std_eval_success_rate,mean_eval_return,std_eval_return,mean_eval_avg_progress_to_goal,std_eval_avg_progress_to_goal,collision_rate,timeout_rate,mean_reliability_loss,reliability_nan_rate,mean_attention_reliability_correlation,finished_rate
+0.7799999999999999,0.040000000000000036,3.8704593640962153,0.3454130194218463,0.07486865789407118,0.0029169666854904717,0.21999999999999997,0.0,0.016466166242025793,0.0,-0.7186867915543671,1.0

@@ -1,0 +1,5 @@
+candidate_name,relative_head_activity_norm_mean,relative_head_gap_clean_minus_mild,vision_relative_gap_anchor_error_clean,vision_relative_gap_anchor_error_mild,nonvision_relative_gap_drift_mean,relative_head_cheat_warning_flag
+reference_v3_6_medium_locked,0.30654452244440716,0.019085998336474102,0.0,0.03431337078412374,0.0,1.0
+reference_v3_7c_medium_locked,0.2626660813887914,0.04200959702332815,0.01826530694961548,0.0,0.0,0.0
+v3_7f2_4_gate_relative_balanced,0.16720022757848105,0.042733632028102875,0.07163552443186443,0.060969787339369454,0.0,1.0
+v3_7f2_4_gate_relative_geometry_guarded,0.194795161485672,0.04250129063924154,0.053310930728912354,0.04241285224755605,0.0,1.0

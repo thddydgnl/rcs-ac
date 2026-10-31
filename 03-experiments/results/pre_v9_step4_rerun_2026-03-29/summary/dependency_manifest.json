@@ -1,0 +1,51 @@
+{
+  "audit_root": "/Users/song-yonghwi/Documents/GitHub/RCS-AC_test/results/pre_v9_step4_rerun_2026-03-29",
+  "generated_config_root": "/tmp/rcs_ac_pre_v9_step4_rerun_2026-03-29/generated_configs",
+  "step4_baseline_root": "/Users/song-yonghwi/Documents/GitHub/RCS-AC_test/results/pre_v9_step4_rerun_2026-03-29/baseline_comparison",
+  "step4_standard_v1_config": "/tmp/rcs_ac_pre_v9_step4_rerun_2026-03-29/generated_configs/standard_v1.yaml",
+  "step5_stage1_root": "/Users/song-yonghwi/Documents/GitHub/RCS-AC_test/results/pre_v9_step4_rerun_2026-03-29/transition_to_stage1/stage1_warmup/standard_v1",
+  "step6_winner_name": null,
+  "step6_winner_checkpoint_root": null,
+  "step6_secondary_name": null,
+  "step6_secondary_checkpoint_root": null,
+  "step7_roots": {
+    "stage2_mild_pilot": "/Users/song-yonghwi/Documents/GitHub/RCS-AC_test/results/pre_v9_step4_rerun_2026-03-29/stage2_mild_pilot",
+    "stage2_reliability_proof": "/Users/song-yonghwi/Documents/GitHub/RCS-AC_test/results/pre_v9_step4_rerun_2026-03-29/stage2_reliability_proof",
+    "stage2_fusion_shift_proof_pilot": "/Users/song-yonghwi/Documents/GitHub/RCS-AC_test/results/pre_v9_step4_rerun_2026-03-29/stage2_fusion_shift_proof_pilot"
+  },
+  "step8_roots": {
+    "stage2_confirm_5seed": "/Users/song-yonghwi/Documents/GitHub/RCS-AC_test/results/pre_v9_step4_rerun_2026-03-29/stage2_confirm_5seed",
+    "stage2_full": "/Users/song-yonghwi/Documents/GitHub/RCS-AC_test/results/pre_v9_step4_rerun_2026-03-29/stage2_full"
+  },
+  "step8_locked_baseline_root": null,
+  "step8_locked_baseline_manifest": null,
+  "step8_primary_candidate_name": null,
+  "step8_primary_checkpoint_path": null,
+  "step8_confirm_checkpoint_path": null,
+  "step9_base_stage1_config_path": null,
+  "step9_base_candidate_name": null,
+  "config_hashes": {
+    "compare_baselines.yaml": "3cfa3b958cf77ea9",
+    "stage1_warmup_runtime.yaml": "172d827f04e4f8ee",
+    "standard_v1.yaml": "0718e33e2c8c4e20",
+    "transition_to_stage1.yaml": "13ef49fcbd467655",
+    "stage1_vision_ego_logit_triplet_calibration.yaml": "a0835e3b7999792c",
+    "compare_baselines_smoke.yaml": "7e17917215ad9020",
+    "stage1_warmup_runtime_smoke.yaml": "7e4c2b77aa82be32",
+    "standard_v1_smoke.yaml": "906254e24e7cad4c",
+    "transition_to_stage1_smoke.yaml": "9abc9057c526937f",
+    "stage1_vision_ego_logit_triplet_calibration_smoke.yaml": "8badd0c1e49628d2",
+    "stage2_mild_pilot_smoke.yaml": "490eed5040c023b7",
+    "stage2_reliability_proof_smoke.yaml": "4dee5c47b24ec440",
+    "stage2_fusion_shift_proof_pilot_smoke.yaml": "124995718af2ebf7",
+    "stage2_confirm_5seed_smoke.yaml": "2a633c724c9ef3fb",
+    "stage2_full_smoke.yaml": "b316e0796ebd634d",
+    "stage2_mild_pilot.yaml": "6fe47ac9dbbe42f5",
+    "stage2_reliability_proof.yaml": "40b77e7f65a6a113",
+    "stage2_fusion_shift_proof_pilot.yaml": "139ec94a6f9554cc",
+    "stage2_confirm_5seed.yaml": "c349c51b61a84413",
+    "stage2_full.yaml": "e76076181623392c"
+  },
+  "mode": "full",
+  "env_overrides": {}
+}

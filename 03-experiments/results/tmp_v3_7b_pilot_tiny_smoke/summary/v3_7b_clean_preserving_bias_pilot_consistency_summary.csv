@@ -1,0 +1,3 @@
+candidate_name,consistency_loss,consistency_gap_mean,same_state_action_diff_clean_vs_corrupt,consistency_gain_score
+reference_v3_7_medium_locked,0.0006693285818181072,0.019177459080939215,0.019177459080939215,0.1308225409190608
+v3_7b_clean_preserve_small,0.0006707875550699732,0.019198139786269105,0.019198139786269105,0.13080186021373089

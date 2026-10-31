@@ -1,0 +1,102 @@
+experiment_name: stage1_reliability_calibration
+output_root: /Users/song-yonghwi/Documents/GitHub/RCS-AC_test/results/stage1_reliability_calibration_v2
+device: cpu
+base_stage1_config_path: /Users/song-yonghwi/Documents/GitHub/RCS-AC_test/configs/stage1_warmup.yaml
+base_checkpoint_root: /Users/song-yonghwi/Documents/GitHub/RCS-AC_test/results_transition_to_stage1/stage1_warmup/standard_v1
+corruption_debug_config_path: /Users/song-yonghwi/Documents/GitHub/RCS-AC_test/configs/corruption_debug.yaml
+seeds:
+- 0
+- 1
+- 2
+num_eval_episodes: 20
+train:
+  total_steps: 8192
+  eval_interval_updates: 2
+  save_interval_updates: 4
+  env_mode: normal
+probes:
+  clean:
+    corruption_type: clean
+    corruption_strength: 0.0
+  weak_vision:
+    corruption_type: vision
+    corruption_strength: 0.03
+  weak_distance:
+    corruption_type: distance
+    corruption_strength: 0.03
+  weak_ego:
+    corruption_type: ego
+    corruption_strength: 0.025
+  weak_route:
+    corruption_type: route
+    corruption_strength: 0.03
+  mild_vision:
+    corruption_type: vision
+    corruption_strength: 0.06
+  mild_distance:
+    corruption_type: distance
+    corruption_strength: 0.06
+  mild_route:
+    corruption_type: route
+    corruption_strength: 0.06
+candidates:
+  current_baseline:
+    round: A
+    use_existing_checkpoint: true
+    description: Stage 1 warm-up result without recalibration
+  reliability_loss_weight_small_up:
+    round: A
+    overrides:
+      warmup:
+        reliability_loss_coef: 0.1
+        weak_corruption_probability: 0.25
+        weak_corruption_scale: 0.03
+        use_direct_corruption_targets: true
+        direct_target_drop_scale: 3.0
+  reliability_loss_weight_medium_up:
+    round: A
+    overrides:
+      warmup:
+        reliability_loss_coef: 0.15
+        weak_corruption_probability: 0.25
+        weak_corruption_scale: 0.03
+        use_direct_corruption_targets: true
+        direct_target_drop_scale: 3.5
+  weak_corruption_sampling_increase:
+    round: A
+    overrides:
+      warmup:
+        reliability_loss_coef: 0.1
+        weak_corruption_probability: 0.4
+        weak_corruption_scale: 0.03
+        use_direct_corruption_targets: true
+        direct_target_drop_scale: 3.0
+  modality_specific_reliability_target:
+    round: A
+    overrides:
+      warmup:
+        reliability_loss_coef: 0.08
+        weak_corruption_probability: 0.25
+        weak_corruption_scale: 0.03
+        use_direct_corruption_targets: true
+        direct_target_drop_scale: 4.0
+  small_head_capacity_change:
+    round: B
+    overrides:
+      model:
+        reliability_hidden_dims:
+        - 64
+      warmup:
+        reliability_loss_coef: 0.1
+        weak_corruption_probability: 0.25
+        weak_corruption_scale: 0.03
+        use_direct_corruption_targets: true
+        direct_target_drop_scale: 3.5
+initial_candidate_order:
+- current_baseline
+- modality_specific_reliability_target
+- reliability_loss_weight_small_up
+- small_head_capacity_change
+deferred_candidate_order:
+- reliability_loss_weight_medium_up
+- weak_corruption_sampling_increase
