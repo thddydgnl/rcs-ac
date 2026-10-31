@@ -1,0 +1,35 @@
+Already up to date.
+STAGE2_DEPENDENCY_V11_SUPPORT_CODE=SKIPPED:not configured
+STAGE2_DEPENDENCY_V11_CODE=SKIPPED:not configured
+STAGE2_DEPENDENCY_PROJECT_ROOT=OK:C:\Users\thddy\Documents\code\RCS-AC-first-official-v2-ac11c90
+STAGE2_DEPENDENCY_CONFIG=OK:RCS-AC-v2\experiments\02_privileged_policy_clean\checkpoints\windows_replay_ef3b530_pilot\clean_128_stage2_privileged_with_checkpoints.yaml
+STAGE2_DEPENDENCY_ENV_CONFIG=OK:C:\Users\thddy\Documents\code\RCS-AC-first-official-v2-ac11c90\RCS-AC-v2\configs\external\v1_1\bc_clean_v1_1_2048_eval.yaml
+STAGE2_DEPENDENCY_V2_CODE=OK:C:\Users\thddy\Documents\code\RCS-AC-first-official-v2-ac11c90\RCS-AC-v2\code
+STAGE2_DEPENDENCY_STAGE2_RUNNER=OK:C:\Users\thddy\Documents\code\RCS-AC-first-official-v2-ac11c90\RCS-AC-v2\scripts\windows\run_stage2_clean_eval.ps1
+STAGE2_DEPENDENCY_CARLA_READY_SCRIPT=OK:C:\Users\thddy\Documents\code\RCS-AC-first-official-v2-ac11c90\RCS-AC-v2\scripts\windows\ensure_carla_ready.ps1
+STAGE2_DEPENDENCY_CARLA_START_SCRIPT=OK:C:\Users\thddy\Documents\code\RCS-AC-first-official-v2-ac11c90\RCS-AC-v2\scripts\windows\start_carla_interactive.ps1
+STAGE2_DEPENDENCY_WORKSPACE_ROOT=OK:C:\Users\thddy\Documents\code
+STAGE2_DEPENDENCY_SHARED_CORE=OK:C:\Users\thddy\Documents\code\shared_core
+STAGE2_PYTHONPATH=C:\Users\thddy\Documents\code\RCS-AC-first-official-v2-ac11c90\RCS-AC-v2\code;C:\Users\thddy\Documents\code;C:\Users\thddy\Documents\code\RCS-AC-first-official-v2-ac11c90\RCS-AC-v2\code;C:\Users\thddy\Documents\code;
+PY_IMPORT_OK=rcs_ac_v2.evaluation.evaluate_clean PY_IMPORT_OK=rcs_ac_v2.evaluation.carla_adapter PY_IMPORT_OK=shared_core.env.carla_env
+STAGE2_WINDOWS_DEPENDENCIES_OK=True
+PYTHON_PROBE_OK
+0.9.16 Carla/Maps/Town04 PYTHON_PROBE_TARGET_ALREADY_LOADED=Town04 INFO:  Found the required file in cache!  Carla/Maps/Nav/Town04.bin 
+CARLA_HEALTH=OK
+CARLA_RESTART_REQUIRED=False
+PYTHON_PROBE_OK
+0.9.16 Carla/Maps/Town04 PYTHON_PROBE_TARGET_ALREADY_LOADED=Town04 INFO:  Found the required file in cache!  Carla/Maps/Nav/Town04.bin 
+CARLA_HEALTH=OK
+CARLA_STABLE_WAIT_SECONDS=15
+PYTHON_PROBE_OK
+0.9.16 Carla/Maps/Town04 PYTHON_PROBE_TARGET_ALREADY_LOADED=Town04 INFO:  Found the required file in cache!  Carla/Maps/Nav/Town04.bin 
+CARLA_HEALTH=OK
+CARLA_READY=True
+STAGE2_CLEAN_EVAL_READY=True
+CONFIG_PATH=RCS-AC-v2\experiments\02_privileged_policy_clean\checkpoints\windows_replay_ef3b530_pilot\clean_128_stage2_privileged_with_checkpoints.yaml
+SUMMARY_PATH=RCS-AC-v2\experiments\02_privileged_policy_clean\windows_128\summary.json
+METRICS_PATH=RCS-AC-v2\experiments\02_privileged_policy_clean\windows_128\metrics.csv
+INFO:  Found the required file in cache!  Carla/Maps/Nav/Town04.bin 
+INFO:  Found the required file in cache!  Carla/Maps/TM/Town04.bin 
+CARLA_SUMMARY=RCS-AC-v2\experiments\02_privileged_policy_clean\windows_128\summary.json
+SUMMARY_VALID=RCS-AC-v2\experiments\02_privileged_policy_clean\windows_128\summary.json

@@ -1,0 +1,39 @@
+﻿**********************
+Windows PowerShell 기록 시작
+시작 시간: 20260501023627
+사용자 이름: Song\song
+RunAs 사용자: Song\song
+구성 이름: 
+Machine: SONG (Microsoft Windows NT 10.0.26200.0)
+호스트 응용 프로그램: powershell -ExecutionPolicy Bypass -File C:\Users\thddy\Documents\Codex\2026-04-30\new-chat\carla-remote-runner\run_rcs_ac_first.ps1 -Mode collect -ProjectDir C:\Users\thddy\Documents\code\RCS-AC-first -Config configs\bc_frame_rgb_perception_actor_features_v2_pretrain_smoke.yaml -Dataset data\expert\rgb_perception_actor_features_v2_masked_clean_256.npz -RunName rgb_perception_actor_features_v2_masked_clean_collect_256 -TotalTimesteps 256 -GitRef codex-stabilization-rgb-v2 -QualityLevel Low -StartupTimeoutSeconds 120 -AllowParentGitRoot -StopCarlaAfter
+프로세스 ID: 9580
+PSVersion: 5.1.26100.8115
+PSEdition: Desktop
+PSCompatibleVersions: 1.0, 2.0, 3.0, 4.0, 5.0, 5.1.26100.8115
+BuildVersion: 10.0.26100.8115
+CLRVersion: 4.0.30319.42000
+WSManStackVersion: 3.0
+PSRemotingProtocolVersion: 2.3
+SerializationVersion: 1.1.0.1
+**********************
+
+==> Project: C:\Users\thddy\Documents\code\RCS-AC-first
+
+==> Fetching and checking out codex-stabilization-rgb-v2
+
+
+
+==> Pulling latest code
+
+
+==> Installing CARLA Python wheel
+
+
+==> Starting CARLA if port 2000 is not already open
+CARLA PID: 15060
+
+==> Waiting for CARLA RPC port
+**********************
+Windows PowerShell 기록 끝
+종료 시간: 20260501023836
+**********************

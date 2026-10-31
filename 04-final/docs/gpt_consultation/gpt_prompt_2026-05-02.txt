@@ -1,0 +1,25 @@
+나는 CARLA 자율주행용 RCS-AC-first 알고리즘을 안정화하고 있다. 첨부 PDF에는 현재 모델 구조, 센서 사용 방식, RGB perception actor feature 구현, BC/PPO 학습 코드, 안정화 Round17-29 실험 결과가 정리되어 있다.
+
+내가 가장 알고 싶은 것은 다음이다.
+
+1. 매 episode 시작 직후 차량이 왼쪽으로 크게 커브하는 원인이 코드상 sign convention 문제인지, route/maneuver 초기화 문제인지, 데이터 분포 문제인지, controller/longitudinal coupling 문제인지 우선순위를 매겨 진단해줘.
+2. 현재 RCS-AC 구조에서 안정화가 어려운 근본 원인을 모델 구조, loss 설계, 데이터 수집, PPO fine-tuning, runtime guard 관점에서 분석해줘.
+3. 특히 다음 구현을 자세히 리뷰해줘.
+   - RGBPerceptionActorFeatureExtractor의 road_x/lane_x/visual_center_error 계산
+   - train_bc.py의 visual_center_corrective_loss, route_aware_visual_center_loss, collision_cluster_route_offset_loss, early_route_offset_loss
+   - FusionGate에서 RGB reliability는 높지만 fusion_rgb가 낮게 나오는 구조
+   - PPO가 512-step BC gate 통과 후 2048 training에서 offroad를 다시 만드는 이유
+4. “보정 방향은 맞지만 너무 늦다”는 Round29 관찰을 바탕으로, steer correction과 speed/brake correction을 어떻게 분리해서 학습해야 할지 구체적인 loss와 데이터 수집 조건을 제안해줘.
+5. lateral recovery guard가 성능을 가리는 hand-coded controller인지, 혹은 안전층으로 유지해도 되는지 평가 프로토콜을 제안해줘.
+6. 다음 안정화 라운드에서 가장 작은 코드 변경 3개와, 각 변경의 성공/실패 gate를 제안해줘.
+
+답변은 다음 형식으로 해줘.
+
+A. 가장 가능성 높은 원인 Top 5
+B. 코드상 즉시 점검할 파일/함수/라인 단위 포인트
+C. 실험 결과 해석: Round24, 27, 28, 29가 각각 무엇을 증명했는지
+D. 다음 라운드 구현안: 데이터, loss, config, eval gate
+E. PPO를 재개해도 되는 조건
+F. lateral recovery guard를 논문/보고서에서 공정하게 다루는 방법
+
+중요: 막연한 조언 말고, 첨부 PDF의 수치와 구현 세부사항을 근거로 답해줘.

@@ -1,0 +1,53 @@
+# RCS-AC-v2 local/generated artifacts.
+# Keep source, docs, configs, scripts, tests, and small result summaries in git.
+
+# Python/cache noise
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Local virtual environments inside this subtree
+.venv/
+venv/
+env/
+
+# The package has a source directory named env; keep it trackable despite
+# generic virtualenv ignore rules above.
+!code/rcs_ac_v2/env/
+!code/rcs_ac_v2/env/**
+code/rcs_ac_v2/env/__pycache__/
+code/rcs_ac_v2/env/**/*.py[cod]
+
+# Model/checkpoint/replay artifacts
+checkpoints/
+outputs/
+logs/**/*.log
+data/**/*.npz
+data/**/*.npy
+data/**/*.pt
+data/**/*.pth
+data/**/*.ckpt
+data/**/*.pkl
+data/**/*.jsonl
+experiments/**/*.npz
+experiments/**/*.npy
+experiments/**/*.pt
+experiments/**/*.pth
+experiments/**/*.ckpt
+experiments/**/*.jsonl
+experiments/**/checkpoints/
+experiments/**/replay/
+experiments/**/frames/
+experiments/**/raw_frames/
+experiments/**/sensor_frames/
+experiments/**/rgb/
+experiments/**/videos/
+experiments/**/replay_buffers/
+experiments/**/env_step_log.csv
+experiments/**/logs.csv
+remote_runs/**/frames/
+remote_runs/**/raw_frames/
+remote_runs/**/sensor_frames/
+remote_runs/**/rgb/
+remote_runs/**/videos/
+remote_runs/**/checkpoints/

@@ -1,0 +1,2 @@
+epoch,global_step,split,bc_loss,steer_mse,longitudinal_mse,action_l1,policy_std,fusion_rgb,fusion_lidar,fusion_ego,fusion_route,reliability_rgb,reliability_lidar,reliability_ego,reliability_route,risk_scalar,contribution_rgb,contribution_lidar,contribution_ego,contribution_route
+1,2,val,0.020071059465408325,0.02998565137386322,0.010156466625630856,0.13697147369384766,0.800000011920929,0.21727140247821808,0.21794813871383667,0.2678230106830597,0.29695746302604675,1.0,1.0,0.9999314546585083,0.9999427199363708,0.0,0.25,0.25,0.25,0.25

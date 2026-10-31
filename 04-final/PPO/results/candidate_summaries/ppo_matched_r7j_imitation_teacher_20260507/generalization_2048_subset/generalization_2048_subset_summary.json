@@ -1,0 +1,36 @@
+{
+  "gate": "generalization_2048_subset",
+  "seeds_and_spawns": {
+    "seed1": [
+      174,
+      23
+    ],
+    "seed3": [
+      368,
+      230
+    ],
+    "seed8": [
+      1,
+      365
+    ]
+  },
+  "num_runs": 6,
+  "safety_pass_count": 6,
+  "collision_count_total": 0,
+  "offroad_count_total": 0,
+  "stuck_count_total": 0,
+  "route_goal_count": 6,
+  "avg_max_route_progress": 1.0,
+  "min_max_route_progress": 1.0,
+  "avg_mean_speed_kmh": 13.632100749807222,
+  "avg_steer_jitter": 0.008426729523792727,
+  "avg_raw_steer_jitter": 0.016746060479030298,
+  "avg_controller_target_y_jitter": 0.04588536661304566,
+  "avg_policy_waypoint_y_jitter": 0.03910478358473543,
+  "avg_obs_finite_rate": 1.0,
+  "avg_waypoint_valid_rate": 1.0,
+  "avg_path_valid_rate": 1.0,
+  "avg_used_synthetic_fallback_rate": 0.0,
+  "avg_used_route_fallback_rate": 0.0,
+  "carla_crash_timeout_count": 0
+}

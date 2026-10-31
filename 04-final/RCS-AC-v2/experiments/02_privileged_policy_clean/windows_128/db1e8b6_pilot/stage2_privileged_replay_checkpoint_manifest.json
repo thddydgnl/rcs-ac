@@ -1,0 +1,84 @@
+{
+  "batch_size": 8,
+  "clean_eval_config_patch": {
+    "checkpoints": {
+      "policy": {
+        "commit": null,
+        "path": "RCS-AC-v2\\experiments\\02_privileged_policy_clean\\checkpoints\\windows_replay_ef3b530_pilot\\stage2_privileged_policy_replay.pt",
+        "sha256": "fcddb5a1f671df02ff30576146ed8616b2a7a9db8b4c1d363ec7dc22e87cb70e"
+      },
+      "world_model": {
+        "commit": null,
+        "path": "RCS-AC-v2\\experiments\\02_privileged_policy_clean\\checkpoints\\windows_replay_ef3b530_pilot\\stage2_privileged_world_model_replay.pt",
+        "sha256": "9069c376d5f37b5d1c40b8196be9d33038b3120b6b09aa73c6c558db83146802"
+      }
+    }
+  },
+  "clean_gate_evidence": false,
+  "data_files": [
+    {
+      "bytes": 28724,
+      "path": "RCS-AC-v2\\experiments\\02_privileged_policy_clean\\replay\\windows_privileged_official_ef3b530_pilot\\episode_0000.npz",
+      "sha256": "b81dd154b0c60cbe6f2180020f0b26247e644989a180ffce363cba6d9327fffe"
+    },
+    {
+      "bytes": 28724,
+      "path": "RCS-AC-v2\\experiments\\02_privileged_policy_clean\\replay\\windows_privileged_official_ef3b530_pilot\\episode_0001.npz",
+      "sha256": "7d8431586d87b6aadf162a23169d673c95b0a91cd5a8c964189695f9f47191be"
+    },
+    {
+      "bytes": 28724,
+      "path": "RCS-AC-v2\\experiments\\02_privileged_policy_clean\\replay\\windows_privileged_official_ef3b530_pilot\\episode_0002.npz",
+      "sha256": "e559fdce0e3395bd615c0a87e75920d92aa8a2c422dd9dc40ff9491f1a59c8c9"
+    },
+    {
+      "bytes": 28724,
+      "path": "RCS-AC-v2\\experiments\\02_privileged_policy_clean\\replay\\windows_privileged_official_ef3b530_pilot\\episode_0003.npz",
+      "sha256": "07e1e429aeb28c63a2d4f2a2c7de880a89044ba9b857355677bc5ea80bf399fc"
+    }
+  ],
+  "policy": {
+    "config": {
+      "hidden_dim": 128,
+      "latent_dim": 160
+    },
+    "metrics": {
+      "final_total": 0.058986030519008636,
+      "initial_total": 0.35944101214408875,
+      "valid_action_ids": true
+    },
+    "path": "RCS-AC-v2\\experiments\\02_privileged_policy_clean\\checkpoints\\windows_replay_ef3b530_pilot\\stage2_privileged_policy_replay.pt",
+    "sha256": "fcddb5a1f671df02ff30576146ed8616b2a7a9db8b4c1d363ec7dc22e87cb70e"
+  },
+  "policy_steps": 200,
+  "replay_manifest": {
+    "path": "RCS-AC-v2\\experiments\\02_privileged_policy_clean\\replay\\windows_privileged_official_ef3b530_pilot\\stage2_privileged_replay_manifest.json",
+    "sha256": "b4e6710a57bc171a6ad38fdaffbbce7d723b18215c8cee615ab90b9097e06287"
+  },
+  "seed": 20260524,
+  "sequence_length": 16,
+  "source": "windows_carla_privileged_replay",
+  "stage": "stage2_privileged_policy_clean",
+  "trainer": "train_stage2_privileged_from_replay",
+  "warning": "Replay-trained checkpoints are inputs for clean eval, not clean PASS evidence.",
+  "world_model": {
+    "config": {
+      "action_dim": 39,
+      "bev_channels": 43,
+      "bev_height": 16,
+      "bev_width": 16,
+      "deterministic_dim": 128,
+      "ego_dim": 8,
+      "embed_dim": 128,
+      "hidden_dim": 128,
+      "stochastic_dim": 32
+    },
+    "metrics": {
+      "final_total": 2.0421366691589355,
+      "initial_total": 3.3769454956054688
+    },
+    "path": "RCS-AC-v2\\experiments\\02_privileged_policy_clean\\checkpoints\\windows_replay_ef3b530_pilot\\stage2_privileged_world_model_replay.pt",
+    "sha256": "9069c376d5f37b5d1c40b8196be9d33038b3120b6b09aa73c6c558db83146802"
+  },
+  "world_model_steps": 200
+}

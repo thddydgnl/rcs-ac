@@ -1,0 +1,18 @@
+{
+  "num_transitions": 256,
+  "obs_dim": 47311,
+  "auxiliary_dim": 30,
+  "action_dim": 2,
+  "bad_transition_count": 0,
+  "done_count": 0,
+  "route_progress_min": 0.25641027092933655,
+  "route_progress_max": 0.3589743673801422,
+  "route_progress_mean": 0.28465545177459717,
+  "attempted_transitions": 2500,
+  "accepted_transitions": 256,
+  "acceptance_rate": 0.1024,
+  "route_progress_min_filter": 0.24,
+  "route_progress_max_filter": 0.38,
+  "lane_offset_threshold": 0.55,
+  "heading_error_threshold": 8.0
+}

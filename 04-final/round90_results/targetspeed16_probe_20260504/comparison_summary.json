@@ -1,0 +1,42 @@
+{
+  "rgb_perception_actor_features_v2_round90_shared_reward_targetspeed16_eval_2048_20260504T1830_20260504T182745": {
+    "num_steps": 2048,
+    "done_reason_counts": {
+      "max_steps": 4
+    },
+    "collision_count": 0,
+    "offroad_rate": 0.0,
+    "severe_early_offroad_count": 0,
+    "stuck_rate": 0.0,
+    "max_route_progress": 0.28205128205128205,
+    "final_route_progress": 0.28205128205128205,
+    "mean_route_progress": 0.13933543669871795,
+    "mean_action_jitter_l1": 0.1086257757618796,
+    "visual_center_correction_rate": 0.6230769230769231,
+    "env_rows": 2052,
+    "env_speed_mean": 4.6445,
+    "env_target_speed_mean": 6.603313950195313,
+    "env_throttle_mean": 0.1260232421875,
+    "env_brake_mean": 0.00028447265625
+  },
+  "rgb_perception_actor_features_v2_round90_shared_reward_targetspeed16_eval_512_20260504T1635_20260504T182624": {
+    "num_steps": 512,
+    "done_reason_counts": {
+      "max_steps": 1
+    },
+    "collision_count": 0,
+    "offroad_rate": 0.0,
+    "severe_early_offroad_count": 0,
+    "stuck_rate": 0.0,
+    "max_route_progress": 0.28205128205128205,
+    "final_route_progress": 0.28205128205128205,
+    "mean_route_progress": 0.1462840544871795,
+    "mean_action_jitter_l1": 0.12201983009435935,
+    "visual_center_correction_rate": 0.0,
+    "env_rows": 513,
+    "env_speed_mean": 4.719470703125,
+    "env_target_speed_mean": 6.696006814453125,
+    "env_throttle_mean": 0.123484375,
+    "env_brake_mean": 0.0003208984375
+  }
+}

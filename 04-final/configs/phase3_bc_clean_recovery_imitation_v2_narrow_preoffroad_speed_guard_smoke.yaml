@@ -1,0 +1,229 @@
+seed: 7
+model_type: rcs_ac_first
+model_variant: phase3_bc_clean_recovery_imitation_v2_narrow_preoffroad_speed_guard
+training_stage: phase3_bc_clean_recovery_imitation_v2_narrow_preoffroad_speed_guard_smoke
+run_name: phase3_bc_clean_recovery_imitation_v2_narrow_preoffroad_speed_guard_smoke
+town: Town04
+host: 127.0.0.1
+port: 2000
+device: auto
+total_timesteps: 4096
+rollout_steps: 128
+max_episode_steps: 512
+save_every_updates: 1
+logs_dir: logs
+checkpoints_dir: checkpoints
+output_root: outputs/phase3_bc_clean_recovery_imitation_v2_narrow_preoffroad_speed_guard_env
+
+model:
+  action_dim: 2
+  rgb_shape: [3, 90, 160]
+  lidar_shape: [1, 64, 64]
+  ego_dim: 5
+  route_dim: 10
+  feature_dim: 128
+  fusion_dim: 128
+  recurrent_hidden_dim: 256
+  recurrent_layers: 1
+  actor_hidden_dim: 256
+  critic_hidden_dim: 256
+  aux_hidden_dim: 128
+  enable_rgb_perception_aux: true
+  aux_mask_height: 45
+  aux_mask_width: 80
+  aux_perception_hidden_channels: 64
+  auxiliary_dim: 30
+  quality_stats_dim: 15
+  risk_stats_dim: 6
+  route_commitment_stats_dim: 5
+  sensor_dropout_dim: 4
+  reliability_hidden_dim: 64
+  risk_hidden_dim: 64
+  risk_context_dim: 64
+  reliability_min: 0.02
+  reliability_max: 1.0
+  log_std_init_by_dim: [-2.0, -2.0]
+  min_std_by_dim: [0.03, 0.03]
+  max_std_by_dim: [0.20, 0.25]
+  enable_reliability: true
+  enable_risk_context: true
+  enable_shapley: true
+  enable_dropout_consistency: true
+
+fusion:
+  temperature: 1.0
+  route_weight_floor: 0.08
+  ego_weight_floor: 0.05
+  contribution_bias_scale: 0.5
+  risk_context_dim: 64
+  reliability_logit_scale: 1.0
+  risk_logit_scale: 0.5
+  use_risk_context: true
+
+loss:
+  value_loss_weight: 0.5
+  entropy_loss_weight: 0.0
+  aux_lane_offset_loss_weight: 1.0
+  aux_heading_error_loss_weight: 1.0
+  aux_road_mask_loss_weight: 0.25
+  aux_lane_edge_mask_loss_weight: 1.0
+  aux_lane_edge_pos_weight: 3.0
+  reliability_loss_weight: 0.10
+  risk_supervision_loss_weight: 0.05
+  risk_regularization_weight: 0.03
+  shapley_alignment_loss_weight: 0.03
+  dropout_consistency_loss_weight: 0.03
+
+shapley:
+  enabled: true
+  estimator: approximate
+  value_source: current_critic
+  subsets_per_sample: 4
+  batch_fraction: 0.25
+  every_updates: 1
+  contribution_temperature: 1.0
+  include_empty_subset: true
+  include_full_subset: true
+  normalize: softmax
+  detach_contribution_target: true
+  min_contribution: 0.02
+
+dropout_consistency:
+  enabled: true
+  mode: representation_mask
+  batch_fraction: 0.25
+  max_masks_per_sample: 1
+  action_mean_weight: 1.0
+  value_weight: 0.25
+  reliability_floor: 0.05
+  detach_clean_policy: true
+
+ppo:
+  learning_rate: 0.000005
+  gamma: 0.99
+  gae_lambda: 0.95
+  clip_coef: 0.06
+  update_epochs: 1
+  minibatch_size: 64
+  max_grad_norm: 0.5
+  override_loaded_log_std: true
+  loaded_log_std_by_dim: [-2.0, -2.0]
+
+env:
+  weather: default
+  traffic_mode: none
+  traffic_vehicle_count: 0
+  traffic_seed: 7
+  route_representation: target_xy_plus_two_distance_heading_plus_third_heading_plus_turn_delta_plus_maneuver_hint_v1
+  route_lookahead_count: 3
+  maneuver_command_enabled: true
+  maneuver_command_mode: cycle
+  maneuver_command_values: ["straight", "left", "right"]
+  semantic_aux_camera_enabled: true
+  aux_mask_width: 80
+  aux_mask_height: 45
+  image_every: 50
+  client_timeout: 30.0
+  route_length: 40
+  route_spacing: 3.0
+  stuck_speed_threshold_mps: 0.3
+  stuck_min_steps: 70
+  offroad_min_steps: 10
+  offroad_grace_steps: 12
+  goal_radius: 3.0
+  suppress_conflicting_pedals: true
+  low_speed_brake_suppression: true
+  low_speed_brake_speed_threshold_kmh: 3.0
+  low_speed_brake_max: 0.05
+  longitudinal_control:
+    mode: target_speed
+    min_target_speed_kmh: 6.0
+    max_target_speed_kmh: 28.0
+    speed_deadband_kmh: 1.5
+    throttle_kp: 0.075
+    brake_kp: 0.05
+    max_throttle: 0.48
+    max_brake: 0.40
+  action_smoothing:
+    enabled: true
+    steer_alpha: 0.75
+    throttle_rise_limit: 0.08
+    throttle_fall_limit: 0.25
+    brake_rise_limit: 0.10
+    brake_fall_limit: 0.25
+  lateral_recovery:
+    enabled: true
+    lane_offset_threshold_m: 0.55
+    heading_error_threshold_deg: 8.0
+    lane_gain: -0.080
+    heading_gain: 0.006
+    max_abs_correction: 0.22
+    turn_boost_enabled: true
+    turn_boost_curve_threshold: 18.0
+    turn_boost_lane_offset_threshold_m: 1.80
+    turn_boost_max_abs_correction: 0.32
+    speed_gate_enabled: true
+    speed_gate_branch_only: false
+    speed_gate_curve_threshold: 0.0
+    speed_gate_lane_offset_threshold_m: 1.80
+    speed_gate_heading_error_threshold_deg: 10.0
+    speed_gate_min_speed_kmh: 16.0
+    speed_gate_target_speed_kmh: 9.0
+    speed_gate_throttle_cap: 0.04
+    speed_gate_brake_kp: 0.060
+    speed_gate_max_brake: 0.25
+  corruption:
+    enabled: false
+    mode: none
+    level: 0.0
+
+reward:
+  progress_weight: 12.0
+  progress_scale: 2.0
+  dense_progress_distance_weight: 0.8
+  dense_progress_positive_only: true
+  lane_weight: 0.03
+  lane_offset_penalty_weight: 0.11
+  heading_error_penalty_weight: 0.013
+  heading_recovery_reward_weight: 0.014
+  speed_reward_weight: 0.25
+  speed_reward_target_kmh: 10.0
+  speed_alignment_weight: 0.45
+  speed_alignment_lane_coeff: 0.22
+  speed_alignment_heading_coeff: 0.010
+  curve_heading_error_threshold: 20.0
+  curve_speed_penalty_weight: 0.007
+  curve_lane_offset_threshold: 1.8
+  lane_offset_speed_penalty_weight: 0.011
+  turn_speed_penalty_weight: 0.008
+  turn_speed_delta_threshold_rad: 0.20
+  turn_speed_free_kmh: 20.0
+  turn_speed_use_junction_only: false
+  high_speed_steer_change_weight: 0.12
+  high_speed_threshold_kmh: 40.0
+  collision_penalty: 18.0
+  offroad_penalty: 10.0
+  lane_invasion_penalty: 1.0
+  steer_change_weight: 0.05
+  throttle_change_weight: 0.022
+  brake_change_weight: 0.02
+  control_cost_scale: 1.0
+  pre_stuck_penalty: 0.15
+  pre_stuck_speed_threshold_mps: 0.6
+  pre_stuck_target_distance_threshold_m: 4.0
+  pre_stuck_lane_offset_threshold_m: 1.5
+  pre_stuck_heading_error_threshold_deg: 8.0
+  no_progress_penalty: 0.10
+  no_progress_speed_threshold_mps: 0.6
+  no_progress_target_distance_threshold_m: 4.0
+  no_progress_progress_epsilon: 0.0001
+  no_progress_distance_delta_epsilon_m: 0.01
+  goal_bonus: 20.0
+  stuck_penalty: 5.0
+  progress_delta_clip: 1.0
+
+aux_target_normalization:
+  lane_offset_divisor_m: 2.5
+  lane_offset_clip_abs: 1.0
+  heading_error_divisor_deg: 30.0
+  heading_error_clip_abs: 1.0

@@ -1,0 +1,37 @@
+{
+  "checks": {
+    "action_format_direct_3d": true,
+    "bev_spec_matched": true,
+    "controller_type_matched": true,
+    "curvature_speed_cap_enabled": true,
+    "ego_route_health_dims_matched": true,
+    "max_steer_rate_matched": true,
+    "no_privileged_inference_signals": true,
+    "no_rcs_specific_modules": true,
+    "no_runtime_steering_override": true,
+    "obs_total_dim_matches_model": true,
+    "policy_output_waypoint_speed": true,
+    "ppo_result_folder": true,
+    "rgb_shape_matched": true,
+    "runtime_config_exists": true,
+    "runtime_is_r7j": true,
+    "steer_lowpass_tau_s_matched": true,
+    "target_speed_cap_matched": true,
+    "target_y_lowpass_tau_s_matched": true
+  },
+  "controller": {
+    "curvature_speed_cap_enabled": true,
+    "curvature_speed_mode": "lateral_accel",
+    "max_steer_rate_per_s": 2.8,
+    "steer_lowpass_tau_s": 0.12,
+    "target_y_lowpass_tau_s": 0.06
+  },
+  "pass": true,
+  "policy": {
+    "observation_total_dim": 239849,
+    "ppo_raw_action_dim": 9,
+    "waypoint_count": 4
+  },
+  "ppo_config": "PPO\\configs\\matched_r7j\\ppo_matched_r7j_train_seed7_imitation_teacher.yaml",
+  "runtime_config": "C:\\Users\\thddy\\Documents\\code\\RCS-AC-first\\RCS-AC-v1.1\\configs\\v1_1\\full_bev_smoke_shared_agile_midbalanced_route_geometry_cc4_r7j_target_y_lowpass_light.yaml"
+}

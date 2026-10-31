@@ -1,0 +1,38 @@
+stage: preflight_contract
+contract_version: stage0_raw2drive_contract_v1
+action_space: raw2drive_discrete_39
+action_table_version: raw2drive_table12_row_major_v1
+action_table_order: pdf_table12_row_major_left_to_right_top_to_bottom
+action_table_sha256: a4c1efa534cc9d75065c533cbd9860043088432f184c2ffb27a20679257b294d
+reward_contract_version: stage0_route_progress_penalty_v1
+continue_contract:
+  terminal_done: 0.0
+  running: 1.0
+  time_limit_truncated: 1.0
+privileged_bev_channels: 43
+raw_sensor_input:
+  multi_view_images: true
+  imu: true
+schema:
+  privileged_bev_shape: "[B, T, 43, H, W]"
+  privileged_ego_shape: "[B, T, D_ego]"
+  raw_images_shape: "[B, T, N_cam, 3, H_img, W_img]"
+  raw_imu_shape: "[B, T, D_imu]"
+  action_shape: "[B, T] int64 in [0, 38]"
+  reward_shape: "[B, T] float32"
+  cont_shape: "[B, T] float32 in {0, 1}"
+leakage:
+  raw_policy_inference_allowed:
+    - raw_images
+    - raw_imu
+    - route_command
+    - past_action
+  raw_policy_inference_forbidden:
+    - privileged_bev
+    - privileged_ego
+    - reward
+    - cont
+    - next_state
+    - actor_boxes
+    - hd_map
+    - route_completion_future

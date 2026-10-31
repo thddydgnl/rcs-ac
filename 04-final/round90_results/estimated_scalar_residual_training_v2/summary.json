@@ -1,0 +1,227 @@
+{
+  "experiment": "round90_estimated_scalar_residual_training_v2",
+  "purpose": "Train only the RGB/route residual scalar head to match existing lane_offset and heading_error without label weighting or sign-specific losses.",
+  "source_config": "configs/bc_frame_rgb_perception_actor_features_v2_sustain_late_recovery_round90.yaml",
+  "source_checkpoint": "checkpoints/rgb_perception_actor_features_v2_sustain_late_recovery_bc_round90/last.pt",
+  "output_checkpoint": "checkpoints/rgb_perception_actor_features_v2_estimated_scalar_residual_round90_v2/last.pt",
+  "dataset": "data/expert/rgb_perception_actor_features_v2_early_route_mix_4256_round36_provenance.npz",
+  "count": 4256,
+  "train_count": 3405,
+  "val_count": 851,
+  "estimated_scalar_hidden_dim": 128,
+  "training": {
+    "epochs": 80,
+    "batch_size": 256,
+    "learning_rate": 0.001,
+    "weight_decay": 0.0001,
+    "seed": 20260503,
+    "val_fraction": 0.2,
+    "objective": "unweighted SmoothL1(lane_offset) + SmoothL1(heading_error)"
+  },
+  "before": {
+    "all": {
+      "count": 4256,
+      "lane_mae": 0.9447698593139648,
+      "heading_mae": 7.5203986167907715,
+      "combined_mae": 8.465167999267578,
+      "lane_abs_error": {
+        "mean": 0.9447698593139648,
+        "median": 1.0663048028945923,
+        "p90": 1.4985271692276,
+        "p95": 1.9636335372924805,
+        "p99": 2.4857003688812256,
+        "max": 2.7826218605041504
+      },
+      "heading_abs_error": {
+        "mean": 7.5203986167907715,
+        "median": 3.025130271911621,
+        "p90": 21.902286529541016,
+        "p95": 26.311656951904297,
+        "p99": 32.78789520263672,
+        "max": 37.519039154052734
+      },
+      "lane_sign_all": 0.7066115736961365,
+      "heading_sign_all": 0.44679751992225647,
+      "early_severe_lane_sign": 0.8873239159584045,
+      "early_severe_heading_sign": 0.1267605572938919,
+      "left_lane_sign": 0.8564240336418152,
+      "right_lane_sign": 0.2053872048854828,
+      "mean_pred_lane": -0.040040597319602966,
+      "mean_target_lane": -0.5636261105537415,
+      "mean_pred_heading": 0.0003217050398234278,
+      "mean_target_heading": -1.390174150466919
+    },
+    "train": {
+      "count": 3405,
+      "lane_mae": 0.946969211101532,
+      "heading_mae": 7.542843341827393,
+      "combined_mae": 8.489812850952148,
+      "lane_abs_error": {
+        "mean": 0.946969211101532,
+        "median": 1.0689711570739746,
+        "p90": 1.496857762336731,
+        "p95": 1.9735991954803467,
+        "p99": 2.483574390411377,
+        "max": 2.7826218605041504
+      },
+      "heading_abs_error": {
+        "mean": 7.542843341827393,
+        "median": 2.9218358993530273,
+        "p90": 21.96927833557129,
+        "p95": 26.350248336791992,
+        "p99": 32.708858489990234,
+        "max": 37.519039154052734
+      },
+      "lane_sign_all": 0.7016467452049255,
+      "heading_sign_all": 0.4433322548866272,
+      "early_severe_lane_sign": 0.8999999761581421,
+      "early_severe_heading_sign": 0.11666666716337204,
+      "left_lane_sign": 0.8501259684562683,
+      "right_lane_sign": 0.2069930136203766,
+      "mean_pred_lane": -0.039542704820632935,
+      "mean_target_lane": -0.5614106059074402,
+      "mean_pred_heading": 0.00025133619783446193,
+      "mean_target_heading": -1.4536726474761963
+    },
+    "val": {
+      "count": 851,
+      "lane_mae": 0.9359701871871948,
+      "heading_mae": 7.4305925369262695,
+      "combined_mae": 8.366562843322754,
+      "lane_abs_error": {
+        "mean": 0.9359701871871948,
+        "median": 1.0466336011886597,
+        "p90": 1.5092215538024902,
+        "p95": 1.9167397022247314,
+        "p99": 2.497485637664795,
+        "max": 2.7694952487945557
+      },
+      "heading_abs_error": {
+        "mean": 7.4305925369262695,
+        "median": 3.339843988418579,
+        "p90": 21.168031692504883,
+        "p95": 26.23164176940918,
+        "p99": 32.7193603515625,
+        "max": 36.397621154785156
+      },
+      "lane_sign_all": 0.7264516353607178,
+      "heading_sign_all": 0.4606451690196991,
+      "early_severe_lane_sign": 0.8181818127632141,
+      "early_severe_heading_sign": 0.1818181872367859,
+      "left_lane_sign": 0.8814691305160522,
+      "right_lane_sign": 0.19886364042758942,
+      "mean_pred_lane": -0.04203272983431816,
+      "mean_target_lane": -0.572490930557251,
+      "mean_pred_heading": 0.0006032622768543661,
+      "mean_target_heading": -1.1361067295074463
+    }
+  },
+  "after_best_val": {
+    "best_epoch": 79,
+    "best_val_loss": 1.4475911855697632,
+    "all": {
+      "count": 4256,
+      "lane_mae": 0.07549324631690979,
+      "heading_mae": 1.7278422117233276,
+      "combined_mae": 1.803335428237915,
+      "lane_abs_error": {
+        "mean": 0.07549324631690979,
+        "median": 0.058710336685180664,
+        "p90": 0.14830324053764343,
+        "p95": 0.1880272924900055,
+        "p99": 0.2928258180618286,
+        "max": 1.2899014949798584
+      },
+      "heading_abs_error": {
+        "mean": 1.7278422117233276,
+        "median": 0.7063597440719604,
+        "p90": 5.216669082641602,
+        "p95": 7.352343559265137,
+        "p99": 11.629705429077148,
+        "max": 16.610233306884766
+      },
+      "lane_sign_all": 0.9845041036605835,
+      "heading_sign_all": 0.9010847210884094,
+      "early_severe_lane_sign": 1.0,
+      "early_severe_heading_sign": 1.0,
+      "left_lane_sign": 0.984904408454895,
+      "right_lane_sign": 0.9831649661064148,
+      "mean_pred_lane": -0.5490015745162964,
+      "mean_target_lane": -0.5636261105537415,
+      "mean_pred_heading": -1.1578025817871094,
+      "mean_target_heading": -1.390174150466919
+    },
+    "train": {
+      "count": 3405,
+      "lane_mae": 0.07480296492576599,
+      "heading_mae": 1.7081118822097778,
+      "combined_mae": 1.7829148769378662,
+      "lane_abs_error": {
+        "mean": 0.07480296492576599,
+        "median": 0.05824321508407593,
+        "p90": 0.14857038855552673,
+        "p95": 0.1875537633895874,
+        "p99": 0.29370275139808655,
+        "max": 1.2420858144760132
+      },
+      "heading_abs_error": {
+        "mean": 1.7081118822097778,
+        "median": 0.7013206481933594,
+        "p90": 5.196040153503418,
+        "p95": 7.219265937805176,
+        "p99": 11.374963760375977,
+        "max": 16.610233306884766
+      },
+      "lane_sign_all": 0.986438512802124,
+      "heading_sign_all": 0.8999031186103821,
+      "early_severe_lane_sign": 1.0,
+      "early_severe_heading_sign": 1.0,
+      "left_lane_sign": 0.986565887928009,
+      "right_lane_sign": 0.9860140085220337,
+      "mean_pred_lane": -0.54573655128479,
+      "mean_target_lane": -0.5614106059074402,
+      "mean_pred_heading": -1.1837238073349,
+      "mean_target_heading": -1.4536726474761963
+    },
+    "val": {
+      "count": 851,
+      "lane_mae": 0.07825516909360886,
+      "heading_mae": 1.8067861795425415,
+      "combined_mae": 1.885041356086731,
+      "lane_abs_error": {
+        "mean": 0.07825516909360886,
+        "median": 0.059907615184783936,
+        "p90": 0.14640334248542786,
+        "p95": 0.18919917941093445,
+        "p99": 0.2822991609573364,
+        "max": 1.2899014949798584
+      },
+      "heading_abs_error": {
+        "mean": 1.8067861795425415,
+        "median": 0.7364263534545898,
+        "p90": 5.366686820983887,
+        "p95": 7.629278659820557,
+        "p99": 11.899090766906738,
+        "max": 16.610233306884766
+      },
+      "lane_sign_all": 0.9767742156982422,
+      "heading_sign_all": 0.9058064222335815,
+      "early_severe_lane_sign": 1.0,
+      "early_severe_heading_sign": 1.0,
+      "left_lane_sign": 0.9782971739768982,
+      "right_lane_sign": 0.9715909361839294,
+      "mean_pred_lane": -0.5620657801628113,
+      "mean_target_lane": -0.572490930557251,
+      "mean_pred_heading": -1.0540869235992432,
+      "mean_target_heading": -1.1361067295074463
+    }
+  },
+  "oracle_vs_estimated_action_delta_after_best": {
+    "steer_abs_mean": 0.012755084782838821,
+    "steer_abs_p90": 0.031897079199552536,
+    "steer_abs_max": 0.21967491507530212,
+    "longitudinal_abs_mean": 0.004977951291948557,
+    "longitudinal_abs_p90": 0.011635512113571167,
+    "longitudinal_abs_max": 0.14433753490447998
+  }
+}

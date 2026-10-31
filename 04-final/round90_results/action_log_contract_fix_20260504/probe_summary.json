@@ -1,0 +1,60 @@
+{
+  "rows": 128,
+  "longitudinal": {
+    "mean": -0.4764646367948444,
+    "min": -0.9993358254432678,
+    "max": 0.037591516971588135
+  },
+  "throttle": {
+    "mean": 0.2147229447728023,
+    "min": 0.0,
+    "max": 0.47999998927116394
+  },
+  "applied_throttle": {
+    "mean": 0.21472265625,
+    "min": 0.0,
+    "max": 0.48
+  },
+  "brake": {
+    "mean": 0.017392868525348604,
+    "min": 0.0,
+    "max": 0.24825389683246613
+  },
+  "applied_brake": {
+    "mean": 0.01739296875,
+    "min": 0.0,
+    "max": 0.2483
+  },
+  "target_speed_kmh": {
+    "mean": 11.758889015625,
+    "min": 6.007306,
+    "max": 17.413507
+  },
+  "speed_error_kmh": {
+    "mean": 4.2153503125,
+    "min": -4.965078,
+    "max": 16.380463
+  },
+  "final": {
+    "longitudinal": "-0.9876785278320312",
+    "throttle": "0.0",
+    "applied_throttle": "0.0",
+    "brake": "0.23449620604515076",
+    "applied_brake": "0.2345",
+    "target_speed_kmh": "6.135536",
+    "speed_error_kmh": "-4.689924",
+    "speed_kmh": "10.338938599985013",
+    "route_progress": "0.10256410256410256",
+    "done_reason": "running"
+  },
+  "env_rows": 129,
+  "env_final": {
+    "throttle": "0.0",
+    "brake": "0.2345",
+    "target_speed_kmh": "6.135536",
+    "speed_error_kmh": "-4.689924",
+    "speed": "10.339",
+    "route_progress": "0.1026",
+    "done_reason": "running"
+  }
+}

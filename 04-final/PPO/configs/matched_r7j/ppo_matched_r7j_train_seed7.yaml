@@ -1,0 +1,48 @@
+baseline_family: ppo_matched_r7j
+run_name: ppo_matched_r7j_seed7_train
+seed: 7
+device: auto
+host: 127.0.0.1
+port: 2000
+dt: 0.05
+fixed_delta_seconds: 0.05
+action_format: direct_3d
+
+runtime_config: RCS-AC-v1.1/configs/v1_1/full_bev_smoke_shared_agile_midbalanced_route_geometry_cc4_r7j_target_y_lowpass_light.yaml
+env_config: RCS-AC-v1.1/portable_snapshots/r7j_generalized_20260507/configs/v1_1/bc_clean_v1_1_2048_eval.yaml
+output_dir: PPO/results/ppo_matched_r7j_seed7_train
+
+model:
+  architecture: simple_concat_bev_actor_critic
+  feature_dim: 128
+  hidden_dim: 256
+  log_std_init: -1.5
+  min_log_std: -4.0
+  max_log_std: 0.0
+  rcs_ac_reliability: false
+  rcs_ac_source_fusion: false
+  rcs_ac_shapley: false
+  rcs_ac_risk_context: false
+
+ppo:
+  total_timesteps: 2048
+  rollout_steps: 128
+  minibatch_size: 64
+  update_epochs: 4
+  learning_rate: 3.0e-5
+  gamma: 0.99
+  gae_lambda: 0.95
+  clip_coef: 0.2
+  value_loss_weight: 0.5
+  entropy_loss_weight: 0.0
+  max_grad_norm: 0.5
+
+fairness_contract:
+  observation_contract: rcs_ac_v1_1_r7j_full_bev_flat_observation
+  policy_output_contract: waypoints_4x2_plus_target_speed_kmh
+  controller_contract: shared_r7j_speed_adaptive_pure_pursuit
+  carla_action_format: direct_3d_steer_throttle_brake
+  ppo_direct_action_baseline_replaced: false
+  ppo_direct_action_baseline_separated: true
+  privileged_inference_signals: false
+  runtime_steering_override: false

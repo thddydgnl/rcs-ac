@@ -1,0 +1,33 @@
+{
+  "action_table_sha256": "a4c1efa534cc9d75065c533cbd9860043088432f184c2ffb27a20679257b294d",
+  "action_table_version": "raw2drive_table12_row_major_v1",
+  "branch": "codex/rcs-ac-v2-raw2drive",
+  "carla_town": "Town04",
+  "carla_version": "0.9.16",
+  "clean_gate_pass": true,
+  "collision_count": 0,
+  "commit": "37a087516f7767bb297b8b5567590d7a316eb644",
+  "config": "RCS-AC-v2\\experiments\\02_privileged_policy_clean\\windows_128\\b4c8e58_fast35_task_pilot\\clean_128_stage2_privileged_with_checkpoints.yaml",
+  "done_reason": "horizon_reached",
+  "episode_return": 13.545934572121052,
+  "failure_class": "none",
+  "failure_message": "",
+  "horizon": 128,
+  "metrics_path": "RCS-AC-v2/experiments/02_privileged_policy_clean/windows_128/metrics.csv",
+  "next_action": "Run 512-step primary subset.",
+  "offroad_count": 0,
+  "output_path": "RCS-AC-v2/experiments/02_privileged_policy_clean/windows_128",
+  "pulled_files": [
+    "RCS-AC-v2/experiments/02_privileged_policy_clean/windows_128/summary.json",
+    "RCS-AC-v2/experiments/02_privileged_policy_clean/windows_128/metrics.csv"
+  ],
+  "reward_contract_version": "stage0_route_progress_penalty_v1",
+  "route_progress": 0.1794871794871795,
+  "safety_pass": true,
+  "source": "windows_carla",
+  "stage": "stage2_privileged_policy_clean",
+  "status": "PASS",
+  "steps": 128,
+  "stuck_count": 0,
+  "windows_command": "powershell -ExecutionPolicy Bypass -File RCS-AC-v2\\scripts\\windows\\run_stage2_clean_eval.ps1 -ConfigPath RCS-AC-v2\\experiments\\02_privileged_policy_clean\\windows_128\\b4c8e58_fast35_task_pilot\\clean_128_stage2_privileged_with_checkpoints.yaml -RunOutputDir RCS-AC-v2\\experiments\\02_privileged_policy_clean\\windows_128\\b4c8e58_fast35_task_pilot -SkipGitPull"
+}
